@@ -648,6 +648,147 @@ async function bootstrap() {
     db.prepare(`CREATE INDEX IF NOT EXISTS idx_ticket_messages_ticket ON support_ticket_messages (ticket_id, created_at)`),
   ]);
 
+  await db.batch([
+    db.prepare(`CREATE TABLE IF NOT EXISTS background_jobs (
+      id TEXT PRIMARY KEY NOT NULL, organization_id TEXT REFERENCES organizations(id) ON DELETE CASCADE,
+      queue TEXT DEFAULT 'default' NOT NULL, type TEXT NOT NULL, idempotency_key TEXT NOT NULL,
+      payload_json TEXT DEFAULT '{}' NOT NULL, status TEXT DEFAULT 'queued' NOT NULL,
+      priority INTEGER DEFAULT 100 NOT NULL, attempts INTEGER DEFAULT 0 NOT NULL,
+      max_attempts INTEGER DEFAULT 5 NOT NULL, available_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      locked_at TEXT, locked_by TEXT, last_error TEXT, completed_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_background_jobs_idempotency ON background_jobs (idempotency_key)`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_background_jobs_claim ON background_jobs (status, available_at, priority)`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_background_jobs_org ON background_jobs (organization_id, created_at)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS job_attempts (
+      id TEXT PRIMARY KEY NOT NULL, job_id TEXT NOT NULL REFERENCES background_jobs(id) ON DELETE CASCADE,
+      attempt INTEGER NOT NULL, status TEXT NOT NULL, duration_ms INTEGER, error TEXT,
+      result_json TEXT DEFAULT '{}' NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_job_attempts_job ON job_attempts (job_id, attempt)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS consent_records (
+      id TEXT PRIMARY KEY NOT NULL, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      lead_id TEXT REFERENCES leads(id) ON DELETE SET NULL, phone TEXT NOT NULL, purpose TEXT NOT NULL,
+      lawful_basis TEXT DEFAULT 'explicit_consent' NOT NULL, status TEXT DEFAULT 'granted' NOT NULL,
+      proof_json TEXT DEFAULT '{}' NOT NULL, captured_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      expires_at TEXT, revoked_at TEXT
+    )`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_consent_org_phone ON consent_records (organization_id, phone, status)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS suppression_entries (
+      id TEXT PRIMARY KEY NOT NULL, organization_id TEXT REFERENCES organizations(id) ON DELETE CASCADE,
+      phone_hash TEXT NOT NULL, scope TEXT DEFAULT 'organization' NOT NULL, reason TEXT NOT NULL,
+      source TEXT DEFAULT 'customer_request' NOT NULL, expires_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_suppression_scope_phone ON suppression_entries (organization_id, scope, phone_hash)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS kyc_documents (
+      id TEXT PRIMARY KEY NOT NULL, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      phone_number_id TEXT REFERENCES phone_numbers(id) ON DELETE SET NULL, document_type TEXT NOT NULL,
+      storage_key TEXT NOT NULL, checksum TEXT NOT NULL, status TEXT DEFAULT 'submitted' NOT NULL,
+      rejection_reason TEXT, reviewed_by TEXT, reviewed_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_kyc_org_status ON kyc_documents (organization_id, status)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS oauth_states (
+      id TEXT PRIMARY KEY NOT NULL, provider TEXT NOT NULL, state_hash TEXT NOT NULL,
+      code_verifier_encrypted TEXT NOT NULL, return_to TEXT DEFAULT '/app' NOT NULL,
+      expires_at TEXT NOT NULL, consumed_at TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_oauth_states_hash ON oauth_states (state_hash)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS security_challenges (
+      id TEXT PRIMARY KEY NOT NULL, user_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+      type TEXT NOT NULL, token_hash TEXT NOT NULL, metadata_json TEXT DEFAULT '{}' NOT NULL,
+      expires_at TEXT NOT NULL, consumed_at TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_security_challenges_token ON security_challenges (token_hash)`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_security_challenges_user ON security_challenges (user_id, type)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS rate_limit_buckets (
+      bucket_key TEXT PRIMARY KEY NOT NULL, count INTEGER DEFAULT 0 NOT NULL,
+      window_started_at TEXT NOT NULL, blocked_until TEXT, updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS user_security_settings (
+      user_id TEXT PRIMARY KEY NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+      email_verified_at TEXT, mfa_enabled INTEGER DEFAULT 0 NOT NULL,
+      totp_secret_encrypted TEXT, recovery_code_hashes_json TEXT DEFAULT '[]' NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS team_invitations (
+      id TEXT PRIMARY KEY NOT NULL, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      email TEXT NOT NULL, role TEXT NOT NULL, token_hash TEXT NOT NULL, invited_by TEXT NOT NULL,
+      expires_at TEXT NOT NULL, accepted_at TEXT, revoked_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_team_invites_token ON team_invitations (token_hash)`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_team_invites_org_email ON team_invitations (organization_id, email)`),
+  ]);
+
+  await db.batch([
+    db.prepare(`CREATE TABLE IF NOT EXISTS knowledge_sources (
+      id TEXT PRIMARY KEY NOT NULL, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      knowledge_base_id TEXT NOT NULL REFERENCES knowledge_bases(id) ON DELETE CASCADE,
+      type TEXT NOT NULL, name TEXT NOT NULL, source_url TEXT, storage_key TEXT,
+      content_hash TEXT NOT NULL, status TEXT DEFAULT 'queued' NOT NULL, error TEXT, synced_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_knowledge_sources_kb ON knowledge_sources (knowledge_base_id, status)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS knowledge_chunks (
+      id TEXT PRIMARY KEY NOT NULL, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      source_id TEXT NOT NULL REFERENCES knowledge_sources(id) ON DELETE CASCADE,
+      ordinal INTEGER NOT NULL, content TEXT NOT NULL, token_estimate INTEGER NOT NULL,
+      metadata_json TEXT DEFAULT '{}' NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_knowledge_chunks_source_ordinal ON knowledge_chunks (source_id, ordinal)`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_org ON knowledge_chunks (organization_id)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS workflow_runs (
+      id TEXT PRIMARY KEY NOT NULL, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      workflow_id TEXT NOT NULL REFERENCES workflows(id) ON DELETE CASCADE, trigger_type TEXT NOT NULL,
+      trigger_id TEXT, status TEXT DEFAULT 'queued' NOT NULL, input_json TEXT DEFAULT '{}' NOT NULL,
+      output_json TEXT DEFAULT '{}' NOT NULL, started_at TEXT, completed_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_workflow_runs_org ON workflow_runs (organization_id, created_at)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS workflow_run_steps (
+      id TEXT PRIMARY KEY NOT NULL, run_id TEXT NOT NULL REFERENCES workflow_runs(id) ON DELETE CASCADE,
+      step_index INTEGER NOT NULL, step_type TEXT NOT NULL, status TEXT DEFAULT 'pending' NOT NULL,
+      input_json TEXT DEFAULT '{}' NOT NULL, output_json TEXT DEFAULT '{}' NOT NULL, error TEXT,
+      started_at TEXT, completed_at TEXT
+    )`),
+    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_workflow_steps_run_index ON workflow_run_steps (run_id, step_index)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS campaign_contacts (
+      id TEXT PRIMARY KEY NOT NULL, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      campaign_id TEXT NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+      lead_id TEXT REFERENCES leads(id) ON DELETE SET NULL, phone TEXT NOT NULL,
+      status TEXT DEFAULT 'pending' NOT NULL, consent_status TEXT DEFAULT 'unknown' NOT NULL,
+      attempt_count INTEGER DEFAULT 0 NOT NULL, next_attempt_at TEXT, outcome TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_campaign_contacts_campaign_phone ON campaign_contacts (campaign_id, phone)`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_campaign_contacts_ready ON campaign_contacts (campaign_id, status, next_attempt_at)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS provider_usage_events (
+      id TEXT PRIMARY KEY NOT NULL, organization_id TEXT REFERENCES organizations(id) ON DELETE SET NULL,
+      provider_id TEXT NOT NULL, category TEXT NOT NULL, operation TEXT NOT NULL, units INTEGER DEFAULT 1 NOT NULL,
+      provider_cost_micros INTEGER DEFAULT 0 NOT NULL, billed_credits INTEGER DEFAULT 0 NOT NULL,
+      latency_ms INTEGER, status TEXT NOT NULL, reference_id TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_provider_usage_created ON provider_usage_events (provider_id, created_at)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS retargeting_audiences (
+      id TEXT PRIMARY KEY NOT NULL, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      name TEXT NOT NULL, destination TEXT NOT NULL, rules_json TEXT DEFAULT '{}' NOT NULL,
+      status TEXT DEFAULT 'draft' NOT NULL, eligible_count INTEGER DEFAULT 0 NOT NULL,
+      last_synced_at TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_retargeting_org ON retargeting_audiences (organization_id, status)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS payment_reconciliations (
+      id TEXT PRIMARY KEY NOT NULL, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      provider TEXT NOT NULL, external_id TEXT NOT NULL, entity_type TEXT NOT NULL, entity_id TEXT,
+      amount INTEGER NOT NULL, currency TEXT DEFAULT 'INR' NOT NULL, status TEXT NOT NULL,
+      mismatch_reason TEXT, reconciled_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_reconciliation_provider_external ON payment_reconciliations (provider, external_id)`),
+  ]);
+
   if (process.env.NODE_ENV !== 'production') {
     await seedLocalDemo(db);
   }

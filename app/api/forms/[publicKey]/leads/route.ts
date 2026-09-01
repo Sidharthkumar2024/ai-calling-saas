@@ -5,6 +5,7 @@ import { ensureSchema } from '@/db/bootstrap';
 import { getDb } from '@/db/index';
 import { leadForms } from '@/db/schema';
 import { ingestLead, normalizeLeadInput } from '@/lib/lead-engine';
+import { enforceRateLimit, requestFingerprint } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,6 +33,15 @@ export async function POST(
         { error: 'Lead form not found or inactive.' },
         { status: 404 },
       );
+    }
+    const rateLimit = await enforceRateLimit({
+      namespace: 'public-form',
+      identifier: requestFingerprint(request, publicKey),
+      limit: 20,
+      windowSeconds: 60 * 60,
+    });
+    if (!rateLimit.allowed) {
+      return NextResponse.json({ error: 'Too many submissions. Try again later.' }, { status: 429, headers: result.corsHeaders });
     }
     const contentLength = Number(request.headers.get('content-length') ?? 0);
     if (contentLength > 64 * 1024) {

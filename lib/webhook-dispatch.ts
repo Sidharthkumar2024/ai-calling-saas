@@ -1,6 +1,7 @@
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { decryptSecret } from '@/lib/security';
+import { enqueueJob } from '@/lib/job-queue';
 
 const encoder = new TextEncoder();
 
@@ -65,12 +66,30 @@ export async function dispatchWebhook(
             )
             .bind(statusCode, endpoint.id)
             .run();
+          if (statusCode < 200 || statusCode >= 300) {
+            await enqueueJob({
+              organizationId,
+              queue: 'webhooks',
+              type: 'webhook.deliver',
+              idempotencyKey: `webhook:${endpoint.id}:${eventType}:${await fingerprint(payload)}`,
+              payload: { endpointId: endpoint.id, eventType, payload },
+              maxAttempts: 8,
+            });
+          }
         } catch (error) {
           responseSnippet = error instanceof Error ? error.message : 'Delivery failed';
           await db
             .prepare('UPDATE webhook_endpoints SET failure_count = failure_count + 1 WHERE id = ?')
             .bind(endpoint.id)
             .run();
+          await enqueueJob({
+            organizationId,
+            queue: 'webhooks',
+            type: 'webhook.deliver',
+            idempotencyKey: `webhook:${endpoint.id}:${eventType}:${await fingerprint(payload)}`,
+            payload: { endpointId: endpoint.id, eventType, payload },
+            maxAttempts: 8,
+          });
         }
         await db
           .prepare(
@@ -88,6 +107,11 @@ export async function dispatchWebhook(
           .run();
       }),
   );
+}
+
+async function fingerprint(value: string) {
+  const digest = await crypto.subtle.digest('SHA-256', encoder.encode(value));
+  return Array.from(new Uint8Array(digest).slice(0, 8), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 async function sign(value: string, secret: string) {

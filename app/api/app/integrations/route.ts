@@ -4,6 +4,7 @@ import { getRawDb } from '@/db/index';
 import { requireCustomer } from '@/lib/api-session';
 import { recordAudit } from '@/lib/demo-seed';
 import { encryptSecret } from '@/lib/security';
+import { testIntegrationConnection } from '@/lib/provider-adapters';
 
 export const dynamic = 'force-dynamic';
 
@@ -115,4 +116,24 @@ export async function POST(request: Request) {
         ? 'Credentials stored encrypted. Connection test stays pending until the official calling API base URL and auth contract are confirmed.'
         : 'Credentials stored encrypted. Run the provider connection test next.',
   });
+}
+
+export async function PATCH(request: Request) {
+  const auth = await requireCustomer(request);
+  if (auth.response) return auth.response;
+  const body = await request.json() as { action?: string; id?: string };
+  if (body.action !== 'test' || !body.id) {
+    return NextResponse.json({ error: 'Integration and test action are required.' }, { status: 400 });
+  }
+  try {
+    const result = await testIntegrationConnection(auth.session.organizationId!, body.id);
+    await getRawDb().prepare(`UPDATE integration_connections SET status = 'connected', last_checked_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND organization_id = ?`).bind(body.id, auth.session.organizationId).run();
+    await recordAudit(auth.session, 'integration.test_passed', 'integration', body.id);
+    return NextResponse.json({ status: 'connected', result });
+  } catch (error) {
+    await getRawDb().prepare(`UPDATE integration_connections SET status = 'test_failed', last_checked_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND organization_id = ?`).bind(body.id, auth.session.organizationId).run();
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Connection test failed.' }, { status: 502 });
+  }
 }

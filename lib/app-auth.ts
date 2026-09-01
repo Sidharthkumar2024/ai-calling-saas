@@ -1,6 +1,7 @@
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
-import { createOpaqueToken, sha256, verifyPassword } from '@/lib/security';
+import { createOpaqueToken, decryptSecret, sha256, verifyPassword } from '@/lib/security';
+import { verifyTotp } from '@/lib/totp';
 
 export const SESSION_COOKIE = 'vaani_session';
 
@@ -29,7 +30,7 @@ type UserRow = {
   status: string;
 };
 
-export async function loginWithPassword(email: string, password: string) {
+export async function loginWithPassword(email: string, password: string, otp?: string) {
   await ensureSchema();
   const db = getRawDb();
   const user = await db
@@ -48,6 +49,16 @@ export async function loginWithPassword(email: string, password: string) {
     return null;
   }
 
+  const security = await db.prepare(`SELECT mfa_enabled, totp_secret_encrypted
+    FROM user_security_settings WHERE user_id = ?`).bind(user.id)
+    .first<{ mfa_enabled: number; totp_secret_encrypted: string | null }>();
+  if (security?.mfa_enabled) {
+    if (!otp) return { mfaRequired: true as const };
+    if (!security.totp_secret_encrypted || !(await verifyTotp(await decryptSecret(security.totp_secret_encrypted), otp))) {
+      return { mfaInvalid: true as const };
+    }
+  }
+
   const token = createOpaqueToken('vs_');
   const tokenHash = await sha256(token);
   const sessionId = `session_${crypto.randomUUID()}`;
@@ -59,7 +70,7 @@ export async function loginWithPassword(email: string, password: string) {
         `DELETE FROM auth_sessions
          WHERE user_id = ? AND (expires_at <= ? OR id IN (
            SELECT id FROM auth_sessions WHERE user_id = ?
-           ORDER BY created_at DESC LIMIT -1 OFFSET 5
+           ORDER BY created_at DESC LIMIT -1 OFFSET 4
          ))`,
       )
       .bind(user.id, new Date().toISOString(), user.id),
@@ -74,7 +85,7 @@ export async function loginWithPassword(email: string, password: string) {
       .bind(user.id),
   ]);
 
-  return { token, user };
+  return { token, user, mfaRequired: false as const, mfaInvalid: false as const };
 }
 
 export async function getSessionFromHeaders(

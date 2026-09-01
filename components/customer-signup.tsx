@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   Activity,
@@ -36,10 +36,11 @@ const steps = [
   { label: 'First agent', icon: Mic2 },
 ];
 
-export function CustomerSignup() {
+export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [inviteRole, setInviteRole] = useState('');
   const [form, setForm] = useState<SignupForm>({
     name: '',
     businessName: '',
@@ -49,6 +50,18 @@ export function CustomerSignup() {
     useCase: 'commerce_sales',
     language: 'hinglish',
   });
+
+  useEffect(() => {
+    if (!inviteToken) return;
+    fetch(`/api/auth/team-invite?token=${encodeURIComponent(inviteToken)}`, { cache: 'no-store' })
+      .then(async (response) => {
+        const payload = await response.json() as { error?: string; email?: string; role?: string; organizationName?: string };
+        if (!response.ok) throw new Error(payload.error ?? 'Invitation is invalid.');
+        setForm((current) => ({ ...current, email: payload.email ?? '', businessName: payload.organizationName ?? '' }));
+        setInviteRole(payload.role ?? 'agent');
+      })
+      .catch((caught) => setError(caught instanceof Error ? caught.message : 'Invitation is invalid.'));
+  }, [inviteToken]);
 
   function update<Key extends keyof SignupForm>(key: Key, value: SignupForm[Key]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -74,7 +87,7 @@ export function CustomerSignup() {
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, ...(inviteToken ? { inviteToken } : {}) }),
       });
       const payload = (await response.json()) as { error?: string; redirectTo?: string };
       if (!response.ok || !payload.redirectTo) {
@@ -101,7 +114,7 @@ export function CustomerSignup() {
 
         <div className="mt-8 grid overflow-hidden rounded-[30px] border border-white/10 bg-[#0e1119]/95 shadow-2xl shadow-black/40 lg:grid-cols-[0.78fr_1.22fr]">
           <aside className="border-b border-white/8 bg-white/[0.018] p-6 sm:p-8 lg:min-h-[700px] lg:border-b-0 lg:border-r lg:p-10">
-            <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/15 bg-amber-300/5 px-3 py-1.5 text-[10px] text-amber-200"><Sparkles className="size-3.5" /> 100 free trial credits</span>
+            <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/15 bg-amber-300/5 px-3 py-1.5 text-[10px] text-amber-200"><Sparkles className="size-3.5" /> {inviteToken ? `Team invitation · ${inviteRole.replaceAll('_', ' ') || 'checking'}` : '100 free trial credits'}</span>
             <h1 className="mt-6 text-4xl font-semibold leading-tight tracking-[-0.045em]">Hear your first agent before making a phone call.</h1>
             <p className="mt-4 text-sm leading-6 text-white/45">Create a workspace, choose a use case and test the conversation over text or browser voice. A real phone number is required only when you publish.</p>
             <div className="mt-9 space-y-3">
@@ -122,13 +135,13 @@ export function CustomerSignup() {
 
               <div className="mt-8 space-y-4">
                 {step === 0 ? <>
-                  <SocialAuthButtons />
+                  {!inviteToken ? <SocialAuthButtons /> : null}
                   <Field label="Your name"><Input value={form.name} onChange={(event) => update('name', event.target.value)} autoComplete="name" /></Field>
-                  <Field label="Work email"><Input type="email" value={form.email} onChange={(event) => update('email', event.target.value)} autoComplete="email" /></Field>
+                  <Field label="Work email"><Input type="email" value={form.email} onChange={(event) => update('email', event.target.value)} autoComplete="email" readOnly={Boolean(inviteToken)} /></Field>
                   <Field label="Password"><Input type="password" value={form.password} onChange={(event) => update('password', event.target.value)} autoComplete="new-password" placeholder="10+ characters with a number" /></Field>
                 </> : null}
                 {step === 1 ? <>
-                  <Field label="Business name"><Input value={form.businessName} onChange={(event) => update('businessName', event.target.value)} autoComplete="organization" /></Field>
+                  <Field label="Business name"><Input value={form.businessName} onChange={(event) => update('businessName', event.target.value)} autoComplete="organization" readOnly={Boolean(inviteToken)} /></Field>
                   <Field label="Phone number (optional during trial)"><Input value={form.phone} onChange={(event) => update('phone', event.target.value)} autoComplete="tel" placeholder="+91 98765 43210" /></Field>
                   <div className="rounded-2xl border border-cyan-300/12 bg-cyan-300/[0.035] p-4 text-xs leading-5 text-white/48"><ShieldCheck className="mb-2 size-4 text-cyan-200" /> Trial agents cannot call arbitrary phone numbers. Publishing requires number ownership verification, business KYC and calling consent.</div>
                 </> : null}

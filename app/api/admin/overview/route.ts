@@ -12,7 +12,7 @@ export async function GET(request: Request) {
   await ensureSchema();
   const db = getRawDb();
 
-  const [stats, revenue, customers, planRows, numberRows, audits, integrations, commerce] =
+  const [stats, revenue, customers, planRows, numberRows, audits, integrations, commerce, activitySeries, jobStats, providerCosts, compliance] =
     await Promise.all([
       db
         .prepare(
@@ -93,6 +93,23 @@ export async function GET(request: Request) {
            ORDER BY p.created_at DESC LIMIT 25`,
         )
         .all(),
+      db.prepare(`WITH RECURSIVE days(day) AS (
+          SELECT date('now','-13 days') UNION ALL SELECT date(day,'+1 day') FROM days WHERE day < date('now')
+        ) SELECT day,
+          (SELECT count(*) FROM call_records c WHERE date(c.started_at) = day) AS calls,
+          (SELECT count(*) FROM call_records c WHERE date(c.started_at) = day AND c.status = 'completed') AS completed,
+          (SELECT count(*) FROM leads l WHERE date(l.captured_at) = day) AS leads
+        FROM days`).all(),
+      db.prepare(`SELECT status, count(*) AS value FROM background_jobs GROUP BY status ORDER BY value DESC`).all(),
+      db.prepare(`SELECT provider_id, sum(provider_cost_micros) AS cost_micros,
+        sum(billed_credits) AS billed_credits, round(avg(latency_ms),0) AS latency_ms,
+        sum(CASE WHEN status = 'success' THEN 1 ELSE 0 END) AS successful,
+        count(*) AS total FROM provider_usage_events GROUP BY provider_id`).all(),
+      db.prepare(`SELECT
+        (SELECT count(*) FROM consent_records WHERE status = 'granted') AS active_consents,
+        (SELECT count(*) FROM suppression_entries) AS suppressed_contacts,
+        (SELECT count(*) FROM kyc_documents WHERE status = 'submitted') AS pending_documents,
+        (SELECT count(*) FROM payment_reconciliations WHERE status != 'matched') AS reconciliation_issues`).first(),
     ]);
 
   return NextResponse.json({
@@ -105,11 +122,15 @@ export async function GET(request: Request) {
     audits: audits.results,
     integrations: integrations.results,
     commerce: commerce.results,
+    activitySeries: activitySeries.results,
+    jobStats: jobStats.results,
+    providerCosts: providerCosts.results,
+    compliance,
     system: {
       api: 'operational',
       database: 'operational',
       queue: 'operational',
-      voiceGateway: 'operational',
+      voiceGateway: process.env.EXOTEL_ACCOUNT_SID ? 'connected' : 'credentials_required',
       p95Latency: '1.2s',
     },
   });

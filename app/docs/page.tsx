@@ -86,6 +86,7 @@ export default function DocsPage() {
               ['Webhooks', '#webhooks'],
               ['Phone numbers', '#numbers'],
               ['Billing', '#billing'],
+              ['Production backend', '#production-backend'],
               ['Willow connector', '#willow'],
               ['Architecture', '#architecture'],
             ].map(([label, href]) => <a key={href} href={href} className="block rounded-lg px-3 py-2 hover:bg-white/5 hover:text-white">{label}</a>)}
@@ -125,7 +126,7 @@ export default function DocsPage() {
           <DocSection id="website-forms" eyebrow="03 · Website forms" title="Add Vaani to an existing popup or form">
             <p>Website forms use a public form key rather than a private API key. Configure allowed domains in the customer workspace, then post the visible form fields to the endpoint.</p>
             <Code>{formExample}</Code>
-            <div className="mt-5 rounded-xl border border-amber-300/12 bg-amber-300/[0.035] p-4 text-xs leading-5 text-white/52"><LockKeyhole className="mb-3 size-4 text-amber-200" /> The production version should add CAPTCHA/risk scoring, origin validation and per-IP/per-form rate limits before accepting public traffic.</div>
+            <div className="mt-5 rounded-xl border border-amber-300/12 bg-amber-300/[0.035] p-4 text-xs leading-5 text-white/52"><LockKeyhole className="mb-3 size-4 text-amber-200" /> Allowed-origin validation, payload limits and per-IP/per-form rate limits run before ingestion. Add CAPTCHA/risk scoring at the edge for a public high-volume campaign.</div>
           </DocSection>
 
           <DocSection id="playground" eyebrow="04 · Trial playground" title="Test an agent without placing a phone call">
@@ -159,7 +160,7 @@ POST /api/webhooks/razorpay`}</Code>
           <DocSection id="webhooks" eyebrow="06 · Webhooks" title="Receive signed revenue events">
             <p>Create endpoints inside the customer app. Vaani supports <code>lead.created</code>, <code>lead.qualified</code>, <code>call.completed</code>, <code>appointment.booked</code> and <code>credit.low</code>. Production URLs must use HTTPS; HTTP localhost is allowed only for local testing.</p>
             <Code>{verifyWebhookExample}</Code>
-            <p>Verify against the raw request body, reject timestamps outside a five-minute tolerance, and deduplicate using the event <code>id</code>. Failed deliveries are logged with status code, response snippet and attempt number.</p>
+            <p>Verify against the raw request body, reject timestamps outside a five-minute tolerance, and deduplicate using the event <code>id</code>. Failed deliveries enter the durable queue with exponential retry, attempt history and a dead-letter terminal state.</p>
           </DocSection>
 
           <DocSection id="numbers" eyebrow="07 · Phone numbers" title="Recommended hybrid number model">
@@ -181,7 +182,31 @@ POST /api/webhooks/razorpay`}</Code>
             <p>Without Stripe keys, localhost uses a clearly labelled sandbox checkout. It never charges money but exercises the subscription, wallet, ledger and invoice lifecycle.</p>
           </DocSection>
 
-          <DocSection id="willow" eyebrow="09 · Connector status" title="Willow is a custom adapter until its calling API is identified">
+          <DocSection id="production-backend" eyebrow="09 · Production backend" title="P0/P1 execution, compliance and security APIs">
+            <p>The customer APIs below require an authenticated tenant session. The worker endpoint accepts either a platform-admin session or <code>X-Vaani-Cron-Secret</code>.</p>
+            <Endpoint method="POST" path="/api/app/calls" note="Consent + DNC + wallet gated" />
+            <Endpoint method="GET · POST" path="/api/app/compliance" note="Consent, suppression and secure KYC" />
+            <Endpoint method="GET · POST" path="/api/app/knowledge" note="Source ingestion and retrieval" />
+            <Endpoint method="POST" path="/api/app/workflows/run" note="Durable workflow execution" />
+            <Endpoint method="GET · POST" path="/api/app/retargeting" note="Consent-aware audience sync" />
+            <Endpoint method="GET · POST · PATCH" path="/api/app/team" note="Invitations and tenant roles" />
+            <Endpoint method="GET · POST" path="/api/auth/security" note="TOTP MFA and session revocation" />
+            <Endpoint method="POST" path="/api/internal/jobs" note="Claims jobs, retries and dead letters" />
+            <Code>{`# Never expose this secret to a browser
+curl -X POST http://localhost:3000/api/internal/jobs \\
+  -H 'X-Vaani-Cron-Secret: YOUR_CRON_SECRET'
+
+# Live calls require a public HTTPS callback and secure media stream
+PUBLIC_BASE_URL=https://api.yourdomain.com
+VOICE_STREAM_URL=wss://voice-gateway.yourdomain.com/media
+TELEPHONY_WEBHOOK_SECRET=...
+EXOTEL_ACCOUNT_SID=...
+EXOTEL_API_KEY=...
+EXOTEL_API_TOKEN=...
+EXOTEL_CALLER_ID=...`}</Code>
+          </DocSection>
+
+          <DocSection id="willow" eyebrow="10 · Connector status" title="Willow is a custom adapter until its calling API is identified">
             <div className="rounded-2xl border border-violet-300/12 bg-violet-300/[0.035] p-5">
               <p className="text-sm font-medium">No fake vendor contract</p>
               <p className="mt-2 text-xs leading-5 text-white/45">The current app stores a Willow/custom base URL, account ID and encrypted API key, but deliberately does not send a test request. The connector becomes active after you supply the official calling API documentation: base URL, authentication header, create-call endpoint, inbound webhook format, status values and signature rules.</p>
@@ -191,14 +216,15 @@ POST /api/webhooks/razorpay`}</Code>
             </div>
           </DocSection>
 
-          <DocSection id="architecture" eyebrow="10 · Architecture" title="Backend boundaries that keep the SaaS safe">
+          <DocSection id="architecture" eyebrow="11 · Architecture" title="Backend boundaries that keep the SaaS safe">
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {[
-                ['Identity', 'Separate admin/customer sessions, HttpOnly cookies, server-side role checks'],
+                ['Identity', 'Separate portals, HttpOnly sessions, TOTP MFA, reset challenges and server-side role checks'],
                 ['Tenant data', 'Every CRM, number, key, invoice and webhook query is organization-scoped'],
                 ['Secrets', 'AES-GCM encrypted integration secrets; API keys stored hash-only'],
-                ['Billing', 'Signed payment webhooks, idempotent event table, atomic wallet updates'],
+                ['Billing', 'Signed webhooks, reconciliation, refunds, idempotent events and atomic wallet updates'],
                 ['Telephony', 'Public Vaani Connect abstraction with KYC and test-call activation gates'],
+                ['Execution', 'Locked jobs, exponential retry, attempt history and dead-letter state'],
                 ['Audit', 'Sensitive mutations record actor, organization, target and metadata'],
               ].map(([title, note]) => <div key={title} className="rounded-2xl border border-white/8 bg-[#0e1119] p-5"><h3 className="text-sm font-medium">{title}</h3><p className="mt-3 text-xs leading-5 text-white/38">{note}</p></div>)}
             </div>

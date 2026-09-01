@@ -22,6 +22,11 @@ Local admin demo: `admin@vaani.local` / `VaaniAdmin#2026`
 - `/app` — tenant-scoped customer portal
 - `/admin/login` and `/admin` — isolated platform admin portal
 - `/docs` — public API and integration documentation
+- `/api/internal/jobs` — authenticated/cron worker for scheduled actions, retries and dead letters
+- `/api/app/calls` — consent-gated live call start
+- `/api/app/compliance` — consent, DNC and secure KYC intake
+- `/api/app/knowledge` and `/api/app/workflows/run` — ingestion and durable automation
+- `/api/app/team` and `/api/auth/security` — tenant invitations, roles, TOTP MFA and session control
 
 ## Development checks
 

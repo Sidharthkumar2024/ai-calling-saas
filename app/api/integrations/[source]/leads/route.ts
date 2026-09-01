@@ -9,6 +9,7 @@ import {
   normalizeLeadInput,
   type LeadSourceType,
 } from '@/lib/lead-engine';
+import { enforceRateLimit, requestFingerprint } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
@@ -97,6 +98,7 @@ export async function POST(
       );
     }
     const rawBody = await request.text();
+    const raw = JSON.parse(rawBody) as Record<string, unknown>;
     const authenticated =
       sourceType === 'meta_ads'
         ? await validMetaSignature(
@@ -104,7 +106,7 @@ export async function POST(
             request.headers.get('x-hub-signature-256'),
             connection.webhookSecret,
           )
-        : request.headers.get('x-vaani-webhook-secret') === connection.webhookSecret;
+        : stringValue(raw.google_key) === connection.webhookSecret;
     if (!connection.webhookSecret || !authenticated) {
       return NextResponse.json(
         { error: 'Invalid webhook signature.' },
@@ -112,12 +114,14 @@ export async function POST(
       );
     }
 
-    const raw = JSON.parse(rawBody) as Record<string, unknown>;
+    const rateLimit = await enforceRateLimit({ namespace: 'lead-webhook', identifier: requestFingerprint(request, `${workspace}:${source}`), limit: 300, windowSeconds: 60 });
+    if (!rateLimit.allowed) return NextResponse.json({ error: 'Webhook rate limit exceeded.' }, { status: 429 });
     const fields = extractProviderFields(raw);
     const input = normalizeLeadInput({
       sourceType,
       externalLeadId:
         stringValue(raw.leadgen_id) ??
+        stringValue(raw.lead_id) ??
         stringValue(raw.gcl_id) ??
         stringValue(raw.id) ??
         crypto.randomUUID(),
@@ -161,13 +165,13 @@ function extractProviderFields(body: Record<string, unknown>) {
   return rows.reduce<Record<string, unknown>>((result, row) => {
     if (!row || typeof row !== 'object') return result;
     const item = row as Record<string, unknown>;
-    const key = stringValue(item.name) ?? stringValue(item.column_name);
+    const key = stringValue(item.name) ?? stringValue(item.column_id) ?? stringValue(item.column_name);
     const values = Array.isArray(item.values) ? item.values : [];
     const value =
       stringValue(values[0]) ??
       stringValue(item.string_value) ??
       stringValue(item.value);
-    if (key && value) result[key] = value;
+    if (key && value) result[key.toLowerCase()] = value;
     return result;
   }, {});
 }

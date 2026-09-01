@@ -4,6 +4,7 @@ import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { requireAdmin } from '@/lib/api-session';
 import { recordAudit } from '@/lib/demo-seed';
+import { providerReadiness } from '@/lib/provider-adapters';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,18 +21,32 @@ export async function GET(request: Request) {
       ORDER BY t.updated_at DESC`).all(),
     db.prepare('SELECT * FROM support_ticket_messages ORDER BY created_at').all(),
   ]);
-  return NextResponse.json({ authProviders: authProviders.results, platformProviders: platformProviders.results, tickets: tickets.results, ticketMessages: messages.results });
+  return NextResponse.json({ authProviders: authProviders.results, platformProviders: platformProviders.results, providerReadiness: await providerReadiness(), tickets: tickets.results, ticketMessages: messages.results });
 }
 
 export async function PATCH(request: Request) {
   const auth = await requireAdmin(request);
   if (auth.response) return auth.response;
-  const body = await request.json() as { action?: string; provider?: string; buttonVisible?: boolean; id?: string; status?: string; health?: string; ticketId?: string; message?: string };
+  const body = await request.json() as { action?: string; provider?: string; buttonVisible?: boolean; enabled?: boolean; id?: string; status?: string; health?: string; ticketId?: string; message?: string };
   const db = getRawDb();
   if (body.action === 'auth_visibility') {
     const result = await db.prepare(`UPDATE auth_provider_settings SET button_visible = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE provider = ?`).bind(body.buttonVisible ? 1 : 0, auth.session.userId, body.provider).run();
     if (!result.meta.changes) return NextResponse.json({ error: 'Auth provider not found.' }, { status: 404 });
     await recordAudit(auth.session, 'auth_provider.visibility_updated', 'auth_provider', body.provider, { buttonVisible: body.buttonVisible });
+    return NextResponse.json({ updated: true });
+  }
+  if (body.action === 'auth_enabled') {
+    const configured = body.provider === 'google'
+      ? Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_REDIRECT_URI)
+      : false;
+    if (body.enabled && !configured) {
+      return NextResponse.json({ error: 'Configure the provider credentials before enabling sign-in.' }, { status: 409 });
+    }
+    const result = await db.prepare(`UPDATE auth_provider_settings SET enabled = ?, status = ?, updated_by = ?,
+      updated_at = CURRENT_TIMESTAMP WHERE provider = ?`)
+      .bind(body.enabled ? 1 : 0, body.enabled ? 'active' : 'admin_disabled', auth.session.userId, body.provider).run();
+    if (!result.meta.changes) return NextResponse.json({ error: 'Auth provider not found.' }, { status: 404 });
+    await recordAudit(auth.session, 'auth_provider.enabled_updated', 'auth_provider', body.provider, { enabled: body.enabled });
     return NextResponse.json({ updated: true });
   }
   if (body.action === 'provider_status') {

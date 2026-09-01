@@ -1,0 +1,249 @@
+import { getRawDb } from '@/db/index';
+import { decryptSecret } from '@/lib/security';
+
+type StoredConnection = {
+  public_config_json: string;
+  encrypted_secret: string | null;
+};
+
+type SecretBundle = {
+  apiKey?: string;
+  apiSecret?: string;
+  webhookSecret?: string;
+  accountSid?: string;
+  accessToken?: string;
+};
+
+export type ProviderReadiness = {
+  adapter: string;
+  publicName: string;
+  configured: boolean;
+  liveCapable: boolean;
+  missing: string[];
+  mode: 'live' | 'sandbox' | 'disabled';
+};
+
+export async function providerReadiness(organizationId?: string | null) {
+  const sarvam = Boolean(process.env.SARVAM_API_KEY);
+  const anthropic = Boolean(process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_MODEL);
+  const exotel = Boolean(
+    process.env.EXOTEL_ACCOUNT_SID &&
+      process.env.EXOTEL_API_KEY &&
+      process.env.EXOTEL_API_TOKEN &&
+      process.env.EXOTEL_CALLER_ID &&
+      process.env.PUBLIC_BASE_URL &&
+      process.env.VOICE_STREAM_URL &&
+      process.env.TELEPHONY_WEBHOOK_SECRET,
+  );
+  const whatsapp = Boolean(
+    process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID,
+  );
+  const razorpay = Boolean(
+    process.env.RAZORPAY_KEY_ID &&
+      process.env.RAZORPAY_KEY_SECRET &&
+      process.env.RAZORPAY_WEBHOOK_SECRET,
+  );
+  const stored = organizationId
+    ? await getRawDb()
+        .prepare(`SELECT type FROM integration_connections
+          WHERE organization_id = ? AND encrypted_secret IS NOT NULL`)
+        .bind(organizationId)
+        .all<{ type: string }>()
+    : { results: [] as Array<{ type: string }> };
+  const connected = new Set(stored.results.map((item) => item.type));
+
+  return [
+    readiness('sarvam', 'Vaani Voice India', sarvam || connected.has('sarvam_voice'), ['SARVAM_API_KEY']),
+    readiness('anthropic', 'Vaani Sense', anthropic || connected.has('anthropic_reasoning'), ['ANTHROPIC_API_KEY', 'ANTHROPIC_MODEL']),
+    readiness('exotel', 'Vaani Connect', exotel || (connected.has('telephony_exotel') && Boolean(process.env.PUBLIC_BASE_URL && process.env.VOICE_STREAM_URL && process.env.TELEPHONY_WEBHOOK_SECRET)), ['EXOTEL_ACCOUNT_SID', 'EXOTEL_API_KEY', 'EXOTEL_API_TOKEN', 'EXOTEL_CALLER_ID', 'PUBLIC_BASE_URL', 'VOICE_STREAM_URL', 'TELEPHONY_WEBHOOK_SECRET']),
+    readiness('whatsapp', 'Vaani Messages', whatsapp || connected.has('whatsapp_cloud'), ['WHATSAPP_ACCESS_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID']),
+    readiness('razorpay', 'Vaani Payments', razorpay || connected.has('razorpay'), ['RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET', 'RAZORPAY_WEBHOOK_SECRET']),
+  ];
+}
+
+export async function synthesizeSpeech(input: {
+  organizationId: string;
+  text: string;
+  languageCode: string;
+  speaker?: string;
+}) {
+  const credentials = await connectionCredentials(input.organizationId, 'sarvam_voice');
+  const apiKey = process.env.SARVAM_API_KEY || credentials.secrets.apiKey;
+  if (!apiKey) throw new ProviderConfigurationError('Vaani Voice India is not connected.');
+  const started = Date.now();
+  const response = await fetch('https://api.sarvam.ai/text-to-speech', {
+    method: 'POST',
+    headers: {
+      'api-subscription-key': apiKey,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      text: input.text.slice(0, 2500),
+      language_code: input.languageCode,
+      speaker: input.speaker || 'shubh',
+      model: 'bulbul:v3',
+      output_audio_codec: 'wav',
+      speech_sample_rate: 16000,
+    }),
+    signal: AbortSignal.timeout(20_000),
+  });
+  const payload = (await response.json()) as { request_id?: string; audios?: string[]; error?: { message?: string } };
+  if (!response.ok || !payload.audios?.[0]) {
+    throw new Error(payload.error?.message || `Voice synthesis failed (${response.status}).`);
+  }
+  const latencyMs = Date.now() - started;
+  await recordUsage(input.organizationId, 'provider_sarvam', 'speech', 'tts', latencyMs, payload.request_id || null);
+  return { providerReference: payload.request_id || null, audioBase64: payload.audios[0], latencyMs };
+}
+
+export async function reasonWithTools(input: {
+  organizationId: string;
+  system: string;
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+  tools?: Array<Record<string, unknown>>;
+}) {
+  const credentials = await connectionCredentials(input.organizationId, 'anthropic_reasoning');
+  const apiKey = process.env.ANTHROPIC_API_KEY || credentials.secrets.apiKey;
+  const model = process.env.ANTHROPIC_MODEL || configString(credentials.publicConfig, 'model');
+  if (!apiKey || !model) throw new ProviderConfigurationError('Vaani Sense is not connected.');
+  const started = Date.now();
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 700,
+      temperature: 0.2,
+      system: input.system,
+      messages: input.messages,
+      ...(input.tools?.length ? { tools: input.tools } : {}),
+    }),
+    signal: AbortSignal.timeout(25_000),
+  });
+  const payload = (await response.json()) as { id?: string; content?: unknown[]; stop_reason?: string; error?: { message?: string }; usage?: unknown };
+  if (!response.ok || !payload.id) throw new Error(payload.error?.message || `Reasoning failed (${response.status}).`);
+  const latencyMs = Date.now() - started;
+  await recordUsage(input.organizationId, 'provider_anthropic', 'reasoning', 'messages', latencyMs, payload.id);
+  return { ...payload, latencyMs };
+}
+
+export async function startOutboundCall(input: {
+  organizationId: string;
+  callId: string;
+  destination: string;
+  streamUrl: string;
+  timeLimitSeconds?: number;
+}) {
+  const credentials = await connectionCredentials(input.organizationId, 'telephony_exotel');
+  const accountSid = process.env.EXOTEL_ACCOUNT_SID || credentials.secrets.accountSid || configString(credentials.publicConfig, 'accountSid');
+  const apiKey = process.env.EXOTEL_API_KEY || credentials.secrets.apiKey;
+  const apiToken = process.env.EXOTEL_API_TOKEN || credentials.secrets.apiSecret;
+  const callerId = process.env.EXOTEL_CALLER_ID || configString(credentials.publicConfig, 'callerId');
+  const cluster = process.env.EXOTEL_CLUSTER === 'singapore' ? 'api.exotel.com' : 'api.in.exotel.com';
+  const publicBaseUrl = process.env.PUBLIC_BASE_URL;
+  if (!accountSid || !apiKey || !apiToken || !callerId || !publicBaseUrl) {
+    throw new ProviderConfigurationError('Vaani Connect is not ready for live calls.');
+  }
+  if (!input.streamUrl.startsWith('wss://')) throw new Error('A secure wss:// media stream URL is required.');
+  const form = new URLSearchParams();
+  form.set('from', input.destination);
+  form.set('callerid', callerId);
+  form.set('streamurl', input.streamUrl);
+  form.set('streamtype', 'bidirectional');
+  form.set('record', 'true');
+  form.set('recordingchannels', 'dual');
+  form.set('timelimit', String(Math.min(3600, Math.max(30, input.timeLimitSeconds || 300))));
+  form.set('customfield', input.callId);
+  const webhookToken = process.env.TELEPHONY_WEBHOOK_SECRET;
+  if (!webhookToken) throw new ProviderConfigurationError('Telephony webhook secret is not configured.');
+  form.set('statuscallback', `${publicBaseUrl.replace(/\/$/, '')}/api/webhooks/telephony/exotel?token=${encodeURIComponent(webhookToken)}`);
+  form.append('statuscallbackevents[]', 'answered');
+  form.append('statuscallbackevents[]', 'terminal');
+  const started = Date.now();
+  const response = await fetch(`https://${cluster}/v1/accounts/${encodeURIComponent(accountSid)}/calls/connect`, {
+    method: 'POST',
+    headers: {
+      authorization: `Basic ${btoa(`${apiKey}:${apiToken}`)}`,
+      'content-type': 'application/x-www-form-urlencoded',
+    },
+    body: form,
+    signal: AbortSignal.timeout(20_000),
+  });
+  const payload = (await response.json()) as { call?: { sid?: string; status?: string }; error_data?: { message?: string } };
+  if (!response.ok || !payload.call?.sid) throw new Error(payload.error_data?.message || `Call start failed (${response.status}).`);
+  const latencyMs = Date.now() - started;
+  await recordUsage(input.organizationId, 'provider_telephony', 'telephony', 'call_start', latencyMs, payload.call.sid);
+  return { providerReference: payload.call.sid, status: payload.call.status || 'queued', latencyMs };
+}
+
+export async function testIntegrationConnection(organizationId: string, integrationId: string) {
+  const row = await getRawDb().prepare(`SELECT type, public_config_json, encrypted_secret
+    FROM integration_connections WHERE id = ? AND organization_id = ? LIMIT 1`)
+    .bind(integrationId, organizationId).first<{ type: string } & StoredConnection>();
+  if (!row || !row.encrypted_secret) throw new Error('Configured integration was not found.');
+  const secrets = await decodeSecrets(row.encrypted_secret);
+  const config = safeObject(row.public_config_json);
+  const baseUrl = configString(config, 'baseUrl');
+  if (row.type === 'razorpay') {
+    const keyId = configString(config, 'accountId');
+    if (!keyId || !secrets.apiKey) throw new Error('Razorpay key ID and secret are required.');
+    return probe('https://api.razorpay.com/v1/payments?count=1', { authorization: `Basic ${btoa(`${keyId}:${secrets.apiKey}`)}` });
+  }
+  if (row.type === 'anthropic_reasoning') {
+    return probe('https://api.anthropic.com/v1/models', { 'x-api-key': secrets.apiKey || '', 'anthropic-version': '2023-06-01' });
+  }
+  if (row.type === 'sarvam_voice') {
+    if (!secrets.apiKey) throw new Error('Voice API key is required.');
+    return { ok: true, detail: 'Credential format accepted; first synthesis performs the billable health check.' };
+  }
+  if (!baseUrl || !secrets.apiKey) throw new Error('Base URL and API key are required for this connection test.');
+  return probe(baseUrl, { authorization: `Bearer ${secrets.apiKey}` });
+}
+
+async function probe(url: string, headers: HeadersInit) {
+  const response = await fetch(url, { method: 'GET', headers, signal: AbortSignal.timeout(8_000) });
+  if (!response.ok) throw new Error(`Provider returned HTTP ${response.status}.`);
+  return { ok: true, detail: `Provider responded with HTTP ${response.status}.` };
+}
+
+async function connectionCredentials(organizationId: string, type: string) {
+  const row = await getRawDb().prepare(`SELECT public_config_json, encrypted_secret FROM integration_connections
+    WHERE organization_id = ? AND type = ? LIMIT 1`).bind(organizationId, type).first<StoredConnection>();
+  return {
+    publicConfig: safeObject(row?.public_config_json || '{}'),
+    secrets: row?.encrypted_secret ? await decodeSecrets(row.encrypted_secret) : ({} as SecretBundle),
+  };
+}
+
+async function decodeSecrets(encrypted: string): Promise<SecretBundle> {
+  const value = await decryptSecret(encrypted);
+  try { return JSON.parse(value) as SecretBundle; } catch { return { apiKey: value }; }
+}
+
+function safeObject(value: string) {
+  try { const parsed = JSON.parse(value) as unknown; return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {}; }
+  catch { return {}; }
+}
+
+function configString(config: Record<string, unknown>, key: string) {
+  return typeof config[key] === 'string' ? config[key] : '';
+}
+
+function readiness(adapter: string, publicName: string, configured: boolean, required: string[]): ProviderReadiness {
+  const missing = configured ? [] : required.filter((name) => !process.env[name]);
+  return { adapter, publicName, configured, liveCapable: configured, missing, mode: configured ? 'live' : 'sandbox' };
+}
+
+export class ProviderConfigurationError extends Error {}
+
+async function recordUsage(organizationId: string, providerId: string, category: string, operation: string, latencyMs: number, referenceId: string | null) {
+  await getRawDb().prepare(`INSERT INTO provider_usage_events
+    (id, organization_id, provider_id, category, operation, units, provider_cost_micros,
+     billed_credits, latency_ms, status, reference_id)
+    VALUES (?, ?, ?, ?, ?, 1, 0, 0, ?, 'success', ?)`)
+    .bind(`usage_${crypto.randomUUID()}`, organizationId, providerId, category, operation, latencyMs, referenceId).run();
+}

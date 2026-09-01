@@ -34,6 +34,8 @@ export async function POST(request: Request) {
     .first();
   if (duplicate) return NextResponse.json({ received: true, duplicate: true });
   const status = mapStatus(payload.event);
+  const paymentEntity = payload.payload?.payment?.entity;
+  const reconciliationId = paymentEntity?.id;
   await db.batch([
     db
       .prepare(`INSERT INTO billing_events
@@ -43,13 +45,31 @@ export async function POST(request: Request) {
       .prepare(`UPDATE payment_links SET status = ?, paid_at = CASE WHEN ? = 'paid'
         THEN CURRENT_TIMESTAMP ELSE paid_at END WHERE id = ?`)
       .bind(status, status, payment.id),
+    ...(reconciliationId ? [db.prepare(`INSERT INTO payment_reconciliations
+      (id, organization_id, provider, external_id, entity_type, entity_id, amount, currency, status, mismatch_reason)
+      VALUES (?, ?, 'razorpay', ?, 'payment_link', ?, ?, ?, ?, ?)
+      ON CONFLICT(provider, external_id) DO UPDATE SET status=excluded.status,
+      amount=excluded.amount, currency=excluded.currency, mismatch_reason=excluded.mismatch_reason,
+      reconciled_at=CURRENT_TIMESTAMP`).bind(
+        `reconciliation_${crypto.randomUUID()}`,
+        payment.organization_id,
+        reconciliationId,
+        payment.id,
+        Number(paymentEntity?.amount || 0),
+        paymentEntity?.currency || 'INR',
+        status === 'paid' ? 'matched' : 'pending',
+        status === 'paid' ? null : `Awaiting final state: ${status}`,
+      )] : []),
   ]);
   return NextResponse.json({ received: true, status });
 }
 
 type RazorpayWebhook = {
   event?: string;
-  payload?: { payment_link?: { entity?: { id?: string } } };
+  payload?: {
+    payment_link?: { entity?: { id?: string } };
+    payment?: { entity?: { id?: string; amount?: number; currency?: string } };
+  };
 };
 
 function mapStatus(event?: string) {

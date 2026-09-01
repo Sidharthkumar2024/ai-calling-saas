@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   await ensureDemoLeads(organizationId);
   const db = getRawDb();
 
-  const [leadStats, opportunityStats, calls, wallet, subscription, sources, numbers, recentLeads] =
+  const [leadStats, opportunityStats, calls, wallet, subscription, sources, numbers, recentLeads, activitySeries, outcomeBreakdown, readiness] =
     await Promise.all([
       db
         .prepare(
@@ -83,6 +83,17 @@ export async function GET(request: Request) {
         )
         .bind(organizationId)
         .all(),
+      db.prepare(`WITH RECURSIVE days(day) AS (
+          SELECT date('now','-13 days') UNION ALL SELECT date(day,'+1 day') FROM days WHERE day < date('now')
+        ) SELECT day,
+          (SELECT count(*) FROM leads l WHERE l.organization_id = ? AND date(l.captured_at) = day) AS leads,
+          (SELECT count(*) FROM call_records c WHERE c.organization_id = ? AND date(c.started_at) = day) AS calls,
+          (SELECT count(*) FROM call_records c WHERE c.organization_id = ? AND date(c.started_at) = day
+             AND c.outcome IN ('appointment_booked','payment_link_requested','converted')) AS conversions
+        FROM days`).bind(organizationId, organizationId, organizationId).all(),
+      db.prepare(`SELECT coalesce(outcome, 'unknown') AS name, count(*) AS value
+        FROM call_records WHERE organization_id = ? GROUP BY outcome ORDER BY value DESC`).bind(organizationId).all(),
+      import('@/lib/provider-adapters').then(({ providerReadiness }) => providerReadiness(organizationId)),
     ]);
 
   return NextResponse.json({
@@ -105,5 +116,8 @@ export async function GET(request: Request) {
     sources: sources.results,
     numbers: numbers.results,
     recentLeads: recentLeads.results,
+    activitySeries: activitySeries.results,
+    outcomeBreakdown: outcomeBreakdown.results,
+    providerReadiness: readiness,
   });
 }

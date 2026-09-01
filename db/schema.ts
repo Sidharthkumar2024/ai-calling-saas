@@ -1029,3 +1029,316 @@ export const supportTicketMessages = sqliteTable(
   },
   (table) => [index('idx_ticket_messages_ticket').on(table.ticketId, table.createdAt)],
 );
+
+export const backgroundJobs = sqliteTable(
+  'background_jobs',
+  {
+    id: text('id').primaryKey(),
+    organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+    queue: text('queue').notNull().default('default'),
+    type: text('type').notNull(),
+    idempotencyKey: text('idempotency_key').notNull(),
+    payloadJson: text('payload_json').notNull().default('{}'),
+    status: text('status').notNull().default('queued'),
+    priority: integer('priority').notNull().default(100),
+    attempts: integer('attempts').notNull().default(0),
+    maxAttempts: integer('max_attempts').notNull().default(5),
+    availableAt: text('available_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    lockedAt: text('locked_at'),
+    lockedBy: text('locked_by'),
+    lastError: text('last_error'),
+    completedAt: text('completed_at'),
+    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex('idx_background_jobs_idempotency').on(table.idempotencyKey),
+    index('idx_background_jobs_claim').on(table.status, table.availableAt, table.priority),
+    index('idx_background_jobs_org').on(table.organizationId, table.createdAt),
+  ],
+);
+
+export const jobAttempts = sqliteTable(
+  'job_attempts',
+  {
+    id: text('id').primaryKey(),
+    jobId: text('job_id').notNull().references(() => backgroundJobs.id, { onDelete: 'cascade' }),
+    attempt: integer('attempt').notNull(),
+    status: text('status').notNull(),
+    durationMs: integer('duration_ms'),
+    error: text('error'),
+    resultJson: text('result_json').notNull().default('{}'),
+    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [index('idx_job_attempts_job').on(table.jobId, table.attempt)],
+);
+
+export const consentRecords = sqliteTable(
+  'consent_records',
+  {
+    id: text('id').primaryKey(),
+    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    leadId: text('lead_id').references(() => leads.id, { onDelete: 'set null' }),
+    phone: text('phone').notNull(),
+    purpose: text('purpose').notNull(),
+    lawfulBasis: text('lawful_basis').notNull().default('explicit_consent'),
+    status: text('status').notNull().default('granted'),
+    proofJson: text('proof_json').notNull().default('{}'),
+    capturedAt: text('captured_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    expiresAt: text('expires_at'),
+    revokedAt: text('revoked_at'),
+  },
+  (table) => [index('idx_consent_org_phone').on(table.organizationId, table.phone, table.status)],
+);
+
+export const suppressionEntries = sqliteTable(
+  'suppression_entries',
+  {
+    id: text('id').primaryKey(),
+    organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+    phoneHash: text('phone_hash').notNull(),
+    scope: text('scope').notNull().default('organization'),
+    reason: text('reason').notNull(),
+    source: text('source').notNull().default('customer_request'),
+    expiresAt: text('expires_at'),
+    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [uniqueIndex('idx_suppression_scope_phone').on(table.organizationId, table.scope, table.phoneHash)],
+);
+
+export const kycDocuments = sqliteTable(
+  'kyc_documents',
+  {
+    id: text('id').primaryKey(),
+    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    phoneNumberId: text('phone_number_id').references(() => phoneNumbers.id, { onDelete: 'set null' }),
+    documentType: text('document_type').notNull(),
+    storageKey: text('storage_key').notNull(),
+    checksum: text('checksum').notNull(),
+    status: text('status').notNull().default('submitted'),
+    rejectionReason: text('rejection_reason'),
+    reviewedBy: text('reviewed_by'),
+    reviewedAt: text('reviewed_at'),
+    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [index('idx_kyc_org_status').on(table.organizationId, table.status)],
+);
+
+export const oauthStates = sqliteTable(
+  'oauth_states',
+  {
+    id: text('id').primaryKey(),
+    provider: text('provider').notNull(),
+    stateHash: text('state_hash').notNull(),
+    codeVerifierEncrypted: text('code_verifier_encrypted').notNull(),
+    returnTo: text('return_to').notNull().default('/app'),
+    expiresAt: text('expires_at').notNull(),
+    consumedAt: text('consumed_at'),
+    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [uniqueIndex('idx_oauth_states_hash').on(table.stateHash)],
+);
+
+export const securityChallenges = sqliteTable(
+  'security_challenges',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull().references(() => appUsers.id, { onDelete: 'cascade' }),
+    type: text('type').notNull(),
+    tokenHash: text('token_hash').notNull(),
+    metadataJson: text('metadata_json').notNull().default('{}'),
+    expiresAt: text('expires_at').notNull(),
+    consumedAt: text('consumed_at'),
+    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex('idx_security_challenges_token').on(table.tokenHash),
+    index('idx_security_challenges_user').on(table.userId, table.type),
+  ],
+);
+
+export const rateLimitBuckets = sqliteTable(
+  'rate_limit_buckets',
+  {
+    bucketKey: text('bucket_key').primaryKey(),
+    count: integer('count').notNull().default(0),
+    windowStartedAt: text('window_started_at').notNull(),
+    blockedUntil: text('blocked_until'),
+    updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+);
+
+export const userSecuritySettings = sqliteTable('user_security_settings', {
+  userId: text('user_id').primaryKey().references(() => appUsers.id, { onDelete: 'cascade' }),
+  emailVerifiedAt: text('email_verified_at'),
+  mfaEnabled: integer('mfa_enabled').notNull().default(0),
+  totpSecretEncrypted: text('totp_secret_encrypted'),
+  recoveryCodeHashesJson: text('recovery_code_hashes_json').notNull().default('[]'),
+  updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const teamInvitations = sqliteTable(
+  'team_invitations',
+  {
+    id: text('id').primaryKey(),
+    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    email: text('email').notNull(),
+    role: text('role').notNull(),
+    tokenHash: text('token_hash').notNull(),
+    invitedBy: text('invited_by').notNull(),
+    expiresAt: text('expires_at').notNull(),
+    acceptedAt: text('accepted_at'),
+    revokedAt: text('revoked_at'),
+    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex('idx_team_invites_token').on(table.tokenHash),
+    index('idx_team_invites_org_email').on(table.organizationId, table.email),
+  ],
+);
+
+export const knowledgeSources = sqliteTable(
+  'knowledge_sources',
+  {
+    id: text('id').primaryKey(),
+    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    knowledgeBaseId: text('knowledge_base_id').notNull().references(() => knowledgeBases.id, { onDelete: 'cascade' }),
+    type: text('type').notNull(),
+    name: text('name').notNull(),
+    sourceUrl: text('source_url'),
+    storageKey: text('storage_key'),
+    contentHash: text('content_hash').notNull(),
+    status: text('status').notNull().default('queued'),
+    error: text('error'),
+    syncedAt: text('synced_at'),
+    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [index('idx_knowledge_sources_kb').on(table.knowledgeBaseId, table.status)],
+);
+
+export const knowledgeChunks = sqliteTable(
+  'knowledge_chunks',
+  {
+    id: text('id').primaryKey(),
+    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    sourceId: text('source_id').notNull().references(() => knowledgeSources.id, { onDelete: 'cascade' }),
+    ordinal: integer('ordinal').notNull(),
+    content: text('content').notNull(),
+    tokenEstimate: integer('token_estimate').notNull(),
+    metadataJson: text('metadata_json').notNull().default('{}'),
+    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex('idx_knowledge_chunks_source_ordinal').on(table.sourceId, table.ordinal),
+    index('idx_knowledge_chunks_org').on(table.organizationId),
+  ],
+);
+
+export const workflowRuns = sqliteTable(
+  'workflow_runs',
+  {
+    id: text('id').primaryKey(),
+    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    workflowId: text('workflow_id').notNull().references(() => workflows.id, { onDelete: 'cascade' }),
+    triggerType: text('trigger_type').notNull(),
+    triggerId: text('trigger_id'),
+    status: text('status').notNull().default('queued'),
+    inputJson: text('input_json').notNull().default('{}'),
+    outputJson: text('output_json').notNull().default('{}'),
+    startedAt: text('started_at'),
+    completedAt: text('completed_at'),
+    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [index('idx_workflow_runs_org').on(table.organizationId, table.createdAt)],
+);
+
+export const workflowRunSteps = sqliteTable(
+  'workflow_run_steps',
+  {
+    id: text('id').primaryKey(),
+    runId: text('run_id').notNull().references(() => workflowRuns.id, { onDelete: 'cascade' }),
+    stepIndex: integer('step_index').notNull(),
+    stepType: text('step_type').notNull(),
+    status: text('status').notNull().default('pending'),
+    inputJson: text('input_json').notNull().default('{}'),
+    outputJson: text('output_json').notNull().default('{}'),
+    error: text('error'),
+    startedAt: text('started_at'),
+    completedAt: text('completed_at'),
+  },
+  (table) => [uniqueIndex('idx_workflow_steps_run_index').on(table.runId, table.stepIndex)],
+);
+
+export const campaignContacts = sqliteTable(
+  'campaign_contacts',
+  {
+    id: text('id').primaryKey(),
+    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    campaignId: text('campaign_id').notNull().references(() => campaigns.id, { onDelete: 'cascade' }),
+    leadId: text('lead_id').references(() => leads.id, { onDelete: 'set null' }),
+    phone: text('phone').notNull(),
+    status: text('status').notNull().default('pending'),
+    consentStatus: text('consent_status').notNull().default('unknown'),
+    attemptCount: integer('attempt_count').notNull().default(0),
+    nextAttemptAt: text('next_attempt_at'),
+    outcome: text('outcome'),
+    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex('idx_campaign_contacts_campaign_phone').on(table.campaignId, table.phone),
+    index('idx_campaign_contacts_ready').on(table.campaignId, table.status, table.nextAttemptAt),
+  ],
+);
+
+export const providerUsageEvents = sqliteTable(
+  'provider_usage_events',
+  {
+    id: text('id').primaryKey(),
+    organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'set null' }),
+    providerId: text('provider_id').notNull(),
+    category: text('category').notNull(),
+    operation: text('operation').notNull(),
+    units: integer('units').notNull().default(1),
+    providerCostMicros: integer('provider_cost_micros').notNull().default(0),
+    billedCredits: integer('billed_credits').notNull().default(0),
+    latencyMs: integer('latency_ms'),
+    status: text('status').notNull(),
+    referenceId: text('reference_id'),
+    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [index('idx_provider_usage_created').on(table.providerId, table.createdAt)],
+);
+
+export const retargetingAudiences = sqliteTable(
+  'retargeting_audiences',
+  {
+    id: text('id').primaryKey(),
+    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    destination: text('destination').notNull(),
+    rulesJson: text('rules_json').notNull().default('{}'),
+    status: text('status').notNull().default('draft'),
+    eligibleCount: integer('eligible_count').notNull().default(0),
+    lastSyncedAt: text('last_synced_at'),
+    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [index('idx_retargeting_org').on(table.organizationId, table.status)],
+);
+
+export const paymentReconciliations = sqliteTable(
+  'payment_reconciliations',
+  {
+    id: text('id').primaryKey(),
+    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    provider: text('provider').notNull(),
+    externalId: text('external_id').notNull(),
+    entityType: text('entity_type').notNull(),
+    entityId: text('entity_id'),
+    amount: integer('amount').notNull(),
+    currency: text('currency').notNull().default('INR'),
+    status: text('status').notNull(),
+    mismatchReason: text('mismatch_reason'),
+    reconciledAt: text('reconciled_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [uniqueIndex('idx_reconciliation_provider_external').on(table.provider, table.externalId)],
+);

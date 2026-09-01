@@ -53,6 +53,8 @@ export function PortalLogin({ portal }: PortalLoginProps) {
   const [password, setPassword] = useState(config.password);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [otp, setOtp] = useState('');
+  const [mfaRequired, setMfaRequired] = useState(false);
 
   async function submit(event: { preventDefault: () => void }) {
     event.preventDefault();
@@ -62,13 +64,15 @@ export function PortalLogin({ portal }: PortalLoginProps) {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email, password, portal }),
+        body: JSON.stringify({ email, password, portal, ...(mfaRequired ? { otp } : {}) }),
       });
       const payload = (await response.json()) as {
         error?: string;
         redirectTo?: string;
+        code?: string;
       };
       if (!response.ok || !payload.redirectTo) {
+        if (payload.code === 'MFA_REQUIRED') setMfaRequired(true);
         throw new Error(payload.error || 'Unable to sign in.');
       }
       window.location.assign(payload.redirectTo);
@@ -152,6 +156,12 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                     required
                   />
                 </label>
+                {mfaRequired ? (
+                  <label htmlFor={`${portal}-otp`} className="block text-xs font-medium text-white/65">
+                    Authenticator code
+                    <Input id={`${portal}-otp`} value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="6-digit code" className="mt-2 h-11 border-white/10 bg-white/[0.035] font-mono tracking-[0.3em] text-white" required />
+                  </label>
+                ) : null}
                 <label htmlFor={`${portal}-password`} className="block text-xs font-medium text-white/65">
                   Password
                   <Input

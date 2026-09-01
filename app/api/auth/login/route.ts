@@ -7,6 +7,7 @@ import {
   loginWithPassword,
   sessionCookie,
 } from '@/lib/app-auth';
+import { enforceRateLimit, requestFingerprint } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +17,7 @@ export async function POST(request: Request) {
       email?: string;
       password?: string;
       portal?: 'admin' | 'customer';
+      otp?: string;
     };
     if (!body.email || !body.password || !body.portal) {
       return NextResponse.json(
@@ -24,12 +26,32 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await loginWithPassword(body.email, body.password);
+    const limit = await enforceRateLimit({
+      namespace: 'login',
+      identifier: requestFingerprint(request, body.email),
+      limit: 8,
+      windowSeconds: 15 * 60,
+      blockSeconds: 15 * 60,
+    });
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many sign-in attempts. Try again later.' },
+        { status: 429, headers: { 'Retry-After': String(limit.retryAfterSeconds) } },
+      );
+    }
+
+    const result = await loginWithPassword(body.email, body.password, body.otp);
     if (!result) {
       return NextResponse.json(
         { error: 'Email or password is incorrect.' },
         { status: 401 },
       );
+    }
+    if ('mfaRequired' in result && result.mfaRequired) {
+      return NextResponse.json({ error: 'Enter the six-digit authenticator code.', code: 'MFA_REQUIRED' }, { status: 401 });
+    }
+    if ('mfaInvalid' in result && result.mfaInvalid) {
+      return NextResponse.json({ error: 'Authenticator code is invalid.', code: 'MFA_REQUIRED' }, { status: 401 });
     }
 
     const portalMatches =

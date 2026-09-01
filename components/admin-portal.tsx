@@ -30,6 +30,7 @@ import { PortalShell, type PortalNavGroup } from '@/components/portal-shell';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { ActivityAreaChart, QueueBars } from '@/components/analytics-charts';
 
 type AdminSession = { name: string; email: string };
 
@@ -47,6 +48,11 @@ type AdminPayload = {
   platformProviders?: Record<string, unknown>[];
   tickets?: Record<string, unknown>[];
   ticketMessages?: Record<string, unknown>[];
+  activitySeries?: Record<string, string | number>[];
+  jobStats?: Record<string, string | number>[];
+  providerCosts?: Record<string, unknown>[];
+  compliance?: Record<string, number>;
+  providerReadiness?: Record<string, unknown>[];
 };
 
 const groups: PortalNavGroup[] = [
@@ -143,13 +149,14 @@ export function AdminPortal({ session }: { session: AdminSession }) {
 function AdminOverview({ data }: { data: AdminPayload }) {
   const stats = data.stats ?? {};
   const revenue = data.revenue ?? {};
+  const readiness = data.providerReadiness ?? [];
   return (
     <div className="space-y-6">
       <SectionHeader
         eyebrow="Platform command center"
         title="Everything that keeps Vaani running"
         description="Tenant activity, revenue, calling capacity and compliance signals in one operator view."
-        action={<Button className="bg-amber-300 text-[#17120a] hover:bg-amber-200"><RefreshCcw /> Refresh health</Button>}
+        action={<Button className="portal-primary"><RefreshCcw /> Refresh health</Button>}
       />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Stat label="Active customers" value={num(stats.customers)} note={`${num(stats.users)} active users`} icon={Building2} />
@@ -160,27 +167,18 @@ function AdminOverview({ data }: { data: AdminPayload }) {
 
       <div className="grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
         <Panel>
-          <PanelHeader title="Network activity" description="Calls and quality signals · last 24 hours" />
-          <div className="grid min-h-[260px] grid-cols-12 items-end gap-2 pt-7">
-            {[28, 34, 26, 42, 56, 49, 68, 73, 62, 82, 76, 91].map((height, index) => (
-              <div key={index} className="group flex h-full items-end">
-                <div className="w-full rounded-t bg-gradient-to-t from-amber-300/18 to-amber-300/75 transition group-hover:to-amber-200" style={{ height: `${height}%` }} />
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 flex justify-between text-[9px] text-white/25"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>Now</span></div>
+          <PanelHeader title="Network activity" description="14 days · calls, completed conversations and leads" />
+          <ActivityAreaChart data={data.activitySeries ?? []} admin />
         </Panel>
         <Panel>
           <PanelHeader title="Service health" description="Provider details stay private" />
           <div className="mt-5 space-y-4">
             {[
-              ['Voice gateway', 'Operational', 99],
-              ['AI orchestration', 'Operational', 98],
-              ['Telephony routes', 'Operational', 97],
-              ['Event delivery', 'Operational', 100],
+              ['API & database', 'Operational', 100],
+              ...readiness.slice(0, 3).map((item) => [textValue(item.publicName), item.configured ? 'Connected' : 'Credentials needed', item.configured ? 100 : 28]),
             ].map(([label, status, progress]) => (
               <div key={String(label)}>
-                <div className="mb-2 flex items-center justify-between text-xs"><span className="text-white/68">{label}</span><span className="text-emerald-300">{status}</span></div>
+                <div className="mb-2 flex items-center justify-between text-xs"><span className="text-white/68">{String(label)}</span><span className={status === 'Operational' || status === 'Connected' ? 'text-emerald-300' : 'text-[#a8b7ff]'}>{String(status)}</span></div>
                 <Progress value={Number(progress)} className="h-1 bg-white/6" />
               </div>
             ))}
@@ -188,21 +186,22 @@ function AdminOverview({ data }: { data: AdminPayload }) {
           <div className="mt-6 rounded-xl border border-white/8 bg-white/[0.025] p-4">
             <p className="text-[10px] uppercase tracking-[0.16em] text-white/30">P95 conversation latency</p>
             <p className="mt-2 text-2xl font-semibold">1.2s</p>
-            <p className="mt-1 text-[10px] text-emerald-300">Within 1.5s target</p>
+            <p className="mt-1 text-[10px] text-emerald-300">Application target · provider keys pending</p>
           </div>
         </Panel>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid gap-4 xl:grid-cols-[1fr_0.72fr_0.72fr]">
         <CustomersTable rows={(data.customers ?? []).slice(0, 6)} />
+        <Panel><PanelHeader title="Queue reliability" description="Durable jobs by current state" /><QueueBars data={data.jobStats ?? []} /></Panel>
         <Panel>
           <PanelHeader title="Operator queue" description="Items needing platform attention" />
           <div className="mt-3 divide-y divide-white/7">
             {[
-              ['KYC review', `${num(stats.pending_kyc)} number requests`, 'Review'],
+              ['KYC review', `${num(data.compliance?.pending_documents ?? stats.pending_kyc)} submitted documents`, 'Review'],
               ['Open invoices', `${num(revenue.open_invoices)} payment items`, 'Inspect'],
-              ['Webhook health', `${num(stats.webhooks)} active endpoints`, 'Monitor'],
-              ['Capacity', '38 of 120 channels reserved', 'Healthy'],
+              ['Suppression list', `${num(data.compliance?.suppressed_contacts)} protected contacts`, 'Monitor'],
+              ['Reconciliation', `${num(data.compliance?.reconciliation_issues)} mismatches`, 'Inspect'],
             ].map(([title, note, action]) => (
               <div key={title} className="flex items-center gap-3 py-4">
                 <span className="grid size-9 place-items-center rounded-xl bg-white/5"><Clock3 className="size-4 text-white/45" /></span>
@@ -388,9 +387,27 @@ function PlatformApis({ data, onChanged }: { data: AdminPayload; onChanged: () =
       await onChanged();
     } finally { setBusy(''); }
   }
-  return <div className="space-y-6"><SectionHeader eyebrow="Admin-only configuration" title="Identity, APIs and cloud requirements" description="Customer screens use Vaani product names. Provider credentials, readiness and health remain inside this operator console." />
-    <Panel><PanelHeader title="Customer sign-in providers" description="Google is visible but inactive until credentials and callback verification are complete." /><div className="mt-4 grid gap-3 md:grid-cols-2">{(data.authProviders ?? []).map((provider) => { const visible = Boolean(provider.button_visible); return <div key={textValue(provider.provider)} className="rounded-xl border border-white/8 bg-white/[0.02] p-4"><div className="flex items-center justify-between"><div><p className="text-sm font-medium">{textValue(provider.display_name)}</p><p className="mt-1 text-[9px] text-white/30">{textValue(provider.status).replaceAll('_',' ')}</p></div><Status value={visible ? 'button visible' : 'hidden'} /></div><Button variant="outline" disabled={busy === textValue(provider.provider)} onClick={() => patch({ action: 'auth_visibility', provider: provider.provider, buttonVisible: !visible }, textValue(provider.provider))} className="mt-4 w-full border-white/10 bg-transparent text-[10px]">{busy === textValue(provider.provider) ? <Loader2 className="animate-spin" /> : <SlidersHorizontal />}{visible ? 'Hide button' : 'Show button'}</Button></div>; })}</div></Panel>
-    <div className="grid gap-4 lg:grid-cols-2">{(data.platformProviders ?? []).map((provider) => { const required = safeList(provider.required_credentials_json); return <Panel key={textValue(provider.id)}><div className="flex items-start justify-between"><span className="grid size-10 place-items-center rounded-xl bg-violet-400/10"><ServerCog className="size-4 text-violet-200" /></span><Status value={textValue(provider.health)} /></div><h2 className="mt-5 text-sm font-semibold">{textValue(provider.public_name)}</h2><p className="mt-1 text-[9px] uppercase tracking-wider text-white/25">{textValue(provider.category)}</p><p className="mt-3 text-xs leading-5 text-white/38">{textValue(provider.usage_note)}</p><div className="mt-4 rounded-xl border border-white/7 bg-black/20 p-3"><p className="text-[8px] uppercase tracking-wider text-white/25">Required environment secrets</p><div className="mt-2 flex flex-wrap gap-1.5">{required.map((item) => <code key={item} className="rounded bg-white/5 px-2 py-1 text-[8px] text-cyan-100/70">{item}</code>)}</div></div></Panel>; })}</div>
+  return <div className="space-y-6">
+    <SectionHeader eyebrow="Admin-only configuration" title="Identity, APIs and cloud requirements" description="Customer screens use Vaani product names. Provider credentials, readiness and health remain inside this operator console." />
+    <Panel>
+      <PanelHeader title="Customer sign-in providers" description="Visibility and activation are separate controls; activation is blocked until credentials exist." />
+      <div className="mt-4 grid gap-3 md:grid-cols-2">{(data.authProviders ?? []).map((provider) => {
+        const visible = Boolean(provider.button_visible);
+        const enabled = Boolean(provider.enabled);
+        const key = textValue(provider.provider);
+        return <div key={key} className="rounded-xl border border-white/8 bg-white/[0.02] p-4">
+          <div className="flex items-center justify-between"><div><p className="text-sm font-medium">{textValue(provider.display_name)}</p><p className="mt-1 text-[9px] text-white/30">{textValue(provider.status).replaceAll('_',' ')}</p></div><Status value={enabled ? 'active' : visible ? 'button visible' : 'hidden'} /></div>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <Button variant="outline" disabled={busy === key} onClick={() => patch({ action: 'auth_visibility', provider: provider.provider, buttonVisible: !visible }, key)} className="border-white/10 bg-transparent text-[10px]">{visible ? 'Hide' : 'Show'}</Button>
+            <Button variant="outline" disabled={busy === key} onClick={() => patch({ action: 'auth_enabled', provider: provider.provider, enabled: !enabled }, key)} className="border-white/10 bg-transparent text-[10px]">{busy === key ? <Loader2 className="animate-spin" /> : <SlidersHorizontal />}{enabled ? 'Disable' : 'Enable'}</Button>
+          </div>
+        </div>;
+      })}</div>
+    </Panel>
+    <div className="grid gap-4 lg:grid-cols-2">{(data.platformProviders ?? []).map((provider) => {
+      const required = safeList(provider.required_credentials_json);
+      return <Panel key={textValue(provider.id)}><div className="flex items-start justify-between"><span className="grid size-10 place-items-center rounded-xl border border-white/10 bg-white/[0.04]"><ServerCog className="size-4 text-[#a8b7ff]" /></span><Status value={textValue(provider.health)} /></div><h2 className="mt-5 text-sm font-semibold">{textValue(provider.public_name)}</h2><p className="mt-1 text-[9px] uppercase tracking-wider text-white/25">{textValue(provider.category)}</p><p className="mt-3 text-xs leading-5 text-white/38">{textValue(provider.usage_note)}</p><div className="mt-4 rounded-xl border border-white/7 bg-black/20 p-3"><p className="text-[8px] uppercase tracking-wider text-white/25">Required environment secrets</p><div className="mt-2 flex flex-wrap gap-1.5">{required.map((item) => <code key={item} className="rounded bg-white/5 px-2 py-1 text-[8px] text-white/65">{item}</code>)}</div></div></Panel>;
+    })}</div>
   </div>;
 }
 
@@ -419,15 +436,15 @@ function SystemAudit({ data }: { data: AdminPayload }) {
 }
 
 function SectionHeader({ eyebrow, title, description, action }: { eyebrow: string; title: string; description: string; action?: React.ReactNode }) {
-  return <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-300/80">{eyebrow}</p><h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1><p className="mt-2 max-w-3xl text-xs leading-5 text-white/38 sm:text-sm">{description}</p></div>{action}</div>;
+  return <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9eb0ff]">{eyebrow}</p><h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1><p className="mt-2 max-w-3xl text-xs leading-5 text-white/38 sm:text-sm">{description}</p></div>{action}</div>;
 }
 
 function Stat({ label, value, note, icon: Icon }: { label: string; value: unknown; note: string; icon: typeof Activity }) {
-  return <div className="rounded-2xl border border-white/8 bg-[#0e1119] p-4 shadow-lg shadow-black/8"><div className="flex items-center justify-between"><p className="text-[10px] font-medium uppercase tracking-[0.12em] text-white/30">{label}</p><Icon className="size-4 text-amber-300/65" /></div><p className="mt-4 text-2xl font-semibold tracking-tight">{String(value)}</p><p className="mt-1 text-[10px] text-white/30">{note}</p></div>;
+  return <div className="portal-stat"><div className="flex items-center justify-between"><p className="text-[10px] font-medium uppercase tracking-[0.12em] text-white/30">{label}</p><Icon className="size-4 text-[#a8b7ff]" /></div><p className="mt-4 text-2xl font-semibold tracking-tight">{String(value)}</p><p className="mt-1 text-[10px] text-white/30">{note}</p></div>;
 }
 
 function Panel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <section className={`rounded-2xl border border-white/8 bg-[#0e1119] p-5 shadow-lg shadow-black/8 ${className}`}>{children}</section>;
+  return <section className={`portal-panel p-5 ${className}`}>{children}</section>;
 }
 
 function PanelHeader({ title, description }: { title: string; description: string }) {

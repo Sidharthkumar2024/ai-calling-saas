@@ -23,7 +23,7 @@ export async function createRazorpayPaymentLink(input: {
   customerPhone: string;
   customerEmail?: string | null;
 }) {
-  const credentials = await razorpayCredentials(input.organizationId);
+  const credentials = await getRazorpayCredentials(input.organizationId);
   if (!credentials.keyId || !credentials.keySecret) {
     return {
       provider: 'razorpay_sandbox',
@@ -135,7 +135,7 @@ export async function getRazorpayWebhookSecret(organizationId: string) {
   return bundle.secrets.webhookSecret ?? null;
 }
 
-async function razorpayCredentials(organizationId: string) {
+export async function getRazorpayCredentials(organizationId: string) {
   if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
     return { keyId: process.env.RAZORPAY_KEY_ID, keySecret: process.env.RAZORPAY_KEY_SECRET };
   }

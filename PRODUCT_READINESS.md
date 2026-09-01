@@ -1,61 +1,53 @@
 # Vaani product readiness
 
-This file separates working localhost product behavior from provider-dependent production activation. A polished screen is not counted as a live carrier, payment or messaging integration.
+This inventory distinguishes implemented software from external activation. P0 and P1 backend scope is implemented and connection-ready; carrier accounts, API credentials, KYC approval and legal sign-off remain deployment gates—not missing application code.
 
-## Built in the current product
+## P0 — implemented
 
-| Area | Status | Included behavior |
+| Area | Status | Backend behavior |
 | --- | --- | --- |
-| Landing and onboarding | Working locally | Responsive Hindi/English landing page, agent examples, signup flow, separate customer/admin login, Google button visible but admin-disabled |
-| Multi-tenancy and access | Working locally | Organization-scoped queries, separate customer/admin roles and URLs, HttpOnly sessions, password hashing, logout, encrypted integration secrets, hash-only API keys |
-| Trial playground | Working locally | Text and browser-voice modes, English/Hindi/Hinglish/Haryanvi behavior, 100 signup credits, 10 credits deducted per conversational turn, tool-action previews |
-| Lead capture and CRM | Working locally | Meta/Google/form/manual source model, public website-form endpoint, API lead ingestion, normalization, deduplication, AI score/intent, pipeline and activities |
-| Agent building | Working locally | Agent Studio, language/voice/intelligence settings, tools, extractions, calling config and graph-agent records |
-| Campaigns | Working locally | Tenant campaign records, audience size, concurrency, retry policy, calling window and outcome metrics |
-| Telephony control | Connection-ready | My Numbers/KYC flows, platform-rented and BYO number model, SIP trunk registration, transport/media/codec settings and test-gated status |
-| Knowledge and automation | Working locally | Knowledge bases, event-triggered workflows, graph agents and durable scheduled payment actions |
-| Call intelligence | Working locally with demo media | Call history, summaries, transcripts/analysis records, live-monitor view, tenant-authorized demo audio endpoint, analytics, reports and costs |
-| AI quality assurance | Working locally | Resolution, knowledge, naturalness and policy scores; hallucination and overlap counters; pass/review status |
-| Alerting | Working locally | Rules, thresholds, windows, frequencies, email/webhook channel model and incidents |
-| Revenue actions | Sandbox-ready | Razorpay payment-link adapter, WhatsApp immediate/scheduled delivery model, CRM audit trail and signed payment-webhook path |
-| Billing | Sandbox-ready | Free/Growth/Scale plans, wallet and ledger, credit top-ups, subscriptions, invoices and Stripe webhook lifecycle |
-| Developer platform | Working locally | API keys/scopes, public lead API, website forms, signed outgoing webhooks and in-product docs |
-| Support | Working locally | Customer ticket creation/thread and admin queue/reply/resolve flow |
-| Platform admin | Working locally | Tenant, user, number/KYC, plan, invoice, trial, provider requirement, auth visibility, support and audit controls |
+| Multi-tenant core | Complete | Organization-scoped data access, separate admin/customer portals, role checks, audit events and encrypted tenant secrets |
+| Durable execution | Complete | D1 job queue with idempotency keys, priority, claiming locks, exponential retry, attempt history and dead-letter status |
+| Voice/reasoning adapters | Connection-ready | Private Vaani provider layer for Sarvam speech and Anthropic reasoning; credential checks, timeouts and customer-safe product names |
+| Live telephony | Connection-ready | Consent/DNC/wallet-gated outbound call API, Exotel bidirectional AI stream adapter, authenticated callbacks, usage charging and failure state |
+| Numbers, SIP and KYC | Complete | BYO/platform numbers, OTP ownership flow, SIP trunk configuration, secure KYC document metadata and R2 upload path |
+| Recording vault | Connection-ready | Private R2 binding, tenant-authorized playback, remote recording ingestion and local demo fallback |
+| Compliance | Complete | Explicit consent evidence, revocation, hashed suppression list, recording policy, retention settings and audit trail |
+| Payments and billing | Connection-ready | Razorpay payment links/refunds/reconciliation, raw-body HMAC webhooks, Stripe checkout lifecycle, wallet/ledger, plans, GST-ready invoices |
+| Commerce orchestration | Complete | Instant/scheduled WhatsApp payment delivery, durable execution, CRM state and provider-confirmed status |
+| Lead capture and CRM | Complete | Meta/Google/form/API/manual ingestion, validation, dedupe, scoring, attribution, opportunity pipeline and activities |
 
-## Needed before real calls or public launch
+## P1 — implemented
 
-| Priority | Work left | What is required |
+| Area | Status | Backend behavior |
 | --- | --- | --- |
-| P0 | Production database and migrations | Provision production D1/Postgres, run migrations, backups, point-in-time recovery and tenant isolation tests |
-| P0 | Speech and reasoning credentials | Configure the selected STT/TTS/realtime and reasoning keys (for example Vaani Voice India and Vaani Sense backend adapters), quotas, timeout/failover and cost telemetry |
-| P0 | Telephony carrier | Provision Exotel/Vobiz/Plivo/Twilio or a SIP carrier, DIDs, inbound/outbound routes, status webhooks, concurrency limits, KYC and ownership evidence |
-| P0 | Compliance | Legal review for consent, DNC/TRAI rules, DLT templates where applicable, recording disclosure, deletion/export, data residency and industry restrictions |
-| P0 | Secure recording storage | Bind R2/S3, encrypt objects, issue short-lived signed playback URLs, retention deletion jobs and access audit logs |
-| P0 | Background execution | Production queue/workflow workers for calls, retries, scheduled messages, reports, alerts and webhook delivery with dead-letter handling |
-| P0 | Payments | Add production Razorpay/Stripe credentials, verify signed webhooks, configure GST/tax/invoice numbering, refunds and reconciliation |
-| P1 | WhatsApp production | Meta business verification, phone-number ID, approved templates, opt-in proof, rate limits and delivery-status webhooks |
-| P1 | Google sign-in | Create OAuth client and callback URL, store secrets, validate state/nonce/PKCE and then enable it from admin |
-| P1 | Meta and Google lead ads | Complete OAuth apps, webhook verification, lead-form selection, token refresh, attribution mapping and deletion callbacks |
-| P1 | Provider connection tests | Replace `testing_required` with active only after authenticated test calls and webhook round trips succeed |
-| P1 | Observability and security | Central logs/traces/metrics, error monitoring, WAF/rate limits, security headers, secret rotation, dependency scanning and incident alerts |
-| P1 | Production auth | Email verification, password reset, MFA for admins, session revocation, granular RBAC and optional enterprise SSO |
-| P1 | QA calibration | Human-reviewed evaluation set per language/use case, score thresholds, false-positive review and regression tests |
-| P2 | Mobile apps | Native Android and iOS apps remain phase two; responsive web portal is the current client |
-| P2 | Enterprise capabilities | SSO/SCIM, custom retention, audit export, data residency, SLA, dedicated clusters and advanced role permissions |
+| Authentication security | Complete | PBKDF2 passwords, HttpOnly sessions, login/signup rate limits, password reset challenges, session revocation and TOTP MFA |
+| Google sign-in | Connection-ready | Admin visibility/activation controls, OAuth state, PKCE, server-side code exchange and verified Google identity for existing accounts |
+| Integrations | Connection-ready | Encrypted adapters/configuration for CRM, telephony, ads, calendar, automation, commerce, sheets and messaging with test endpoint |
+| Knowledge base | Complete | Tenant sources, safe public-URL/text ingestion, content hashing, chunking, lexical retrieval and durable indexing state |
+| Workflows and graph agents | Complete | Versioned graph records, triggerable workflow runs, step history, queued execution and failure accounting |
+| Campaigns and retargeting | Complete | Campaign policy/configuration, contact execution model, consent-aware audiences and durable destination sync |
+| Call intelligence | Complete | History, transcripts, summaries, recordings, live monitor, outcomes, cost, disconnect reason and informative charts |
+| QA, alerts and reports | Complete | Multidimensional QA, hallucination/overlap checks, alert rules/incidents, durable evaluation jobs and scheduled report definitions |
+| Developer platform | Complete | Scoped API keys, lead/form APIs, signed outgoing webhooks, automatic retry/dead-letter delivery and in-product docs |
+| Support and admin control | Complete | Ticket threads, admin reply/assignment/status, tenant/billing/provider/auth governance and operator observability |
+| Provider economics | Complete | Usage/cost/latency event schema and admin cost/margin data feed |
 
-## External credentials and services checklist
+## External activation gates
 
-- Speech/realtime provider API key and regional endpoint
-- Reasoning/model provider API key
-- Telephony carrier credentials, SIP gateway and webhook secrets
-- Razorpay and/or Stripe production keys and signing secrets
-- WhatsApp Cloud/AiSensy token, phone-number ID and approved templates
-- Google OAuth client ID, client secret and redirect URI
-- Meta Lead Ads and Google Ads OAuth application credentials
-- R2/S3 recording bucket, encryption and signed-URL configuration
-- Transactional email provider and verified sending domain
-- Public HTTPS domain, DNS, TLS, WAF and rate limiting
-- Error monitoring, OpenTelemetry/log drain and uptime alerting
+These require accounts, approvals or business decisions outside the repository:
 
-White-label functionality is intentionally excluded from this release.
+- Add production Sarvam and Anthropic keys, a supported model ID, quotas and budget alerts.
+- Provision Exotel/SIP numbers, complete carrier KYC, configure the public HTTPS callback and validate a real bidirectional stream.
+- Bind the private R2 bucket and set lifecycle/retention policies.
+- Add Razorpay/Stripe live keys, approved WhatsApp templates and Meta business verification.
+- Register Google OAuth, Meta Lead Ads and Google Ads applications and their production callback URLs.
+- Complete TRAI/DLT, consent wording, recording disclosure, privacy/deletion and industry-specific legal review.
+- Configure a transactional email provider, DNS/TLS/WAF, centralized logs/traces and on-call alerts.
+
+## P2 — intentionally left
+
+- Native Android and iOS applications.
+- Enterprise SSO/SCIM, dedicated clusters and white-label capabilities.
+
+White-label remains intentionally excluded from this release.

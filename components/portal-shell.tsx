@@ -53,10 +53,10 @@ export function PortalShell({
   }
 
   return (
-    <main className="min-h-screen bg-[#090b11] text-white lg:grid lg:grid-cols-[244px_minmax(0,1fr)]">
-      <aside className="sticky top-0 hidden h-screen border-r border-white/8 bg-[#0c0f16] lg:flex lg:flex-col">
+    <main className="portal-shell min-h-screen text-white lg:grid lg:grid-cols-[244px_minmax(0,1fr)]">
+      <aside className="sticky top-0 hidden h-screen border-r border-white/[0.07] bg-[#080a0f]/88 backdrop-blur-2xl lg:flex lg:flex-col">
         <Link href="/" className="flex h-[74px] items-center gap-3 border-b border-white/8 px-5">
-          <span className="grid size-9 place-items-center rounded-xl bg-amber-300 text-[#17120a] shadow-[0_10px_32px_-12px_#fcd34d]">
+          <span className="grid size-9 place-items-center rounded-xl border border-white/20 bg-white text-black shadow-[0_12px_34px_-14px_rgba(255,255,255,.7)]">
             <Activity className="size-5" />
           </span>
           <span>
@@ -70,7 +70,7 @@ export function PortalShell({
         <div className="border-b border-white/8 p-3">
           <div className="flex items-center gap-2.5 rounded-xl border border-white/8 bg-white/[0.035] p-2.5">
             <Avatar className="size-8 border border-white/10">
-              <AvatarFallback className="bg-amber-300/12 text-xs text-amber-200">
+              <AvatarFallback className="bg-white/10 text-xs text-white/75">
                 {(workspace || name).slice(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
@@ -96,14 +96,14 @@ export function PortalShell({
                     onClick={() => onNavigate(item.id)}
                     className={`flex h-9 w-full items-center gap-3 rounded-lg px-3 text-left text-xs transition-colors ${
                       active === item.id
-                        ? 'bg-white/[0.085] text-white shadow-sm'
+                        ? 'border border-white/[0.12] bg-white/[0.095] text-white shadow-[inset_0_1px_0_rgba(255,255,255,.08)]'
                         : 'text-white/48 hover:bg-white/[0.045] hover:text-white/78'
                     }`}
                   >
-                    <item.icon className={`size-3.5 ${active === item.id ? 'text-amber-300' : ''}`} />
+                    <item.icon className={`size-3.5 ${active === item.id ? 'text-[#afbcff]' : ''}`} />
                     <span className="flex-1">{item.label}</span>
                     {item.badge ? (
-                      <span className="rounded-md bg-amber-300/10 px-1.5 py-0.5 font-mono text-[9px] text-amber-200">{item.badge}</span>
+                      <span className="rounded-md border border-white/10 bg-white/[0.06] px-1.5 py-0.5 font-mono text-[9px] text-white/65">{item.badge}</span>
                     ) : null}
                   </button>
                 ))}
@@ -129,7 +129,7 @@ export function PortalShell({
       </aside>
 
       <section className="min-w-0">
-        <header className="sticky top-0 z-40 flex h-[62px] items-center gap-3 border-b border-white/8 bg-[#090b11]/90 px-4 backdrop-blur-xl sm:px-6">
+        <header className="sticky top-0 z-40 flex h-[62px] items-center gap-3 border-b border-white/[0.07] bg-[#080a0f]/72 px-4 backdrop-blur-2xl sm:px-6">
           <Button variant="ghost" size="icon-sm" className="lg:hidden" aria-label="Open navigation">
             <Menu />
           </Button>
@@ -145,7 +145,7 @@ export function PortalShell({
           </div>
           {typeof credits === 'number' ? (
             <button type="button" onClick={() => onNavigate('billing')} className="flex items-center gap-2 rounded-lg border border-white/8 bg-white/[0.035] px-3 py-2 text-[10px] text-white/68">
-              <Coins className="size-3.5 text-amber-300" /> {credits.toLocaleString('en-IN')}
+              <Coins className="size-3.5 text-[#afbcff]" /> {credits.toLocaleString('en-IN')}
             </button>
           ) : null}
           <Link href="/docs" className="hidden items-center gap-2 rounded-lg px-2 py-2 text-[10px] text-white/42 hover:bg-white/5 hover:text-white sm:flex">
@@ -153,17 +153,17 @@ export function PortalShell({
           </Link>
           <Button variant="ghost" size="icon-sm" className="relative" aria-label="Notifications">
             <Bell />
-            <span className="absolute right-1 top-1 size-1.5 rounded-full bg-amber-300" />
+            <span className="absolute right-1 top-1 size-1.5 rounded-full bg-[#91a7ff]" />
           </Button>
           <Badge variant="outline" className="hidden border-emerald-400/15 bg-emerald-400/6 text-[9px] text-emerald-300 sm:inline-flex">
-            System healthy
+            Core healthy
           </Badge>
         </header>
 
-        <div className="border-b border-white/8 bg-[#0c0f16] px-3 py-2 lg:hidden">
+        <div className="border-b border-white/8 bg-[#090b11]/90 px-3 py-2 backdrop-blur-xl lg:hidden">
           <div className="flex gap-1 overflow-x-auto">
             {groups.flatMap((group) => group.items).map((item) => (
-              <button key={item.id} type="button" onClick={() => onNavigate(item.id)} className={`whitespace-nowrap rounded-lg px-3 py-2 text-[10px] ${active === item.id ? 'bg-amber-300 text-[#17120a]' : 'text-white/48'}`}>
+              <button key={item.id} type="button" onClick={() => onNavigate(item.id)} className={`whitespace-nowrap rounded-lg px-3 py-2 text-[10px] ${active === item.id ? 'bg-white text-black' : 'text-white/48'}`}>
                 {item.label}
               </button>
             ))}

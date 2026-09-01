@@ -4,6 +4,77 @@
 
 @custom-variant dark (&:is(.dark *));
 
+.portal-shell {
+  --portal-accent: #a8b7ff;
+  --ring: #a8b7ff;
+  background:
+    radial-gradient(900px 520px at 72% -12%, rgba(111, 132, 255, 0.13), transparent 62%),
+    radial-gradient(720px 420px at 15% 52%, rgba(255, 255, 255, 0.035), transparent 72%),
+    linear-gradient(180deg, #07090d 0%, #090b11 55%, #07090d 100%);
+}
+
+.portal-shell::before {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  content: '';
+  opacity: 0.2;
+  background-image:
+    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: linear-gradient(to bottom, black, transparent 82%);
+}
+
+.portal-panel,
+.portal-stat {
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    0 24px 70px -44px rgba(0, 0, 0, 0.95);
+  backdrop-filter: blur(24px);
+  border-radius: 18px;
+}
+
+.portal-stat::after {
+  position: absolute;
+  inset: auto 14px 0 14px;
+  height: 1px;
+  content: '';
+  background: linear-gradient(90deg, transparent, rgba(145, 167, 255, 0.4), transparent);
+}
+
+.portal-primary {
+  border: 1px solid rgba(255, 255, 255, 0.24) !important;
+  background: #f7f8fc !important;
+  color: #090b11 !important;
+  box-shadow: 0 16px 34px -20px rgba(255, 255, 255, 0.55);
+}
+
+.portal-primary:hover {
+  background: #dfe5ff !important;
+}
+
+.portal-shell [class*="bg-[#0c1422]"],
+.portal-shell [class*="bg-[#0e1119]"] {
+  border-color: rgba(255, 255, 255, 0.085) !important;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.016)) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 24px 70px -44px rgba(0,0,0,.95);
+  backdrop-filter: blur(24px);
+}
+
+.portal-shell [class*="bg-cyan-300"][class*="text-[#07101e]"] {
+  border: 1px solid rgba(255, 255, 255, 0.24) !important;
+  background: #f7f8fc !important;
+  color: #090b11 !important;
+}
+
+.portal-shell [data-slot="progress-indicator"] {
+  background: linear-gradient(90deg, #f4f7ff, #91a7ff) !important;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

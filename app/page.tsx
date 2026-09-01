@@ -29,6 +29,8 @@ import {
   PhoneIncoming,
   Plus,
   Radio,
+  Repeat2,
+  Route,
   Settings2,
   ShieldCheck,
   Sparkles,
@@ -81,6 +83,8 @@ import {
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { LeadCapturePanel } from '@/components/lead-capture-panel';
+import { ProductRoadmapPanel } from '@/components/product-roadmap-panel';
+import { RetargetingPanel } from '@/components/retargeting-panel';
 
 const navigationGroups = [
   {
@@ -110,6 +114,7 @@ const navigationGroups = [
       { label: 'CRM', icon: Target },
       { label: 'Appointments', icon: CalendarCheck2 },
       { label: 'WhatsApp', icon: MessageCircleMore },
+      { label: 'Audience retargeting', icon: Repeat2 },
     ],
   },
 ];
@@ -122,6 +127,7 @@ const managementItems = [
   { label: 'Team', icon: UsersRound },
   { label: 'Billing', icon: WalletCards },
   { label: 'API & webhooks', icon: Webhook },
+  { label: 'Product roadmap', icon: Route },
   { label: 'Settings', icon: Settings2 },
 ];
 
@@ -130,6 +136,7 @@ const adminItems = [
   { label: 'Analytics', icon: Gauge },
   { label: 'Billing', icon: WalletCards },
   { label: 'API & webhooks', icon: Webhook },
+  { label: 'Product roadmap', icon: Route },
   { label: 'Settings', icon: Settings2 },
 ];
 
@@ -1664,6 +1671,10 @@ export default function Home() {
             </>
           ) : activeSection === 'Lead capture' ? (
             <LeadCapturePanel onNotice={setNotice} />
+          ) : activeSection === 'Audience retargeting' ? (
+            <RetargetingPanel onNotice={setNotice} />
+          ) : activeSection === 'Product roadmap' ? (
+            <ProductRoadmapPanel onNotice={setNotice} />
           ) : (
             <ModulePanel
               section={activeSection}

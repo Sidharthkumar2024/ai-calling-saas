@@ -50,6 +50,20 @@
       "when": 1788285248907,
       "tag": "0006_polite_cobalt_man",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1788286806680,
+      "tag": "0007_bright_chamber",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1788287018915,
+      "tag": "0008_workable_magdalene",
+      "breakpoints": true
     }
   ]
 }

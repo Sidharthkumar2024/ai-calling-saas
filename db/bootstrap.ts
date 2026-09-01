@@ -126,10 +126,20 @@ async function bootstrap() {
       ON sales_opportunities (organization_id, lead_id)`),
   ]);
 
-  await ensureColumn(db, 'lead_forms', 'settings_json', "TEXT DEFAULT '{}' NOT NULL");
+  await ensureColumn(
+    db,
+    'lead_forms',
+    'settings_json',
+    "TEXT DEFAULT '{}' NOT NULL",
+  );
   await ensureColumn(db, 'lead_forms', 'version', 'INTEGER DEFAULT 1 NOT NULL');
   await ensureColumn(db, 'lead_forms', 'published_at', 'TEXT');
-  await ensureColumn(db, 'lead_forms', 'updated_at', "TEXT DEFAULT '' NOT NULL");
+  await ensureColumn(
+    db,
+    'lead_forms',
+    'updated_at',
+    "TEXT DEFAULT '' NOT NULL",
+  );
 
   await db.batch([
     db.prepare(`CREATE TABLE IF NOT EXISTS app_users (
@@ -143,8 +153,12 @@ async function bootstrap() {
       last_login_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_app_users_email ON app_users (email)`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_app_users_org_role ON app_users (organization_id, role)`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_app_users_email ON app_users (email)`,
+    ),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_app_users_org_role ON app_users (organization_id, role)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS auth_sessions (
       id TEXT PRIMARY KEY NOT NULL,
       user_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
@@ -152,8 +166,12 @@ async function bootstrap() {
       expires_at TEXT NOT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_auth_sessions_token_hash ON auth_sessions (token_hash)`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_auth_sessions_user ON auth_sessions (user_id)`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_auth_sessions_token_hash ON auth_sessions (token_hash)`,
+    ),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_auth_sessions_user ON auth_sessions (user_id)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS crm_activities (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -166,7 +184,9 @@ async function bootstrap() {
       created_by TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_crm_activities_org_lead ON crm_activities (organization_id, lead_id)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_crm_activities_org_lead ON crm_activities (organization_id, lead_id)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS phone_numbers (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -176,6 +196,12 @@ async function bootstrap() {
       acquisition_type TEXT NOT NULL,
       public_provider_name TEXT DEFAULT 'Vaani Connect' NOT NULL,
       provider_reference TEXT,
+      provider_code TEXT DEFAULT 'auto' NOT NULL,
+      connection_mode TEXT DEFAULT 'managed_number' NOT NULL,
+      provider_account_hint TEXT,
+      business_use_case TEXT,
+      estimated_monthly_minutes INTEGER DEFAULT 0 NOT NULL,
+      onboarding_status TEXT DEFAULT 'draft' NOT NULL,
       assigned_agent_name TEXT,
       direction TEXT DEFAULT 'inbound_outbound' NOT NULL,
       kyc_status TEXT DEFAULT 'not_submitted' NOT NULL,
@@ -183,8 +209,12 @@ async function bootstrap() {
       monthly_rental INTEGER DEFAULT 0 NOT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_phone_numbers_number ON phone_numbers (phone_number)`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_phone_numbers_org_status ON phone_numbers (organization_id, status)`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_phone_numbers_number ON phone_numbers (phone_number)`,
+    ),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_phone_numbers_org_status ON phone_numbers (organization_id, status)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS number_verifications (
       id TEXT PRIMARY KEY NOT NULL,
       phone_number_id TEXT NOT NULL REFERENCES phone_numbers(id) ON DELETE CASCADE,
@@ -195,7 +225,9 @@ async function bootstrap() {
       verified_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_number_verifications_phone ON number_verifications (phone_number_id)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_number_verifications_phone ON number_verifications (phone_number_id)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS integration_connections (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -207,7 +239,9 @@ async function bootstrap() {
       last_checked_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_integration_connections_org_type ON integration_connections (organization_id, type)`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_integration_connections_org_type ON integration_connections (organization_id, type)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS api_credentials (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -219,8 +253,12 @@ async function bootstrap() {
       revoked_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_api_credentials_key_hash ON api_credentials (key_hash)`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_api_credentials_org ON api_credentials (organization_id)`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_api_credentials_key_hash ON api_credentials (key_hash)`,
+    ),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_api_credentials_org ON api_credentials (organization_id)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS webhook_endpoints (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -234,7 +272,9 @@ async function bootstrap() {
       failure_count INTEGER DEFAULT 0 NOT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_webhook_endpoints_org ON webhook_endpoints (organization_id)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_webhook_endpoints_org ON webhook_endpoints (organization_id)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS webhook_deliveries (
       id TEXT PRIMARY KEY NOT NULL,
       endpoint_id TEXT NOT NULL REFERENCES webhook_endpoints(id) ON DELETE CASCADE,
@@ -244,7 +284,9 @@ async function bootstrap() {
       response_snippet TEXT,
       delivered_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_endpoint ON webhook_deliveries (endpoint_id)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_endpoint ON webhook_deliveries (endpoint_id)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS plans (
       id TEXT PRIMARY KEY NOT NULL,
       code TEXT NOT NULL,
@@ -258,7 +300,17 @@ async function bootstrap() {
       status TEXT DEFAULT 'active' NOT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_plans_code ON plans (code)`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_plans_code ON plans (code)`,
+    ),
+    db.prepare(`CREATE TABLE IF NOT EXISTS credit_packages (
+      id TEXT PRIMARY KEY NOT NULL,
+      name TEXT NOT NULL,
+      credits INTEGER NOT NULL,
+      amount INTEGER NOT NULL,
+      status TEXT DEFAULT 'active' NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
     db.prepare(`CREATE TABLE IF NOT EXISTS subscriptions (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -269,8 +321,12 @@ async function bootstrap() {
       current_period_end TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_subscriptions_org ON subscriptions (organization_id)`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_subscriptions_external ON subscriptions (external_subscription_id)`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_subscriptions_org ON subscriptions (organization_id)`,
+    ),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_subscriptions_external ON subscriptions (external_subscription_id)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS organization_wallets (
       organization_id TEXT PRIMARY KEY NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
       balance INTEGER DEFAULT 0 NOT NULL,
@@ -288,7 +344,9 @@ async function bootstrap() {
       description TEXT NOT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_credit_ledger_org_created ON credit_ledger (organization_id, created_at)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_credit_ledger_org_created ON credit_ledger (organization_id, created_at)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS invoices (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -305,8 +363,12 @@ async function bootstrap() {
       due_at TEXT,
       paid_at TEXT
     )`),
-    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_number ON invoices (invoice_number)`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_invoices_org_issued ON invoices (organization_id, issued_at)`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_number ON invoices (invoice_number)`,
+    ),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_invoices_org_issued ON invoices (organization_id, issued_at)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS billing_events (
       id TEXT PRIMARY KEY NOT NULL,
       external_event_id TEXT NOT NULL,
@@ -314,7 +376,9 @@ async function bootstrap() {
       payload_json TEXT DEFAULT '{}' NOT NULL,
       processed_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_billing_events_external ON billing_events (external_event_id)`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_billing_events_external ON billing_events (external_event_id)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS audit_events (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT REFERENCES organizations(id) ON DELETE CASCADE,
@@ -325,8 +389,45 @@ async function bootstrap() {
       metadata_json TEXT DEFAULT '{}' NOT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_audit_events_org_created ON audit_events (organization_id, created_at)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_audit_events_org_created ON audit_events (organization_id, created_at)`,
+    ),
   ]);
+
+  await ensureColumn(
+    db,
+    'phone_numbers',
+    'provider_code',
+    "TEXT DEFAULT 'auto' NOT NULL",
+  );
+  await ensureColumn(
+    db,
+    'phone_numbers',
+    'connection_mode',
+    "TEXT DEFAULT 'managed_number' NOT NULL",
+  );
+  await ensureColumn(db, 'phone_numbers', 'provider_account_hint', 'TEXT');
+  await ensureColumn(db, 'phone_numbers', 'business_use_case', 'TEXT');
+  await ensureColumn(
+    db,
+    'phone_numbers',
+    'estimated_monthly_minutes',
+    'INTEGER DEFAULT 0 NOT NULL',
+  );
+  await ensureColumn(
+    db,
+    'phone_numbers',
+    'onboarding_status',
+    "TEXT DEFAULT 'draft' NOT NULL",
+  );
+  await db
+    .prepare(`UPDATE phone_numbers SET onboarding_status = 'active'
+    WHERE kyc_status = 'approved' AND status = 'active' AND onboarding_status = 'draft'`)
+    .run();
+  await db
+    .prepare(`UPDATE phone_numbers SET connection_mode = 'native_import'
+    WHERE acquisition_type = 'bring_your_own' AND connection_mode = 'managed_number'`)
+    .run();
 
   await db.batch([
     db.prepare(`CREATE TABLE IF NOT EXISTS onboarding_profiles (
@@ -361,7 +462,9 @@ async function bootstrap() {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_voice_agents_org_status ON voice_agents (organization_id, status)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_voice_agents_org_status ON voice_agents (organization_id, status)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS agent_test_sessions (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -372,7 +475,9 @@ async function bootstrap() {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_agent_test_sessions_org_created ON agent_test_sessions (organization_id, created_at)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_agent_test_sessions_org_created ON agent_test_sessions (organization_id, created_at)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS agent_test_messages (
       id TEXT PRIMARY KEY NOT NULL,
       session_id TEXT NOT NULL REFERENCES agent_test_sessions(id) ON DELETE CASCADE,
@@ -382,7 +487,9 @@ async function bootstrap() {
       latency_ms INTEGER,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_agent_test_messages_session ON agent_test_messages (session_id)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_agent_test_messages_session ON agent_test_messages (session_id)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS payment_links (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -405,9 +512,15 @@ async function bootstrap() {
       paid_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_payment_links_reference ON payment_links (reference_id)`),
-    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_payment_links_external ON payment_links (external_payment_link_id)`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_payment_links_org_created ON payment_links (organization_id, created_at)`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_payment_links_reference ON payment_links (reference_id)`,
+    ),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_payment_links_external ON payment_links (external_payment_link_id)`,
+    ),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_payment_links_org_created ON payment_links (organization_id, created_at)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS outbound_messages (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -424,8 +537,12 @@ async function bootstrap() {
       sent_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_outbound_messages_org_created ON outbound_messages (organization_id, created_at)`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_outbound_messages_status_scheduled ON outbound_messages (status, scheduled_for)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_outbound_messages_org_created ON outbound_messages (organization_id, created_at)`,
+    ),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_outbound_messages_status_scheduled ON outbound_messages (status, scheduled_for)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS scheduled_actions (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -441,8 +558,12 @@ async function bootstrap() {
       completed_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_scheduled_actions_status_run ON scheduled_actions (status, run_at)`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_scheduled_actions_org ON scheduled_actions (organization_id)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_scheduled_actions_status_run ON scheduled_actions (status, run_at)`,
+    ),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_scheduled_actions_org ON scheduled_actions (organization_id)`,
+    ),
   ]);
 
   await db.batch([
@@ -496,7 +617,9 @@ async function bootstrap() {
       last_checked_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_sip_trunks_org_status ON sip_trunks (organization_id, status)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_sip_trunks_org_status ON sip_trunks (organization_id, status)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS knowledge_bases (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -509,7 +632,9 @@ async function bootstrap() {
       last_synced_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_knowledge_bases_org ON knowledge_bases (organization_id, status)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_knowledge_bases_org ON knowledge_bases (organization_id, status)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS workflows (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -522,7 +647,9 @@ async function bootstrap() {
       last_run_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_workflows_org_status ON workflows (organization_id, status)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_workflows_org_status ON workflows (organization_id, status)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS graph_agents (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -534,7 +661,9 @@ async function bootstrap() {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_graph_agents_org_status ON graph_agents (organization_id, status)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_graph_agents_org_status ON graph_agents (organization_id, status)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS campaigns (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -551,7 +680,9 @@ async function bootstrap() {
       scheduled_for TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_campaigns_org_status ON campaigns (organization_id, status)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_campaigns_org_status ON campaigns (organization_id, status)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS call_records (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -579,8 +710,12 @@ async function bootstrap() {
       ended_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_call_records_org_started ON call_records (organization_id, started_at)`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_call_records_org_status ON call_records (organization_id, status)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_call_records_org_started ON call_records (organization_id, started_at)`,
+    ),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_call_records_org_status ON call_records (organization_id, status)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS call_quality_reviews (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -596,7 +731,9 @@ async function bootstrap() {
       findings_json TEXT DEFAULT '[]' NOT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_call_quality_org_score ON call_quality_reviews (organization_id, overall_score)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_call_quality_org_score ON call_quality_reviews (organization_id, overall_score)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS alert_rules (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -610,7 +747,9 @@ async function bootstrap() {
       status TEXT DEFAULT 'active' NOT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_alert_rules_org_status ON alert_rules (organization_id, status)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_alert_rules_org_status ON alert_rules (organization_id, status)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS alert_incidents (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -620,7 +759,9 @@ async function bootstrap() {
       triggered_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
       resolved_at TEXT
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_alert_incidents_org_status ON alert_incidents (organization_id, status)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_alert_incidents_org_status ON alert_incidents (organization_id, status)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS report_definitions (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -632,7 +773,9 @@ async function bootstrap() {
       last_generated_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_reports_org_status ON report_definitions (organization_id, status)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_reports_org_status ON report_definitions (organization_id, status)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS support_tickets (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -645,7 +788,9 @@ async function bootstrap() {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_support_tickets_org_status ON support_tickets (organization_id, status)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_support_tickets_org_status ON support_tickets (organization_id, status)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS support_ticket_messages (
       id TEXT PRIMARY KEY NOT NULL,
       ticket_id TEXT NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
@@ -654,7 +799,9 @@ async function bootstrap() {
       message TEXT NOT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_ticket_messages_ticket ON support_ticket_messages (ticket_id, created_at)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_ticket_messages_ticket ON support_ticket_messages (ticket_id, created_at)`,
+    ),
   ]);
 
   await db.batch([
@@ -667,15 +814,23 @@ async function bootstrap() {
       locked_at TEXT, locked_by TEXT, last_error TEXT, completed_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_background_jobs_idempotency ON background_jobs (idempotency_key)`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_background_jobs_claim ON background_jobs (status, available_at, priority)`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_background_jobs_org ON background_jobs (organization_id, created_at)`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_background_jobs_idempotency ON background_jobs (idempotency_key)`,
+    ),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_background_jobs_claim ON background_jobs (status, available_at, priority)`,
+    ),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_background_jobs_org ON background_jobs (organization_id, created_at)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS job_attempts (
       id TEXT PRIMARY KEY NOT NULL, job_id TEXT NOT NULL REFERENCES background_jobs(id) ON DELETE CASCADE,
       attempt INTEGER NOT NULL, status TEXT NOT NULL, duration_ms INTEGER, error TEXT,
       result_json TEXT DEFAULT '{}' NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_job_attempts_job ON job_attempts (job_id, attempt)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_job_attempts_job ON job_attempts (job_id, attempt)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS consent_records (
       id TEXT PRIMARY KEY NOT NULL, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
       lead_id TEXT REFERENCES leads(id) ON DELETE SET NULL, phone TEXT NOT NULL, purpose TEXT NOT NULL,
@@ -683,14 +838,18 @@ async function bootstrap() {
       proof_json TEXT DEFAULT '{}' NOT NULL, captured_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
       expires_at TEXT, revoked_at TEXT
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_consent_org_phone ON consent_records (organization_id, phone, status)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_consent_org_phone ON consent_records (organization_id, phone, status)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS suppression_entries (
       id TEXT PRIMARY KEY NOT NULL, organization_id TEXT REFERENCES organizations(id) ON DELETE CASCADE,
       phone_hash TEXT NOT NULL, scope TEXT DEFAULT 'organization' NOT NULL, reason TEXT NOT NULL,
       source TEXT DEFAULT 'customer_request' NOT NULL, expires_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_suppression_scope_phone ON suppression_entries (organization_id, scope, phone_hash)`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_suppression_scope_phone ON suppression_entries (organization_id, scope, phone_hash)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS kyc_documents (
       id TEXT PRIMARY KEY NOT NULL, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
       phone_number_id TEXT REFERENCES phone_numbers(id) ON DELETE SET NULL, document_type TEXT NOT NULL,
@@ -698,20 +857,28 @@ async function bootstrap() {
       rejection_reason TEXT, reviewed_by TEXT, reviewed_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_kyc_org_status ON kyc_documents (organization_id, status)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_kyc_org_status ON kyc_documents (organization_id, status)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS oauth_states (
       id TEXT PRIMARY KEY NOT NULL, provider TEXT NOT NULL, state_hash TEXT NOT NULL,
       code_verifier_encrypted TEXT NOT NULL, return_to TEXT DEFAULT '/app' NOT NULL,
       expires_at TEXT NOT NULL, consumed_at TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_oauth_states_hash ON oauth_states (state_hash)`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_oauth_states_hash ON oauth_states (state_hash)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS security_challenges (
       id TEXT PRIMARY KEY NOT NULL, user_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
       type TEXT NOT NULL, token_hash TEXT NOT NULL, metadata_json TEXT DEFAULT '{}' NOT NULL,
       expires_at TEXT NOT NULL, consumed_at TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_security_challenges_token ON security_challenges (token_hash)`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_security_challenges_user ON security_challenges (user_id, type)`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_security_challenges_token ON security_challenges (token_hash)`,
+    ),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_security_challenges_user ON security_challenges (user_id, type)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS rate_limit_buckets (
       bucket_key TEXT PRIMARY KEY NOT NULL, count INTEGER DEFAULT 0 NOT NULL,
       window_started_at TEXT NOT NULL, blocked_until TEXT, updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
@@ -728,8 +895,12 @@ async function bootstrap() {
       expires_at TEXT NOT NULL, accepted_at TEXT, revoked_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_team_invites_token ON team_invitations (token_hash)`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_team_invites_org_email ON team_invitations (organization_id, email)`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_team_invites_token ON team_invitations (token_hash)`,
+    ),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_team_invites_org_email ON team_invitations (organization_id, email)`,
+    ),
   ]);
 
   await db.batch([
@@ -740,15 +911,21 @@ async function bootstrap() {
       content_hash TEXT NOT NULL, status TEXT DEFAULT 'queued' NOT NULL, error TEXT, synced_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_knowledge_sources_kb ON knowledge_sources (knowledge_base_id, status)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_knowledge_sources_kb ON knowledge_sources (knowledge_base_id, status)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS knowledge_chunks (
       id TEXT PRIMARY KEY NOT NULL, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
       source_id TEXT NOT NULL REFERENCES knowledge_sources(id) ON DELETE CASCADE,
       ordinal INTEGER NOT NULL, content TEXT NOT NULL, token_estimate INTEGER NOT NULL,
       metadata_json TEXT DEFAULT '{}' NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_knowledge_chunks_source_ordinal ON knowledge_chunks (source_id, ordinal)`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_org ON knowledge_chunks (organization_id)`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_knowledge_chunks_source_ordinal ON knowledge_chunks (source_id, ordinal)`,
+    ),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_org ON knowledge_chunks (organization_id)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS workflow_runs (
       id TEXT PRIMARY KEY NOT NULL, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
       workflow_id TEXT NOT NULL REFERENCES workflows(id) ON DELETE CASCADE, trigger_type TEXT NOT NULL,
@@ -756,14 +933,18 @@ async function bootstrap() {
       output_json TEXT DEFAULT '{}' NOT NULL, started_at TEXT, completed_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_workflow_runs_org ON workflow_runs (organization_id, created_at)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_workflow_runs_org ON workflow_runs (organization_id, created_at)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS workflow_run_steps (
       id TEXT PRIMARY KEY NOT NULL, run_id TEXT NOT NULL REFERENCES workflow_runs(id) ON DELETE CASCADE,
       step_index INTEGER NOT NULL, step_type TEXT NOT NULL, status TEXT DEFAULT 'pending' NOT NULL,
       input_json TEXT DEFAULT '{}' NOT NULL, output_json TEXT DEFAULT '{}' NOT NULL, error TEXT,
       started_at TEXT, completed_at TEXT
     )`),
-    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_workflow_steps_run_index ON workflow_run_steps (run_id, step_index)`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_workflow_steps_run_index ON workflow_run_steps (run_id, step_index)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS campaign_contacts (
       id TEXT PRIMARY KEY NOT NULL, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
       campaign_id TEXT NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
@@ -772,8 +953,12 @@ async function bootstrap() {
       attempt_count INTEGER DEFAULT 0 NOT NULL, next_attempt_at TEXT, outcome TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_campaign_contacts_campaign_phone ON campaign_contacts (campaign_id, phone)`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_campaign_contacts_ready ON campaign_contacts (campaign_id, status, next_attempt_at)`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_campaign_contacts_campaign_phone ON campaign_contacts (campaign_id, phone)`,
+    ),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_campaign_contacts_ready ON campaign_contacts (campaign_id, status, next_attempt_at)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS provider_usage_events (
       id TEXT PRIMARY KEY NOT NULL, organization_id TEXT REFERENCES organizations(id) ON DELETE SET NULL,
       provider_id TEXT NOT NULL, category TEXT NOT NULL, operation TEXT NOT NULL, units INTEGER DEFAULT 1 NOT NULL,
@@ -781,21 +966,27 @@ async function bootstrap() {
       latency_ms INTEGER, status TEXT NOT NULL, reference_id TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_provider_usage_created ON provider_usage_events (provider_id, created_at)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_provider_usage_created ON provider_usage_events (provider_id, created_at)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS retargeting_audiences (
       id TEXT PRIMARY KEY NOT NULL, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
       name TEXT NOT NULL, destination TEXT NOT NULL, rules_json TEXT DEFAULT '{}' NOT NULL,
       status TEXT DEFAULT 'draft' NOT NULL, eligible_count INTEGER DEFAULT 0 NOT NULL,
       last_synced_at TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_retargeting_org ON retargeting_audiences (organization_id, status)`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_retargeting_org ON retargeting_audiences (organization_id, status)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS payment_reconciliations (
       id TEXT PRIMARY KEY NOT NULL, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
       provider TEXT NOT NULL, external_id TEXT NOT NULL, entity_type TEXT NOT NULL, entity_id TEXT,
       amount INTEGER NOT NULL, currency TEXT DEFAULT 'INR' NOT NULL, status TEXT NOT NULL,
       mismatch_reason TEXT, reconciled_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
-    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_reconciliation_provider_external ON payment_reconciliations (provider, external_id)`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_reconciliation_provider_external ON payment_reconciliations (provider, external_id)`,
+    ),
   ]);
 
   if (process.env.NODE_ENV !== 'production') {
@@ -806,18 +997,28 @@ async function bootstrap() {
 }
 
 async function seedLocalDemo(db: D1Database) {
-  const adminHash = await hashSeedPassword('VaaniAdmin#2026', 'vaani-admin-local');
-  const ownerHash = await hashSeedPassword('VaaniUser#2026', 'vaani-owner-local');
+  const adminHash = await hashSeedPassword(
+    'VaaniAdmin#2026',
+    'vaani-admin-local',
+  );
+  const ownerHash = await hashSeedPassword(
+    'VaaniUser#2026',
+    'vaani-owner-local',
+  );
 
   await db.batch([
     db.prepare(`INSERT OR IGNORE INTO organizations (id, slug, name, status)
       VALUES ('org_vaani_demo', 'urbannest-realty', 'UrbanNest Realty', 'active')`),
-    db.prepare(`INSERT OR IGNORE INTO app_users
+    db
+      .prepare(`INSERT OR IGNORE INTO app_users
       (id, organization_id, name, email, password_hash, role, status)
-      VALUES ('user_vaani_admin', NULL, 'Vaani Platform Admin', 'admin@vaani.local', ?, 'platform_admin', 'active')`).bind(adminHash),
-    db.prepare(`INSERT OR IGNORE INTO app_users
+      VALUES ('user_vaani_admin', NULL, 'Vaani Platform Admin', 'admin@vaani.local', ?, 'platform_admin', 'active')`)
+      .bind(adminHash),
+    db
+      .prepare(`INSERT OR IGNORE INTO app_users
       (id, organization_id, name, email, password_hash, role, status)
-      VALUES ('user_vaani_owner', 'org_vaani_demo', 'Sidharth Kumar', 'owner@vaani.local', ?, 'customer_owner', 'active')`).bind(ownerHash),
+      VALUES ('user_vaani_owner', 'org_vaani_demo', 'Sidharth Kumar', 'owner@vaani.local', ?, 'customer_owner', 'active')`)
+      .bind(ownerHash),
     db.prepare(`INSERT OR IGNORE INTO organization_members
       (id, organization_id, user_id, email, role)
       VALUES ('member_vaani_owner', 'org_vaani_demo', 'user_vaani_owner', 'owner@vaani.local', 'admin')`),
@@ -833,14 +1034,18 @@ async function seedLocalDemo(db: D1Database) {
     db.prepare(`INSERT OR IGNORE INTO lead_sources
       (id, organization_id, type, name, status)
       VALUES ('source_demo_manual', 'org_vaani_demo', 'manual', 'Manual / CSV', 'connected')`),
-    db.prepare(`INSERT OR IGNORE INTO lead_forms
+    db
+      .prepare(`INSERT OR IGNORE INTO lead_forms
       (id, organization_id, name, public_key, fields_json, allowed_domains_json, status)
-      VALUES ('form_demo_popup', 'org_vaani_demo', 'Project enquiry popup', 'form_urbannest', ?, '["http://localhost:3000"]', 'active')`).bind(JSON.stringify([
-        { key: 'name', label: 'Name', required: true },
-        { key: 'phone', label: 'Phone', required: true },
-        { key: 'email', label: 'Email', required: false },
-        { key: 'productInterest', label: 'Interested in', required: false },
-      ])),
+      VALUES ('form_demo_popup', 'org_vaani_demo', 'Project enquiry popup', 'form_urbannest', ?, '["http://localhost:3000"]', 'active')`)
+      .bind(
+        JSON.stringify([
+          { key: 'name', label: 'Name', required: true },
+          { key: 'phone', label: 'Phone', required: true },
+          { key: 'email', label: 'Email', required: false },
+          { key: 'productInterest', label: 'Interested in', required: false },
+        ]),
+      ),
     db.prepare(`INSERT OR IGNORE INTO plans
       (id, code, name, monthly_price, included_credits, max_agents, max_numbers, concurrency, features_json, status)
       VALUES ('plan_free', 'free', 'Free', 0, 100, 1, 1, 1, '["100 trial credits","1 AI agent","CRM lite","API sandbox"]', 'active')`),
@@ -850,6 +1055,15 @@ async function seedLocalDemo(db: D1Database) {
     db.prepare(`INSERT OR IGNORE INTO plans
       (id, code, name, monthly_price, included_credits, max_agents, max_numbers, concurrency, features_json, status)
       VALUES ('plan_scale', 'scale', 'Scale', 2499900, 50000, 20, 10, 50, '["50,000 credits","20 AI agents","Priority routing","Custom retention","SLA support"]', 'active')`),
+    db.prepare(`INSERT OR IGNORE INTO credit_packages
+      (id, name, credits, amount, status)
+      VALUES ('credits_1000', '1,000 credits', 1000, 99900, 'active')`),
+    db.prepare(`INSERT OR IGNORE INTO credit_packages
+      (id, name, credits, amount, status)
+      VALUES ('credits_5000', '5,000 credits', 5000, 449900, 'active')`),
+    db.prepare(`INSERT OR IGNORE INTO credit_packages
+      (id, name, credits, amount, status)
+      VALUES ('credits_20000', '20,000 credits', 20000, 1599900, 'active')`),
     db.prepare(`INSERT OR IGNORE INTO subscriptions
       (id, organization_id, plan_id, status, current_period_end)
       VALUES ('sub_demo_growth', 'org_vaani_demo', 'plan_growth', 'active', '2026-10-01T00:00:00.000Z')`),
@@ -944,6 +1158,14 @@ async function seedLocalDemo(db: D1Database) {
       (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
       VALUES ('provider_anthropic', 'Anthropic Claude', 'Vaani Sense', 'reasoning',
        '["ANTHROPIC_API_KEY"]', 'required_for_live', 'not_connected', 'Reasoning and tool planning', 0)`),
+    db.prepare(`INSERT OR IGNORE INTO platform_providers
+      (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
+      VALUES ('provider_openai', 'OpenAI API', 'Vaani Realtime', 'realtime_reasoning',
+       '["OPENAI_API_KEY","OPENAI_MODEL","OPENAI_REALTIME_MODEL"]', 'optional', 'not_connected', 'Realtime audio, streaming responses and tool-capable reasoning', 0)`),
+    db.prepare(`INSERT OR IGNORE INTO platform_providers
+      (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
+      VALUES ('provider_elevenlabs', 'ElevenLabs API', 'Vaani Voice Global', 'speech',
+       '["ELEVENLABS_API_KEY","ELEVENLABS_VOICE_ID"]', 'optional', 'not_connected', 'Multilingual low-latency speech, voice selection and streaming output', 0)`),
     db.prepare(`INSERT OR IGNORE INTO platform_providers
       (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
       VALUES ('provider_razorpay', 'Razorpay', 'Vaani Payments', 'payments',
@@ -1072,13 +1294,17 @@ async function seedLocalDemo(db: D1Database) {
 
 async function ensureColumn(
   db: D1Database,
-  table: 'lead_forms',
-  column: 'settings_json' | 'version' | 'published_at' | 'updated_at',
+  table: string,
+  column: string,
   definition: string,
 ) {
-  const info = await db.prepare(`PRAGMA table_info(${table})`).all<{ name: string }>();
+  const info = await db
+    .prepare(`PRAGMA table_info(${table})`)
+    .all<{ name: string }>();
   if (!info.results.some((item) => item.name === column)) {
-    await db.prepare(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`).run();
+    await db
+      .prepare(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`)
+      .run();
   }
 }
 

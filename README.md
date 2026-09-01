@@ -2,6 +2,8 @@
 
 Vaani is a multi-tenant revenue voice operating system for lead capture, AI-agent testing, CRM, campaigns, telephony setup, call intelligence, payments and platform administration.
 
+Production provider, number/KYC and security activation requirements are documented in [INTEGRATION_REQUIREMENTS.md](./INTEGRATION_REQUIREMENTS.md).
+
 ## Run locally
 
 ```bash

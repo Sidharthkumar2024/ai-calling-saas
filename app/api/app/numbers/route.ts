@@ -13,8 +13,10 @@ export async function GET(request: Request) {
   const rows = await getRawDb()
     .prepare(
       `SELECT id, phone_number, country, number_type, acquisition_type,
-         public_provider_name, assigned_agent_name, direction, kyc_status,
-         status, monthly_rental, created_at
+         public_provider_name, provider_code, connection_mode, provider_account_hint,
+         business_use_case, estimated_monthly_minutes, onboarding_status,
+         assigned_agent_name, direction, kyc_status, status, monthly_rental, created_at,
+         (SELECT count(*) FROM kyc_documents d WHERE d.phone_number_id = phone_numbers.id) AS kyc_document_count
        FROM phone_numbers WHERE organization_id = ? ORDER BY created_at DESC`,
     )
     .bind(auth.session.organizationId)
@@ -30,35 +32,84 @@ export async function POST(request: Request) {
     phoneNumber?: string;
     assignedAgentName?: string;
     direction?: 'inbound' | 'outbound' | 'inbound_outbound';
+    providerCode?: string;
+    connectionMode?: 'managed_number' | 'native_import' | 'sip_trunk';
+    providerAccountId?: string;
+    businessUseCase?: string;
+    estimatedMonthlyMinutes?: number;
   };
   if (body.action !== 'rent' && body.action !== 'connect') {
-    return NextResponse.json({ error: 'Choose rent or connect.' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Choose rent or connect.' },
+      { status: 400 },
+    );
   }
 
   const db = getRawDb();
   const id = `number_${crypto.randomUUID()}`;
   const direction = body.direction ?? 'inbound_outbound';
+  const supportedProviders = new Set([
+    'auto',
+    'exotel',
+    'twilio',
+    'sip',
+    'plivo',
+    'telnyx',
+    'vonage',
+    'bandwidth',
+  ]);
+  const providerCode = supportedProviders.has(body.providerCode ?? '')
+    ? body.providerCode!
+    : 'auto';
+  const connectionMode =
+    body.action === 'rent'
+      ? 'managed_number'
+      : ['native_import', 'sip_trunk'].includes(body.connectionMode ?? '')
+        ? body.connectionMode!
+        : 'native_import';
+  const accountHint = body.providerAccountId?.trim()
+    ? `••••${body.providerAccountId.trim().slice(-6)}`
+    : null;
+  const businessUseCase =
+    body.businessUseCase?.trim().slice(0, 160) || 'sales_and_support';
+  const estimatedMonthlyMinutes = Math.max(
+    0,
+    Math.min(10_000_000, Math.round(Number(body.estimatedMonthlyMinutes || 0))),
+  );
   if (body.action === 'rent') {
-    const suffix = String(1000 + crypto.getRandomValues(new Uint32Array(1))[0] % 9000);
+    const suffix = String(
+      1000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 9000),
+    );
     const phoneNumber = `+91124498${suffix}`;
     await db
       .prepare(
         `INSERT INTO phone_numbers
          (id, organization_id, phone_number, country, number_type,
-          acquisition_type, public_provider_name, assigned_agent_name,
-          direction, kyc_status, status, monthly_rental)
-         VALUES (?, ?, ?, 'IN', 'local', 'platform_provided', 'Vaani Connect', ?, ?,
-          'not_submitted', 'kyc_required', 49900)`,
+          acquisition_type, public_provider_name, provider_code, connection_mode,
+          provider_account_hint, business_use_case, estimated_monthly_minutes,
+          onboarding_status, assigned_agent_name, direction, kyc_status, status, monthly_rental)
+         VALUES (?, ?, ?, 'IN', 'local', 'platform_provided', 'Vaani Connect', ?, ?, ?, ?, ?,
+          'kyc_required', ?, ?, 'not_submitted', 'kyc_required', 49900)`,
       )
       .bind(
         id,
         auth.session.organizationId,
         phoneNumber,
+        providerCode,
+        connectionMode,
+        accountHint,
+        businessUseCase,
+        estimatedMonthlyMinutes,
         body.assignedAgentName?.trim() || null,
         direction,
       )
       .run();
-    await recordAudit(auth.session, 'number.rental_requested', 'phone_number', id);
+    await recordAudit(
+      auth.session,
+      'number.rental_requested',
+      'phone_number',
+      id,
+    );
     return NextResponse.json(
       {
         number: { id, phoneNumber, status: 'kyc_required' },
@@ -75,22 +126,30 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
-  const code = String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
+  const code = String(
+    100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000),
+  );
   const verificationId = `verification_${crypto.randomUUID()}`;
   await db.batch([
     db
       .prepare(
         `INSERT INTO phone_numbers
          (id, organization_id, phone_number, country, number_type,
-          acquisition_type, public_provider_name, assigned_agent_name,
-          direction, kyc_status, status, monthly_rental)
-         VALUES (?, ?, ?, 'IN', 'existing', 'bring_your_own', 'Vaani Connect', ?, ?,
-          'not_submitted', 'pending_verification', 0)`,
+          acquisition_type, public_provider_name, provider_code, connection_mode,
+          provider_account_hint, business_use_case, estimated_monthly_minutes,
+          onboarding_status, assigned_agent_name, direction, kyc_status, status, monthly_rental)
+         VALUES (?, ?, ?, 'IN', 'existing', 'bring_your_own', 'Vaani Connect', ?, ?, ?, ?, ?,
+          'ownership_verification', ?, ?, 'not_submitted', 'pending_verification', 0)`,
       )
       .bind(
         id,
         auth.session.organizationId,
         normalized,
+        providerCode,
+        connectionMode,
+        accountHint,
+        businessUseCase,
+        estimatedMonthlyMinutes,
         body.assignedAgentName?.trim() || null,
         direction,
       ),
@@ -107,7 +166,12 @@ export async function POST(request: Request) {
         new Date(Date.now() + 10 * 60 * 1000).toISOString(),
       ),
   ]);
-  await recordAudit(auth.session, 'number.connection_started', 'phone_number', id);
+  await recordAudit(
+    auth.session,
+    'number.connection_started',
+    'phone_number',
+    id,
+  );
   return NextResponse.json(
     {
       number: { id, phoneNumber: normalized, status: 'pending_verification' },

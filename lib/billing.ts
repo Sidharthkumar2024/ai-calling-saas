@@ -1,12 +1,6 @@
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 
-export const creditPackages = [
-  { id: 'credits_1000', name: '1,000 credits', credits: 1_000, amount: 99900 },
-  { id: 'credits_5000', name: '5,000 credits', credits: 5_000, amount: 449900 },
-  { id: 'credits_20000', name: '20,000 credits', credits: 20_000, amount: 1599900 },
-] as const;
-
 export async function applyCreditPurchase(input: {
   organizationId: string;
   credits: number;

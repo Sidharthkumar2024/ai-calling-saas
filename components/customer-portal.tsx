@@ -270,7 +270,7 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
         {!loading && !error && active === 'crm' ? <CustomerCrm leads={data.crm.pipeline} activities={data.crm.activities} onMove={moveLead} onChanged={load} onStartFollowUp={() => setActive('campaigns')} /> : null}
         {!loading && !error && active === 'agents' ? <CustomerAgentStudio data={data.agents} businessName={session.organizationName} onChanged={load} /> : null}
         {!loading && !error && ['campaigns','sip_trunks','knowledge','workflows','graph_agents','call_history','live_monitor','analytics','quality','alerts','reports'].includes(active) ? <CustomerOperations module={active as OperationsModule} data={data.operations} onChanged={load} /> : null}
-        {!loading && !error && active === 'numbers' ? <CustomerNumbers data={data.numbers} onChanged={load} /> : null}
+        {!loading && !error && active === 'numbers' ? <CustomerNumbers data={data.numbers} onChanged={load} onNavigate={setActive} /> : null}
         {!loading && !error && active === 'lead_capture' ? <CustomerLeadCapture data={data.leadForms} sources={data.overview.sources ?? []} onChanged={load} onNavigate={setActive} /> : null}
         {!loading && !error && active === 'retargeting' ? <Retargeting data={data.retargeting} onChanged={load} /> : null}
         {!loading && !error && active === 'commerce' ? <CustomerCommerce data={data.commerce} onChanged={load} /> : null}

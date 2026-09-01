@@ -12,7 +12,10 @@ export async function POST(request: Request) {
   if (auth.response) return auth.response;
   const body = (await request.json()) as { numberId?: string; code?: string };
   if (!body.numberId || !/^\d{6}$/.test(body.code ?? '')) {
-    return NextResponse.json({ error: 'Number and 6-digit code are required.' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Number and 6-digit code are required.' },
+      { status: 400 },
+    );
   }
 
   const db = getRawDb();
@@ -32,33 +35,55 @@ export async function POST(request: Request) {
       expires_at: string;
     }>();
   if (!verification) {
-    return NextResponse.json({ error: 'Active verification not found.' }, { status: 404 });
+    return NextResponse.json(
+      { error: 'Active verification not found.' },
+      { status: 404 },
+    );
   }
-  if (verification.attempt_count >= 5 || verification.expires_at <= new Date().toISOString()) {
-    return NextResponse.json({ error: 'Verification expired. Start again.' }, { status: 410 });
+  if (
+    verification.attempt_count >= 5 ||
+    verification.expires_at <= new Date().toISOString()
+  ) {
+    return NextResponse.json(
+      { error: 'Verification expired. Start again.' },
+      { status: 410 },
+    );
   }
 
   const matches = (await sha256(body.code!)) === verification.code_hash;
   if (!matches) {
     await db
-      .prepare('UPDATE number_verifications SET attempt_count = attempt_count + 1 WHERE id = ?')
+      .prepare(
+        'UPDATE number_verifications SET attempt_count = attempt_count + 1 WHERE id = ?',
+      )
       .bind(verification.id)
       .run();
-    return NextResponse.json({ error: 'Verification code is incorrect.' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Verification code is incorrect.' },
+      { status: 400 },
+    );
   }
 
   await db.batch([
     db
-      .prepare('UPDATE number_verifications SET verified_at = CURRENT_TIMESTAMP WHERE id = ?')
+      .prepare(
+        'UPDATE number_verifications SET verified_at = CURRENT_TIMESTAMP WHERE id = ?',
+      )
       .bind(verification.id),
     db
       .prepare(
-        `UPDATE phone_numbers SET status = 'kyc_required', kyc_status = 'not_submitted'
+        `UPDATE phone_numbers SET status = 'kyc_required', kyc_status = 'not_submitted',
+          onboarding_status = 'kyc_required'
          WHERE id = ? AND organization_id = ?`,
       )
       .bind(body.numberId, auth.session.organizationId),
   ]);
-  await recordAudit(auth.session, 'number.ownership_verified', 'phone_number', body.numberId);
+  await recordAudit(
+    auth.session,
+    'number.ownership_verified',
+    'phone_number',
+    body.numberId,
+  );
   return NextResponse.json({
     ok: true,
     status: 'kyc_required',

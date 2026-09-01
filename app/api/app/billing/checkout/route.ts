@@ -3,11 +3,7 @@ import Stripe from 'stripe';
 
 import { getRawDb } from '@/db/index';
 import { requireCustomer } from '@/lib/api-session';
-import {
-  applyCreditPurchase,
-  applyPlanPurchase,
-  creditPackages,
-} from '@/lib/billing';
+import { applyCreditPurchase, applyPlanPurchase } from '@/lib/billing';
 import { recordAudit } from '@/lib/demo-seed';
 
 export const dynamic = 'force-dynamic';
@@ -24,9 +20,17 @@ export async function POST(request: Request) {
   const stripeKey = process.env.STRIPE_SECRET_KEY;
 
   if (body.purchaseType === 'credits') {
-    const selectedPackage = creditPackages.find((item) => item.id === body.packageId);
+    const selectedPackage = await getRawDb()
+      .prepare(
+        `SELECT id, name, credits, amount FROM credit_packages WHERE id = ? AND status = 'active' LIMIT 1`,
+      )
+      .bind(body.packageId)
+      .first<{ id: string; name: string; credits: number; amount: number }>();
     if (!selectedPackage) {
-      return NextResponse.json({ error: 'Credit package not found.' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Credit package not found.' },
+        { status: 404 },
+      );
     }
     if (!stripeKey) {
       const result = await applyCreditPurchase({
@@ -36,10 +40,20 @@ export async function POST(request: Request) {
         description: `${selectedPackage.name} local sandbox top-up`,
         sandbox: true,
       });
-      await recordAudit(auth.session, 'billing.sandbox_topup', 'invoice', result.invoiceId, {
-        credits: selectedPackage.credits,
+      await recordAudit(
+        auth.session,
+        'billing.sandbox_topup',
+        'invoice',
+        result.invoiceId,
+        {
+          credits: selectedPackage.credits,
+        },
+      );
+      return NextResponse.json({
+        mode: 'local_sandbox',
+        completed: true,
+        ...result,
       });
-      return NextResponse.json({ mode: 'local_sandbox', completed: true, ...result });
     }
 
     const session = await createStripeSession({
@@ -66,8 +80,14 @@ export async function POST(request: Request) {
          WHERE id = ? AND status = 'active'`,
       )
       .bind(body.planId)
-      .first<{ id: string; name: string; monthly_price: number; included_credits: number }>();
-    if (!plan) return NextResponse.json({ error: 'Plan not found.' }, { status: 404 });
+      .first<{
+        id: string;
+        name: string;
+        monthly_price: number;
+        included_credits: number;
+      }>();
+    if (!plan)
+      return NextResponse.json({ error: 'Plan not found.' }, { status: 404 });
     if (!stripeKey || plan.monthly_price === 0) {
       const result = await applyPlanPurchase({
         organizationId,
@@ -75,8 +95,17 @@ export async function POST(request: Request) {
         amount: plan.monthly_price,
         sandbox: true,
       });
-      await recordAudit(auth.session, 'billing.sandbox_plan_changed', 'plan', plan.id);
-      return NextResponse.json({ mode: 'local_sandbox', completed: true, ...result });
+      await recordAudit(
+        auth.session,
+        'billing.sandbox_plan_changed',
+        'plan',
+        plan.id,
+      );
+      return NextResponse.json({
+        mode: 'local_sandbox',
+        completed: true,
+        ...result,
+      });
     }
 
     const session = await createStripeSession({
@@ -96,7 +125,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ mode: 'stripe', checkoutUrl: session.url });
   }
 
-  return NextResponse.json({ error: 'Valid purchase type is required.' }, { status: 400 });
+  return NextResponse.json(
+    { error: 'Valid purchase type is required.' },
+    { status: 400 },
+  );
 }
 
 async function createStripeSession(input: {
@@ -110,8 +142,10 @@ async function createStripeSession(input: {
   metadata: Record<string, string>;
 }) {
   const stripe = new Stripe(input.stripeKey);
-  const origin = process.env.NEXT_PUBLIC_BASE_URL || new URL(input.request.url).origin;
-  const recurring = input.mode === 'subscription' ? { interval: 'month' as const } : undefined;
+  const origin =
+    process.env.NEXT_PUBLIC_BASE_URL || new URL(input.request.url).origin;
+  const recurring =
+    input.mode === 'subscription' ? { interval: 'month' as const } : undefined;
   return stripe.checkout.sessions.create({
     mode: input.mode,
     customer_email: input.email,

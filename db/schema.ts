@@ -274,10 +274,7 @@ export const crmActivities = sqliteTable(
       .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [
-    index('idx_crm_activities_org_lead').on(
-      table.organizationId,
-      table.leadId,
-    ),
+    index('idx_crm_activities_org_lead').on(table.organizationId, table.leadId),
   ],
 );
 
@@ -296,6 +293,14 @@ export const phoneNumbers = sqliteTable(
       .notNull()
       .default('Vaani Connect'),
     providerReference: text('provider_reference'),
+    providerCode: text('provider_code').notNull().default('auto'),
+    connectionMode: text('connection_mode').notNull().default('managed_number'),
+    providerAccountHint: text('provider_account_hint'),
+    businessUseCase: text('business_use_case'),
+    estimatedMonthlyMinutes: integer('estimated_monthly_minutes')
+      .notNull()
+      .default(0),
+    onboardingStatus: text('onboarding_status').notNull().default('draft'),
     assignedAgentName: text('assigned_agent_name'),
     direction: text('direction').notNull().default('inbound_outbound'),
     kycStatus: text('kyc_status').notNull().default('not_submitted'),
@@ -441,6 +446,17 @@ export const plans = sqliteTable(
   (table) => [uniqueIndex('idx_plans_code').on(table.code)],
 );
 
+export const creditPackages = sqliteTable('credit_packages', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  credits: integer('credits').notNull(),
+  amount: integer('amount').notNull(),
+  status: text('status').notNull().default('active'),
+  createdAt: text('created_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const subscriptions = sqliteTable(
   'subscriptions',
   {
@@ -540,7 +556,9 @@ export const billingEvents = sqliteTable(
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [uniqueIndex('idx_billing_events_external').on(table.externalEventId)],
+  (table) => [
+    uniqueIndex('idx_billing_events_external').on(table.externalEventId),
+  ],
 );
 
 export const auditEvents = sqliteTable(
@@ -674,7 +692,9 @@ export const paymentLinks = sqliteTable(
     organizationId: text('organization_id')
       .notNull()
       .references(() => organizations.id, { onDelete: 'cascade' }),
-    leadId: text('lead_id').references(() => leads.id, { onDelete: 'set null' }),
+    leadId: text('lead_id').references(() => leads.id, {
+      onDelete: 'set null',
+    }),
     agentId: text('agent_id').references(() => voiceAgents.id, {
       onDelete: 'set null',
     }),
@@ -714,7 +734,9 @@ export const outboundMessages = sqliteTable(
     organizationId: text('organization_id')
       .notNull()
       .references(() => organizations.id, { onDelete: 'cascade' }),
-    leadId: text('lead_id').references(() => leads.id, { onDelete: 'set null' }),
+    leadId: text('lead_id').references(() => leads.id, {
+      onDelete: 'set null',
+    }),
     paymentLinkId: text('payment_link_id').references(() => paymentLinks.id, {
       onDelete: 'set null',
     }),
@@ -750,7 +772,9 @@ export const scheduledActions = sqliteTable(
     organizationId: text('organization_id')
       .notNull()
       .references(() => organizations.id, { onDelete: 'cascade' }),
-    leadId: text('lead_id').references(() => leads.id, { onDelete: 'set null' }),
+    leadId: text('lead_id').references(() => leads.id, {
+      onDelete: 'set null',
+    }),
     agentId: text('agent_id').references(() => voiceAgents.id, {
       onDelete: 'set null',
     }),
@@ -781,7 +805,9 @@ export const authProviderSettings = sqliteTable('auth_provider_settings', {
   publicConfigJson: text('public_config_json').notNull().default('{}'),
   encryptedSecret: text('encrypted_secret'),
   updatedBy: text('updated_by'),
-  updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const platformProviders = sqliteTable('platform_providers', {
@@ -789,12 +815,16 @@ export const platformProviders = sqliteTable('platform_providers', {
   internalName: text('internal_name').notNull(),
   publicName: text('public_name').notNull(),
   category: text('category').notNull(),
-  requiredCredentialsJson: text('required_credentials_json').notNull().default('[]'),
+  requiredCredentialsJson: text('required_credentials_json')
+    .notNull()
+    .default('[]'),
   status: text('status').notNull().default('required'),
   health: text('health').notNull().default('not_connected'),
   usageNote: text('usage_note').notNull(),
   customerVisible: integer('customer_visible').notNull().default(0),
-  updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const organizationSettings = sqliteTable('organization_settings', {
@@ -803,20 +833,32 @@ export const organizationSettings = sqliteTable('organization_settings', {
     .references(() => organizations.id, { onDelete: 'cascade' }),
   timezone: text('timezone').notNull().default('Asia/Kolkata'),
   defaultLanguage: text('default_language').notNull().default('hinglish'),
-  enabledLanguagesJson: text('enabled_languages_json').notNull().default('["hi-IN","en-IN","hinglish","haryanvi"]'),
-  recordingPolicy: text('recording_policy').notNull().default('record_with_consent'),
-  recordingRetentionDays: integer('recording_retention_days').notNull().default(90),
-  transcriptRetentionDays: integer('transcript_retention_days').notNull().default(180),
+  enabledLanguagesJson: text('enabled_languages_json')
+    .notNull()
+    .default('["hi-IN","en-IN","hinglish","haryanvi"]'),
+  recordingPolicy: text('recording_policy')
+    .notNull()
+    .default('record_with_consent'),
+  recordingRetentionDays: integer('recording_retention_days')
+    .notNull()
+    .default(90),
+  transcriptRetentionDays: integer('transcript_retention_days')
+    .notNull()
+    .default(180),
   qaSampleRate: integer('qa_sample_rate').notNull().default(100),
   redactSensitiveData: integer('redact_sensitive_data').notNull().default(1),
-  updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const sipTrunks = sqliteTable(
   'sip_trunks',
   {
     id: text('id').primaryKey(),
-    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     provider: text('provider').notNull().default('custom'),
     gatewayUri: text('gateway_uri').notNull(),
@@ -827,16 +869,22 @@ export const sipTrunks = sqliteTable(
     codecsJson: text('codecs_json').notNull().default('["PCMU","PCMA"]'),
     status: text('status').notNull().default('testing_required'),
     lastCheckedAt: text('last_checked_at'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [index('idx_sip_trunks_org_status').on(table.organizationId, table.status)],
+  (table) => [
+    index('idx_sip_trunks_org_status').on(table.organizationId, table.status),
+  ],
 );
 
 export const knowledgeBases = sqliteTable(
   'knowledge_bases',
   {
     id: text('id').primaryKey(),
-    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     description: text('description'),
     language: text('language').notNull().default('multilingual'),
@@ -844,16 +892,22 @@ export const knowledgeBases = sqliteTable(
     sourceCount: integer('source_count').notNull().default(0),
     chunkCount: integer('chunk_count').notNull().default(0),
     lastSyncedAt: text('last_synced_at'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [index('idx_knowledge_bases_org').on(table.organizationId, table.status)],
+  (table) => [
+    index('idx_knowledge_bases_org').on(table.organizationId, table.status),
+  ],
 );
 
 export const workflows = sqliteTable(
   'workflows',
   {
     id: text('id').primaryKey(),
-    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     triggerType: text('trigger_type').notNull(),
     status: text('status').notNull().default('draft'),
@@ -861,33 +915,49 @@ export const workflows = sqliteTable(
     runCount: integer('run_count').notNull().default(0),
     failureCount: integer('failure_count').notNull().default(0),
     lastRunAt: text('last_run_at'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [index('idx_workflows_org_status').on(table.organizationId, table.status)],
+  (table) => [
+    index('idx_workflows_org_status').on(table.organizationId, table.status),
+  ],
 );
 
 export const graphAgents = sqliteTable(
   'graph_agents',
   {
     id: text('id').primaryKey(),
-    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     status: text('status').notNull().default('draft'),
     entryNode: text('entry_node').notNull().default('greeting'),
     graphJson: text('graph_json').notNull().default('{}'),
     version: integer('version').notNull().default(1),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
-    updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text('updated_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [index('idx_graph_agents_org_status').on(table.organizationId, table.status)],
+  (table) => [
+    index('idx_graph_agents_org_status').on(table.organizationId, table.status),
+  ],
 );
 
 export const campaigns = sqliteTable(
   'campaigns',
   {
     id: text('id').primaryKey(),
-    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
-    agentId: text('agent_id').references(() => voiceAgents.id, { onDelete: 'set null' }),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    agentId: text('agent_id').references(() => voiceAgents.id, {
+      onDelete: 'set null',
+    }),
     name: text('name').notNull(),
     status: text('status').notNull().default('draft'),
     audienceSize: integer('audience_size').notNull().default(0),
@@ -898,19 +968,31 @@ export const campaigns = sqliteTable(
     retryPolicyJson: text('retry_policy_json').notNull().default('{}'),
     callingWindowJson: text('calling_window_json').notNull().default('{}'),
     scheduledFor: text('scheduled_for'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [index('idx_campaigns_org_status').on(table.organizationId, table.status)],
+  (table) => [
+    index('idx_campaigns_org_status').on(table.organizationId, table.status),
+  ],
 );
 
 export const callRecords = sqliteTable(
   'call_records',
   {
     id: text('id').primaryKey(),
-    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
-    agentId: text('agent_id').references(() => voiceAgents.id, { onDelete: 'set null' }),
-    leadId: text('lead_id').references(() => leads.id, { onDelete: 'set null' }),
-    campaignId: text('campaign_id').references(() => campaigns.id, { onDelete: 'set null' }),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    agentId: text('agent_id').references(() => voiceAgents.id, {
+      onDelete: 'set null',
+    }),
+    leadId: text('lead_id').references(() => leads.id, {
+      onDelete: 'set null',
+    }),
+    campaignId: text('campaign_id').references(() => campaigns.id, {
+      onDelete: 'set null',
+    }),
     direction: text('direction').notNull(),
     fromNumber: text('from_number').notNull(),
     toNumber: text('to_number').notNull(),
@@ -923,17 +1005,24 @@ export const callRecords = sqliteTable(
     summary: text('summary'),
     transcriptJson: text('transcript_json').notNull().default('[]'),
     analysisJson: text('analysis_json').notNull().default('{}'),
-    recordingStatus: text('recording_status').notNull().default('not_available'),
+    recordingStatus: text('recording_status')
+      .notNull()
+      .default('not_available'),
     recordingStorageKey: text('recording_storage_key'),
     recordingUrl: text('recording_url'),
     costCredits: integer('cost_credits').notNull().default(0),
     disconnectReason: text('disconnect_reason'),
     startedAt: text('started_at').notNull(),
     endedAt: text('ended_at'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [
-    index('idx_call_records_org_started').on(table.organizationId, table.startedAt),
+    index('idx_call_records_org_started').on(
+      table.organizationId,
+      table.startedAt,
+    ),
     index('idx_call_records_org_status').on(table.organizationId, table.status),
   ],
 );
@@ -942,8 +1031,12 @@ export const callQualityReviews = sqliteTable(
   'call_quality_reviews',
   {
     id: text('id').primaryKey(),
-    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
-    callId: text('call_id').notNull().references(() => callRecords.id, { onDelete: 'cascade' }),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    callId: text('call_id')
+      .notNull()
+      .references(() => callRecords.id, { onDelete: 'cascade' }),
     overallScore: integer('overall_score').notNull(),
     resolutionScore: integer('resolution_score').notNull(),
     knowledgeScore: integer('knowledge_score').notNull(),
@@ -953,16 +1046,25 @@ export const callQualityReviews = sqliteTable(
     overlapCount: integer('overlap_count').notNull().default(0),
     status: text('status').notNull().default('passed'),
     findingsJson: text('findings_json').notNull().default('[]'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [index('idx_call_quality_org_score').on(table.organizationId, table.overallScore)],
+  (table) => [
+    index('idx_call_quality_org_score').on(
+      table.organizationId,
+      table.overallScore,
+    ),
+  ],
 );
 
 export const alertRules = sqliteTable(
   'alert_rules',
   {
     id: text('id').primaryKey(),
-    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     metric: text('metric').notNull(),
     comparator: text('comparator').notNull().default('>'),
@@ -971,76 +1073,116 @@ export const alertRules = sqliteTable(
     frequencyMinutes: integer('frequency_minutes').notNull().default(15),
     channelsJson: text('channels_json').notNull().default('["email"]'),
     status: text('status').notNull().default('active'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [index('idx_alert_rules_org_status').on(table.organizationId, table.status)],
+  (table) => [
+    index('idx_alert_rules_org_status').on(table.organizationId, table.status),
+  ],
 );
 
 export const alertIncidents = sqliteTable(
   'alert_incidents',
   {
     id: text('id').primaryKey(),
-    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
-    ruleId: text('rule_id').notNull().references(() => alertRules.id, { onDelete: 'cascade' }),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    ruleId: text('rule_id')
+      .notNull()
+      .references(() => alertRules.id, { onDelete: 'cascade' }),
     currentValue: integer('current_value').notNull(),
     status: text('status').notNull().default('open'),
-    triggeredAt: text('triggered_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    triggeredAt: text('triggered_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
     resolvedAt: text('resolved_at'),
   },
-  (table) => [index('idx_alert_incidents_org_status').on(table.organizationId, table.status)],
+  (table) => [
+    index('idx_alert_incidents_org_status').on(
+      table.organizationId,
+      table.status,
+    ),
+  ],
 );
 
 export const reportDefinitions = sqliteTable(
   'report_definitions',
   {
     id: text('id').primaryKey(),
-    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     reportType: text('report_type').notNull(),
     schedule: text('schedule').notNull().default('manual'),
     filtersJson: text('filters_json').notNull().default('{}'),
     status: text('status').notNull().default('active'),
     lastGeneratedAt: text('last_generated_at'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [index('idx_reports_org_status').on(table.organizationId, table.status)],
+  (table) => [
+    index('idx_reports_org_status').on(table.organizationId, table.status),
+  ],
 );
 
 export const supportTickets = sqliteTable(
   'support_tickets',
   {
     id: text('id').primaryKey(),
-    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
     createdByUserId: text('created_by_user_id').notNull(),
     subject: text('subject').notNull(),
     category: text('category').notNull().default('technical'),
     priority: text('priority').notNull().default('normal'),
     status: text('status').notNull().default('open'),
     assignedTo: text('assigned_to'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
-    updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text('updated_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [index('idx_support_tickets_org_status').on(table.organizationId, table.status)],
+  (table) => [
+    index('idx_support_tickets_org_status').on(
+      table.organizationId,
+      table.status,
+    ),
+  ],
 );
 
 export const supportTicketMessages = sqliteTable(
   'support_ticket_messages',
   {
     id: text('id').primaryKey(),
-    ticketId: text('ticket_id').notNull().references(() => supportTickets.id, { onDelete: 'cascade' }),
+    ticketId: text('ticket_id')
+      .notNull()
+      .references(() => supportTickets.id, { onDelete: 'cascade' }),
     senderRole: text('sender_role').notNull(),
     senderName: text('sender_name').notNull(),
     message: text('message').notNull(),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [index('idx_ticket_messages_ticket').on(table.ticketId, table.createdAt)],
+  (table) => [
+    index('idx_ticket_messages_ticket').on(table.ticketId, table.createdAt),
+  ],
 );
 
 export const backgroundJobs = sqliteTable(
   'background_jobs',
   {
     id: text('id').primaryKey(),
-    organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+    organizationId: text('organization_id').references(() => organizations.id, {
+      onDelete: 'cascade',
+    }),
     queue: text('queue').notNull().default('default'),
     type: text('type').notNull(),
     idempotencyKey: text('idempotency_key').notNull(),
@@ -1049,17 +1191,27 @@ export const backgroundJobs = sqliteTable(
     priority: integer('priority').notNull().default(100),
     attempts: integer('attempts').notNull().default(0),
     maxAttempts: integer('max_attempts').notNull().default(5),
-    availableAt: text('available_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    availableAt: text('available_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
     lockedAt: text('locked_at'),
     lockedBy: text('locked_by'),
     lastError: text('last_error'),
     completedAt: text('completed_at'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
-    updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text('updated_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [
     uniqueIndex('idx_background_jobs_idempotency').on(table.idempotencyKey),
-    index('idx_background_jobs_claim').on(table.status, table.availableAt, table.priority),
+    index('idx_background_jobs_claim').on(
+      table.status,
+      table.availableAt,
+      table.priority,
+    ),
     index('idx_background_jobs_org').on(table.organizationId, table.createdAt),
   ],
 );
@@ -1068,13 +1220,17 @@ export const jobAttempts = sqliteTable(
   'job_attempts',
   {
     id: text('id').primaryKey(),
-    jobId: text('job_id').notNull().references(() => backgroundJobs.id, { onDelete: 'cascade' }),
+    jobId: text('job_id')
+      .notNull()
+      .references(() => backgroundJobs.id, { onDelete: 'cascade' }),
     attempt: integer('attempt').notNull(),
     status: text('status').notNull(),
     durationMs: integer('duration_ms'),
     error: text('error'),
     resultJson: text('result_json').notNull().default('{}'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [index('idx_job_attempts_job').on(table.jobId, table.attempt)],
 );
@@ -1083,41 +1239,67 @@ export const consentRecords = sqliteTable(
   'consent_records',
   {
     id: text('id').primaryKey(),
-    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
-    leadId: text('lead_id').references(() => leads.id, { onDelete: 'set null' }),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    leadId: text('lead_id').references(() => leads.id, {
+      onDelete: 'set null',
+    }),
     phone: text('phone').notNull(),
     purpose: text('purpose').notNull(),
     lawfulBasis: text('lawful_basis').notNull().default('explicit_consent'),
     status: text('status').notNull().default('granted'),
     proofJson: text('proof_json').notNull().default('{}'),
-    capturedAt: text('captured_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    capturedAt: text('captured_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
     expiresAt: text('expires_at'),
     revokedAt: text('revoked_at'),
   },
-  (table) => [index('idx_consent_org_phone').on(table.organizationId, table.phone, table.status)],
+  (table) => [
+    index('idx_consent_org_phone').on(
+      table.organizationId,
+      table.phone,
+      table.status,
+    ),
+  ],
 );
 
 export const suppressionEntries = sqliteTable(
   'suppression_entries',
   {
     id: text('id').primaryKey(),
-    organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+    organizationId: text('organization_id').references(() => organizations.id, {
+      onDelete: 'cascade',
+    }),
     phoneHash: text('phone_hash').notNull(),
     scope: text('scope').notNull().default('organization'),
     reason: text('reason').notNull(),
     source: text('source').notNull().default('customer_request'),
     expiresAt: text('expires_at'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [uniqueIndex('idx_suppression_scope_phone').on(table.organizationId, table.scope, table.phoneHash)],
+  (table) => [
+    uniqueIndex('idx_suppression_scope_phone').on(
+      table.organizationId,
+      table.scope,
+      table.phoneHash,
+    ),
+  ],
 );
 
 export const kycDocuments = sqliteTable(
   'kyc_documents',
   {
     id: text('id').primaryKey(),
-    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
-    phoneNumberId: text('phone_number_id').references(() => phoneNumbers.id, { onDelete: 'set null' }),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    phoneNumberId: text('phone_number_id').references(() => phoneNumbers.id, {
+      onDelete: 'set null',
+    }),
     documentType: text('document_type').notNull(),
     storageKey: text('storage_key').notNull(),
     checksum: text('checksum').notNull(),
@@ -1125,9 +1307,13 @@ export const kycDocuments = sqliteTable(
     rejectionReason: text('rejection_reason'),
     reviewedBy: text('reviewed_by'),
     reviewedAt: text('reviewed_at'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [index('idx_kyc_org_status').on(table.organizationId, table.status)],
+  (table) => [
+    index('idx_kyc_org_status').on(table.organizationId, table.status),
+  ],
 );
 
 export const oauthStates = sqliteTable(
@@ -1140,7 +1326,9 @@ export const oauthStates = sqliteTable(
     returnTo: text('return_to').notNull().default('/app'),
     expiresAt: text('expires_at').notNull(),
     consumedAt: text('consumed_at'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [uniqueIndex('idx_oauth_states_hash').on(table.stateHash)],
 );
@@ -1149,13 +1337,17 @@ export const securityChallenges = sqliteTable(
   'security_challenges',
   {
     id: text('id').primaryKey(),
-    userId: text('user_id').notNull().references(() => appUsers.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => appUsers.id, { onDelete: 'cascade' }),
     type: text('type').notNull(),
     tokenHash: text('token_hash').notNull(),
     metadataJson: text('metadata_json').notNull().default('{}'),
     expiresAt: text('expires_at').notNull(),
     consumedAt: text('consumed_at'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [
     uniqueIndex('idx_security_challenges_token').on(table.tokenHash),
@@ -1163,31 +1355,38 @@ export const securityChallenges = sqliteTable(
   ],
 );
 
-export const rateLimitBuckets = sqliteTable(
-  'rate_limit_buckets',
-  {
-    bucketKey: text('bucket_key').primaryKey(),
-    count: integer('count').notNull().default(0),
-    windowStartedAt: text('window_started_at').notNull(),
-    blockedUntil: text('blocked_until'),
-    updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
-  },
-);
+export const rateLimitBuckets = sqliteTable('rate_limit_buckets', {
+  bucketKey: text('bucket_key').primaryKey(),
+  count: integer('count').notNull().default(0),
+  windowStartedAt: text('window_started_at').notNull(),
+  blockedUntil: text('blocked_until'),
+  updatedAt: text('updated_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});
 
 export const userSecuritySettings = sqliteTable('user_security_settings', {
-  userId: text('user_id').primaryKey().references(() => appUsers.id, { onDelete: 'cascade' }),
+  userId: text('user_id')
+    .primaryKey()
+    .references(() => appUsers.id, { onDelete: 'cascade' }),
   emailVerifiedAt: text('email_verified_at'),
   mfaEnabled: integer('mfa_enabled').notNull().default(0),
   totpSecretEncrypted: text('totp_secret_encrypted'),
-  recoveryCodeHashesJson: text('recovery_code_hashes_json').notNull().default('[]'),
-  updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  recoveryCodeHashesJson: text('recovery_code_hashes_json')
+    .notNull()
+    .default('[]'),
+  updatedAt: text('updated_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const teamInvitations = sqliteTable(
   'team_invitations',
   {
     id: text('id').primaryKey(),
-    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
     email: text('email').notNull(),
     role: text('role').notNull(),
     tokenHash: text('token_hash').notNull(),
@@ -1195,7 +1394,9 @@ export const teamInvitations = sqliteTable(
     expiresAt: text('expires_at').notNull(),
     acceptedAt: text('accepted_at'),
     revokedAt: text('revoked_at'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [
     uniqueIndex('idx_team_invites_token').on(table.tokenHash),
@@ -1207,8 +1408,12 @@ export const knowledgeSources = sqliteTable(
   'knowledge_sources',
   {
     id: text('id').primaryKey(),
-    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
-    knowledgeBaseId: text('knowledge_base_id').notNull().references(() => knowledgeBases.id, { onDelete: 'cascade' }),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    knowledgeBaseId: text('knowledge_base_id')
+      .notNull()
+      .references(() => knowledgeBases.id, { onDelete: 'cascade' }),
     type: text('type').notNull(),
     name: text('name').notNull(),
     sourceUrl: text('source_url'),
@@ -1217,25 +1422,38 @@ export const knowledgeSources = sqliteTable(
     status: text('status').notNull().default('queued'),
     error: text('error'),
     syncedAt: text('synced_at'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [index('idx_knowledge_sources_kb').on(table.knowledgeBaseId, table.status)],
+  (table) => [
+    index('idx_knowledge_sources_kb').on(table.knowledgeBaseId, table.status),
+  ],
 );
 
 export const knowledgeChunks = sqliteTable(
   'knowledge_chunks',
   {
     id: text('id').primaryKey(),
-    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
-    sourceId: text('source_id').notNull().references(() => knowledgeSources.id, { onDelete: 'cascade' }),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    sourceId: text('source_id')
+      .notNull()
+      .references(() => knowledgeSources.id, { onDelete: 'cascade' }),
     ordinal: integer('ordinal').notNull(),
     content: text('content').notNull(),
     tokenEstimate: integer('token_estimate').notNull(),
     metadataJson: text('metadata_json').notNull().default('{}'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [
-    uniqueIndex('idx_knowledge_chunks_source_ordinal').on(table.sourceId, table.ordinal),
+    uniqueIndex('idx_knowledge_chunks_source_ordinal').on(
+      table.sourceId,
+      table.ordinal,
+    ),
     index('idx_knowledge_chunks_org').on(table.organizationId),
   ],
 );
@@ -1244,8 +1462,12 @@ export const workflowRuns = sqliteTable(
   'workflow_runs',
   {
     id: text('id').primaryKey(),
-    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
-    workflowId: text('workflow_id').notNull().references(() => workflows.id, { onDelete: 'cascade' }),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    workflowId: text('workflow_id')
+      .notNull()
+      .references(() => workflows.id, { onDelete: 'cascade' }),
     triggerType: text('trigger_type').notNull(),
     triggerId: text('trigger_id'),
     status: text('status').notNull().default('queued'),
@@ -1253,16 +1475,22 @@ export const workflowRuns = sqliteTable(
     outputJson: text('output_json').notNull().default('{}'),
     startedAt: text('started_at'),
     completedAt: text('completed_at'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [index('idx_workflow_runs_org').on(table.organizationId, table.createdAt)],
+  (table) => [
+    index('idx_workflow_runs_org').on(table.organizationId, table.createdAt),
+  ],
 );
 
 export const workflowRunSteps = sqliteTable(
   'workflow_run_steps',
   {
     id: text('id').primaryKey(),
-    runId: text('run_id').notNull().references(() => workflowRuns.id, { onDelete: 'cascade' }),
+    runId: text('run_id')
+      .notNull()
+      .references(() => workflowRuns.id, { onDelete: 'cascade' }),
     stepIndex: integer('step_index').notNull(),
     stepType: text('step_type').notNull(),
     status: text('status').notNull().default('pending'),
@@ -1272,27 +1500,47 @@ export const workflowRunSteps = sqliteTable(
     startedAt: text('started_at'),
     completedAt: text('completed_at'),
   },
-  (table) => [uniqueIndex('idx_workflow_steps_run_index').on(table.runId, table.stepIndex)],
+  (table) => [
+    uniqueIndex('idx_workflow_steps_run_index').on(
+      table.runId,
+      table.stepIndex,
+    ),
+  ],
 );
 
 export const campaignContacts = sqliteTable(
   'campaign_contacts',
   {
     id: text('id').primaryKey(),
-    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
-    campaignId: text('campaign_id').notNull().references(() => campaigns.id, { onDelete: 'cascade' }),
-    leadId: text('lead_id').references(() => leads.id, { onDelete: 'set null' }),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    campaignId: text('campaign_id')
+      .notNull()
+      .references(() => campaigns.id, { onDelete: 'cascade' }),
+    leadId: text('lead_id').references(() => leads.id, {
+      onDelete: 'set null',
+    }),
     phone: text('phone').notNull(),
     status: text('status').notNull().default('pending'),
     consentStatus: text('consent_status').notNull().default('unknown'),
     attemptCount: integer('attempt_count').notNull().default(0),
     nextAttemptAt: text('next_attempt_at'),
     outcome: text('outcome'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [
-    uniqueIndex('idx_campaign_contacts_campaign_phone').on(table.campaignId, table.phone),
-    index('idx_campaign_contacts_ready').on(table.campaignId, table.status, table.nextAttemptAt),
+    uniqueIndex('idx_campaign_contacts_campaign_phone').on(
+      table.campaignId,
+      table.phone,
+    ),
+    index('idx_campaign_contacts_ready').on(
+      table.campaignId,
+      table.status,
+      table.nextAttemptAt,
+    ),
   ],
 );
 
@@ -1300,7 +1548,9 @@ export const providerUsageEvents = sqliteTable(
   'provider_usage_events',
   {
     id: text('id').primaryKey(),
-    organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'set null' }),
+    organizationId: text('organization_id').references(() => organizations.id, {
+      onDelete: 'set null',
+    }),
     providerId: text('provider_id').notNull(),
     category: text('category').notNull(),
     operation: text('operation').notNull(),
@@ -1310,32 +1560,44 @@ export const providerUsageEvents = sqliteTable(
     latencyMs: integer('latency_ms'),
     status: text('status').notNull(),
     referenceId: text('reference_id'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [index('idx_provider_usage_created').on(table.providerId, table.createdAt)],
+  (table) => [
+    index('idx_provider_usage_created').on(table.providerId, table.createdAt),
+  ],
 );
 
 export const retargetingAudiences = sqliteTable(
   'retargeting_audiences',
   {
     id: text('id').primaryKey(),
-    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     destination: text('destination').notNull(),
     rulesJson: text('rules_json').notNull().default('{}'),
     status: text('status').notNull().default('draft'),
     eligibleCount: integer('eligible_count').notNull().default(0),
     lastSyncedAt: text('last_synced_at'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [index('idx_retargeting_org').on(table.organizationId, table.status)],
+  (table) => [
+    index('idx_retargeting_org').on(table.organizationId, table.status),
+  ],
 );
 
 export const paymentReconciliations = sqliteTable(
   'payment_reconciliations',
   {
     id: text('id').primaryKey(),
-    organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
     provider: text('provider').notNull(),
     externalId: text('external_id').notNull(),
     entityType: text('entity_type').notNull(),
@@ -1344,7 +1606,14 @@ export const paymentReconciliations = sqliteTable(
     currency: text('currency').notNull().default('INR'),
     status: text('status').notNull(),
     mismatchReason: text('mismatch_reason'),
-    reconciledAt: text('reconciled_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    reconciledAt: text('reconciled_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [uniqueIndex('idx_reconciliation_provider_external').on(table.provider, table.externalId)],
+  (table) => [
+    uniqueIndex('idx_reconciliation_provider_external').on(
+      table.provider,
+      table.externalId,
+    ),
+  ],
 );

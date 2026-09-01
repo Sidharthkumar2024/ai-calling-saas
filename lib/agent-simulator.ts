@@ -1,5 +1,10 @@
 export type SimulatedAction = {
-  type: 'send_whatsapp' | 'create_payment_link' | 'schedule_follow_up' | 'book_appointment' | 'transfer_human';
+  type:
+    | 'send_whatsapp'
+    | 'create_payment_link'
+    | 'schedule_follow_up'
+    | 'book_appointment'
+    | 'transfer_human';
   label: string;
   status: 'preview';
   payload?: Record<string, string | number>;
@@ -15,13 +20,31 @@ export function simulateAgentTurn(input: {
   const message = raw.toLowerCase();
   const wantsEnglish = /english|अंग्रेज/.test(message);
   const wantsHindi = /hindi|हिंदी/.test(message);
-  const wantsHaryanvi = /haryanvi|हरियाणवी/.test(message) || input.language === 'haryanvi';
-  const wantsWhatsApp = /whatsapp|व्हाट्सऐप|व्हाट्सएप|details|brochure/.test(message);
+  const wantsHaryanvi =
+    /haryanvi|हरियाणवी/.test(message) || input.language === 'haryanvi';
+  const wantsWhatsApp = /whatsapp|व्हाट्सऐप|व्हाट्सएप|details|brochure/.test(
+    message,
+  );
   const wantsPayment = /payment|pay|पेमेंट|भुगतान|link|लिंक/.test(message);
-  const wantsAppointment = /appointment|meeting|site visit|slot|अपॉइंटमेंट|मुलाकात/.test(message);
-  const wantsHuman = /human|person|manager|sales guy|executive|इंसान|मैनेजर/.test(message);
-  const later = /8\s*(pm|p\.m\.|बजे)|eight\s*(pm|o'clock)|later|बाद में/.test(message);
-  const amountMatch = raw.match(/(?:₹|rs\.?|inr|रुपये?)?\s*(\d{2,7}(?:,\d{3})*)/i);
+  const wantsAppointment =
+    /appointment|meeting|site visit|slot|अपॉइंटमेंट|मुलाकात/.test(message);
+  const wantsHuman = /human|person|manager|sales guy|executive|इंसान|मैनेजर/.test(
+    message,
+  );
+  const asksWhatsUp =
+    /क्या\s*(हो रहा|चल रहा)|के\s*हो\s*रया|what'?s up|what is happening/.test(
+      message,
+    );
+  const asksHowAreYou =
+    /कैसे\s*हो|कैसी\s*हो|के\s*हाल|तेरे\s*के\s*हाल|हाल[ -]?चाल|how are you|how'?re you/.test(
+      message,
+    );
+  const later = /8\s*(pm|p\.m\.|बजे)|eight\s*(pm|o'clock)|later|बाद में/.test(
+    message,
+  );
+  const amountMatch = raw.match(
+    /(?:₹|rs\.?|inr|रुपये?)?\s*(\d{2,7}(?:,\d{3})*)/i,
+  );
   const amount = amountMatch ? Number(amountMatch[1].replaceAll(',', '')) : 550;
   const actions: SimulatedAction[] = [];
 
@@ -38,7 +61,11 @@ export function simulateAgentTurn(input: {
       type: 'create_payment_link',
       label: `Create ₹${amount.toLocaleString('en-IN')} payment link`,
       status: 'preview',
-      payload: { amount, provider: 'Razorpay', delivery: later ? 'scheduled' : 'instant' },
+      payload: {
+        amount,
+        provider: 'Razorpay',
+        delivery: later ? 'scheduled' : 'instant',
+      },
     });
     if (later) {
       actions.push({
@@ -65,36 +92,64 @@ export function simulateAgentTurn(input: {
   }
 
   let response: string;
-  if (wantsEnglish) {
-    response = 'Absolutely. I will continue in English. How may I help you with the product or order today?';
+  if (asksHowAreYou && wantsHaryanvi) {
+    response = 'मैं बढ़िया सूँ जी, आप सुनाओ—आपके के हाल हैं?';
+  } else if (asksHowAreYou) {
+    response = 'मैं बढ़िया हूँ जी, आप सुनाइए—सब ठीक चल रहा है?';
+  } else if (asksWhatsUp && wantsHaryanvi) {
+    response = 'बस बढ़िया जी, आपसे बात हो री सै। आप सुनाओ, आज के चाल रया सै?';
+  } else if (asksWhatsUp) {
+    response = 'बस बढ़िया जी, आपसे बात हो रही है। आप सुनाइए, सब ठीक?';
+  } else if (wantsEnglish) {
+    response =
+      'Absolutely. I will continue in English. How may I help you with the product or order today?';
   } else if (wantsHaryanvi) {
-    response = 'हाँ जी, बिल्कुल हरियाणवी में बात करांगे। बताओ, प्रोडक्ट की जानकारी चाहिए, WhatsApp पे details भेजूं या payment link तैयार करूं?';
+    response = 'हाँ जी, बिल्कुल हरियाणवी में बात करांगे। आप आराम तै बताओ, मैं के मदद करूँ?';
   } else if (wantsHindi) {
-    response = 'बिल्कुल, हम हिंदी में बात जारी रखेंगे। बताइए मैं प्रोडक्ट या ऑर्डर में आपकी क्या मदद कर सकती हूँ?';
+    response =
+      'बिल्कुल, हम हिंदी में बात जारी रखेंगे। बताइए मैं प्रोडक्ट या ऑर्डर में आपकी क्या मदद कर सकती हूँ?';
   } else if (wantsPayment && later) {
     response = `ज़रूर। मैंने ₹${amount.toLocaleString('en-IN')} का सुरक्षित payment link रात 8 बजे WhatsApp पर भेजने के लिए तैयार कर दिया है। Live mode में भेजने से पहले आपका consent और नंबर दोबारा confirm होगा।`;
   } else if (wantsPayment) {
     response = `ठीक है। ₹${amount.toLocaleString('en-IN')} का secure payment link अभी WhatsApp पर भेजने के लिए तैयार है। क्या मैं इसी नंबर पर भेज दूँ?`;
   } else if (wantsWhatsApp) {
-    response = 'ज़रूर। मैंने product details और approved brochure का WhatsApp preview तैयार कर दिया है। Live mode में यह केवल consent वाले नंबर पर भेजा जाएगा।';
+    response =
+      'ज़रूर। मैंने product details और approved brochure का WhatsApp preview तैयार कर दिया है। Live mode में यह केवल consent वाले नंबर पर भेजा जाएगा।';
   } else if (wantsAppointment) {
-    response = 'बिल्कुल। मैं उपलब्ध slots देख सकती हूँ और आपकी पसंद का समय reserve कर सकती हूँ। आप morning या evening में क्या prefer करेंगे?';
+    response =
+      'बिल्कुल। मैं उपलब्ध slots देख सकती हूँ और आपकी पसंद का समय reserve कर सकती हूँ। आप morning या evening में क्या prefer करेंगे?';
   } else if (wantsHuman) {
-    response = 'मैं एक sales specialist को warm transfer कर दूँगी और उन्हें इस बातचीत का छोटा summary भी दे दूँगी, ताकि आपको दोबारा सब न बताना पड़े।';
+    response =
+      'मैं एक sales specialist को warm transfer कर दूँगी और उन्हें इस बातचीत का छोटा summary भी दे दूँगी, ताकि आपको दोबारा सब न बताना पड़े।';
   } else if (/yes|हाँ|जी|sure|okay|ok/.test(message)) {
-    response = input.useCase === 'commerce_sales'
-      ? 'धन्यवाद। क्या आप product details पहले WhatsApp पर चाहेंगे, या मैं सीधे secure payment link तैयार करूँ?'
-      : 'बहुत अच्छा। आपकी जरूरत समझने के लिए मैं दो छोटे सवाल पूछूँगी—आपकी प्राथमिकता क्या है और निर्णय कब तक लेना चाहते हैं?';
+    response =
+      input.useCase === 'commerce_sales'
+        ? 'धन्यवाद। क्या आप product details पहले WhatsApp पर चाहेंगे, या मैं सीधे secure payment link तैयार करूँ?'
+        : 'बहुत अच्छा। आपकी जरूरत समझने के लिए मैं दो छोटे सवाल पूछूँगी—आपकी प्राथमिकता क्या है और निर्णय कब तक लेना चाहते हैं?';
   } else {
-    response = `समझ गई। मैं ${input.businessName} की ओर से मदद कर रही हूँ। आप details, WhatsApp follow-up, appointment या payment link—इनमें से क्या चाहेंगे?`;
+    response = 'जी, मैं सुन रही हूँ। आप आराम से बताइए—आज किस चीज़ में मदद चाहिए?';
   }
 
   return {
     response,
     actions,
     extraction: {
-      language: wantsEnglish ? 'English' : wantsHaryanvi ? 'Haryanvi' : wantsHindi ? 'Hindi' : input.language,
-      intent: wantsPayment ? 'payment' : wantsWhatsApp ? 'product_details' : wantsAppointment ? 'appointment' : wantsHuman ? 'human_transfer' : 'discovery',
+      language: wantsEnglish
+        ? 'English'
+        : wantsHaryanvi
+          ? 'Haryanvi'
+          : wantsHindi
+            ? 'Hindi'
+            : input.language,
+      intent: wantsPayment
+        ? 'payment'
+        : wantsWhatsApp
+          ? 'product_details'
+          : wantsAppointment
+            ? 'appointment'
+            : wantsHuman
+              ? 'human_transfer'
+              : 'discovery',
       amount: wantsPayment ? amount : null,
       timing: later ? '20:00 Asia/Kolkata' : wantsPayment ? 'instant' : null,
     },

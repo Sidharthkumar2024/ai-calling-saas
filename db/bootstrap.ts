@@ -51,7 +51,11 @@ async function bootstrap() {
       public_key TEXT NOT NULL,
       fields_json TEXT NOT NULL,
       allowed_domains_json TEXT DEFAULT '[]' NOT NULL,
-      status TEXT DEFAULT 'active' NOT NULL,
+      settings_json TEXT DEFAULT '{}' NOT NULL,
+      status TEXT DEFAULT 'draft' NOT NULL,
+      version INTEGER DEFAULT 1 NOT NULL,
+      published_at TEXT,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
     db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_lead_forms_public_key
@@ -121,6 +125,11 @@ async function bootstrap() {
     db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_opportunities_org_lead
       ON sales_opportunities (organization_id, lead_id)`),
   ]);
+
+  await ensureColumn(db, 'lead_forms', 'settings_json', "TEXT DEFAULT '{}' NOT NULL");
+  await ensureColumn(db, 'lead_forms', 'version', 'INTEGER DEFAULT 1 NOT NULL');
+  await ensureColumn(db, 'lead_forms', 'published_at', 'TEXT');
+  await ensureColumn(db, 'lead_forms', 'updated_at', "TEXT DEFAULT '' NOT NULL");
 
   await db.batch([
     db.prepare(`CREATE TABLE IF NOT EXISTS app_users (
@@ -1059,6 +1068,18 @@ async function seedLocalDemo(db: D1Database) {
       VALUES ('ticket_message_demo_2', 'ticket_demo_sip', 'admin', 'Platform operations',
        'We are reviewing the gateway, codecs and TLS configuration. No live routing is enabled yet.')`),
   ]);
+}
+
+async function ensureColumn(
+  db: D1Database,
+  table: 'lead_forms',
+  column: 'settings_json' | 'version' | 'published_at' | 'updated_at',
+  definition: string,
+) {
+  const info = await db.prepare(`PRAGMA table_info(${table})`).all<{ name: string }>();
+  if (!info.results.some((item) => item.name === column)) {
+    await db.prepare(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`).run();
+  }
 }
 
 async function hashSeedPassword(password: string, salt: string) {

@@ -76,7 +76,13 @@ export const leadForms = sqliteTable(
     publicKey: text('public_key').notNull(),
     fieldsJson: text('fields_json').notNull(),
     allowedDomainsJson: text('allowed_domains_json').notNull().default('[]'),
-    status: text('status').notNull().default('active'),
+    settingsJson: text('settings_json').notNull().default('{}'),
+    status: text('status').notNull().default('draft'),
+    version: integer('version').notNull().default(1),
+    publishedAt: text('published_at'),
+    updatedAt: text('updated_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
     createdAt: text('created_at')
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),

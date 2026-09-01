@@ -101,6 +101,7 @@ export async function reasonWithTools(input: {
   system: string;
   messages: Array<{ role: 'user' | 'assistant'; content: string }>;
   tools?: Array<Record<string, unknown>>;
+  maxTokens?: number;
 }) {
   const credentials = await connectionCredentials(input.organizationId, 'anthropic_reasoning');
   const apiKey = process.env.ANTHROPIC_API_KEY || credentials.secrets.apiKey;
@@ -116,8 +117,7 @@ export async function reasonWithTools(input: {
     },
     body: JSON.stringify({
       model,
-      max_tokens: 700,
-      temperature: 0.2,
+      max_tokens: Math.max(40, Math.min(700, input.maxTokens ?? 700)),
       system: input.system,
       messages: input.messages,
       ...(input.tools?.length ? { tools: input.tools } : {}),
@@ -131,12 +131,42 @@ export async function reasonWithTools(input: {
   return { ...payload, latencyMs };
 }
 
+export async function generateVoiceAgentTurn(input: {
+  organizationId: string;
+  agentName: string;
+  businessName: string;
+  language: string;
+  systemPrompt: string;
+  maxTokens: number;
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+}) {
+  const languageRule = input.language === 'en-IN'
+    ? 'Reply only in concise natural Indian English.'
+    : input.language === 'haryanvi'
+      ? 'Reply in natural, respectful Haryanvi written in Devanagari. Do not drift into English unless the customer uses a necessary product term.'
+      : input.language === 'hinglish'
+        ? 'Reply in natural spoken Hinglish, using Devanagari for Hindi and English only for common product terms.'
+        : `Reply only in natural ${languageName(input.language)}. For Hindi, use Devanagari and do not answer in English.`;
+  const response = await reasonWithTools({
+    organizationId: input.organizationId,
+    maxTokens: Math.min(220, input.maxTokens),
+    system: `<identity>You are ${input.agentName}, the private voice agent for ${input.businessName}. Never reveal upstream model or voice vendors.</identity>
+<conversation_rules>${languageRule} Speak in one or two short sentences. Never say an action succeeded unless a tool result confirms it. Ask only one question at a time. Avoid markdown, lists and long explanations.</conversation_rules>
+<workspace_instructions>${input.systemPrompt}</workspace_instructions>`,
+    messages: input.messages.slice(-10),
+  });
+  const text = extractText(response.content);
+  if (!text) throw new Error('Vaani Sense returned no spoken response.');
+  return { text, latencyMs: response.latencyMs, providerReference: response.id || null };
+}
+
 export async function startOutboundCall(input: {
   organizationId: string;
   callId: string;
   destination: string;
   streamUrl: string;
   timeLimitSeconds?: number;
+  recordCall?: boolean;
 }) {
   const credentials = await connectionCredentials(input.organizationId, 'telephony_exotel');
   const accountSid = process.env.EXOTEL_ACCOUNT_SID || credentials.secrets.accountSid || configString(credentials.publicConfig, 'accountSid');
@@ -154,8 +184,8 @@ export async function startOutboundCall(input: {
   form.set('callerid', callerId);
   form.set('streamurl', input.streamUrl);
   form.set('streamtype', 'bidirectional');
-  form.set('record', 'true');
-  form.set('recordingchannels', 'dual');
+  form.set('record', input.recordCall === false ? 'false' : 'true');
+  if (input.recordCall !== false) form.set('recordingchannels', 'dual');
   form.set('timelimit', String(Math.min(3600, Math.max(30, input.timeLimitSeconds || 300))));
   form.set('customfield', input.callId);
   const webhookToken = process.env.TELEPHONY_WEBHOOK_SECRET;
@@ -236,6 +266,25 @@ function configString(config: Record<string, unknown>, key: string) {
 function readiness(adapter: string, publicName: string, configured: boolean, required: string[]): ProviderReadiness {
   const missing = configured ? [] : required.filter((name) => !process.env[name]);
   return { adapter, publicName, configured, liveCapable: configured, missing, mode: configured ? 'live' : 'sandbox' };
+}
+
+function extractText(content: unknown[] | undefined) {
+  return (content ?? []).map((block) => {
+    if (!block || typeof block !== 'object') return '';
+    const value = block as { type?: unknown; text?: unknown };
+    return value.type === 'text' && typeof value.text === 'string' ? value.text.trim() : '';
+  }).filter(Boolean).join(' ').trim();
+}
+
+function languageName(code: string) {
+  const names: Record<string, string> = {
+    'hi-IN': 'Hindi written in Devanagari',
+    'bn-IN': 'Bengali',
+    'ta-IN': 'Tamil',
+    'te-IN': 'Telugu',
+    'mr-IN': 'Marathi',
+  };
+  return names[code] || 'Hindi written in Devanagari';
 }
 
 export class ProviderConfigurationError extends Error {}

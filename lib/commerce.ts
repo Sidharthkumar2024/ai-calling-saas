@@ -46,7 +46,7 @@ export async function createRazorpayPaymentLink(input: {
       description: input.description,
       customer: {
         name: input.customerName,
-        contact: input.customerPhone,
+        ...(input.customerPhone ? { contact: input.customerPhone } : {}),
         ...(input.customerEmail ? { email: input.customerEmail } : {}),
       },
       notify: { sms: false, email: false },
@@ -69,6 +69,37 @@ export async function createRazorpayPaymentLink(input: {
     shortUrl: payload.short_url,
     payload,
   };
+}
+
+export async function sendEmailPaymentLink(input: {
+  organizationId: string;
+  destination: string;
+  customerName: string;
+  amount: number;
+  shortUrl: string;
+}): Promise<CommerceDeliveryResult> {
+  const credentials = await emailCredentials(input.organizationId);
+  if (!credentials.apiKey || !credentials.from) {
+    return {
+      status: 'sandbox_delivered',
+      providerReference: `sandbox_email_${crypto.randomUUID()}`,
+      payload: { mode: 'local_sandbox', reason: 'Transactional email credentials are not connected.' },
+    };
+  }
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${credentials.apiKey}`, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      from: credentials.from,
+      to: [input.destination],
+      subject: `Your secure payment link · ₹${(input.amount / 100).toLocaleString('en-IN')}`,
+      html: `<p>Hello ${escapeHtml(input.customerName)},</p><p>Your secure payment link is ready.</p><p><a href="${escapeHtml(input.shortUrl)}">Pay ₹${(input.amount / 100).toLocaleString('en-IN')}</a></p>`,
+    }),
+    signal: AbortSignal.timeout(15_000),
+  });
+  const payload = await response.json() as { id?: string; message?: string };
+  if (!response.ok || !payload.id) throw new Error(payload.message || 'Email could not send the payment link.');
+  return { status: 'sent', providerReference: payload.id, payload };
 }
 
 export async function sendWhatsAppPaymentLink(input: {
@@ -166,6 +197,12 @@ async function whatsAppCredentials(organizationId: string) {
   };
 }
 
+async function emailCredentials(organizationId: string) {
+  if (process.env.RESEND_API_KEY && process.env.EMAIL_FROM) return { apiKey: process.env.RESEND_API_KEY, from: process.env.EMAIL_FROM };
+  const bundle = await integrationSecrets(organizationId, 'email_resend');
+  return { apiKey: bundle.secrets.apiKey, from: bundle.publicConfig.from as string | undefined };
+}
+
 async function integrationSecrets(organizationId: string, type: string) {
   const row = await getRawDb()
     .prepare(`SELECT public_config_json, encrypted_secret FROM integration_connections
@@ -193,4 +230,8 @@ function safeObject(value: string) {
   } catch {
     return {};
   }
+}
+
+function escapeHtml(value: string) {
+  return value.replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character] || character);
 }

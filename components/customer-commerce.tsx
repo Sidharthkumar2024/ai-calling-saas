@@ -36,6 +36,7 @@ type PaymentLinkRow = {
 type MessageRow = {
   id: string;
   payment_link_id: string | null;
+  channel: string;
   destination: string;
   status: string;
   scheduled_for: string | null;
@@ -101,6 +102,7 @@ export function CustomerCommerce({ data, onChanged }: { data: CommerceData; onCh
 
   const razorpay = data.connections?.find((item) => item.type === 'razorpay');
   const whatsapp = data.connections?.find((item) => item.type === 'whatsapp_cloud');
+  const email = data.connections?.find((item) => item.type === 'email_resend');
   const paymentLinks = data.paymentLinks ?? [];
   const messages = data.messages ?? [];
   const actions = data.scheduledActions ?? [];
@@ -121,7 +123,7 @@ export function CustomerCommerce({ data, onChanged }: { data: CommerceData; onCh
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Metric icon={CreditCard} label="Payment links" value={String(paymentLinks.length)} note="Razorpay-ready" />
-        <Metric icon={MessageCircleMore} label="WhatsApp events" value={String(messages.length)} note="Template governed" />
+        <Metric icon={MessageCircleMore} label="Delivery events" value={String(messages.length)} note="WhatsApp + email fallback" />
         <Metric icon={Clock3} label="Scheduled" value={String(actions.filter((item) => item.status === 'pending').length)} note="Asia/Kolkata aware" />
         <Metric icon={IndianRupee} label="Payment intent" value={money(paymentLinks.reduce((sum, item) => sum + Number(item.amount), 0))} note="Links created" />
       </div>
@@ -131,13 +133,14 @@ export function CustomerCommerce({ data, onChanged }: { data: CommerceData; onCh
           <div className="flex items-start justify-between"><div><h2 className="text-sm font-semibold">Simulate the call outcome</h2><p className="mt-1 text-[10px] text-white/32">No real charge is made in sandbox mode</p></div><Sparkles className="size-4 text-amber-200" /></div>
           <div className="mt-5 space-y-4">
             <Field label="Customer name"><Input value={form.customerName} onChange={(event) => setForm({ ...form, customerName: event.target.value })} /></Field>
-            <div className="grid gap-4 sm:grid-cols-2"><Field label="WhatsApp number"><Input value={form.customerPhone} onChange={(event) => setForm({ ...form, customerPhone: event.target.value })} /></Field><Field label="Amount (₹)"><Input type="number" min="1" value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} /></Field></div>
+            <div className="grid gap-4 sm:grid-cols-2"><Field label="WhatsApp number"><Input value={form.customerPhone} onChange={(event) => setForm({ ...form, customerPhone: event.target.value })} /></Field><Field label="Fallback email"><Input type="email" value={form.customerEmail} onChange={(event) => setForm({ ...form, customerEmail: event.target.value })} placeholder="customer@example.com" /></Field></div>
+            <Field label="Amount (₹)"><Input type="number" min="1" value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} /></Field>
             <Field label="Product / reason"><Input value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></Field>
             <Field label="Delivery instruction"><div className="grid grid-cols-2 rounded-xl border border-white/8 bg-black/20 p-1">{(['instant', 'scheduled'] as const).map((item) => <button key={item} type="button" onClick={() => setForm({ ...form, deliveryMode: item })} className={`rounded-lg px-3 py-2 text-[10px] capitalize ${form.deliveryMode === item ? 'bg-white/9 text-white' : 'text-white/35'}`}>{item === 'instant' ? 'Send now' : 'Send later'}</button>)}</div></Field>
             {form.deliveryMode === 'scheduled' ? <Field label="Customer-requested time"><Input type="datetime-local" value={form.scheduledFor} onChange={(event) => setForm({ ...form, scheduledFor: event.target.value })} /></Field> : null}
             <Button type="button" disabled={loading} onClick={() => void post({ action: 'create_payment_link', ...form, amount: Number(form.amount) })} className="w-full bg-amber-300 text-[#17120a] hover:bg-amber-200">{loading ? <Loader2 className="animate-spin" /> : form.deliveryMode === 'instant' ? <Send /> : <Clock3 />}{form.deliveryMode === 'instant' ? 'Create & send payment link' : 'Create & schedule payment link'}</Button>
           </div>
-          <div className="mt-5 grid gap-2 sm:grid-cols-2"><Connection label="Razorpay" value={razorpay?.status ?? 'local sandbox'} /><Connection label="WhatsApp" value={whatsapp?.status ?? 'local sandbox'} /></div>
+          <div className="mt-5 grid gap-2 sm:grid-cols-3"><Connection label="Razorpay" value={razorpay?.status ?? 'local sandbox'} /><Connection label="WhatsApp" value={whatsapp?.status ?? 'local sandbox'} /><Connection label="Email fallback" value={email?.status ?? 'local sandbox'} /></div>
         </section>
 
         <section className="rounded-2xl border border-white/8 bg-[#0e1119] p-5">

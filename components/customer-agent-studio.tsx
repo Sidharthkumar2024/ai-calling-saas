@@ -228,7 +228,7 @@ export function CustomerAgentStudio({
 function SettingsPanel({ tab, draft, setDraft }: { tab: (typeof studioTabs)[number]['id']; draft: AgentDraft; setDraft: (draft: AgentDraft) => void }) {
   if (tab === 'agent') return <div className="space-y-6"><SettingSection title="Welcome message" note="The first sentence the customer hears"><Field label="Opening line"><Input value={draft.welcomeMessage} onChange={(event) => setDraft({ ...draft, welcomeMessage: event.target.value })} /></Field></SettingSection><SettingSection title="Conversation canvas" note="Goal, tone, guardrails and tool policy"><Field label="System instructions"><Textarea value={draft.systemPrompt} onChange={(event) => setDraft({ ...draft, systemPrompt: event.target.value })} className="min-h-44" /></Field><div className="mt-3 flex flex-wrap gap-2">{['{{customer_name}}', '{{product}}', '{{amount}}', '@create_payment_link'].map((token) => <code key={token} className="rounded-lg bg-white/5 px-2 py-1 text-[9px] text-cyan-100/65">{token}</code>)}</div></SettingSection></div>;
   if (tab === 'intelligence') return <div className="space-y-6"><SettingSection title="Vaani Sense" note="Provider routing remains private"><div className="grid gap-4 sm:grid-cols-2"><Field label="Intelligence profile"><select value={draft.intelligenceProfile} onChange={(event) => setDraft({ ...draft, intelligenceProfile: event.target.value })} className="input-select"><option>Vaani Sense Fast</option><option>Vaani Sense Balanced</option><option>Vaani Sense Deep</option></select></Field><Field label={`Creativity · ${draft.temperature / 100}`}><input type="range" min="0" max="100" value={draft.temperature} onChange={(event) => setDraft({ ...draft, temperature: Number(event.target.value) })} className="mt-3 w-full accent-amber-300" /></Field><Field label="Maximum reply tokens"><Input type="number" value={draft.maxTokens} onChange={(event) => setDraft({ ...draft, maxTokens: Number(event.target.value) })} /></Field><Field label="Knowledge grounding"><div className="input-static"><CheckCircle2 className="size-4 text-emerald-300" /> Approved workspace sources only</div></Field></div></SettingSection></div>;
-  if (tab === 'languages') return <div className="space-y-6"><SettingSection title="Language and voice" note="Designed for Indian accents and code-mixed speech"><div className="grid gap-4 sm:grid-cols-2"><Field label="Primary language"><select value={draft.primaryLanguage} onChange={(event) => setDraft({ ...draft, primaryLanguage: event.target.value })} className="input-select"><option value="hinglish">Hinglish</option><option value="hi-IN">Hindi</option><option value="en-IN">Indian English</option><option value="bn-IN">Bengali</option><option value="ta-IN">Tamil</option><option value="te-IN">Telugu</option><option value="mr-IN">Marathi</option></select></Field><Field label="Vaani voice"><select value={draft.voiceName} onChange={(event) => setDraft({ ...draft, voiceName: event.target.value })} className="input-select"><option>Vaani Tara</option><option>Vaani Kabir</option><option>Vaani Meera</option><option>Vaani Arjun</option></select></Field></div><Button variant="outline" className="mt-4 border-white/10 bg-transparent"><Play /> Preview welcome message</Button></SettingSection></div>;
+  if (tab === 'languages') return <div className="space-y-6"><SettingSection title="Language and voice" note="Designed for Indian accents and code-mixed speech"><div className="grid gap-4 sm:grid-cols-2"><Field label="Primary language"><select value={draft.primaryLanguage} onChange={(event) => setDraft({ ...draft, primaryLanguage: event.target.value })} className="input-select"><option value="hinglish">Hinglish</option><option value="haryanvi">Haryanvi</option><option value="hi-IN">Hindi</option><option value="en-IN">Indian English</option><option value="bn-IN">Bengali</option><option value="ta-IN">Tamil</option><option value="te-IN">Telugu</option><option value="mr-IN">Marathi</option></select></Field><Field label="Vaani voice"><select value={draft.voiceName} onChange={(event) => setDraft({ ...draft, voiceName: event.target.value })} className="input-select"><option>Vaani Tara</option><option>Vaani Kabir</option><option>Vaani Meera</option><option>Vaani Arjun</option></select></Field></div><Button type="button" onClick={() => previewInBrowser(draft.welcomeMessage, draft.primaryLanguage)} variant="outline" className="mt-4 border-white/10 bg-transparent"><Play /> Preview welcome message</Button></SettingSection></div>;
   if (tab === 'engine') return <div className="space-y-6"><SettingSection title="Response latency" note="Tune natural pauses and interruption handling"><div className="grid gap-4 sm:grid-cols-2"><Field label="Endpointing delay (ms)"><Input type="number" value={draft.endpointingMs} onChange={(event) => setDraft({ ...draft, endpointingMs: Number(event.target.value) })} /></Field><Field label="Words before interruption"><Input type="number" value={draft.interruptWords} onChange={(event) => setDraft({ ...draft, interruptWords: Number(event.target.value) })} /></Field></div><div className="mt-5 rounded-xl border border-emerald-400/12 bg-emerald-400/[0.025] p-4"><div className="flex items-center justify-between"><span className="text-xs">Estimated turn latency</span><span className="font-mono text-sm text-emerald-300">0.42–0.78s</span></div><div className="mt-3 h-1.5 rounded-full bg-white/6"><div className="h-full w-[68%] rounded-full bg-gradient-to-r from-emerald-400 to-amber-300" /></div></div></SettingSection></div>;
   if (tab === 'tools') return <div className="space-y-6"><SettingSection title="Revenue actions" note="The model requests an action; Vaani validates and executes it"><div className="grid gap-3 sm:grid-cols-2">{[
     ['send_whatsapp', 'Send WhatsApp', 'Approved product details and templates'],
@@ -252,8 +252,11 @@ function TestConsole({ agent, businessName, initialCredits, onChanged }: { agent
   const [elapsed, setElapsed] = useState(0);
   const [credits, setCredits] = useState(initialCredits);
   const [error, setError] = useState('');
+  const [pipelineMode, setPipelineMode] = useState<'checking' | 'connected' | 'fallback'>('checking');
+  const [interimTranscript, setInterimTranscript] = useState('');
   const recognitionRef = useRef<{ abort: () => void } | null>(null);
   const voiceActiveRef = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setCredits(initialCredits), 0);
@@ -269,6 +272,7 @@ function TestConsole({ agent, businessName, initialCredits, onChanged }: { agent
   useEffect(() => () => {
     voiceActiveRef.current = false;
     recognitionRef.current?.abort();
+    audioRef.current?.pause();
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
   }, []);
 
@@ -313,26 +317,14 @@ function TestConsole({ agent, businessName, initialCredits, onChanged }: { agent
         actions?: TranscriptMessage['actions'];
         latencyMs?: number;
         creditsRemaining?: number;
+        pipelineMode?: 'connected' | 'fallback';
         error?: string;
       };
       if (!response.ok || !payload.message) throw new Error(payload.error ?? 'Unable to test agent.');
       setMessages((current) => [...current, { id: crypto.randomUUID(), role: 'assistant', content: payload.message!, actions: payload.actions, latencyMs: payload.latencyMs }]);
       setCredits(Number(payload.creditsRemaining ?? credits - 10));
-      if (mode === 'browser_voice' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(payload.message);
-        utterance.lang = agent.primary_language === 'en-IN' ? 'en-IN' : 'hi-IN';
-        utterance.onstart = () => setVoiceState('speaking');
-        utterance.onend = () => {
-          if ((continueVoice || voiceActiveRef.current) && voiceActiveRef.current) startListening(true);
-          else setVoiceState('idle');
-        };
-        utterance.onerror = () => {
-          if (voiceActiveRef.current) startListening(true);
-          else setVoiceState('idle');
-        };
-        window.speechSynthesis.speak(utterance);
-      }
+      setPipelineMode(payload.pipelineMode ?? 'fallback');
+      if (mode === 'browser_voice') await speakAgentMessage(payload.message, continueVoice);
       await onChanged();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to test agent.');
@@ -342,8 +334,53 @@ function TestConsole({ agent, businessName, initialCredits, onChanged }: { agent
     }
   }
 
+  async function beginVoiceConversation() {
+    voiceActiveRef.current = true;
+    setVoiceActive(true);
+    setError('');
+    try {
+      if (!sessionId) {
+        const activeSession = await startSession('browser_voice');
+        if (activeSession) await speakAgentMessage(agent.welcome_message, true);
+      } else {
+        startListening(false);
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to start voice playground.');
+      stopVoice();
+    }
+  }
+
+  async function speakAgentMessage(text: string, continueVoice: boolean) {
+    setVoiceState('speaking');
+    audioRef.current?.pause();
+    try {
+      const response = await fetch('/api/app/agents/speech', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ agentId: agent.id, text }),
+      });
+      if (!response.ok) throw new Error('Connected voice is not available.');
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      setPipelineMode('connected');
+      await new Promise<void>((resolve, reject) => {
+        audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
+        audio.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Audio playback failed.')); };
+        void audio.play().catch(reject);
+      });
+    } catch {
+      setPipelineMode('fallback');
+      await browserSpeak(text, agent.primary_language);
+    }
+    if ((continueVoice || voiceActiveRef.current) && voiceActiveRef.current) startListening(true);
+    else setVoiceState('idle');
+  }
+
   function startListening(automatic = false) {
-    type RecognitionEvent = { results: ArrayLike<{ 0: { transcript: string } }> };
+    type RecognitionEvent = { results: ArrayLike<{ 0: { transcript: string }; isFinal?: boolean }> };
     type RecognitionInstance = {
       lang: string;
       interimResults: boolean;
@@ -364,14 +401,25 @@ function TestConsole({ agent, businessName, initialCredits, onChanged }: { agent
     const recognition = new constructor();
     recognitionRef.current = recognition;
     recognition.lang = agent.primary_language === 'en-IN' ? 'en-IN' : 'hi-IN';
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.continuous = false;
     let handled = false;
     recognition.onresult = (event) => {
-      handled = true;
-      const transcript = event.results[0]?.[0]?.transcript ?? '';
-      setInput(transcript);
-      if (transcript) void sendMessage(transcript, true);
+      let interim = '';
+      let final = '';
+      for (let index = 0; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        const transcript = result?.[0]?.transcript ?? '';
+        if (result?.isFinal) final += transcript;
+        else interim += transcript;
+      }
+      setInterimTranscript(interim);
+      setInput(final || interim);
+      if (final.trim()) {
+        handled = true;
+        setInterimTranscript('');
+        void sendMessage(final, true);
+      }
     };
     recognition.onerror = () => {
       setError('Microphone transcription did not complete. You can type instead.');
@@ -392,8 +440,11 @@ function TestConsole({ agent, businessName, initialCredits, onChanged }: { agent
     setVoiceActive(false);
     setElapsed(0);
     setVoiceState('idle');
+    setInterimTranscript('');
     recognitionRef.current?.abort();
     recognitionRef.current = null;
+    audioRef.current?.pause();
+    audioRef.current = null;
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
   }
 
@@ -407,7 +458,7 @@ function TestConsole({ agent, businessName, initialCredits, onChanged }: { agent
 
       {mode === 'phone' ? <div className="grid flex-1 place-items-center p-6"><div className="max-w-xs text-center"><span className="mx-auto grid size-14 place-items-center rounded-2xl border border-amber-300/12 bg-amber-300/5"><PhoneCall className="size-5 text-amber-200" /></span><h3 className="mt-5 text-base font-semibold">Phone test is publish-gated</h3><p className="mt-3 text-xs leading-5 text-white/38">Verify your number, complete KYC and approve the calling use case. Until then, use browser voice for the same conversational response without placing a call.</p><Button type="button" onClick={() => changeMode('browser_voice')} className="mt-5 bg-amber-300 text-black hover:bg-amber-200"><Mic2 /> Use browser voice</Button></div></div> : <>
         <div className="flex-1 space-y-4 overflow-y-auto p-4">
-          {mode === 'browser_voice' ? <VoiceOrb agentName={agent.name} state={voiceState} active={voiceActive} elapsed={elapsed} onStart={() => startListening(false)} onStop={stopVoice} /> : null}
+          {mode === 'browser_voice' ? <VoiceOrb agentName={agent.name} state={voiceState} active={voiceActive} elapsed={elapsed} pipelineMode={pipelineMode} interimTranscript={interimTranscript} onStart={() => void beginVoiceConversation()} onStop={stopVoice} /> : null}
           {messages.length === 0 && mode === 'text' ? <div className="grid min-h-[420px] place-items-center"><div className="max-w-xs text-center"><span className="mx-auto grid size-14 place-items-center rounded-2xl bg-gradient-to-br from-cyan-300/15 to-violet-300/15"><AudioLines className="size-6 text-cyan-100" /></span><h3 className="mt-5 text-base font-semibold">Meet {agent.name}</h3><p className="mt-2 text-xs leading-5 text-white/38">Start a text test for {businessName}. Each turn uses 10 trial credits and never calls a phone number.</p><Button type="button" onClick={() => void startSession(mode)} className="mt-5 bg-white text-black hover:bg-white/90"><WandSparkles /> Start test</Button></div></div> : messages.map((message) => <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[90%] ${message.role === 'user' ? 'rounded-2xl rounded-tr-md bg-amber-300 p-3 text-[#21190a]' : 'space-y-2'}`}>{message.role === 'assistant' ? <div className="rounded-2xl rounded-tl-md bg-white/[0.055] p-3 text-xs leading-5 text-white/72"><div className="mb-2 flex items-center gap-2 text-[9px] text-violet-200"><Sparkles className="size-3" /> {agent.name}{message.latencyMs ? <span className="ml-auto font-mono text-white/25">{message.latencyMs}ms</span> : null}</div>{message.content}</div> : <p className="text-xs leading-5">{message.content}</p>}{message.actions?.length ? <div className="space-y-1.5">{message.actions.map((action) => <div key={`${message.id}-${action.type}`} className="flex items-center gap-2 rounded-xl border border-emerald-400/12 bg-emerald-400/[0.035] p-2.5 text-[9px] text-emerald-100"><CheckCircle2 className="size-3.5 shrink-0 text-emerald-300" /><span className="flex-1">{action.label}</span><span className="rounded bg-white/5 px-1.5 py-0.5 text-[8px] text-white/35">preview</span></div>)}</div> : null}</div></div>)}
           {loading ? <div className="flex items-center gap-2 text-[10px] text-white/30"><Loader2 className="size-3.5 animate-spin" /> Vaani is understanding the request…</div> : null}
         </div>
@@ -422,6 +473,8 @@ function VoiceOrb({
   state,
   active,
   elapsed,
+  pipelineMode,
+  interimTranscript,
   onStart,
   onStop,
 }: {
@@ -429,6 +482,8 @@ function VoiceOrb({
   state: 'idle' | 'listening' | 'thinking' | 'speaking';
   active: boolean;
   elapsed: number;
+  pipelineMode: 'checking' | 'connected' | 'fallback';
+  interimTranscript: string;
   onStart: () => void;
   onStop: () => void;
 }) {
@@ -443,12 +498,37 @@ function VoiceOrb({
         {active ? <div className="flex h-14 items-center gap-1" aria-hidden="true">{bars.map((height, index) => <span key={`${height}-${index}`} className={`w-1 rounded-full bg-white/85 ${state === 'listening' || state === 'speaking' ? 'animate-pulse' : ''}`} style={{ height, animationDelay: `${index * 55}ms` }} />)}</div> : <Mic2 className="size-8" />}
       </button>
     </div>
-    <div className="relative mt-3"><h3 className="text-base font-semibold">{agentName} · Live playground</h3><p aria-live="polite" className="mt-2 text-xs text-white/48">{stateLabel}</p>{active ? <p className="mt-2 font-mono text-[10px] text-cyan-100/55">{formatElapsed(elapsed)} · browser voice · interrupt anytime</p> : <p className="mt-2 text-[9px] text-white/28">Continuous turn-taking in Hindi, Hinglish or Indian English. No phone number is dialled.</p>}</div>
+    <div className="relative mt-3"><div className="flex items-center justify-center gap-2"><h3 className="text-base font-semibold">{agentName} · Voice playground</h3><span className={`rounded-full border px-2 py-1 text-[8px] ${pipelineMode === 'connected' ? 'border-emerald-300/15 bg-emerald-300/7 text-emerald-200' : 'border-amber-300/15 bg-amber-300/7 text-amber-100'}`}>{pipelineMode === 'connected' ? 'Connected voice' : pipelineMode === 'checking' ? 'Checking voice' : 'Browser fallback'}</span></div><p aria-live="polite" className="mt-2 text-xs text-white/48">{interimTranscript || stateLabel}</p>{active ? <p className="mt-2 font-mono text-[10px] text-cyan-100/55">{formatElapsed(elapsed)} · {pipelineMode === 'connected' ? 'server voice' : 'browser voice'} · short turns</p> : <p className="mt-2 text-[9px] text-white/28">Connected mode uses the workspace language and private provider credentials. No phone number is dialled.</p>}</div>
   </section>;
 }
 
 function formatElapsed(seconds: number) {
   return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+}
+
+function previewInBrowser(text: string, language: string) {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = language === 'en-IN' ? 'en-IN' : 'hi-IN';
+  const matching = window.speechSynthesis.getVoices().find((voice) => voice.lang.toLowerCase().startsWith(utterance.lang.toLowerCase().slice(0, 2)));
+  if (matching) utterance.voice = matching;
+  window.speechSynthesis.speak(utterance);
+}
+
+function browserSpeak(text: string, language: string) {
+  return new Promise<void>((resolve) => {
+    if (!('speechSynthesis' in window)) { resolve(); return; }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = language === 'en-IN' ? 'en-IN' : 'hi-IN';
+    utterance.rate = 1.02;
+    const matching = window.speechSynthesis.getVoices().find((voice) => voice.lang.toLowerCase().startsWith(utterance.lang.toLowerCase().slice(0, 2)));
+    if (matching) utterance.voice = matching;
+    utterance.onend = () => resolve();
+    utterance.onerror = () => resolve();
+    window.speechSynthesis.speak(utterance);
+  });
 }
 
 function SettingSection({ title, note, children }: { title: string; note: string; children: React.ReactNode }) {

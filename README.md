@@ -24,6 +24,9 @@ Local admin demo: `admin@vaani.local` / `VaaniAdmin#2026`
 - `/docs` — public API and integration documentation
 - `/api/internal/jobs` — authenticated/cron worker for scheduled actions, retries and dead letters
 - `/api/app/calls` — consent-gated live call start
+- `/api/app/agents/test` and `/api/app/agents/speech` — provider-backed no-call agent testing with explicit fallback mode
+- `/api/app/lead-forms` and `/api/widget/:publicKey` — versioned website popup builder and generated embed runtime
+- `/api/app/retargeting` — consent-aware Meta/Google audience creation and durable sync
 - `/api/app/compliance` — consent, DNC and secure KYC intake
 - `/api/app/knowledge` and `/api/app/workflows/run` — ingestion and durable automation
 - `/api/app/team` and `/api/auth/security` — tenant invitations, roles, TOTP MFA and session control

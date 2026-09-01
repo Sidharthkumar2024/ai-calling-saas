@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import {
   AlertTriangle,
+  ArrowUpRight,
   BarChart3,
   Bot,
   BrainCircuit,
@@ -29,6 +30,7 @@ import {
   UsersRound,
   Webhook,
   Workflow,
+  Zap,
   FileAudio,
   FileBarChart2,
 } from 'lucide-react';
@@ -60,10 +62,11 @@ import {
 import { PortalShell, type PortalNavGroup } from '@/components/portal-shell';
 import { CustomerOperations, type OperationsData, type OperationsModule } from '@/components/customer-operations';
 import { CustomerTickets, type TicketsData } from '@/components/customer-tickets';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ActivityAreaChart, DistributionChart } from '@/components/analytics-charts';
 import { CustomerTeam, type TeamData } from '@/components/customer-team';
+import { CustomerLeadCapture, type LeadFormsData } from '@/components/customer-lead-capture';
 
 type CustomerSession = {
   name: string;
@@ -101,6 +104,7 @@ type OverviewData = {
   outcomeBreakdown?: Array<Record<string, string | number>>;
   providerReadiness?: Array<{ adapter: string; publicName: string; configured: boolean; mode: string }>;
 };
+type RetargetingData = { audiences?: Array<{ id: string; name: string; destination: string; status: string; eligible_count: number; last_synced_at: string | null; rules_json: string }> };
 
 export type CustomerData = {
   overview: OverviewData;
@@ -115,6 +119,8 @@ export type CustomerData = {
   operations: OperationsData;
   tickets: TicketsData;
   team: TeamData;
+  leadForms: LeadFormsData;
+  retargeting: RetargetingData;
 };
 
 const groups: PortalNavGroup[] = [
@@ -176,6 +182,8 @@ const emptyData: CustomerData = {
   operations: { campaigns: [], sipTrunks: [], knowledgeBases: [], workflows: [], graphAgents: [], calls: [], qualityReviews: [], alertRules: [], incidents: [], reports: [] },
   tickets: { tickets: [], messages: [] },
   team: { members: [], invitations: [] },
+  leadForms: { forms: [] },
+  retargeting: { audiences: [] },
 };
 
 export function CustomerPortal({ session }: { session: CustomerSession }) {
@@ -198,7 +206,7 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
   async function load() {
     setError('');
     try {
-      const [overview, crm, numbers, integrations, apiKeys, webhooks, billing, agents, commerce, operations, tickets, compliance, team] = await Promise.all([
+      const [overview, crm, numbers, integrations, apiKeys, webhooks, billing, agents, commerce, operations, tickets, compliance, team, leadForms, retargeting] = await Promise.all([
         getJson<OverviewData>('/api/app/overview'),
         getJson<CustomerData['crm']>('/api/app/crm'),
         getJson<CustomerNumbersData>('/api/app/numbers'),
@@ -212,8 +220,10 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
         getJson<TicketsData>('/api/app/tickets'),
         getJson<NonNullable<OperationsData['compliance']>>('/api/app/compliance'),
         getJson<TeamData>('/api/app/team'),
+        getJson<LeadFormsData>('/api/app/lead-forms'),
+        getJson<RetargetingData>('/api/app/retargeting'),
       ]);
-      setData({ overview, crm, numbers, integrations, apiKeys, webhooks, billing, agents, commerce, operations: { ...operations, compliance }, tickets, team });
+      setData({ overview, crm, numbers, integrations, apiKeys, webhooks, billing, agents, commerce, operations: { ...operations, compliance }, tickets, team, leadForms, retargeting });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to load workspace.');
     } finally {
@@ -257,12 +267,12 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
       <div className="mx-auto max-w-[1500px] p-4 sm:p-6 lg:p-8">
         {loading ? <Loading /> : error ? <ErrorState error={error} retry={load} /> : null}
         {!loading && !error && active === 'overview' ? <CustomerOverview data={data.overview} onNavigate={setActive} /> : null}
-        {!loading && !error && active === 'crm' ? <CustomerCrm leads={data.crm.pipeline} activities={data.crm.activities} onMove={moveLead} /> : null}
+        {!loading && !error && active === 'crm' ? <CustomerCrm leads={data.crm.pipeline} activities={data.crm.activities} onMove={moveLead} onChanged={load} onStartFollowUp={() => setActive('campaigns')} /> : null}
         {!loading && !error && active === 'agents' ? <CustomerAgentStudio data={data.agents} businessName={session.organizationName} onChanged={load} /> : null}
         {!loading && !error && ['campaigns','sip_trunks','knowledge','workflows','graph_agents','call_history','live_monitor','analytics','quality','alerts','reports'].includes(active) ? <CustomerOperations module={active as OperationsModule} data={data.operations} onChanged={load} /> : null}
         {!loading && !error && active === 'numbers' ? <CustomerNumbers data={data.numbers} onChanged={load} /> : null}
-        {!loading && !error && active === 'lead_capture' ? <LeadCapture data={data.overview} /> : null}
-        {!loading && !error && active === 'retargeting' ? <Retargeting /> : null}
+        {!loading && !error && active === 'lead_capture' ? <CustomerLeadCapture data={data.leadForms} sources={data.overview.sources ?? []} onChanged={load} onNavigate={setActive} /> : null}
+        {!loading && !error && active === 'retargeting' ? <Retargeting data={data.retargeting} onChanged={load} /> : null}
         {!loading && !error && active === 'commerce' ? <CustomerCommerce data={data.commerce} onChanged={load} /> : null}
         {!loading && !error && active === 'integrations' ? <CustomerIntegrations integrations={data.integrations} apiKeys={data.apiKeys} webhooks={data.webhooks} onChanged={load} /> : null}
         {!loading && !error && active === 'billing' ? <CustomerBilling data={data.billing} onChanged={load} /> : null}
@@ -280,12 +290,21 @@ function CustomerOverview({ data, onNavigate }: { data: OverviewData; onNavigate
   return (
     <div className="space-y-6">
       <Header eyebrow="Revenue command center" title="Good evening, your AI team is working" description="Leads, conversations, appointments and revenue actions—measured from tenant-owned records." action={<Button onClick={() => onNavigate('campaigns')} className="portal-primary"><PhoneCall /> Launch campaign</Button>} />
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <Metric label="Credits" value={num(stats.credits)} note="Wallet balance" icon={CircleDollarSign} />
-        <Metric label="Captured leads" value={num(stats.leads)} note={`${num(stats.qualified)} high intent`} icon={ContactRound} />
-        <Metric label="Pipeline" value={money(stats.pipelineValue)} note={`${num(stats.opportunities)} opportunities`} icon={Target} />
-        <Metric label="Call jobs" value={num(stats.calls)} note={`${num(stats.queuedCalls)} queued`} icon={PhoneCall} />
-        <Metric label="AI lead score" value={`${num(stats.averageScore)}/100`} note="Average intent" icon={BrainCircuit} />
+      <section className="portal-panel overflow-hidden p-0">
+        <div className="grid xl:grid-cols-[1.2fr_0.8fr]">
+          <div className="relative overflow-hidden border-b border-white/8 p-6 sm:p-7 xl:border-b-0 xl:border-r">
+            <div aria-hidden="true" className="absolute -right-16 -top-20 size-64 rounded-full bg-indigo-400/12 blur-3xl" />
+            <div className="relative flex items-start justify-between gap-4"><div><div className="flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.18em] text-emerald-200/70"><span className="size-1.5 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,.8)]" /> Revenue pipeline live</div><p className="mt-5 text-[10px] uppercase tracking-[0.14em] text-white/30">Open pipeline value</p><p className="mt-2 text-4xl font-semibold tracking-[-0.04em] text-white sm:text-5xl">{money(stats.pipelineValue)}</p><p className="mt-3 text-xs text-white/38">{num(stats.opportunities)} active opportunities · {num(stats.qualified)} high-intent leads</p></div><span className="grid size-12 shrink-0 place-items-center rounded-2xl border border-indigo-200/15 bg-indigo-300/10 shadow-[0_18px_50px_-24px_rgba(129,140,248,.9)]"><Target className="size-5 text-[#bdc7ff]" /></span></div>
+            <div className="relative mt-7 flex flex-wrap gap-2"><Button onClick={() => onNavigate('crm')} size="sm" className="portal-primary">Open CRM <ArrowUpRight /></Button><Button onClick={() => onNavigate('lead_capture')} size="sm" variant="outline" className="border-white/10 bg-white/[0.025]">Capture leads</Button><Button onClick={() => onNavigate('live_monitor')} size="sm" variant="outline" className="border-white/10 bg-white/[0.025]">Live monitor</Button></div>
+          </div>
+          <div className="p-6 sm:p-7"><div className="flex items-center justify-between"><div><p className="text-sm font-semibold">System readiness</p><p className="mt-1 text-[10px] text-white/30">Private provider adapters</p></div><Zap className="size-4 text-[#a8b7ff]" /></div><div className="mt-5 space-y-3">{(data.providerReadiness ?? []).slice(0,5).map((provider) => <div key={provider.adapter} className="flex items-center gap-3 rounded-xl border border-white/7 bg-white/[0.022] px-3 py-2.5"><span className={`size-1.5 rounded-full ${provider.configured ? 'bg-emerald-300' : 'bg-amber-300'}`} /><span className="min-w-0 flex-1 truncate text-[10px] text-white/55">{provider.publicName}</span><span className={`text-[8px] uppercase tracking-wider ${provider.configured ? 'text-emerald-200' : 'text-amber-200'}`}>{provider.configured ? 'connected' : 'sandbox'}</span></div>)}</div></div>
+        </div>
+      </section>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Metric label="Credits available" value={num(stats.credits)} note="Wallet balance" icon={CircleDollarSign} tone="indigo" progress={72} />
+        <Metric label="Captured leads" value={num(stats.leads)} note={`${num(stats.qualified)} high intent`} icon={ContactRound} tone="cyan" progress={Math.min(100, Number(stats.leads || 0) ? Number(stats.qualified || 0) / Number(stats.leads || 1) * 100 : 0)} />
+        <Metric label="Call jobs" value={num(stats.calls)} note={`${num(stats.queuedCalls)} queued`} icon={PhoneCall} tone="violet" progress={Math.min(100, Number(stats.calls || 0) * 12)} />
+        <Metric label="AI lead score" value={`${num(stats.averageScore)}/100`} note="Average buyer intent" icon={BrainCircuit} tone="emerald" progress={Number(stats.averageScore || 0)} />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
@@ -301,16 +320,15 @@ function CustomerOverview({ data, onNavigate }: { data: OverviewData; onNavigate
   );
 }
 
-function LeadCapture({ data }: { data: OverviewData }) {
-  return <div className="space-y-6"><Header eyebrow="Lead command center" title="Capture every source into one CRM" description="Meta, Google, website popup forms and direct API events are normalized, deduplicated and AI-scored." action={<Button className="bg-amber-300 text-[#17120a] hover:bg-amber-200"><Megaphone /> Connect source</Button>} /><div className="grid gap-4 md:grid-cols-2">{(data.sources??[]).map((source)=><Panel key={source.type}><div className="flex items-start justify-between"><span className="grid size-10 place-items-center rounded-xl bg-white/5"><Database className="size-4 text-amber-200" /></span><Status value={source.status} /></div><h2 className="mt-5 text-sm font-semibold">{source.name}</h2><p className="mt-2 text-xs leading-5 text-white/35">{source.type==='website_form'?'Embed the Vaani popup or send your existing form to the public form endpoint.':'OAuth/API connection with consent fields and campaign attribution.'}</p><Button variant="outline" className="mt-5 w-full border-white/10 bg-transparent">Configure</Button></Panel>)}</div><Panel><PanelTitle title="Website form integration" note="Drop-in endpoint for any form builder" /><pre className="mt-4 overflow-x-auto rounded-xl border border-white/7 bg-black/25 p-4 font-mono text-[10px] leading-5 text-cyan-100/75">{`POST /api/forms/form_urbannest/leads\nContent-Type: application/json\n\n{\n  "name": "Aarav Khanna",\n  "phone": "+919876544210",\n  "email": "aarav@example.com",\n  "productInterest": "3BHK property"\n}`}</pre></Panel></div>;
-}
-
-function Retargeting() {
-  return <div className="space-y-6"><Header eyebrow="Revenue recovery" title="Consent-aware retargeting audiences" description="Call outcomes continuously refresh Meta and Google audience segments without revealing conversation transcripts." action={<Button className="bg-amber-300 text-[#17120a] hover:bg-amber-200"><Repeat2 /> Build audience</Button>} /><div className="grid gap-4 lg:grid-cols-3">{[['Hot · no booking','High-intent callers who did not choose a slot','218','Meta + Google'],['No answer · 3 attempts','Consent-valid leads who missed all calls','1,042','Google'],['Price objection','Qualified leads needing offer education','386','Meta']].map(([name,note,size,destination])=><Panel key={name}><div className="flex items-center justify-between"><Target className="size-4 text-amber-200" /><Status value="syncing" /></div><h2 className="mt-5 text-sm font-semibold">{name}</h2><p className="mt-2 min-h-10 text-xs leading-5 text-white/35">{note}</p><div className="mt-5 flex items-end justify-between border-t border-white/7 pt-4"><div><p className="text-xl font-semibold">{size}</p><p className="text-[9px] text-white/28">eligible contacts</p></div><Badge variant="outline" className="border-white/8 text-[9px] text-white/38">{destination}</Badge></div></Panel>)}</div><Panel><PanelTitle title="Always-on audience loop" note="Outcome → eligibility → sync → suppression" /><div className="mt-5 flex flex-col items-stretch gap-2 md:flex-row md:items-center">{['Call outcome','Consent check','Segment rule','Hashed audience sync','CRM suppression'].map((item,index)=><div key={item} className="contents"><div className="flex-1 rounded-xl border border-white/8 bg-white/[0.02] p-4 text-center text-xs">{item}</div>{index<4?<span className="text-center text-white/20">→</span>:null}</div>)}</div></Panel></div>;
+function Retargeting({ data, onChanged }: { data: RetargetingData; onChanged: () => Promise<void> }) {
+  const [open,setOpen]=useState(false); const [name,setName]=useState('Hot leads · no booking'); const [destination,setDestination]=useState('meta_ads'); const [loading,setLoading]=useState(''); const [error,setError]=useState('');
+  async function post(body:Record<string,unknown>, key:string){setLoading(key);setError('');try{const response=await fetch('/api/app/retargeting',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});const payload=await response.json() as {error?:string};if(!response.ok)throw new Error(payload.error||'Audience action failed.');setOpen(false);await onChanged();}catch(caught){setError(caught instanceof Error?caught.message:'Audience action failed.');}finally{setLoading('');}}
+  const audiences=data.audiences??[];
+  return <div className="space-y-6"><Header eyebrow="Revenue recovery" title="Consent-aware retargeting audiences" description="Call outcomes continuously refresh Meta and Google audience segments without revealing conversation transcripts." action={<Button onClick={()=>setOpen(true)} className="portal-primary"><Repeat2 /> Build audience</Button>} />{error?<p className="rounded-xl border border-red-400/15 bg-red-400/5 p-3 text-xs text-red-100">{error}</p>:null}{open?<Panel><div className="grid gap-3 sm:grid-cols-[1fr_220px_auto]"><Input value={name} onChange={(event)=>setName(event.target.value)} placeholder="Audience name" className="h-10 border-white/10 bg-white/[0.03]"/><select value={destination} onChange={(event)=>setDestination(event.target.value)} className="h-10 rounded-lg border border-white/10 bg-[#111722] px-3 text-xs"><option value="meta_ads">Meta Ads</option><option value="google_ads">Google Ads</option></select><Button onClick={()=>void post({action:'create',name,destination,rules:{scoreMin:75,excludeBooked:true}},'create')} disabled={Boolean(loading)} className="portal-primary">{loading==='create'?<Loader2 className="animate-spin"/>:<Target/>}Create</Button></div></Panel>:null}<div className="grid gap-4 lg:grid-cols-3">{audiences.map((audience)=><Panel key={audience.id}><div className="flex items-center justify-between"><Target className="size-4 text-[#a8b7ff]" /><Status value={audience.status} /></div><h2 className="mt-5 text-sm font-semibold">{audience.name}</h2><p className="mt-2 min-h-10 text-xs leading-5 text-white/35">Hashed identifiers only; revoked consent and booked outcomes are suppressed before sync.</p><div className="mt-5 flex items-end justify-between border-t border-white/7 pt-4"><div><p className="text-xl font-semibold">{num(audience.eligible_count)}</p><p className="text-[9px] text-white/28">eligible contacts</p></div><Button size="sm" variant="outline" onClick={()=>void post({action:'sync',audienceId:audience.id},audience.id)} disabled={Boolean(loading)||audience.status==='syncing'} className="border-white/10 bg-transparent"><RefreshCcw className={loading===audience.id?'animate-spin':''}/>{audience.status==='syncing'?'Syncing':'Sync'}</Button></div></Panel>)}{!audiences.length?<Panel><p className="text-sm font-medium">No audiences yet</p><p className="mt-2 text-xs text-white/35">Build the first consent-aware Meta or Google audience.</p></Panel>:null}</div><Panel><PanelTitle title="Always-on audience loop" note="Outcome → eligibility → sync → suppression" /><div className="mt-5 flex flex-col items-stretch gap-2 md:flex-row md:items-center">{['Call outcome','Consent check','Segment rule','Hashed audience sync','CRM suppression'].map((item,index)=><div key={item} className="contents"><div className="flex-1 rounded-xl border border-white/8 bg-white/[0.02] p-4 text-center text-xs">{item}</div>{index<4?<span className="text-center text-white/20">→</span>:null}</div>)}</div></Panel></div>;
 }
 
 function Header({eyebrow,title,description,action}:{eyebrow:string;title:string;description:string;action?:React.ReactNode}) { return <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9eb0ff]">{eyebrow}</p><h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1><p className="mt-2 max-w-3xl text-xs leading-5 text-white/38 sm:text-sm">{description}</p></div>{action}</div>; }
-function Metric({label,value,note,icon:Icon}:{label:string;value:string;note:string;icon:typeof Gauge}) { return <div className="portal-stat group"><div className="flex items-center justify-between"><p className="text-[10px] font-medium uppercase tracking-[0.12em] text-white/38">{label}</p><span className="grid size-9 place-items-center rounded-xl border border-indigo-200/10 bg-[linear-gradient(145deg,rgba(165,180,252,0.13),rgba(103,232,249,0.04))] shadow-[0_8px_24px_-12px_rgba(129,140,248,0.65)] transition group-hover:border-indigo-200/20"><Icon className="size-[17px] text-[#bdc7ff]" /></span></div><p className="mt-3 text-2xl font-semibold tracking-tight text-white/95">{value}</p><p className="mt-1 text-[10px] text-white/36">{note}</p></div>; }
+function Metric({label,value,note,icon:Icon,tone='indigo',progress=0}:{label:string;value:string;note:string;icon:typeof Gauge;tone?:'indigo'|'cyan'|'violet'|'emerald';progress?:number}) { const tones={indigo:'from-indigo-300 to-blue-300 text-indigo-200 bg-indigo-300/8 border-indigo-200/12',cyan:'from-cyan-300 to-sky-300 text-cyan-200 bg-cyan-300/8 border-cyan-200/12',violet:'from-violet-300 to-fuchsia-300 text-violet-200 bg-violet-300/8 border-violet-200/12',emerald:'from-emerald-300 to-teal-300 text-emerald-200 bg-emerald-300/8 border-emerald-200/12'}[tone]; return <div className="portal-stat group overflow-hidden p-4"><div className="flex items-center justify-between"><p className="text-[9px] font-medium uppercase tracking-[0.14em] text-white/34">{label}</p><span className={`grid size-9 place-items-center rounded-xl border ${tones}`}><Icon className="size-[17px]" /></span></div><div className="mt-3 flex items-end justify-between gap-3"><div><p className="text-2xl font-semibold tracking-tight text-white/95">{value}</p><p className="mt-1 text-[9px] text-white/32">{note}</p></div><ArrowUpRight className="mb-1 size-3.5 text-white/22" /></div><div className="mt-4 h-1 overflow-hidden rounded-full bg-white/5"><div className={`h-full rounded-full bg-gradient-to-r ${tones.split(' ').slice(0,2).join(' ')}`} style={{width:`${Math.max(4,Math.min(100,progress))}%`}} /></div></div>; }
 function Panel({children,className=''}:{children:React.ReactNode;className?:string}) { return <section className={`portal-panel p-5 ${className}`}>{children}</section>; }
 function PanelTitle({title,note}:{title:string;note:string}) { return <div><h2 className="text-sm font-semibold">{title}</h2><p className="mt-1 text-[10px] text-white/32">{note}</p></div>; }
 function Status({value}:{value:string}) { const normalized=value.toLowerCase(); const positive=['active','approved','connected','paid','verified','live'].some((item)=>normalized.includes(item)); const warning=['pending','ready','sync','scheduled','required'].some((item)=>normalized.includes(item)); return <span className={`inline-flex rounded-full border px-2 py-1 text-[9px] capitalize ${positive?'border-emerald-400/15 bg-emerald-400/7 text-emerald-300':warning?'border-amber-300/15 bg-amber-300/7 text-amber-200':'border-white/10 bg-white/5 text-white/45'}`}>{value.replaceAll('_',' ')}</span>; }

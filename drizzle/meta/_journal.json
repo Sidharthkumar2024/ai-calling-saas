@@ -43,6 +43,13 @@
       "when": 1788279286864,
       "tag": "0005_violet_swarm",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1788285248907,
+      "tag": "0006_polite_cobalt_man",
+      "breakpoints": true
     }
   ]
 }

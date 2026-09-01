@@ -10,12 +10,15 @@ import {
   CircleDollarSign,
   Filter,
   GripVertical,
+  Loader2,
   Mail,
   PhoneCall,
   Plus,
   Search,
   Sparkles,
   Target,
+  Upload,
+  X,
   UserRound,
 } from 'lucide-react';
 
@@ -67,10 +70,14 @@ export function CustomerCrm({
   leads,
   activities,
   onMove,
+  onChanged,
+  onStartFollowUp,
 }: {
   leads: CrmLead[];
   activities: CrmActivity[];
   onMove: (lead: CrmLead, stage: string) => Promise<void>;
+  onChanged: () => Promise<void>;
+  onStartFollowUp: () => void;
 }) {
   const [view, setView] = useState<'pipeline' | 'activities'>('pipeline');
   const [query, setQuery] = useState('');
@@ -78,15 +85,20 @@ export function CustomerCrm({
   const [draggedLeadId, setDraggedLeadId] = useState('');
   const [dropStage, setDropStage] = useState('');
   const [moveError, setMoveError] = useState('');
+  const [sourceFilter, setSourceFilter] = useState('all');
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState('name,phone,email,product\nAditi Mehra,+919876543210,aditi@example.com,Product demo');
+  const [importing, setImporting] = useState(false);
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    if (!normalized) return leads;
-    return leads.filter((lead) =>
+    const sourceRows = sourceFilter === 'all' ? leads : leads.filter((lead) => lead.source_type === sourceFilter);
+    if (!normalized) return sourceRows;
+    return sourceRows.filter((lead) =>
       [lead.name, lead.phone, lead.email, lead.source_name, lead.product_interest]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(normalized)),
     );
-  }, [leads, query]);
+  }, [leads, query, sourceFilter]);
   const pipelineValue = leads.reduce((sum, lead) => sum + Number(lead.estimated_value || 0), 0);
   const hotLeads = leads.filter((lead) => lead.score >= 75).length;
 
@@ -114,6 +126,40 @@ export function CustomerCrm({
     }
   }
 
+  async function importLeads() {
+    const rows = importText.split(/\r?\n/).map((line) => parseCsvLine(line)).filter((row) => row.some(Boolean));
+    if (rows.length < 2) { setMoveError('Add a header and at least one lead row.'); return; }
+    const header = rows[0].map((item) => item.toLowerCase().trim());
+    const index = (names: string[]) => header.findIndex((item) => names.includes(item));
+    const nameIndex = index(['name','full name']);
+    const phoneIndex = index(['phone','mobile','number']);
+    if (nameIndex < 0 || phoneIndex < 0) { setMoveError('CSV needs name and phone columns.'); return; }
+    setImporting(true);
+    setMoveError('');
+    try {
+      const importRows = rows.slice(1, 101).filter((row) => row[nameIndex]?.trim() && row[phoneIndex]?.trim());
+      for (let offset = 0; offset < importRows.length; offset += 10) {
+        await Promise.all(importRows.slice(offset, offset + 10).map(async (row) => {
+          const response = await fetch('/api/leads', {
+            method: 'POST', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              sourceType: 'manual', externalLeadId: `csv-${crypto.randomUUID()}`,
+              name: row[nameIndex], phone: row[phoneIndex],
+              email: row[index(['email'])] || undefined,
+              productInterest: row[index(['product','product interest','interest'])] || undefined,
+              campaignName: 'CRM CSV import',
+            }),
+          });
+          const payload = await response.json() as { error?: string };
+          if (!response.ok) throw new Error(payload.error || `Could not import ${row[nameIndex]}.`);
+        }));
+      }
+      setImportOpen(false);
+      await onChanged();
+    } catch (caught) { setMoveError(caught instanceof Error ? caught.message : 'Lead import failed.'); }
+    finally { setImporting(false); }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
@@ -123,8 +169,8 @@ export function CustomerCrm({
           <p className="mt-2 max-w-3xl text-xs leading-5 text-white/38 sm:text-sm">Every ad lead, website form and call outcome becomes a scored opportunity, task and next-best action.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="border-white/10 bg-transparent"><Plus /> Import leads</Button>
-          <Button className="bg-amber-300 text-[#17120a] hover:bg-amber-200"><PhoneCall /> Start AI follow-up</Button>
+          <Button onClick={() => setImportOpen(true)} variant="outline" className="border-white/10 bg-transparent"><Plus /> Import leads</Button>
+          <Button onClick={onStartFollowUp} className="portal-primary"><PhoneCall /> Start AI follow-up</Button>
         </div>
       </div>
 
@@ -147,10 +193,12 @@ export function CustomerCrm({
           <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-white/25" />
           <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search name, phone, source or product" className="h-9 border-white/8 bg-white/[0.025] pl-9 text-xs" />
         </div>
-        <Button variant="outline" size="sm" className="border-white/10 bg-transparent"><Filter /> Source · All</Button>
+        <label className="relative"><Filter className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-white/30" /><select aria-label="Filter leads by source" value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)} className="h-9 rounded-lg border border-white/10 bg-[#111722] pl-9 pr-7 text-[10px] text-white"><option value="all">Source · All</option>{Array.from(new Map(leads.map((lead) => [lead.source_type, lead.source_name])).entries()).map(([id,label]) => <option key={id} value={id}>{label}</option>)}</select></label>
       </div>
 
       {moveError ? <p role="alert" className="rounded-xl border border-red-400/15 bg-red-400/5 px-4 py-3 text-xs text-red-100">{moveError}</p> : null}
+
+      {importOpen ? <dialog open className="fixed inset-0 z-[80] m-0 grid size-full max-h-none max-w-none place-items-center border-0 bg-black/65 p-4 text-white backdrop-blur-sm" aria-label="Import leads"><section className="w-full max-w-2xl rounded-2xl border border-white/12 bg-[#0d121c] p-5 shadow-2xl"><div className="flex items-start justify-between"><div><h2 className="text-base font-semibold">Import leads from CSV</h2><p className="mt-1 text-[10px] text-white/35">Up to 100 rows · required headers: name, phone</p></div><Button size="icon-sm" variant="ghost" onClick={() => setImportOpen(false)} aria-label="Close import"><X /></Button></div><textarea value={importText} onChange={(event) => setImportText(event.target.value)} className="mt-5 min-h-64 w-full rounded-xl border border-white/9 bg-black/20 p-4 font-mono text-[10px] leading-5 text-white/65 outline-none focus:border-indigo-300/35" /><div className="mt-4 flex justify-end gap-2"><Button variant="outline" onClick={() => setImportOpen(false)} className="border-white/10 bg-transparent">Cancel</Button><Button onClick={() => void importLeads()} disabled={importing} className="portal-primary">{importing ? <Loader2 className="animate-spin" /> : <Upload />} Import into CRM</Button></div></section></dialog> : null}
 
       {view === 'pipeline' ? (
         <div className="overflow-x-auto pb-2">
@@ -256,3 +304,4 @@ function normalizeStage(stage: string) {
 }
 function money(value: number) { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value); }
 function formatDate(value: string) { return new Date(value).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }); }
+function parseCsvLine(line: string) { const values: string[] = []; let current = ''; let quoted = false; for (let index = 0; index < line.length; index += 1) { const character = line[index]; if (character === '"' && line[index + 1] === '"' && quoted) { current += '"'; index += 1; } else if (character === '"') quoted = !quoted; else if (character === ',' && !quoted) { values.push(current.trim()); current = ''; } else current += character; } values.push(current.trim()); return values; }

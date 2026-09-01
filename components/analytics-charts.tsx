@@ -27,7 +27,7 @@ export function ActivityAreaChart({ data, admin = false }: { data: DataRow[]; ad
     conversions: Number(item.conversions || item.completed || 0),
   }));
   return (
-    <div className="h-[260px] w-full" aria-label="Fourteen day activity chart">
+    <div className="h-[260px] min-w-0 w-full" aria-label="Fourteen day activity chart">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={rows} margin={{ top: 10, right: 6, left: -24, bottom: 0 }}>
           <defs>
@@ -57,8 +57,8 @@ export function DistributionChart({ data, nameKey = 'name', valueKey = 'value' }
   const rows = data.map((item, index) => ({ name: String(item[nameKey] || 'unknown').replaceAll('_', ' '), value: Number(item[valueKey] || 0), fill: colors[index % colors.length] })).filter((item) => item.value > 0);
   if (!rows.length) return <ChartEmpty />;
   return (
-    <div className="grid min-h-[240px] grid-cols-[0.86fr_1.14fr] items-center gap-2">
-      <div className="h-[210px]">
+    <div className="grid min-h-[240px] min-w-0 grid-cols-[0.86fr_1.14fr] items-center gap-2">
+      <div className="h-[210px] min-w-0">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie data={rows} dataKey="value" nameKey="name" innerRadius="63%" outerRadius="86%" paddingAngle={4} stroke="transparent" />
@@ -83,7 +83,7 @@ export function QueueBars({ data }: { data: DataRow[] }) {
   const rows = data.map((item) => ({ name: String(item.status || item.name || 'unknown').replaceAll('_', ' '), value: Number(item.value || 0) }));
   if (!rows.length) return <ChartEmpty />;
   return (
-    <div className="h-[230px]">
+    <div className="h-[230px] min-w-0">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={rows} margin={{ top: 12, right: 4, left: -28, bottom: 0 }}>
           <CartesianGrid vertical={false} stroke="rgba(255,255,255,.055)" strokeDasharray="2 5" />

@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { getRawDb } from '@/db/index';
 import { requireCustomer } from '@/lib/api-session';
 import { simulateAgentTurn } from '@/lib/agent-simulator';
+import { generateVoiceAgentTurn, ProviderConfigurationError } from '@/lib/provider-adapters';
 
 export const dynamic = 'force-dynamic';
 const TEST_TURN_COST = 10;
@@ -47,7 +48,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Active session and message are required.' }, { status: 400 });
     }
     const session = await db
-      .prepare(`SELECT s.id, s.agent_id, s.mode, a.use_case, a.primary_language,
+      .prepare(`SELECT s.id, s.agent_id, s.mode, a.name AS agent_name, a.use_case,
+          a.primary_language, a.system_prompt, a.max_tokens,
           o.name AS business_name, w.balance
         FROM agent_test_sessions s
         INNER JOIN voice_agents a ON a.id = s.agent_id
@@ -59,8 +61,11 @@ export async function POST(request: Request) {
         id: string;
         agent_id: string;
         mode: string;
+        agent_name: string;
         use_case: string;
         primary_language: string;
+        system_prompt: string;
+        max_tokens: number;
         business_name: string;
         balance: number;
       }>();
@@ -74,6 +79,33 @@ export async function POST(request: Request) {
       language: session.primary_language,
       businessName: session.business_name,
     });
+    const history = await db.prepare(`SELECT role, content FROM agent_test_messages
+      WHERE session_id = ? ORDER BY created_at DESC LIMIT 10`).bind(session.id)
+      .all<{ role: 'user' | 'assistant'; content: string }>();
+    let responseText = simulated.response;
+    let latencyMs = simulated.latencyMs;
+    let pipelineMode: 'connected' | 'fallback' = 'fallback';
+    try {
+      const live = await generateVoiceAgentTurn({
+        organizationId: auth.session.organizationId!,
+        agentName: session.agent_name,
+        businessName: session.business_name,
+        language: session.primary_language,
+        systemPrompt: session.system_prompt,
+        maxTokens: Number(session.max_tokens || 180),
+        messages: [
+          ...history.results.reverse().map((item) => ({ role: item.role, content: item.content })),
+          { role: 'user' as const, content: message },
+        ],
+      });
+      responseText = live.text;
+      latencyMs = live.latencyMs;
+      pipelineMode = 'connected';
+    } catch (error) {
+      if (!(error instanceof ProviderConfigurationError)) {
+        console.error('Connected playground reasoning failed; using deterministic fallback.', error);
+      }
+    }
     const nextBalance = Number(session.balance) - TEST_TURN_COST;
     const userMessageId = `message_${crypto.randomUUID()}`;
     const assistantMessageId = `message_${crypto.randomUUID()}`;
@@ -90,9 +122,9 @@ export async function POST(request: Request) {
         .bind(
           assistantMessageId,
           session.id,
-          simulated.response,
+          responseText,
           JSON.stringify(simulated.actions),
-          simulated.latencyMs,
+          latencyMs,
         ),
       db
         .prepare(`UPDATE agent_test_sessions SET credits_used = credits_used + ${TEST_TURN_COST},
@@ -109,10 +141,11 @@ export async function POST(request: Request) {
         .bind(ledgerId, auth.session.organizationId, nextBalance, session.id),
     ]);
     return NextResponse.json({
-      message: simulated.response,
+      message: responseText,
       actions: simulated.actions,
       extraction: simulated.extraction,
-      latencyMs: simulated.latencyMs,
+      latencyMs,
+      pipelineMode,
       creditsRemaining: nextBalance,
     });
   }

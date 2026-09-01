@@ -23,6 +23,7 @@ import {
   LayoutDashboard,
   ListRestart,
   MessageCircleMore,
+  Megaphone,
   PhoneCall,
   PhoneForwarded,
   PhoneIncoming,
@@ -79,12 +80,14 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { LeadCapturePanel } from '@/components/lead-capture-panel';
 
 const navigationGroups = [
   {
     label: 'Operate',
     items: [
       { label: 'Overview', icon: LayoutDashboard },
+      { label: 'Lead capture', icon: Megaphone },
       { label: 'Live calls', icon: PhoneIncoming },
       { label: 'Campaigns', icon: Radio },
       { label: 'Calls', icon: PhoneCall },
@@ -1659,6 +1662,8 @@ export default function Home() {
                 </Card>
               </div>
             </>
+          ) : activeSection === 'Lead capture' ? (
+            <LeadCapturePanel onNotice={setNotice} />
           ) : (
             <ModulePanel
               section={activeSection}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import {
   Activity,
   ArrowRight,
@@ -34,6 +35,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { VAANI_ENGINES } from '@/lib/vaani-engine-catalog';
+import { LandingAgentShowcase } from '@/components/landing-agent-showcase';
 
 type LandingPageProps = {
   onEnterWorkspace: () => void;
@@ -208,9 +210,12 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
           <nav className="hidden items-center gap-7 text-xs text-white/60 lg:flex" aria-label="Landing navigation">
             <a className="transition-colors hover:text-white" href="#product">Product</a>
             <a className="transition-colors hover:text-white" href="#workflow">How it works</a>
+            <a className="transition-colors hover:text-white" href="#agent-demos">Live demos</a>
             <a className="transition-colors hover:text-white" href="#solutions">Solutions</a>
             <a className="transition-colors hover:text-white" href="#engines">Vaani engines</a>
+            <a className="transition-colors hover:text-white" href="#pricing">Pricing</a>
             <a className="transition-colors hover:text-white" href="#security">Security</a>
+            <Link className="transition-colors hover:text-white" href="/docs">API docs</Link>
           </nav>
 
           <Button onClick={onEnterWorkspace} className="h-9 rounded-full bg-white px-4 text-xs text-black hover:bg-white/90">
@@ -221,15 +226,15 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
 
       <section id="top" className="landing-grid relative scroll-mt-24">
         <div className="pointer-events-none absolute inset-x-0 top-0 mx-auto h-[520px] max-w-[1180px] bg-[radial-gradient(circle_at_68%_12%,rgba(167,139,250,0.16),transparent_36%),radial-gradient(circle_at_20%_5%,rgba(252,211,77,0.13),transparent_32%)]" />
-        <div className="relative mx-auto grid max-w-[1240px] gap-12 px-4 pb-20 pt-16 sm:px-6 sm:pt-24 lg:grid-cols-[minmax(0,0.95fr)_minmax(520px,1.05fr)] lg:items-center lg:gap-14 lg:pb-28">
+        <div className="relative mx-auto grid max-w-[1240px] gap-12 px-4 pb-20 pt-16 sm:px-6 sm:pt-24 xl:grid-cols-[minmax(0,0.95fr)_minmax(520px,1.05fr)] xl:items-center xl:gap-14 xl:pb-28">
           <div>
             <Badge variant="outline" className="mb-6 gap-2 rounded-full border-white/12 bg-white/5 px-3 py-1.5 text-[11px] text-white/75">
               <span className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_12px_#34d399]" />
               AI calling for sales, support and operations
             </Badge>
-            <h1 className="max-w-3xl text-[44px] font-semibold leading-[0.98] tracking-[-0.055em] sm:text-6xl lg:text-[68px]">
-              हर lead का जवाब.
-              <span className="mt-2 block bg-[linear-gradient(90deg,#fde68a,#c4b5fd_62%,#67e8f9)] bg-clip-text text-transparent">
+            <h1 className="max-w-3xl text-[44px] font-semibold leading-[1.12] tracking-[-0.035em] sm:text-6xl sm:leading-[1.08] lg:text-[68px]">
+              <span className="block">हर lead का जवाब.</span>
+              <span className="mt-3 block bg-[linear-gradient(90deg,#fde68a,#c4b5fd_62%,#67e8f9)] bg-clip-text pb-[0.08em] text-transparent">
                 हर बातचीत से revenue.
               </span>
             </h1>
@@ -339,6 +344,8 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
           </div>
         </div>
       </section>
+
+      <LandingAgentShowcase />
 
       <section className="border-y border-white/8 bg-white/[0.018]">
         <div className="mx-auto grid max-w-[1240px] grid-cols-2 divide-x divide-y divide-white/8 px-4 sm:grid-cols-4 sm:px-6 lg:grid-cols-7 lg:divide-y-0">
@@ -468,6 +475,34 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
         </div>
       </section>
 
+      <section id="pricing" className="landing-lazy scroll-mt-24 border-y border-white/8 bg-[#0d1017] py-24 sm:py-28">
+        <div className="mx-auto max-w-[1240px] px-4 sm:px-6">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">Simple launch plans</p>
+            <h2 className="mt-4 text-4xl font-semibold tracking-[-0.045em] sm:text-5xl">Start free. Add capacity when calls grow.</h2>
+            <p className="mt-5 text-sm leading-6 text-white/48">A subscription defines product capacity; credits cover calling and AI usage. Top up anytime and download a tax invoice for every purchase.</p>
+          </div>
+          <div className="mt-14 grid gap-4 lg:grid-cols-3">
+            {[
+              { name: 'Free', price: '₹0', note: 'Validate your first workflow', features: ['100 trial credits', '1 AI agent', 'CRM lite', 'API sandbox'] },
+              { name: 'Growth', price: '₹7,999', note: 'For active sales and support teams', features: ['10,000 monthly credits', '5 AI agents', 'Advanced CRM', 'API, webhooks & retargeting'], featured: true },
+              { name: 'Scale', price: '₹24,999', note: 'For multi-team call operations', features: ['50,000 monthly credits', '20 AI agents', 'Priority routing', 'SLA and advanced controls'] },
+            ].map((plan) => (
+              <article key={plan.name} className={`relative rounded-2xl border p-6 ${plan.featured ? 'border-amber-300/30 bg-amber-300/[0.045]' : 'border-white/9 bg-white/[0.022]'}`}>
+                {plan.featured ? <span className="absolute -top-3 left-6 rounded-full bg-amber-300 px-3 py-1 text-[9px] font-semibold uppercase tracking-wider text-[#17120a]">Recommended</span> : null}
+                <h3 className="text-lg font-medium">{plan.name}</h3>
+                <p className="mt-2 text-xs text-white/38">{plan.note}</p>
+                <p className="mt-7 text-4xl font-semibold tracking-tight">{plan.price}<span className="text-xs font-normal text-white/32"> / month</span></p>
+                <div className="mt-7 space-y-3">
+                  {plan.features.map((feature) => <div key={feature} className="flex items-center gap-2 text-xs text-white/52"><Check className="size-3.5 text-emerald-300" /> {feature}</div>)}
+                </div>
+                {plan.name === 'Free' ? <Link href="/signup" className="mt-8 inline-flex h-8 w-full items-center justify-center rounded-lg bg-white px-2.5 text-sm font-medium text-black transition-colors hover:bg-white/90">Start free</Link> : <Button onClick={onEnterWorkspace} className={`mt-8 w-full ${plan.featured ? 'bg-amber-300 text-[#17120a] hover:bg-amber-200' : 'bg-white text-black hover:bg-white/90'}`}>{`Choose ${plan.name}`}</Button>}
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <section id="security" className="landing-lazy border-y border-white/8 bg-[#0d1017] py-20 sm:py-24">
         <div className="mx-auto grid max-w-[1240px] gap-10 px-4 sm:px-6 lg:grid-cols-[1fr_1fr] lg:items-center">
           <div>
@@ -505,7 +540,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
       <footer className="border-t border-white/8 py-8">
         <div className="mx-auto flex max-w-[1240px] flex-col gap-5 px-4 text-[11px] text-white/32 sm:px-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-2 text-white/62"><Activity className="size-4 text-amber-300" /><span className="font-medium">Vaani</span><span>AI calling operations</span></div>
-          <div className="flex flex-wrap gap-5"><span className="flex items-center gap-1.5"><Globe2 className="size-3" /> India-ready</span><span className="flex items-center gap-1.5"><Languages className="size-3" /> Multilingual</span><span className="flex items-center gap-1.5"><Zap className="size-3" /> Phase 2: Android & iOS</span></div>
+          <div className="flex flex-wrap gap-5"><Link href="/signup" className="hover:text-white">Create free account</Link><Link href="/login" className="hover:text-white">Customer login</Link><Link href="/admin/login" className="hover:text-white">Admin login</Link><Link href="/docs" className="hover:text-white">API docs</Link><span className="flex items-center gap-1.5"><Globe2 className="size-3" /> India-ready</span><span className="flex items-center gap-1.5"><Languages className="size-3" /> Multilingual</span><span className="flex items-center gap-1.5"><Zap className="size-3" /> Phase 2: Android & iOS</span></div>
         </div>
       </footer>
     </main>

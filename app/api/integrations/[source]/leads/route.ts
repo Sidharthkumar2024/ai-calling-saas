@@ -18,11 +18,28 @@ export async function GET(
 ) {
   const { source } = await params;
   const url = new URL(request.url);
-
+  const workspace = url.searchParams.get('workspace');
+  if (!workspace || source !== 'meta') {
+    return NextResponse.json({ error: 'Verification failed.' }, { status: 403 });
+  }
+  await ensureSchema();
+  const db = getDb();
+  const [connection] = await db
+    .select({ webhookSecret: leadSources.webhookSecret })
+    .from(organizations)
+    .innerJoin(
+      leadSources,
+      and(
+        eq(leadSources.organizationId, organizations.id),
+        eq(leadSources.type, 'meta_ads'),
+      ),
+    )
+    .where(eq(organizations.slug, workspace))
+    .limit(1);
   if (
-    source === 'meta' &&
+    connection?.webhookSecret &&
     url.searchParams.get('hub.mode') === 'subscribe' &&
-    url.searchParams.get('hub.verify_token') === 'vaani-demo-webhook'
+    url.searchParams.get('hub.verify_token') === connection.webhookSecret
   ) {
     return new Response(url.searchParams.get('hub.challenge') ?? '', {
       status: 200,
@@ -79,17 +96,23 @@ export async function POST(
         { status: 404 },
       );
     }
-    if (
-      !connection.webhookSecret ||
-      request.headers.get('x-vaani-webhook-secret') !== connection.webhookSecret
-    ) {
+    const rawBody = await request.text();
+    const authenticated =
+      sourceType === 'meta_ads'
+        ? await validMetaSignature(
+            rawBody,
+            request.headers.get('x-hub-signature-256'),
+            connection.webhookSecret,
+          )
+        : request.headers.get('x-vaani-webhook-secret') === connection.webhookSecret;
+    if (!connection.webhookSecret || !authenticated) {
       return NextResponse.json(
         { error: 'Invalid webhook signature.' },
         { status: 401 },
       );
     }
 
-    const raw = (await request.json()) as Record<string, unknown>;
+    const raw = JSON.parse(rawBody) as Record<string, unknown>;
     const fields = extractProviderFields(raw);
     const input = normalizeLeadInput({
       sourceType,
@@ -151,4 +174,33 @@ function extractProviderFields(body: Record<string, unknown>) {
 
 function stringValue(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+async function validMetaSignature(
+  body: string,
+  signature: string | null,
+  secret: string | null,
+) {
+  if (!signature?.startsWith('sha256=') || !secret) return false;
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const digest = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    new TextEncoder().encode(body),
+  );
+  const expected = `sha256=${Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, '0'),
+  ).join('')}`;
+  if (expected.length !== signature.length) return false;
+  let mismatch = 0;
+  for (let index = 0; index < expected.length; index += 1) {
+    mismatch |= expected.charCodeAt(index) ^ signature.charCodeAt(index);
+  }
+  return mismatch === 0;
 }

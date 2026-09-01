@@ -1,7 +1,6 @@
 import { desc, eq, sql } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
-import { getChatGPTUser, type ChatGPTUser } from '@/app/chatgpt-auth';
 import { getDb } from '@/db/index';
 import {
   callJobs,
@@ -10,21 +9,20 @@ import {
   leadSources,
   salesOpportunities,
 } from '@/db/schema';
-import { ensureTenant } from '@/db/tenant';
+import { requireCustomer } from '@/lib/api-session';
 import { ingestLead, normalizeLeadInput } from '@/lib/lead-engine';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
-  const user = await authenticatedUser();
-  if (!user) {
-    return NextResponse.json(
-      { error: 'Authentication required.' },
-      { status: 401 },
-    );
-  }
-
-  const tenant = await ensureTenant(user);
+export async function GET(request: Request) {
+  const auth = await requireCustomer(request);
+  if (auth.response) return auth.response;
+  const tenant = {
+    organizationId: auth.session.organizationId!,
+    organizationName: auth.session.organizationName!,
+    organizationSlug: auth.session.organizationName!.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    role: 'admin' as const,
+  };
   const db = getDb();
   let leadRows = await loadLeads(tenant.organizationId);
 
@@ -99,18 +97,12 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const user = await authenticatedUser();
-  if (!user) {
-    return NextResponse.json(
-      { error: 'Authentication required.' },
-      { status: 401 },
-    );
-  }
+  const auth = await requireCustomer(request);
+  if (auth.response) return auth.response;
 
   try {
-    const tenant = await ensureTenant(user);
     const input = normalizeLeadInput(await request.json());
-    const lead = await ingestLead(tenant.organizationId, input);
+    const lead = await ingestLead(auth.session.organizationId!, input);
     return NextResponse.json({ lead }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
@@ -121,21 +113,6 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
-}
-
-async function authenticatedUser(): Promise<ChatGPTUser | null> {
-  const user = await getChatGPTUser();
-  if (user) return user;
-
-  if (process.env.NODE_ENV !== 'production') {
-    return {
-      userId: 'local-demo-user',
-      email: 'sidharth@local.test',
-      displayName: 'Sidharth',
-    };
-  }
-
-  return null;
 }
 
 async function loadLeads(organizationId: string) {

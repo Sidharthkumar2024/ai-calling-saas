@@ -8,14 +8,13 @@ import { ingestLead, normalizeLeadInput } from '@/lib/lead-engine';
 
 export const dynamic = 'force-dynamic';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
-
-export async function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export async function OPTIONS(
+  request: Request,
+  { params }: { params: Promise<{ publicKey: string }> },
+) {
+  const result = await formAndCors(request, (await params).publicKey);
+  if (!result) return new Response(null, { status: 403 });
+  return new Response(null, { status: 204, headers: result.corsHeaders });
 }
 
 export async function POST(
@@ -25,17 +24,20 @@ export async function POST(
   try {
     await ensureSchema();
     const { publicKey } = await params;
-    const db = getDb();
-    const [form] = await db
-      .select()
-      .from(leadForms)
-      .where(eq(leadForms.publicKey, publicKey))
-      .limit(1);
+    const result = await formAndCors(request, publicKey);
+    const form = result?.form;
 
-    if (!form || form.status !== 'active') {
+    if (!form || !result) {
       return NextResponse.json(
         { error: 'Lead form not found or inactive.' },
-        { status: 404, headers: corsHeaders },
+        { status: 404 },
+      );
+    }
+    const contentLength = Number(request.headers.get('content-length') ?? 0);
+    if (contentLength > 64 * 1024) {
+      return NextResponse.json(
+        { error: 'Lead form payload is too large.' },
+        { status: 413, headers: result.corsHeaders },
       );
     }
 
@@ -50,7 +52,7 @@ export async function POST(
 
     return NextResponse.json(
       { accepted: true, leadId: lead.id, score: lead.score },
-      { status: 201, headers: corsHeaders },
+      { status: 201, headers: result.corsHeaders },
     );
   } catch (error) {
     return NextResponse.json(
@@ -58,7 +60,36 @@ export async function POST(
         error:
           error instanceof Error ? error.message : 'Unable to submit form.',
       },
-      { status: 400, headers: corsHeaders },
+      { status: 400 },
     );
   }
+}
+
+async function formAndCors(request: Request, publicKey: string) {
+  await ensureSchema();
+  const db = getDb();
+  const [form] = await db
+    .select()
+    .from(leadForms)
+    .where(eq(leadForms.publicKey, publicKey))
+    .limit(1);
+  if (!form || form.status !== 'active') return null;
+
+  const origin = request.headers.get('origin');
+  const allowedDomains = JSON.parse(form.allowedDomainsJson) as string[];
+  const allowed =
+    !origin ||
+    allowedDomains.includes(origin) ||
+    (process.env.NODE_ENV !== 'production' &&
+      ['http://localhost:3000', 'http://127.0.0.1:3000'].includes(origin));
+  if (!allowed) return null;
+  return {
+    form,
+    corsHeaders: {
+      'Access-Control-Allow-Origin': origin ?? 'null',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      Vary: 'Origin',
+    },
+  };
 }

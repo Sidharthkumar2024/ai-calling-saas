@@ -416,7 +416,7 @@ export function LeadCapturePanel({
           <CardHeader>
             <CardTitle>Ad source connections</CardTitle>
             <CardDescription>
-              Endpoints are ready; connect provider credentials to go live.
+              Endpoints are ready; connect channel credentials to go live.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">

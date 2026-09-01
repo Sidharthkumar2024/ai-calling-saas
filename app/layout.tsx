@@ -13,18 +13,18 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Vaani — AI Calling Operations',
+  title: 'Vaani — AI Calling & Revenue Automation',
   description:
-    'A multi-tenant AI calling workspace for campaigns, callbacks, CRM and appointments.',
+    'Capture leads, understand intent, call in the right language and turn every conversation into a revenue action.',
   openGraph: {
-    title: 'Vaani — AI Calling Operations',
-    description: 'AI calling operations, simplified.',
+    title: 'Vaani — AI Calling & Revenue Automation',
+    description: 'From lead capture to conversation, CRM action and retargeting.',
     images: [{ url: '/og.png', width: 1200, height: 630, alt: 'Vaani AI calling operations dashboard' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Vaani — AI Calling Operations',
-    description: 'AI calling operations, simplified.',
+    title: 'Vaani — AI Calling & Revenue Automation',
+    description: 'From lead capture to conversation, CRM action and retargeting.',
     images: ['/og.png'],
   },
 };

@@ -137,4 +137,46 @@
     background:
       linear-gradient(145deg, color-mix(in oklab, var(--card) 96%, var(--primary)), var(--card) 55%);
   }
+
+  .landing-grid {
+    background-image:
+      linear-gradient(color-mix(in oklab, white 4%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in oklab, white 4%, transparent) 1px, transparent 1px);
+    background-size: 56px 56px;
+    background-position: center top;
+  }
+
+  .landing-wave:nth-child(3n) {
+    animation: vaani-wave 1.35s ease-in-out infinite alternate;
+  }
+
+  .landing-wave:nth-child(3n + 1) {
+    animation: vaani-wave 1.05s ease-in-out 180ms infinite alternate;
+  }
+
+  .landing-wave:nth-child(3n + 2) {
+    animation: vaani-wave 1.6s ease-in-out 90ms infinite alternate;
+  }
+
+  .landing-lazy {
+    content-visibility: auto;
+    contain-intrinsic-size: 1px 900px;
+  }
+}
+
+@keyframes vaani-wave {
+  from {
+    transform: scaleY(0.55);
+    opacity: 0.55;
+  }
+  to {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-wave {
+    animation: none !important;
+  }
 }

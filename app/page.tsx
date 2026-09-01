@@ -85,6 +85,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { LeadCapturePanel } from '@/components/lead-capture-panel';
 import { ProductRoadmapPanel } from '@/components/product-roadmap-panel';
 import { RetargetingPanel } from '@/components/retargeting-panel';
+import { LandingPage } from '@/components/landing-page';
 
 const navigationGroups = [
   {
@@ -246,10 +247,10 @@ const moduleData: Record<
     eyebrow: 'Telephony',
     title: 'Phone numbers',
     description:
-      'Allocate numbers, route inbound calls and control provider capacity.',
+      'Allocate numbers, route inbound calls and control calling-network capacity.',
     action: 'Add number',
     stats: [
-      { label: 'Active numbers', value: '4', note: 'Exotel primary' },
+      { label: 'Active numbers', value: '4', note: 'Vaani Connect' },
       { label: 'Inbound today', value: '218', note: '71% connected' },
       { label: 'Outbound today', value: '1,066', note: '12 live now' },
       { label: 'Provider health', value: '99.4%', note: 'last 24 hours' },
@@ -260,17 +261,17 @@ const moduleData: Record<
         '+91 124 498 2201',
         'Maya · Sales',
         'Inbound + outbound',
-        'Exotel',
+        'Vaani Connect',
         'Active',
       ],
       [
         '+91 124 498 2202',
         'Arjun · Follow-ups',
         'Outbound',
-        'Exotel',
+        'Vaani Connect',
         'Active',
       ],
-      ['+91 11 6926 4108', 'Meera · Reception', 'Inbound', 'Exotel', 'Active'],
+      ['+91 11 6926 4108', 'Meera · Reception', 'Inbound', 'Vaani Connect', 'Active'],
       [
         '+91 22 6971 3304',
         'Overflow route',
@@ -612,18 +613,18 @@ const moduleData: Record<
     eyebrow: 'Workspace configuration',
     title: 'Settings & integrations',
     description:
-      'Control providers, compliance, retention and workspace defaults.',
+      'Control Vaani engines, compliance, retention and workspace defaults.',
     action: 'Save changes',
     stats: [
-      { label: 'Telephony', value: 'Online', note: 'Exotel primary' },
-      { label: 'Speech AI', value: 'Online', note: 'Sarvam streaming' },
+      { label: 'Calling network', value: 'Online', note: 'Vaani Connect' },
+      { label: 'Conversation AI', value: 'Online', note: 'Vaani Maya' },
       { label: 'WhatsApp', value: 'Online', note: 'Cloud API connected' },
       { label: 'Compliance', value: 'Ready', note: 'consent rules active' },
     ],
     columns: ['Integration', 'Purpose', 'Region', 'Status', 'Last check'],
     rows: [
-      ['Exotel', 'Telephony', 'Mumbai', 'Connected', 'Just now'],
-      ['Sarvam AI', 'STT · LLM · TTS', 'India', 'Connected', 'Just now'],
+      ['Vaani Connect', 'Calling network', 'Mumbai', 'Connected', 'Just now'],
+      ['Vaani Maya', 'Conversation intelligence', 'India', 'Connected', 'Just now'],
       ['Meta', 'WhatsApp Cloud API', 'India', 'Connected', '2 min ago'],
       ['AWS', 'Compute · data · storage', 'ap-south-1', 'Healthy', 'Just now'],
     ],
@@ -632,7 +633,7 @@ const moduleData: Record<
     eyebrow: 'Business setup',
     title: 'Launch your first AI agent',
     description:
-      'Complete tenant data, knowledge, voice, compliance and provider checks before activation.',
+      'Complete tenant data, knowledge, voice, compliance and calling-network checks before activation.',
     action: 'Continue setup',
     stats: [
       { label: 'Setup complete', value: '78%', note: '2 steps remaining' },
@@ -670,7 +671,7 @@ const moduleData: Record<
       [
         'Provider KYC',
         'Sidharth',
-        'Exotel number allocation',
+        'Vaani Connect number allocation',
         'Pending',
         'Action needed',
       ],
@@ -687,7 +688,7 @@ const moduleData: Record<
     eyebrow: 'Platform control plane',
     title: 'Super Admin',
     description:
-      'Manage tenants, providers, pricing, limits, compliance and platform health.',
+      'Manage tenants, Vaani engines, pricing, limits, compliance and platform health.',
     action: 'Add company',
     stats: [
       { label: 'Active companies', value: '38', note: '+4 this month' },
@@ -903,12 +904,12 @@ function ModulePanel({
         <Card>
           <CardHeader>
             <CardTitle>Automation health</CardTitle>
-            <CardDescription>Rules and provider checks</CardDescription>
+            <CardDescription>Rules and delivery checks</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {[
               ['Consent & DNC checks', '100%'],
-              ['Provider success rate', '99.4%'],
+              ['Network success rate', '99.4%'],
               ['Workflow completion', '97.8%'],
             ].map(([label, value]) => (
               <div key={label}>
@@ -1067,15 +1068,25 @@ function QuickCreateDialog({
 }
 
 export default function Home() {
+  const [experience, setExperience] = useState<'site' | 'workspace'>('site');
   const [activeSection, setActiveSection] = useState('Overview');
   const [roleMode, setRoleMode] = useState<'tenant' | 'admin'>('tenant');
   const [composerOpen, setComposerOpen] = useState(false);
   const [notice, setNotice] = useState('');
 
+  if (experience === 'site') {
+    return <LandingPage onEnterWorkspace={() => setExperience('workspace')} />;
+  }
+
   return (
     <main className="min-h-screen bg-background text-foreground lg:grid lg:grid-cols-[236px_minmax(0,1fr)]">
       <aside className="sticky top-0 hidden h-screen border-r border-sidebar-border bg-sidebar lg:flex lg:flex-col">
-        <div className="flex h-[76px] items-center gap-3 border-b border-sidebar-border px-5">
+        <button
+          type="button"
+          onClick={() => setExperience('site')}
+          className="flex h-[76px] w-full items-center gap-3 border-b border-sidebar-border px-5 text-left transition-colors hover:bg-sidebar-accent/35"
+          aria-label="Return to Vaani website"
+        >
           <div className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-[0_8px_28px_-8px_var(--primary)]">
             <Activity className="size-5" strokeWidth={2.4} />
           </div>
@@ -1085,7 +1096,7 @@ export default function Home() {
               Voice OS
             </p>
           </div>
-        </div>
+        </button>
 
         <div className="border-b border-sidebar-border p-3">
           <button
@@ -1364,7 +1375,7 @@ export default function Home() {
                     </div>
                     <p className="text-xs leading-5 text-muted-foreground">
                       Consent, knowledge and scripts are ready. Complete
-                      provider KYC and two quality test calls before launch.
+                      calling KYC and two quality test calls before launch.
                     </p>
                   </div>
                   <Button

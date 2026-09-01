@@ -1,4 +1,5 @@
 'use client';
+/* oxlint-disable jsx-a11y/no-noninteractive-element-interactions -- native HTML drag/drop is paired with a fully accessible stage select on every card */
 
 import { useMemo, useState } from 'react';
 import {
@@ -8,6 +9,7 @@ import {
   CheckCircle2,
   CircleDollarSign,
   Filter,
+  GripVertical,
   Mail,
   PhoneCall,
   Plus,
@@ -73,6 +75,9 @@ export function CustomerCrm({
   const [view, setView] = useState<'pipeline' | 'activities'>('pipeline');
   const [query, setQuery] = useState('');
   const [moving, setMoving] = useState('');
+  const [draggedLeadId, setDraggedLeadId] = useState('');
+  const [dropStage, setDropStage] = useState('');
+  const [moveError, setMoveError] = useState('');
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) return leads;
@@ -86,11 +91,26 @@ export function CustomerCrm({
   const hotLeads = leads.filter((lead) => lead.score >= 75).length;
 
   async function move(lead: CrmLead, stage: string) {
+    if (normalizeStage(lead.stage) === stage || moving) return;
     setMoving(lead.id);
+    setMoveError('');
     try {
       await onMove(lead, stage);
+    } catch (caught) {
+      setMoveError(caught instanceof Error ? caught.message : 'The opportunity could not be moved.');
     } finally {
       setMoving('');
+      setDraggedLeadId('');
+      setDropStage('');
+    }
+  }
+
+  function dropInto(stage: string) {
+    const lead = leads.find((item) => item.id === draggedLeadId);
+    if (lead) void move(lead, stage);
+    else {
+      setDraggedLeadId('');
+      setDropStage('');
     }
   }
 
@@ -130,6 +150,8 @@ export function CustomerCrm({
         <Button variant="outline" size="sm" className="border-white/10 bg-transparent"><Filter /> Source · All</Button>
       </div>
 
+      {moveError ? <p role="alert" className="rounded-xl border border-red-400/15 bg-red-400/5 px-4 py-3 text-xs text-red-100">{moveError}</p> : null}
+
       {view === 'pipeline' ? (
         <div className="overflow-x-auto pb-2">
           <div className="grid min-w-[1260px] grid-cols-5 gap-3">
@@ -137,7 +159,15 @@ export function CustomerCrm({
               const stageLeads = filtered.filter((lead) => normalizeStage(lead.stage) === stage.id);
               const value = stageLeads.reduce((sum, lead) => sum + Number(lead.estimated_value || 0), 0);
               return (
-                <section key={stage.id} className="rounded-2xl border border-white/8 bg-[#0c0f16] p-3">
+                <section
+                  key={stage.id}
+                  aria-label={`${stage.label} pipeline stage`}
+                  onDragEnter={() => setDropStage(stage.id)}
+                  onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; setDropStage(stage.id); }}
+                  onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropStage(''); }}
+                  onDrop={(event) => { event.preventDefault(); dropInto(stage.id); }}
+                  className={`rounded-2xl border p-3 transition duration-200 ${dropStage === stage.id ? 'border-cyan-300/35 bg-cyan-300/[0.045] shadow-[0_0_0_1px_rgba(103,232,249,0.08)]' : 'border-white/8 bg-[#0c0f16]'}`}
+                >
                   <div className="mb-3 flex items-center gap-2 px-1">
                     <span className={`size-2 rounded-full ${stage.color}`} />
                     <h2 className="text-xs font-semibold">{stage.label}</h2>
@@ -146,9 +176,19 @@ export function CustomerCrm({
                   </div>
                   <div className="space-y-2.5">
                     {stageLeads.map((lead) => (
-                      <article key={lead.id} className="rounded-xl border border-white/8 bg-[#121620] p-3.5 shadow-lg shadow-black/10">
+                      <article
+                        key={lead.id}
+                        draggable={moving !== lead.id}
+                        onDragStart={(event) => {
+                          event.dataTransfer.effectAllowed = 'move';
+                          event.dataTransfer.setData('text/plain', lead.id);
+                          setDraggedLeadId(lead.id);
+                        }}
+                        onDragEnd={() => { setDraggedLeadId(''); setDropStage(''); }}
+                        className={`group rounded-xl border bg-[#121620] p-3.5 shadow-lg shadow-black/10 transition duration-200 ${draggedLeadId === lead.id ? 'scale-[0.98] border-cyan-300/30 opacity-45' : 'border-white/8 hover:border-white/14'}`}
+                      >
                         <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0"><p className="truncate text-xs font-medium">{lead.name}</p><p className="mt-1 truncate text-[9px] text-white/30">{lead.source_name} · {lead.campaign_name || 'Organic'}</p></div>
+                          <div className="flex min-w-0 gap-2"><GripVertical aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 cursor-grab text-white/18 transition group-hover:text-white/42 active:cursor-grabbing" /><div className="min-w-0"><p className="truncate text-xs font-medium">{lead.name}</p><p className="mt-1 truncate text-[9px] text-white/30">{lead.source_name} · {lead.campaign_name || 'Organic'}</p></div></div>
                           <span className={`grid size-8 shrink-0 place-items-center rounded-lg font-mono text-[10px] font-semibold ${lead.score >= 75 ? 'bg-amber-300/12 text-amber-200' : 'bg-cyan-300/10 text-cyan-200'}`}>{lead.score}</span>
                         </div>
                         <div className="mt-3 flex flex-wrap gap-1.5">
@@ -162,9 +202,19 @@ export function CustomerCrm({
                         <div className="mt-3 flex items-center justify-between border-t border-white/7 pt-3">
                           <div className="flex gap-1.5 text-white/28"><PhoneCall className="size-3" /><Mail className="size-3" /></div>
                           {stageIndex < stages.length - 1 ? (
-                            <button type="button" disabled={moving === lead.id} onClick={() => move(lead, stages[stageIndex + 1].id)} className="inline-flex items-center gap-1 text-[9px] text-amber-200 disabled:opacity-40">
-                              Move <ArrowRight className="size-3" />
-                            </button>
+                            <label className="relative inline-flex items-center gap-1 text-[9px] text-amber-200">
+                              <span className="sr-only">Move {lead.name} to another stage</span>
+                              <select
+                                aria-label={`Move ${lead.name} to another stage`}
+                                value={normalizeStage(lead.stage)}
+                                disabled={moving === lead.id}
+                                onChange={(event) => void move(lead, event.target.value)}
+                                className="appearance-none bg-transparent pr-4 text-right text-[9px] text-amber-200 outline-none disabled:opacity-40"
+                              >
+                                {stages.map((option) => <option key={option.id} value={option.id} className="bg-[#121620] text-white">{option.label}</option>)}
+                              </select>
+                              <ArrowRight aria-hidden="true" className="pointer-events-none absolute right-0 size-3" />
+                            </label>
                           ) : (
                             <CheckCircle2 className="size-3.5 text-emerald-300" />
                           )}
@@ -196,7 +246,7 @@ export function CustomerCrm({
 }
 
 function Metric({ label, value, note, icon: Icon }: { label: string; value: string; note: string; icon: typeof Target }) {
-  return <div className="rounded-2xl border border-white/8 bg-[#0e1119] p-4"><div className="flex items-center justify-between"><p className="text-[10px] uppercase tracking-[0.12em] text-white/28">{label}</p><Icon className="size-4 text-amber-300/65" /></div><p className="mt-4 text-2xl font-semibold">{value}</p><p className="mt-1 text-[10px] text-white/30">{note}</p></div>;
+  return <div className="group rounded-2xl border border-white/8 bg-[#0e1119] p-4"><div className="flex items-center justify-between"><p className="text-[10px] font-medium uppercase tracking-[0.12em] text-white/36">{label}</p><span className="grid size-9 place-items-center rounded-xl border border-amber-200/10 bg-amber-300/[0.065] transition group-hover:border-amber-200/20"><Icon className="size-[17px] text-amber-200" /></span></div><p className="mt-3 text-2xl font-semibold text-white/95">{value}</p><p className="mt-1 text-[10px] text-white/34">{note}</p></div>;
 }
 
 function normalizeStage(stage: string) {

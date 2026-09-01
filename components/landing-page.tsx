@@ -232,14 +232,14 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
               <span className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_12px_#34d399]" />
               AI calling for sales, support and operations
             </Badge>
-            <h1 className="max-w-3xl text-[44px] font-semibold leading-[1.12] tracking-[-0.035em] sm:text-6xl sm:leading-[1.08] lg:text-[68px]">
-              <span className="block">हर lead का जवाब.</span>
-              <span className="mt-3 block bg-[linear-gradient(90deg,#fde68a,#c4b5fd_62%,#67e8f9)] bg-clip-text pb-[0.08em] text-transparent">
-                हर बातचीत से revenue.
+            <h1 lang="hi" className="max-w-3xl overflow-visible pb-2 text-[43px] font-semibold leading-[1.2] tracking-[-0.02em] sm:text-[58px] sm:leading-[1.18] lg:text-[64px]">
+              <span className="block pb-[0.08em]">Lead आते ही बातचीत.</span>
+              <span className="mt-2 block pb-[0.12em]">
+                बातचीत से <span className="bg-[linear-gradient(90deg,#fde68a,#c4b5fd_62%,#67e8f9)] bg-clip-text text-transparent">booking और revenue.</span>
               </span>
             </h1>
             <p className="mt-7 max-w-xl text-base leading-7 text-white/58 sm:text-lg">
-              Vaani captures leads from ads, forms and your CRM, understands buyer intent, calls in the right language and moves every conversation toward a sale.
+              Meta Ads, Google Ads, website forms और CRM से lead आते ही Vaani buyer intent समझता है, सही भाषा में बात करता है, फिर booking, payment link या human follow-up पूरा करता है।
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Button onClick={onEnterWorkspace} size="lg" className="h-12 rounded-full bg-amber-300 px-6 text-[#17120a] shadow-[0_14px_40px_-14px_#fcd34d] hover:bg-amber-200">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AudioLines,
   Bot,
@@ -15,6 +15,7 @@ import {
   MessageCircleMore,
   Mic2,
   PhoneCall,
+  PhoneOff,
   Play,
   Plus,
   Save,
@@ -246,16 +247,33 @@ function TestConsole({ agent, businessName, initialCredits, onChanged }: { agent
   const [messages, setMessages] = useState<TranscriptMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [listening, setListening] = useState(false);
+  const [voiceState, setVoiceState] = useState<'idle' | 'listening' | 'thinking' | 'speaking'>('idle');
+  const [voiceActive, setVoiceActive] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
   const [credits, setCredits] = useState(initialCredits);
   const [error, setError] = useState('');
+  const recognitionRef = useRef<{ abort: () => void } | null>(null);
+  const voiceActiveRef = useRef(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setCredits(initialCredits), 0);
     return () => window.clearTimeout(timer);
   }, [initialCredits]);
 
+  useEffect(() => {
+    if (!voiceActive) return;
+    const timer = window.setInterval(() => setElapsed((current) => current + 1), 1000);
+    return () => window.clearInterval(timer);
+  }, [voiceActive]);
+
+  useEffect(() => () => {
+    voiceActiveRef.current = false;
+    recognitionRef.current?.abort();
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  }, []);
+
   function changeMode(nextMode: typeof mode) {
+    stopVoice();
     setMode(nextMode);
     setSessionId('');
     setMessages([]);
@@ -275,10 +293,11 @@ function TestConsole({ agent, businessName, initialCredits, onChanged }: { agent
     return payload.sessionId;
   }
 
-  async function sendMessage(value = input) {
+  async function sendMessage(value = input, continueVoice = false) {
     const message = value.trim();
     if (!message || mode === 'phone') return;
     setLoading(true);
+    if (mode === 'browser_voice') setVoiceState('thinking');
     setError('');
     try {
       const activeSession = sessionId || (await startSession(mode));
@@ -303,17 +322,27 @@ function TestConsole({ agent, businessName, initialCredits, onChanged }: { agent
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(payload.message);
         utterance.lang = agent.primary_language === 'en-IN' ? 'en-IN' : 'hi-IN';
+        utterance.onstart = () => setVoiceState('speaking');
+        utterance.onend = () => {
+          if ((continueVoice || voiceActiveRef.current) && voiceActiveRef.current) startListening(true);
+          else setVoiceState('idle');
+        };
+        utterance.onerror = () => {
+          if (voiceActiveRef.current) startListening(true);
+          else setVoiceState('idle');
+        };
         window.speechSynthesis.speak(utterance);
       }
       await onChanged();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to test agent.');
+      if (voiceActiveRef.current) setVoiceState('idle');
     } finally {
       setLoading(false);
     }
   }
 
-  function startListening() {
+  function startListening(automatic = false) {
     type RecognitionEvent = { results: ArrayLike<{ 0: { transcript: string } }> };
     type RecognitionInstance = {
       lang: string;
@@ -323,25 +352,49 @@ function TestConsole({ agent, businessName, initialCredits, onChanged }: { agent
       onerror: () => void;
       onend: () => void;
       start: () => void;
+      abort: () => void;
     };
     const constructor = (window as unknown as { webkitSpeechRecognition?: new () => RecognitionInstance }).webkitSpeechRecognition;
     if (!constructor) {
       setError('Browser speech recognition is unavailable here. Text test still works.');
       return;
     }
+    if (!automatic && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+    recognitionRef.current?.abort();
     const recognition = new constructor();
+    recognitionRef.current = recognition;
     recognition.lang = agent.primary_language === 'en-IN' ? 'en-IN' : 'hi-IN';
     recognition.interimResults = false;
     recognition.continuous = false;
+    let handled = false;
     recognition.onresult = (event) => {
+      handled = true;
       const transcript = event.results[0]?.[0]?.transcript ?? '';
       setInput(transcript);
-      if (transcript) void sendMessage(transcript);
+      if (transcript) void sendMessage(transcript, true);
     };
-    recognition.onerror = () => setError('Microphone transcription did not complete. You can type instead.');
-    recognition.onend = () => setListening(false);
-    setListening(true);
-    recognition.start();
+    recognition.onerror = () => {
+      setError('Microphone transcription did not complete. You can type instead.');
+      if (voiceActiveRef.current) setVoiceState('idle');
+    };
+    recognition.onend = () => {
+      recognitionRef.current = null;
+      if (!handled && voiceActiveRef.current) setVoiceState('idle');
+    };
+    voiceActiveRef.current = true;
+    setVoiceActive(true);
+    setVoiceState('listening');
+    try { recognition.start(); } catch { setError('Microphone is already starting. Please try again.'); }
+  }
+
+  function stopVoice() {
+    voiceActiveRef.current = false;
+    setVoiceActive(false);
+    setElapsed(0);
+    setVoiceState('idle');
+    recognitionRef.current?.abort();
+    recognitionRef.current = null;
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
   }
 
   const suggested = useMemo(() => ['हाँ, शुरू करें', 'Product details WhatsApp कर दो', '₹550 का payment link WhatsApp पर 8 बजे भेजना'], []);
@@ -354,13 +407,48 @@ function TestConsole({ agent, businessName, initialCredits, onChanged }: { agent
 
       {mode === 'phone' ? <div className="grid flex-1 place-items-center p-6"><div className="max-w-xs text-center"><span className="mx-auto grid size-14 place-items-center rounded-2xl border border-amber-300/12 bg-amber-300/5"><PhoneCall className="size-5 text-amber-200" /></span><h3 className="mt-5 text-base font-semibold">Phone test is publish-gated</h3><p className="mt-3 text-xs leading-5 text-white/38">Verify your number, complete KYC and approve the calling use case. Until then, use browser voice for the same conversational response without placing a call.</p><Button type="button" onClick={() => changeMode('browser_voice')} className="mt-5 bg-amber-300 text-black hover:bg-amber-200"><Mic2 /> Use browser voice</Button></div></div> : <>
         <div className="flex-1 space-y-4 overflow-y-auto p-4">
-          {messages.length === 0 ? <div className="grid min-h-[420px] place-items-center"><div className="max-w-xs text-center"><span className="mx-auto grid size-14 place-items-center rounded-2xl bg-gradient-to-br from-cyan-300/15 to-violet-300/15"><AudioLines className="size-6 text-cyan-100" /></span><h3 className="mt-5 text-base font-semibold">Meet {agent.name}</h3><p className="mt-2 text-xs leading-5 text-white/38">Start a {mode === 'text' ? 'text' : 'browser voice'} test for {businessName}. Each turn uses 10 trial credits and never calls a phone number.</p><Button type="button" onClick={() => void startSession(mode)} className="mt-5 bg-white text-black hover:bg-white/90"><WandSparkles /> Start test</Button></div></div> : messages.map((message) => <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[90%] ${message.role === 'user' ? 'rounded-2xl rounded-tr-md bg-amber-300 p-3 text-[#21190a]' : 'space-y-2'}`}>{message.role === 'assistant' ? <div className="rounded-2xl rounded-tl-md bg-white/[0.055] p-3 text-xs leading-5 text-white/72"><div className="mb-2 flex items-center gap-2 text-[9px] text-violet-200"><Sparkles className="size-3" /> {agent.name}{message.latencyMs ? <span className="ml-auto font-mono text-white/25">{message.latencyMs}ms</span> : null}</div>{message.content}</div> : <p className="text-xs leading-5">{message.content}</p>}{message.actions?.length ? <div className="space-y-1.5">{message.actions.map((action) => <div key={`${message.id}-${action.type}`} className="flex items-center gap-2 rounded-xl border border-emerald-400/12 bg-emerald-400/[0.035] p-2.5 text-[9px] text-emerald-100"><CheckCircle2 className="size-3.5 shrink-0 text-emerald-300" /><span className="flex-1">{action.label}</span><span className="rounded bg-white/5 px-1.5 py-0.5 text-[8px] text-white/35">preview</span></div>)}</div> : null}</div></div>)}
+          {mode === 'browser_voice' ? <VoiceOrb agentName={agent.name} state={voiceState} active={voiceActive} elapsed={elapsed} onStart={() => startListening(false)} onStop={stopVoice} /> : null}
+          {messages.length === 0 && mode === 'text' ? <div className="grid min-h-[420px] place-items-center"><div className="max-w-xs text-center"><span className="mx-auto grid size-14 place-items-center rounded-2xl bg-gradient-to-br from-cyan-300/15 to-violet-300/15"><AudioLines className="size-6 text-cyan-100" /></span><h3 className="mt-5 text-base font-semibold">Meet {agent.name}</h3><p className="mt-2 text-xs leading-5 text-white/38">Start a text test for {businessName}. Each turn uses 10 trial credits and never calls a phone number.</p><Button type="button" onClick={() => void startSession(mode)} className="mt-5 bg-white text-black hover:bg-white/90"><WandSparkles /> Start test</Button></div></div> : messages.map((message) => <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[90%] ${message.role === 'user' ? 'rounded-2xl rounded-tr-md bg-amber-300 p-3 text-[#21190a]' : 'space-y-2'}`}>{message.role === 'assistant' ? <div className="rounded-2xl rounded-tl-md bg-white/[0.055] p-3 text-xs leading-5 text-white/72"><div className="mb-2 flex items-center gap-2 text-[9px] text-violet-200"><Sparkles className="size-3" /> {agent.name}{message.latencyMs ? <span className="ml-auto font-mono text-white/25">{message.latencyMs}ms</span> : null}</div>{message.content}</div> : <p className="text-xs leading-5">{message.content}</p>}{message.actions?.length ? <div className="space-y-1.5">{message.actions.map((action) => <div key={`${message.id}-${action.type}`} className="flex items-center gap-2 rounded-xl border border-emerald-400/12 bg-emerald-400/[0.035] p-2.5 text-[9px] text-emerald-100"><CheckCircle2 className="size-3.5 shrink-0 text-emerald-300" /><span className="flex-1">{action.label}</span><span className="rounded bg-white/5 px-1.5 py-0.5 text-[8px] text-white/35">preview</span></div>)}</div> : null}</div></div>)}
           {loading ? <div className="flex items-center gap-2 text-[10px] text-white/30"><Loader2 className="size-3.5 animate-spin" /> Vaani is understanding the request…</div> : null}
         </div>
-        <div className="border-t border-white/8 p-4"><div className="mb-3 flex gap-2 overflow-x-auto pb-1">{suggested.map((item) => <button key={item} type="button" onClick={() => void sendMessage(item)} disabled={loading} className="shrink-0 rounded-full border border-white/8 bg-white/[0.025] px-3 py-1.5 text-[8px] text-white/42 hover:bg-white/5">{item}</button>)}</div>{error ? <p className="mb-3 rounded-lg bg-red-400/7 p-2 text-[9px] text-red-100">{error}</p> : null}<div className="flex gap-2"><Input value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) void sendMessage(); }} placeholder={`Reply to ${agent.name}…`} className="h-10 border-white/8 bg-white/[0.025] text-xs" />{mode === 'browser_voice' ? <Button type="button" size="icon" variant="outline" onClick={startListening} disabled={listening || loading} className={`border-white/10 bg-transparent ${listening ? 'text-red-300' : ''}`} aria-label="Speak to agent">{listening ? <AudioLines className="animate-pulse" /> : <Mic2 />}</Button> : null}<Button type="button" size="icon" onClick={() => void sendMessage()} disabled={loading || !input.trim()} className="bg-amber-300 text-black hover:bg-amber-200" aria-label="Send test message"><Send /></Button></div><div className="mt-2 flex items-center justify-between text-[8px] text-white/24"><span>10 credits / turn</span><span className="flex items-center gap-1"><Clock3 className="size-2.5" /> Sandbox actions only</span></div></div>
+        <div className="border-t border-white/8 p-4"><div className="mb-3 flex gap-2 overflow-x-auto pb-1">{suggested.map((item) => <button key={item} type="button" onClick={() => void sendMessage(item)} disabled={loading} className="shrink-0 rounded-full border border-white/8 bg-white/[0.025] px-3 py-1.5 text-[8px] text-white/42 hover:bg-white/5">{item}</button>)}</div>{error ? <p className="mb-3 rounded-lg bg-red-400/7 p-2 text-[9px] text-red-100">{error}</p> : null}<div className="flex gap-2"><Input value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) void sendMessage(); }} placeholder={`Reply to ${agent.name}…`} className="h-10 border-white/8 bg-white/[0.025] text-xs" />{mode === 'browser_voice' ? <Button type="button" size="icon" variant="outline" onClick={() => voiceActive ? stopVoice() : startListening(false)} disabled={loading && !voiceActive} className={`border-white/10 bg-transparent ${voiceActive ? 'text-red-300' : ''}`} aria-label={voiceActive ? 'End voice conversation' : 'Speak to agent'}>{voiceActive ? <PhoneOff /> : <Mic2 />}</Button> : null}<Button type="button" size="icon" onClick={() => void sendMessage()} disabled={loading || !input.trim()} className="bg-amber-300 text-black hover:bg-amber-200" aria-label="Send test message"><Send /></Button></div><div className="mt-2 flex items-center justify-between text-[8px] text-white/24"><span>10 credits / turn</span><span className="flex items-center gap-1"><Clock3 className="size-2.5" /> Sandbox actions only</span></div></div>
       </>}
     </aside>
   );
+}
+
+function VoiceOrb({
+  agentName,
+  state,
+  active,
+  elapsed,
+  onStart,
+  onStop,
+}: {
+  agentName: string;
+  state: 'idle' | 'listening' | 'thinking' | 'speaking';
+  active: boolean;
+  elapsed: number;
+  onStart: () => void;
+  onStop: () => void;
+}) {
+  const stateLabel = state === 'listening' ? 'Listening to you…' : state === 'thinking' ? 'Understanding…' : state === 'speaking' ? `${agentName} is speaking…` : 'Tap the orb to talk';
+  const bars = [18, 34, 25, 46, 30, 54, 38, 48, 26, 40, 22];
+  return <section className="relative overflow-hidden rounded-3xl border border-white/8 bg-[radial-gradient(circle_at_50%_10%,rgba(129,140,248,0.13),transparent_38%),linear-gradient(180deg,#101522_0%,#090c12_100%)] px-5 py-8 text-center">
+    <div aria-hidden="true" className="absolute inset-x-10 top-1/2 h-24 -translate-y-1/2 rounded-full bg-cyan-300/[0.045] blur-3xl" />
+    <div className="relative mx-auto grid size-64 place-items-center sm:size-72">
+      <div className={`absolute inset-0 rounded-full border transition duration-500 ${active ? 'scale-100 border-cyan-200/24 shadow-[0_0_80px_rgba(99,102,241,0.22)]' : 'scale-95 border-white/10'}`} />
+      <div className={`absolute inset-4 rounded-full bg-[radial-gradient(circle_at_30%_25%,rgba(244,213,255,0.9),rgba(117,196,255,0.72)_32%,rgba(122,105,255,0.76)_62%,rgba(20,26,48,0.96)_100%)] opacity-90 shadow-[inset_-30px_-25px_60px_rgba(12,14,36,0.45)] transition duration-500 ${state === 'speaking' ? 'scale-[1.02] animate-pulse' : state === 'listening' ? 'scale-[0.98]' : ''}`} />
+      <button type="button" onClick={active ? onStop : onStart} aria-label={active ? 'End browser voice conversation' : `Start talking to ${agentName}`} className="relative z-10 grid size-24 place-items-center rounded-full border border-white/22 bg-black/22 text-white shadow-xl backdrop-blur-xl transition hover:scale-105 hover:bg-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200">
+        {active ? <div className="flex h-14 items-center gap-1" aria-hidden="true">{bars.map((height, index) => <span key={`${height}-${index}`} className={`w-1 rounded-full bg-white/85 ${state === 'listening' || state === 'speaking' ? 'animate-pulse' : ''}`} style={{ height, animationDelay: `${index * 55}ms` }} />)}</div> : <Mic2 className="size-8" />}
+      </button>
+    </div>
+    <div className="relative mt-3"><h3 className="text-base font-semibold">{agentName} · Live playground</h3><p aria-live="polite" className="mt-2 text-xs text-white/48">{stateLabel}</p>{active ? <p className="mt-2 font-mono text-[10px] text-cyan-100/55">{formatElapsed(elapsed)} · browser voice · interrupt anytime</p> : <p className="mt-2 text-[9px] text-white/28">Continuous turn-taking in Hindi, Hinglish or Indian English. No phone number is dialled.</p>}</div>
+  </section>;
+}
+
+function formatElapsed(seconds: number) {
+  return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
 function SettingSection({ title, note, children }: { title: string; note: string; children: React.ReactNode }) {

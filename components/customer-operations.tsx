@@ -2,9 +2,12 @@
 /* oxlint-disable jsx-a11y/media-has-caption -- call transcripts and QA summaries are available beside authenticated recordings */
 
 import { useMemo, useState } from 'react';
-import { Activity, AlertTriangle, BookOpenText, Bot, Cable, CheckCircle2, FileAudio, FileBarChart2, GitBranch, Headphones, Loader2, Network, PhoneCall, Plus, Radio, RefreshCcw, ShieldCheck, Workflow } from 'lucide-react';
+import { Activity, AlertTriangle, BookOpenText, Bot, Cable, CheckCircle2, FileAudio, FileBarChart2, GitBranch, Headphones, Loader2, Network, PhoneCall, Plus, Radio, RefreshCcw, ShieldCheck, UsersRound, Workflow } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { ActivityAreaChart, DistributionChart } from '@/components/analytics-charts';
 import { CustomerSecurity } from '@/components/customer-security';
 
@@ -19,6 +22,11 @@ export type OperationsData = {
   alertRules: Record<string, unknown>[];
   incidents: Record<string, unknown>[];
   reports: Record<string, unknown>[];
+  options?: {
+    agents: Record<string, unknown>[];
+    phoneNumbers: Record<string, unknown>[];
+    workflows: Record<string, unknown>[];
+  };
   settings?: Record<string, unknown> | null;
   stats?: Record<string, unknown> | null;
   compliance?: { consents: Record<string, unknown>[]; suppressions: Record<string, unknown>[]; kycDocuments: Record<string, unknown>[] };
@@ -51,18 +59,21 @@ function ResourceModule({ module, data, onChanged }: { module: Exclude<Operation
   const rows = data[config.key] as Record<string, unknown>[];
   const [loading, setLoading] = useState('');
   const [error, setError] = useState('');
+  const [creatorOpen, setCreatorOpen] = useState(false);
 
-  async function create() {
+  async function create(payloadOverride?: Record<string, unknown>) {
     setLoading('create'); setError('');
     const timestamp = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-    const payload: Record<string, unknown> = { action: config.action, name: `${config.title.replace(/s$/, '')} ${timestamp}` };
-    if (module === 'sip_trunks') Object.assign(payload, { gatewayUri: 'sip:gateway.example.com:5061', transport: 'tls', mediaEncryption: 'sdes' });
-    if (module === 'campaigns') Object.assign(payload, { audienceSize: 250, concurrency: 5 });
-    if (module === 'knowledge') Object.assign(payload, { description: 'Approved product and support content', language: 'Hindi + English + Haryanvi' });
-    if (module === 'workflows') Object.assign(payload, { triggerType: 'call.completed', steps: ['check_consent','update_crm','send_follow_up'] });
-    if (module === 'alerts') Object.assign(payload, { metric: 'call_failure_rate', threshold: 10 });
-    if (module === 'reports') Object.assign(payload, { reportType: 'call_performance', schedule: 'weekly' });
-    try { await mutate(payload); await onChanged(); } catch (caught) { setError(caught instanceof Error ? caught.message : 'Unable to create resource.'); } finally { setLoading(''); }
+    const payload: Record<string, unknown> = payloadOverride ?? { action: config.action, name: `${config.title.replace(/s$/, '')} ${timestamp}` };
+    if (!payloadOverride) {
+      if (module === 'sip_trunks') Object.assign(payload, { gatewayUri: 'sip:gateway.example.com:5061', transport: 'tls', mediaEncryption: 'sdes' });
+      if (module === 'campaigns') Object.assign(payload, { audienceSize: 250, concurrency: 5 });
+      if (module === 'knowledge') Object.assign(payload, { description: 'Approved product and support content', language: 'Hindi + English + Haryanvi' });
+      if (module === 'workflows') Object.assign(payload, { triggerType: 'call.completed', steps: ['check_consent','update_crm','send_follow_up'] });
+      if (module === 'alerts') Object.assign(payload, { metric: 'call_failure_rate', threshold: 10 });
+      if (module === 'reports') Object.assign(payload, { reportType: 'call_performance', schedule: 'weekly' });
+    }
+    try { await mutate(payload); await onChanged(); setCreatorOpen(false); } catch (caught) { setError(caught instanceof Error ? caught.message : 'Unable to create resource.'); } finally { setLoading(''); }
   }
 
   async function generate(id: string) {
@@ -70,12 +81,109 @@ function ResourceModule({ module, data, onChanged }: { module: Exclude<Operation
     try { await mutate({ action: 'generate_report', reportId: id }); await onChanged(); } catch (caught) { setError(caught instanceof Error ? caught.message : 'Unable to generate report.'); } finally { setLoading(''); }
   }
 
-  return <div className="space-y-6"><Header eyebrow={config.eyebrow} title={config.title} description={config.description} action={<Button onClick={create} disabled={Boolean(loading)} className="portal-primary">{loading === 'create' ? <Loader2 className="animate-spin" /> : <Plus />}{config.button}</Button>} />
+  const hasStructuredCreator = module === 'campaigns' || module === 'sip_trunks' || module === 'workflows';
+  return <div className="space-y-6"><Header eyebrow={config.eyebrow} title={config.title} description={config.description} action={<Button onClick={() => hasStructuredCreator ? setCreatorOpen(true) : void create()} disabled={Boolean(loading)} className="portal-primary">{loading === 'create' ? <Loader2 className="animate-spin" /> : <Plus />}{config.button}</Button>} />
+    {hasStructuredCreator ? <OperationsCreator module={module} data={data} open={creatorOpen} setOpen={setCreatorOpen} loading={loading === 'create'} submit={create} /> : null}
     {error ? <p className="rounded-xl border border-red-400/15 bg-red-400/5 p-3 text-xs text-red-100">{error}</p> : null}
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{rows.map((row) => <section key={str(row.id)} className="rounded-2xl border border-white/8 bg-[#0c1422] p-5 shadow-[0_18px_50px_-38px_rgba(55,189,248,0.45)]"><div className="flex items-start justify-between"><span className="grid size-10 place-items-center rounded-xl border border-cyan-300/10 bg-cyan-300/[0.055]"><Icon className="size-4 text-cyan-200" /></span><Status value={str(row.status, 'ready')} /></div><h2 className="mt-5 text-sm font-semibold">{str(row.name)}</h2><p className="mt-2 min-h-10 text-[10px] leading-5 text-white/38">{resourceDescription(module, row)}</p><div className="mt-5 grid grid-cols-2 gap-2 border-t border-white/7 pt-4 text-[9px] text-white/35">{resourceFacts(module, row).map(([label, value]) => <div key={label}><p>{label}</p><p className="mt-1 text-xs font-medium text-white/70">{value}</p></div>)}</div>{module === 'reports' ? <Button variant="outline" onClick={() => generate(str(row.id))} disabled={Boolean(loading)} className="mt-4 w-full border-white/10 bg-transparent text-[10px]">{loading === str(row.id) ? <Loader2 className="animate-spin" /> : <RefreshCcw />}Generate now</Button> : null}</section>)}</div>
     {!rows.length ? <Empty icon={Icon} label={`No ${config.title.toLowerCase()} yet.`} /> : null}
     {module === 'alerts' && data.incidents.length ? <section className="rounded-2xl border border-white/8 bg-[#0c1422] p-5"><h2 className="text-sm font-semibold">Recent incidents</h2><div className="mt-4 divide-y divide-white/7">{data.incidents.map((item) => <div key={str(item.id)} className="flex items-center gap-3 py-3 text-xs"><AlertTriangle className="size-4 text-amber-200" /><span className="flex-1">{str(item.rule_name)} · current {str(item.current_value)}</span><Status value={str(item.status)} /></div>)}</div></section> : null}
   </div>;
+}
+
+function OperationsCreator({
+  module,
+  data,
+  open,
+  setOpen,
+  loading,
+  submit,
+}: {
+  module: 'campaigns' | 'sip_trunks' | 'workflows';
+  data: OperationsData;
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  loading: boolean;
+  submit: (payload: Record<string, unknown>) => Promise<void>;
+}) {
+  const agents = data.options?.agents ?? [];
+  const numbers = data.options?.phoneNumbers ?? [];
+  const workflows = data.options?.workflows ?? [];
+  const [campaign, setCampaign] = useState({
+    name: '', objective: 'lead_qualification', agentId: str(agents[0]?.id, ''), workflowId: str(workflows[0]?.id, ''),
+    workflowVersion: '1', fromNumberId: str(numbers[0]?.id, ''), concurrency: '5', maxAttempts: '3', retryMinutes: '120, 1440',
+    windowStart: '10:00', windowEnd: '19:00', timezone: 'Asia/Kolkata', contacts: '',
+  });
+  const [trunk, setTrunk] = useState({ name: '', provider: 'custom', gatewayUri: '', authType: 'userpass', username: '', password: '', transport: 'tls', mediaEncryption: 'sdes', codecs: 'PCMU, PCMA' });
+  const [workflow, setWorkflow] = useState({ name: '', triggerType: 'call.completed', steps: 'check_consent, update_crm, send_follow_up' });
+
+  async function create() {
+    if (module === 'campaigns') {
+      const contacts = campaign.contacts.split(/[\n,]+/).map((item) => item.trim()).filter(Boolean);
+      await submit({
+        action: 'create_campaign', ...campaign, contacts,
+        concurrency: Number(campaign.concurrency), maxAttempts: Number(campaign.maxAttempts),
+        retryMinutes: campaign.retryMinutes.split(',').map((item) => Number(item.trim())).filter(Number.isFinite),
+      });
+      return;
+    }
+    if (module === 'sip_trunks') {
+      await submit({ action: 'create_sip_trunk', ...trunk, codecs: trunk.codecs.split(',').map((item) => item.trim().toUpperCase()).filter(Boolean) });
+      return;
+    }
+    await submit({ action: 'create_workflow', ...workflow, steps: workflow.steps.split(',').map((item) => item.trim()).filter(Boolean) });
+  }
+
+  return <Dialog open={open} onOpenChange={setOpen}>
+    <DialogContent className="max-h-[90vh] overflow-y-auto border border-white/10 bg-[#0b101a] p-0 text-white shadow-2xl sm:max-w-3xl">
+      <DialogHeader className="border-b border-white/8 px-6 py-5">
+        <DialogTitle>{module === 'campaigns' ? 'Create outbound campaign' : module === 'sip_trunks' ? 'Register SIP trunk' : 'Create workflow'}</DialogTitle>
+        <DialogDescription className="text-xs leading-5 text-white/38">
+          {module === 'campaigns' ? 'Configure the agent, workflow version, consent-aware contacts, retry policy and legal calling window.' : module === 'sip_trunks' ? 'Credentials are encrypted before storage. Activation remains locked until the connectivity test passes.' : 'Define the event and ordered, auditable actions this workflow may execute.'}
+        </DialogDescription>
+      </DialogHeader>
+
+      {module === 'campaigns' ? <div className="grid gap-5 p-6 sm:grid-cols-2">
+        <CreatorField label="Campaign name"><Input value={campaign.name} onChange={(event) => setCampaign({ ...campaign, name: event.target.value })} placeholder="September COD confirmations" /></CreatorField>
+        <CreatorField label="Objective"><select value={campaign.objective} onChange={(event) => setCampaign({ ...campaign, objective: event.target.value })}><option value="lead_qualification">Lead qualification</option><option value="cod_confirmation">COD confirmation</option><option value="appointment_booking">Appointment booking</option><option value="payment_collection">Payment collection</option><option value="customer_support">Customer support</option></select></CreatorField>
+        <CreatorField label="AI agent"><select value={campaign.agentId} onChange={(event) => setCampaign({ ...campaign, agentId: event.target.value })}><option value="">Choose an agent</option>{agents.map((item) => <option key={str(item.id)} value={str(item.id)}>{str(item.name)} · {str(item.status)}</option>)}</select></CreatorField>
+        <CreatorField label="Workflow + published version"><div className="grid grid-cols-[1fr_88px] gap-2"><select value={campaign.workflowId} onChange={(event) => setCampaign({ ...campaign, workflowId: event.target.value })}><option value="">No post-call workflow</option>{workflows.map((item) => <option key={str(item.id)} value={str(item.id)}>{str(item.name)}</option>)}</select><Input type="number" min="1" value={campaign.workflowVersion} onChange={(event) => setCampaign({ ...campaign, workflowVersion: event.target.value })} aria-label="Workflow version" /></div></CreatorField>
+        <CreatorField label="Calling number"><select value={campaign.fromNumberId} onChange={(event) => setCampaign({ ...campaign, fromNumberId: event.target.value })}><option value="">Auto-select an approved number</option>{numbers.map((item) => <option key={str(item.id)} value={str(item.id)}>{str(item.phone_number)} · {str(item.status)}</option>)}</select></CreatorField>
+        <CreatorField label="Concurrency"><Input type="number" min="1" max="50" value={campaign.concurrency} onChange={(event) => setCampaign({ ...campaign, concurrency: event.target.value })} /></CreatorField>
+        <CreatorField label="Maximum attempts"><Input type="number" min="1" max="8" value={campaign.maxAttempts} onChange={(event) => setCampaign({ ...campaign, maxAttempts: event.target.value })} /></CreatorField>
+        <CreatorField label="Retry after minutes"><Input value={campaign.retryMinutes} onChange={(event) => setCampaign({ ...campaign, retryMinutes: event.target.value })} placeholder="120, 1440" /></CreatorField>
+        <CreatorField label="Legal calling window"><div className="grid grid-cols-2 gap-2"><Input type="time" value={campaign.windowStart} onChange={(event) => setCampaign({ ...campaign, windowStart: event.target.value })} /><Input type="time" value={campaign.windowEnd} onChange={(event) => setCampaign({ ...campaign, windowEnd: event.target.value })} /></div></CreatorField>
+        <CreatorField label="Timezone"><Input value={campaign.timezone} onChange={(event) => setCampaign({ ...campaign, timezone: event.target.value })} /></CreatorField>
+        <div className="sm:col-span-2"><CreatorField label="Contacts · one E.164 number per line"><Textarea value={campaign.contacts} onChange={(event) => setCampaign({ ...campaign, contacts: event.target.value })} placeholder={'+919876543210\n+919811122233'} className="min-h-28" /></CreatorField><p className="mt-2 flex items-center gap-2 text-[9px] text-white/30"><ShieldCheck className="size-3 text-emerald-300" /> Duplicates are removed; consent and suppression are checked again before any call is queued.</p></div>
+      </div> : null}
+
+      {module === 'sip_trunks' ? <div className="grid gap-5 p-6 sm:grid-cols-2">
+        <CreatorField label="Trunk name"><Input value={trunk.name} onChange={(event) => setTrunk({ ...trunk, name: event.target.value })} placeholder="Mumbai primary trunk" /></CreatorField>
+        <CreatorField label="Provider"><Input value={trunk.provider} onChange={(event) => setTrunk({ ...trunk, provider: event.target.value })} placeholder="Exotel / Airtel / custom" /></CreatorField>
+        <div className="sm:col-span-2"><CreatorField label="Gateway URI"><Input value={trunk.gatewayUri} onChange={(event) => setTrunk({ ...trunk, gatewayUri: event.target.value })} placeholder="sip:gateway.example.com:5061" /></CreatorField></div>
+        <CreatorField label="Authentication"><select value={trunk.authType} onChange={(event) => setTrunk({ ...trunk, authType: event.target.value })}><option value="userpass">Username + password</option><option value="ip">IP allowlist</option></select></CreatorField>
+        <CreatorField label="Transport"><select value={trunk.transport} onChange={(event) => setTrunk({ ...trunk, transport: event.target.value })}><option value="tls">TLS</option><option value="tcp">TCP</option><option value="udp">UDP</option></select></CreatorField>
+        {trunk.authType === 'userpass' ? <><CreatorField label="Username"><Input value={trunk.username} onChange={(event) => setTrunk({ ...trunk, username: event.target.value })} autoComplete="off" /></CreatorField><CreatorField label="Password"><Input type="password" value={trunk.password} onChange={(event) => setTrunk({ ...trunk, password: event.target.value })} autoComplete="new-password" /></CreatorField></> : null}
+        <CreatorField label="Media encryption"><select value={trunk.mediaEncryption} onChange={(event) => setTrunk({ ...trunk, mediaEncryption: event.target.value })}><option value="sdes">SRTP · SDES</option><option value="dtls">SRTP · DTLS</option><option value="none">None (not recommended)</option></select></CreatorField>
+        <CreatorField label="Codecs"><Input value={trunk.codecs} onChange={(event) => setTrunk({ ...trunk, codecs: event.target.value })} /></CreatorField>
+      </div> : null}
+
+      {module === 'workflows' ? <div className="grid gap-5 p-6">
+        <CreatorField label="Workflow name"><Input value={workflow.name} onChange={(event) => setWorkflow({ ...workflow, name: event.target.value })} placeholder="Payment-link follow-up" /></CreatorField>
+        <CreatorField label="Trigger"><select value={workflow.triggerType} onChange={(event) => setWorkflow({ ...workflow, triggerType: event.target.value })}><option value="call.completed">Call completed</option><option value="lead.qualified">Lead qualified</option><option value="payment_link.requested">Payment link requested</option><option value="appointment.booked">Appointment booked</option><option value="credit.low">Credit balance low</option></select></CreatorField>
+        <CreatorField label="Ordered steps"><Input value={workflow.steps} onChange={(event) => setWorkflow({ ...workflow, steps: event.target.value })} /><p className="mt-2 text-[9px] text-white/28">Available: check_consent, update_crm, send_whatsapp, create_payment_link, schedule_follow_up, sync_retargeting, notify_human.</p></CreatorField>
+      </div> : null}
+
+      <DialogFooter className="m-0 border-white/8 bg-white/[0.025] px-6 py-4">
+        <Button type="button" variant="outline" onClick={() => setOpen(false)} className="border-white/10 bg-transparent">Cancel</Button>
+        <Button type="button" onClick={() => void create()} disabled={loading} className="portal-primary">{loading ? <Loader2 className="animate-spin" /> : module === 'campaigns' ? <UsersRound /> : module === 'sip_trunks' ? <Cable /> : <Workflow />}{module === 'campaigns' ? 'Create draft campaign' : module === 'sip_trunks' ? 'Save & test trunk' : 'Create draft workflow'}</Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>;
+}
+
+function CreatorField({ label, children }: { label: string; children: React.ReactNode }) {
+  return <label className="block text-[10px] font-medium text-white/48">{label}<div className="mt-2 [&_input]:h-10 [&_input]:border-white/9 [&_input]:bg-white/[0.035] [&_input]:text-xs [&_select]:h-10 [&_select]:w-full [&_select]:rounded-lg [&_select]:border [&_select]:border-white/9 [&_select]:bg-[#111827] [&_select]:px-3 [&_select]:text-xs [&_textarea]:border-white/9 [&_textarea]:bg-white/[0.035] [&_textarea]:text-xs">{children}</div></label>;
 }
 
 function CallHistory({ data }: { data: OperationsData }) {
@@ -112,7 +220,7 @@ function WorkspaceSettings({ data, onChanged }: { data: OperationsData; onChange
 }
 
 function Stats({ data }: { data: OperationsData }) { const stats = data.stats ?? {}; return <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5"><Metric label="Total calls" value={str(stats.total_calls, '0')} icon={PhoneCall} /><Metric label="Live" value={str(stats.live_calls, '0')} icon={Radio} /><Metric label="Avg duration" value={duration(stats.average_duration)} icon={Activity} /><Metric label="Avg latency" value={`${str(stats.average_latency, '0')}ms`} icon={Network} /><Metric label="Recordings" value={str(stats.recordings, '0')} icon={FileAudio} /></div>; }
-function Metric({ label, value, icon: Icon }: { label: string; value: string; icon: typeof Bot }) { return <section className="portal-stat p-4"><Icon className="size-4 text-[#a8b7ff]" /><p className="mt-4 text-2xl font-semibold">{value}</p><p className="mt-1 text-[9px] uppercase tracking-wider text-white/28">{label}</p></section>; }
+function Metric({ label, value, icon: Icon }: { label: string; value: string; icon: typeof Bot }) { return <section className="portal-stat group p-4"><span className="grid size-9 place-items-center rounded-xl border border-indigo-200/10 bg-indigo-300/[0.07] transition group-hover:border-indigo-200/20"><Icon className="size-[17px] text-[#bdc7ff]" /></span><p className="mt-3 text-2xl font-semibold text-white/95">{value}</p><p className="mt-1 text-[9px] font-medium uppercase tracking-wider text-white/34">{label}</p></section>; }
 function Header({ eyebrow, title, description, action }: { eyebrow: string; title: string; description: string; action?: React.ReactNode }) { return <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9eb0ff]">{eyebrow}</p><h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1><p className="mt-2 max-w-3xl text-xs leading-5 text-white/38">{description}</p></div>{action}</div>; }
 function Status({ value }: { value: string }) { const good = /active|ready|live|completed|passed|resolved|connected|operational/.test(value.toLowerCase()); return <span className={`inline-flex rounded-full px-2 py-1 text-[8px] capitalize ${good ? 'bg-emerald-400/8 text-emerald-200' : 'bg-amber-300/8 text-amber-200'}`}>{value.replaceAll('_',' ')}</span>; }
 function Mini({ label, value }: { label: string; value: string }) { return <div className="rounded-xl border border-white/7 bg-white/[0.025] p-3"><p className="text-[8px] uppercase tracking-wider text-white/25">{label}</p><p className="mt-1 truncate text-[10px] font-medium capitalize text-white/65">{value}</p></div>; }

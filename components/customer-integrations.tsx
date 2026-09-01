@@ -14,6 +14,19 @@ import {
   ShieldCheck,
   Webhook,
 } from 'lucide-react';
+import {
+  siAnthropic,
+  siGoogleads,
+  siGooglesheets,
+  siHubspot,
+  siMake,
+  siMeta,
+  siN8n,
+  siRazorpay,
+  siShopify,
+  siWhatsapp,
+  siZapier,
+} from 'simple-icons';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -213,7 +226,7 @@ function Connections({
         <div className="mt-5 space-y-3">
           {(data.integrations ?? []).map((item) => (
             <div key={item.id} className="flex items-start gap-3 rounded-xl border border-white/7 bg-white/[0.02] p-4">
-              <span className="grid size-9 place-items-center rounded-xl bg-violet-300/8"><Link2 className="size-4 text-violet-200" /></span>
+              <BrandIcon type={item.type} />
               <div className="min-w-0 flex-1"><p className="text-xs font-medium">{item.name}</p><p className="mt-1 text-[9px] uppercase tracking-wider text-white/28">{item.type.replaceAll('_', ' ')} · {item.has_secret ? 'secret stored' : 'no credentials'}</p></div>
               <Status value={item.status} />
             </div>
@@ -224,6 +237,7 @@ function Connections({
         <h2 className="text-sm font-semibold">Connect an API</h2>
         <p className="mt-1 text-[10px] leading-4 text-white/32">Willow stays on the generic adapter until its official calling API base URL and auth scheme are supplied.</p>
         <div className="mt-5 space-y-4">
+          <div className="flex items-center gap-3 rounded-xl border border-white/7 bg-white/[0.02] p-3"><BrandIcon type={form.type} /><div><p className="text-xs font-medium">{form.name}</p><p className="mt-1 text-[9px] text-white/28">Official product mark where available</p></div></div>
           <label htmlFor="connector-type" className="block text-xs text-white/50">Connector</label>
           <select id="connector-type" aria-label="Connector" value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value, name: event.target.options[event.target.selectedIndex].text })} className="h-10 w-full rounded-lg border border-white/8 bg-[#121620] px-3 text-xs">
             <optgroup label="Vaani engines"><option value="sarvam_voice">Vaani Voice · India engine</option><option value="anthropic_reasoning">Vaani Sense · reasoning</option></optgroup><optgroup label="Telephony"><option value="telephony_exotel">Exotel</option><option value="telephony_plivo">Plivo</option><option value="telephony_twilio">Twilio</option><option value="telephony_vobiz">Vobiz</option><option value="telephony_byoc">SIP / Enterprise BYOT</option></optgroup><optgroup label="CRM & automation"><option value="hubspot">HubSpot</option><option value="salesforce">Salesforce</option><option value="calcom">Cal.com</option><option value="zapier">Zapier</option><option value="make">Make</option><option value="n8n">n8n</option><option value="google_sheets">Google Sheets</option><option value="crm">Custom CRM</option></optgroup><optgroup label="Revenue & messaging"><option value="razorpay">Razorpay payment links</option><option value="whatsapp_cloud">WhatsApp Cloud API</option><option value="aisensy">AiSensy</option><option value="shopify">Shopify</option></optgroup><optgroup label="Lead sources & custom"><option value="meta_ads">Meta Lead Ads</option><option value="google_ads">Google Ads</option><option value="willow_custom">Willow / Custom HTTP</option></optgroup>
@@ -295,6 +309,28 @@ function Status({ value }: { value: string }) {
   const positive = ['active', 'connected'].some((item) => value.includes(item));
   const warning = ['pending', 'needs', 'test'].some((item) => value.includes(item));
   return <Badge variant="outline" className={`${positive ? 'border-emerald-400/15 text-emerald-300' : warning ? 'border-amber-300/15 text-amber-200' : 'border-white/10 text-white/42'} text-[8px]`}>{value.replaceAll('_', ' ')}</Badge>;
+}
+
+const brandIcons: Record<string, { path: string; hex: string; title: string }> = {
+  razorpay: siRazorpay,
+  whatsapp_cloud: siWhatsapp,
+  meta_ads: siMeta,
+  google_ads: siGoogleads,
+  hubspot: siHubspot,
+  shopify: siShopify,
+  zapier: siZapier,
+  n8n: siN8n,
+  google_sheets: siGooglesheets,
+  make: siMake,
+  anthropic_reasoning: siAnthropic,
+};
+
+function BrandIcon({ type }: { type: string }) {
+  const icon = brandIcons[type];
+  if (!icon) return <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/8 bg-white/[0.035]"><Link2 className="size-4 text-violet-200" /></span>;
+  return <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/8 bg-white/[0.94]" title={icon.title}>
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5" style={{ fill: `#${icon.hex}` }}><path d={icon.path} /></svg><span className="sr-only">{icon.title} logo</span>
+  </span>;
 }
 
 function safeStringList(value: string) {

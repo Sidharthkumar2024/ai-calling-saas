@@ -140,6 +140,11 @@ export async function PATCH(request: Request) {
 
   if (body.action === 'provider_key_clear') {
     const provider = String(body.provider || '');
+    if (!MANAGED_PROVIDERS.has(provider))
+      return NextResponse.json(
+        { error: 'Unsupported provider.' },
+        { status: 400 },
+      );
     await db
       .prepare(`DELETE FROM platform_provider_secrets WHERE provider = ?`)
       .bind(provider)
@@ -366,6 +371,13 @@ export async function PATCH(request: Request) {
         { error: 'Platform provider not found.' },
         { status: 404 },
       );
+    await recordAudit(
+      auth.session,
+      'platform_provider.status_updated',
+      'platform_provider',
+      body.id,
+      { status: body.status ?? null, health: body.health ?? null },
+    );
     return NextResponse.json({ updated: true });
   }
   if (body.action === 'plan_update') {
@@ -543,6 +555,7 @@ export async function PATCH(request: Request) {
         )
         .bind(auth.session.name, ticket.id),
     ]);
+    await recordAudit(auth.session, 'ticket.replied', 'support_ticket', ticket.id, {});
     return NextResponse.json({ replied: true });
   }
   if (body.action === 'ticket_status') {
@@ -564,6 +577,13 @@ export async function PATCH(request: Request) {
       )
       .bind(body.status, auth.session.name, body.ticketId)
       .run();
+    await recordAudit(
+      auth.session,
+      'ticket.status_changed',
+      'support_ticket',
+      body.ticketId,
+      { status: body.status },
+    );
     return NextResponse.json({ updated: true });
   }
   return NextResponse.json(

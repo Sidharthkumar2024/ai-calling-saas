@@ -2,13 +2,19 @@ import { NextResponse } from 'next/server';
 
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
-import { requireCustomer } from '@/lib/api-session';
+import {
+  requireAnyCustomerPermission,
+  requireCustomerPermission,
+} from '@/lib/customer-rbac';
 import { recordAudit } from '@/lib/demo-seed';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-  const auth = await requireCustomer(request);
+  const auth = await requireAnyCustomerPermission(request, [
+    'support.manage',
+    'crm.manage',
+  ]);
   if (auth.response) return auth.response;
   await ensureSchema();
   const db = getRawDb();
@@ -32,7 +38,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireCustomer(request);
+  const auth = await requireCustomerPermission(request, 'support.manage');
   if (auth.response) return auth.response;
   const body = (await request.json()) as {
     action?: string;

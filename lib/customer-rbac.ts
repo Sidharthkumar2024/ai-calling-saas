@@ -14,6 +14,7 @@ export const CUSTOMER_PERMISSIONS = [
   'integrations.manage',
   'billing.manage',
   'analytics.view',
+  'analytics.manage',
   'calls.monitor',
   'support.manage',
 ] as const;
@@ -57,6 +58,7 @@ export const CUSTOMER_ROLE_DEFINITIONS: Array<{
       'campaigns.manage',
       'crm.manage',
       'analytics.view',
+      'analytics.manage',
       'calls.monitor',
     ],
   },
@@ -86,12 +88,14 @@ export const CUSTOMER_ROLE_DEFINITIONS: Array<{
   },
 ];
 
-export async function getCustomerAccess(session: AppSession) {
+export type ResolvedWorkspaceRole = CustomerWorkspaceRole | 'none';
+
+export async function getCustomerAccess(session: AppSession): Promise<{
+  role: ResolvedWorkspaceRole;
+  permissions: CustomerPermission[];
+}> {
   if (session.role === 'customer_owner') {
-    return {
-      role: 'owner' as CustomerWorkspaceRole,
-      permissions: allPermissions,
-    };
+    return { role: 'owner', permissions: allPermissions };
   }
   const member = session.organizationId
     ? await getRawDb()
@@ -100,16 +104,28 @@ export async function getCustomerAccess(session: AppSession) {
         .bind(session.organizationId, session.userId)
         .first<{ role: string }>()
     : null;
-  const requestedRole = CUSTOMER_ROLE_DEFINITIONS.find(
+  const definition = CUSTOMER_ROLE_DEFINITIONS.find(
     (item) => item.id === member?.role,
   );
-  const role = requestedRole?.id ?? 'agent';
-  return {
-    role,
-    permissions:
-      CUSTOMER_ROLE_DEFINITIONS.find((item) => item.id === role)?.permissions ??
-      [],
-  };
+  // Fail closed: an absent membership row or an unrecognised role grants
+  // nothing. Previously this fell back to 'agent', silently handing CRM and
+  // call-monitor access to anyone whose role string did not match.
+  if (!definition) return { role: 'none', permissions: [] };
+  return { role: definition.id, permissions: definition.permissions };
+}
+
+/**
+ * Who may change whose role. An admin must not be able to demote or remove
+ * another admin or the owner — only the owner can act on an admin.
+ */
+export function canManageTargetRole(
+  actorRole: ResolvedWorkspaceRole,
+  targetRole: string,
+): boolean {
+  if (actorRole === 'owner') return targetRole !== 'owner';
+  if (actorRole === 'admin')
+    return !['owner', 'admin'].includes(targetRole);
+  return false;
 }
 
 export async function requireCustomerPermission(
@@ -123,6 +139,30 @@ export async function requireCustomerPermission(
     return {
       response: NextResponse.json(
         { error: `Workspace permission required: ${permission}.` },
+        { status: 403 },
+      ),
+    } as const;
+  }
+  return { session: auth.session, access } as const;
+}
+
+/**
+ * Read guard for endpoints that serve several modules at once: the caller must
+ * hold at least one of the listed permissions. Using a single permission there
+ * would lock out legitimate roles (an analyst reading reports, for example),
+ * while using none at all is what left these GETs open to any org member.
+ */
+export async function requireAnyCustomerPermission(
+  request: Request,
+  permissions: CustomerPermission[],
+) {
+  const auth = await requireCustomer(request);
+  if (auth.response) return auth;
+  const access = await getCustomerAccess(auth.session);
+  if (!permissions.some((permission) => access.permissions.includes(permission))) {
+    return {
+      response: NextResponse.json(
+        { error: `Workspace permission required: one of ${permissions.join(', ')}.` },
         { status: 403 },
       ),
     } as const;

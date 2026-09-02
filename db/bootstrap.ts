@@ -25,7 +25,7 @@ async function bootstrap() {
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
       user_id TEXT NOT NULL,
       email TEXT NOT NULL,
-      role TEXT DEFAULT 'user' NOT NULL,
+      role TEXT DEFAULT 'agent' NOT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
     db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_members_org_user

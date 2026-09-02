@@ -2,18 +2,41 @@ import { NextResponse } from 'next/server';
 
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
-import { requireCustomer } from '@/lib/api-session';
 import { recordAudit } from '@/lib/demo-seed';
 import { encryptSecret } from '@/lib/security';
 import {
   type CustomerPermission,
+  requireAnyCustomerPermission,
   requireCustomerPermission,
 } from '@/lib/customer-rbac';
 
 export const dynamic = 'force-dynamic';
 
+const SUPPORTED_LANGUAGES = new Set([
+  'hi-IN',
+  'en-IN',
+  'hinglish',
+  'haryanvi',
+  'pa-IN',
+  'mr-IN',
+  'gu-IN',
+  'bn-IN',
+  'ta-IN',
+  'te-IN',
+  'kn-IN',
+  'ml-IN',
+  'ur-IN',
+]);
+
 export async function GET(request: Request) {
-  const auth = await requireCustomer(request);
+  const auth = await requireAnyCustomerPermission(request, [
+    'calls.monitor',
+    'analytics.view',
+    'agents.manage',
+    'campaigns.manage',
+    'telephony.manage',
+    'workspace.manage',
+  ]);
   if (auth.response) return auth.response;
   await ensureSchema();
   const db = getRawDb();
@@ -456,6 +479,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ generated: true });
   } else if (action === 'update_settings') {
     const defaultLanguage = clean(body.defaultLanguage, 40) || 'hinglish';
+    // Honour the submitted language set (validated) instead of overwriting it
+    // with a fixed list — that overwrite is why Punjabi could not be saved.
+    const submittedLanguages = Array.isArray(body.enabledLanguages)
+      ? body.enabledLanguages
+          .map((item) => String(item))
+          .filter((item) => SUPPORTED_LANGUAGES.has(item))
+      : [];
+    const enabledLanguages = submittedLanguages.length
+      ? Array.from(new Set([defaultLanguage, ...submittedLanguages]))
+      : ['hi-IN', 'en-IN', 'hinglish', 'haryanvi'];
     const recordingPolicy = [
       'disabled',
       'record_with_consent',
@@ -475,7 +508,7 @@ export async function POST(request: Request) {
         organizationId,
         clean(body.timezone, 80) || 'Asia/Kolkata',
         defaultLanguage,
-        JSON.stringify(['hi-IN', 'en-IN', 'hinglish', 'haryanvi']),
+        JSON.stringify(enabledLanguages),
         recordingPolicy,
         bounded(body.recordingRetentionDays, 1, 3650, 90),
         bounded(body.transcriptRetentionDays, 1, 3650, 180),
@@ -560,11 +593,25 @@ function validTime(value: unknown, fallback: string) {
 function invalid(error: string) {
   return NextResponse.json({ error }, { status: 400 });
 }
+// Explicit map, not substring matching: a new action must be classified
+// deliberately rather than inheriting a permission by accident. Report and
+// alert creation are writes, so they need analytics.manage — analytics.view is
+// read-only by definition and must never authorise a mutation.
+const OPERATION_PERMISSIONS: Record<string, CustomerPermission> = {
+  create_campaign: 'campaigns.manage',
+  create_sip_trunk: 'telephony.manage',
+  validate_sip_trunk: 'telephony.manage',
+  create_knowledge_base: 'agents.manage',
+  create_workflow: 'agents.manage',
+  create_graph_agent: 'agents.manage',
+  create_alert: 'analytics.manage',
+  create_report: 'analytics.manage',
+  generate_report: 'analytics.manage',
+  update_settings: 'workspace.manage',
+};
+
 function operationPermission(action: string): CustomerPermission {
-  if (action.includes('campaign')) return 'campaigns.manage';
-  if (action.includes('sip_trunk')) return 'telephony.manage';
-  if (action.includes('report') || action.includes('alert'))
-    return 'analytics.view';
-  if (action.includes('settings')) return 'workspace.manage';
-  return 'agents.manage';
+  // Unknown actions fall to the most restrictive workspace permission so a new
+  // handler cannot ship unguarded.
+  return OPERATION_PERMISSIONS[action] ?? 'workspace.manage';
 }

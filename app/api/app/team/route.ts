@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server';
 
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
-import { requireCustomer } from '@/lib/api-session';
 import { createOpaqueToken, sha256 } from '@/lib/security';
+import { recordAudit } from '@/lib/demo-seed';
 import {
+  canManageTargetRole,
   getCustomerAccess,
   publicRoleCatalog,
   requireCustomerPermission,
@@ -13,7 +14,7 @@ import {
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-  const auth = await requireCustomer(request);
+  const auth = await requireCustomerPermission(request, 'team.manage');
   if (auth.response) return auth.response;
   await ensureSchema();
   const db = getRawDb();
@@ -125,6 +126,26 @@ export async function PATCH(request: Request) {
       'billing',
     ].includes(body.role || '')
   ) {
+    // Check the TARGET's current role, not just the actor's permission: an
+    // admin must not be able to demote another admin or the owner.
+    const target = await db
+      .prepare(
+        `SELECT role, user_id FROM organization_members WHERE id = ? AND organization_id = ? AND user_id != ? LIMIT 1`,
+      )
+      .bind(body.memberId, auth.session.organizationId, auth.session.userId)
+      .first<{ role: string; user_id: string }>();
+    if (!target)
+      return NextResponse.json(
+        { error: 'Member was not found or cannot be changed.' },
+        { status: 404 },
+      );
+    if (!canManageTargetRole(auth.access.role, target.role))
+      return NextResponse.json(
+        {
+          error: `Your role cannot change a member with the ${target.role} role. Only the owner can.`,
+        },
+        { status: 403 },
+      );
     await db
       .prepare(
         `UPDATE organization_members SET role = ? WHERE id = ? AND organization_id = ? AND user_id != ?`,
@@ -136,19 +157,30 @@ export async function PATCH(request: Request) {
         auth.session.userId,
       )
       .run();
+    await recordAudit(auth.session, 'team.role_changed', 'organization_member', body.memberId, {
+      from: target.role,
+      to: body.role,
+    });
     return NextResponse.json({ updated: true });
   }
   if (body.action === 'remove' && body.memberId) {
     const member = await db
       .prepare(
-        `SELECT user_id FROM organization_members WHERE id = ? AND organization_id = ? AND user_id != ?`,
+        `SELECT user_id, role FROM organization_members WHERE id = ? AND organization_id = ? AND user_id != ?`,
       )
       .bind(body.memberId, auth.session.organizationId, auth.session.userId)
-      .first<{ user_id: string }>();
+      .first<{ user_id: string; role: string }>();
     if (!member)
       return NextResponse.json(
         { error: 'Member was not found or cannot be removed.' },
         { status: 404 },
+      );
+    if (!canManageTargetRole(auth.access.role, member.role))
+      return NextResponse.json(
+        {
+          error: `Your role cannot remove a member with the ${member.role} role. Only the owner can.`,
+        },
+        { status: 403 },
       );
     await db.batch([
       db
@@ -161,6 +193,9 @@ export async function PATCH(request: Request) {
         .prepare('DELETE FROM auth_sessions WHERE user_id = ?')
         .bind(member.user_id),
     ]);
+    await recordAudit(auth.session, 'team.member_removed', 'organization_member', body.memberId, {
+      role: member.role,
+    });
     return NextResponse.json({ removed: true });
   }
   return NextResponse.json(

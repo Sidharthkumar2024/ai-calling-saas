@@ -273,13 +273,16 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
               lang="hi"
               className="max-w-3xl overflow-visible pb-2 text-[43px] font-semibold leading-[1.2] tracking-[-0.02em] sm:text-[58px] sm:leading-[1.18] lg:text-[64px]"
             >
-              <span className="block pb-[0.08em]">Lead आते ही बातचीत.</span>
+              <span className="block pb-[0.08em]">
+                हर Lead पर इंसान जैसी बातचीत.
+              </span>
               <span className="mt-2 block pb-[0.12em]">
-                बातचीत से सीधे{' '}
+                हर बातचीत से{' '}
                 <span className="bg-[linear-gradient(96deg,#fcd34d_0%,#fb9ec8_50%,#a78bfa_100%)] bg-clip-text text-transparent">
                   booking और revenue.
                 </span>
               </span>
+              {/* Value-forward slogan: human-like AI conversation → revenue */}
             </h1>
             <p className="mt-7 max-w-xl text-base leading-7 text-white/58 sm:text-lg">
               Meta Ads, Google Ads, website forms और CRM से lead आते ही Vaani

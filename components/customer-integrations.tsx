@@ -7,30 +7,16 @@ import {
   CheckCircle2,
   Copy,
   KeyRound,
-  Link2,
   Loader2,
-  LockKeyhole,
   Plus,
   ShieldCheck,
   Webhook,
 } from 'lucide-react';
-import {
-  siAnthropic,
-  siGoogleads,
-  siGooglesheets,
-  siHubspot,
-  siMake,
-  siMeta,
-  siN8n,
-  siRazorpay,
-  siShopify,
-  siWhatsapp,
-  siZapier,
-} from 'simple-icons';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CustomerIntegrationMarketplace } from '@/components/customer-integration-marketplace';
 
 type IntegrationRow = {
   id: string;
@@ -58,23 +44,13 @@ export type IntegrationsData = { integrations?: IntegrationRow[] };
 export type ApiKeysData = { apiKeys?: ApiKeyRow[] };
 export type WebhooksData = { webhooks?: WebhookRow[] };
 
-type ConnectionForm = {
-  type: string;
-  name: string;
-  baseUrl: string;
-  accountId: string;
-  apiKey: string;
-  webhookSecret: string;
-};
 type WebhookForm = { name: string; url: string };
 
 export function CustomerIntegrations({
-  integrations,
   apiKeys,
   webhooks,
   onChanged,
 }: {
-  integrations: IntegrationsData;
   apiKeys: ApiKeysData;
   webhooks: WebhooksData;
   onChanged: () => Promise<void>;
@@ -85,14 +61,6 @@ export function CustomerIntegrations({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [revealedSecret, setRevealedSecret] = useState('');
-  const [connection, setConnection] = useState<ConnectionForm>({
-    type: 'willow_custom',
-    name: 'Willow / Custom HTTP',
-    baseUrl: '',
-    accountId: '',
-    apiKey: '',
-    webhookSecret: '',
-  });
   const [keyName, setKeyName] = useState('Website lead capture');
   const [webhookForm, setWebhookForm] = useState<WebhookForm>({
     name: 'CRM lead updates',
@@ -199,15 +167,7 @@ export function CustomerIntegrations({
         </div>
       ) : null}
 
-      {tab === 'connections' ? (
-        <Connections
-          data={integrations}
-          form={connection}
-          setForm={setConnection}
-          loading={loading}
-          save={() => post('/api/app/integrations', connection)}
-        />
-      ) : null}
+      {tab === 'connections' ? <CustomerIntegrationMarketplace /> : null}
       {tab === 'keys' ? (
         <ApiKeys
           data={apiKeys}
@@ -236,217 +196,6 @@ export function CustomerIntegrations({
           }
         />
       ) : null}
-    </div>
-  );
-}
-
-function Connections({
-  data,
-  form,
-  setForm,
-  loading,
-  save,
-}: {
-  data: IntegrationsData;
-  form: ConnectionForm;
-  setForm: (value: ConnectionForm) => void;
-  loading: boolean;
-  save: () => void;
-}) {
-  return (
-    <div className="grid gap-4 xl:grid-cols-[1.08fr_0.92fr]">
-      <section className="rounded-2xl border border-white/8 bg-[#0e1119] p-5">
-        <h2 className="text-sm font-semibold">Configured connections</h2>
-        <p className="mt-1 text-[10px] text-white/32">
-          Customer-safe labels only
-        </p>
-        <div className="mt-5 space-y-3">
-          {(data.integrations ?? []).map((item) => (
-            <div
-              key={item.id}
-              className="flex items-start gap-3 rounded-xl border border-white/7 bg-white/[0.02] p-4"
-            >
-              <BrandIcon type={item.type} />
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium">{item.name}</p>
-                <p className="mt-1 text-[9px] uppercase tracking-wider text-white/28">
-                  {item.type.replaceAll('_', ' ')} ·{' '}
-                  {item.has_secret ? 'secret stored' : 'no credentials'}
-                </p>
-              </div>
-              <Status value={item.status} />
-            </div>
-          ))}
-        </div>
-      </section>
-      <section className="rounded-2xl border border-white/8 bg-[#0e1119] p-5">
-        <h2 className="text-sm font-semibold">Connect an API</h2>
-        <p className="mt-1 text-[10px] leading-4 text-white/32">
-          Willow stays on the generic adapter until its official calling API
-          base URL and auth scheme are supplied.
-        </p>
-        <div className="mt-5 space-y-4">
-          <div className="flex items-center gap-3 rounded-xl border border-white/7 bg-white/[0.02] p-3">
-            <BrandIcon type={form.type} />
-            <div>
-              <p className="text-xs font-medium">{form.name}</p>
-              <p className="mt-1 text-[9px] text-white/28">
-                Official product mark where available
-              </p>
-            </div>
-          </div>
-          <label
-            htmlFor="connector-type"
-            className="block text-xs text-white/50"
-          >
-            Connector
-          </label>
-          <select
-            id="connector-type"
-            aria-label="Connector"
-            value={form.type}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                type: event.target.value,
-                name: event.target.options[event.target.selectedIndex].text,
-              })
-            }
-            className="h-10 w-full rounded-lg border border-white/8 bg-[#121620] px-3 text-xs"
-          >
-            <optgroup label="Voice & intelligence">
-              <option value="sarvam_voice">Vaani Voice · India engine</option>
-              <option value="elevenlabs_voice">
-                ElevenLabs · multilingual voice
-              </option>
-              <option value="openai_platform">
-                OpenAI · Realtime & reasoning
-              </option>
-              <option value="anthropic_reasoning">
-                Vaani Sense · reasoning
-              </option>
-            </optgroup>
-            <optgroup label="Telephony">
-              <option value="telephony_exotel">Exotel</option>
-              <option value="telephony_plivo">Plivo</option>
-              <option value="telephony_twilio">Twilio</option>
-              <option value="telephony_vobiz">Vobiz</option>
-              <option value="telephony_telnyx">Telnyx</option>
-              <option value="telephony_vonage">Vonage</option>
-              <option value="telephony_byoc">SIP / Enterprise BYOT</option>
-            </optgroup>
-            <optgroup label="CRM & automation">
-              <option value="hubspot">HubSpot</option>
-              <option value="salesforce">Salesforce</option>
-              <option value="zoho">Zoho CRM</option>
-              <option value="pipedrive">Pipedrive</option>
-              <option value="calcom">Cal.com</option>
-              <option value="zapier">Zapier</option>
-              <option value="make">Make</option>
-              <option value="n8n">n8n</option>
-              <option value="google_sheets">Google Sheets</option>
-              <option value="crm">Custom CRM</option>
-            </optgroup>
-            <optgroup label="Revenue & messaging">
-              <option value="razorpay">Razorpay payment links</option>
-              <option value="stripe">Stripe billing</option>
-              <option value="whatsapp_cloud">WhatsApp Cloud API</option>
-              <option value="aisensy">AiSensy</option>
-              <option value="resend">Resend email</option>
-              <option value="shopify">Shopify</option>
-            </optgroup>
-            <optgroup label="Lead sources & custom">
-              <option value="meta_ads">Meta Lead Ads</option>
-              <option value="google_ads">Google Ads</option>
-              <option value="willow_custom">Willow / Custom HTTP</option>
-            </optgroup>
-          </select>
-          <label
-            htmlFor="connector-url"
-            className="block text-xs text-white/50"
-          >
-            API base URL
-          </label>
-          <Input
-            id="connector-url"
-            value={form.baseUrl}
-            onChange={(event) =>
-              setForm({ ...form, baseUrl: event.target.value })
-            }
-            placeholder="https://api.vendor.example/v1"
-            className="h-10 border-white/8 bg-white/[0.025]"
-          />
-          <label
-            htmlFor="connector-account"
-            className="block text-xs text-white/50"
-          >
-            {form.type === 'elevenlabs_voice'
-              ? 'Voice ID'
-              : form.type === 'openai_platform'
-                ? 'Model override'
-                : 'Account / workspace ID'}
-          </label>
-          <Input
-            id="connector-account"
-            value={form.accountId}
-            onChange={(event) =>
-              setForm({ ...form, accountId: event.target.value })
-            }
-            placeholder={
-              form.type === 'elevenlabs_voice'
-                ? 'Required voice ID'
-                : form.type === 'openai_platform'
-                  ? 'Optional · defaults to platform model'
-                  : 'Optional account identifier'
-            }
-            className="h-10 border-white/8 bg-white/[0.025]"
-          />
-          <label
-            htmlFor="connector-key"
-            className="block text-xs text-white/50"
-          >
-            API key / token
-          </label>
-          <Input
-            id="connector-key"
-            type="password"
-            value={form.apiKey}
-            onChange={(event) =>
-              setForm({ ...form, apiKey: event.target.value })
-            }
-            placeholder="Stored with AES-GCM encryption"
-            className="h-10 border-white/8 bg-white/[0.025]"
-          />
-          {form.type === 'razorpay' || form.type === 'whatsapp_cloud' ? (
-            <>
-              <label
-                htmlFor="connector-webhook-secret"
-                className="block text-xs text-white/50"
-              >
-                Webhook signing secret
-              </label>
-              <Input
-                id="connector-webhook-secret"
-                type="password"
-                value={form.webhookSecret}
-                onChange={(event) =>
-                  setForm({ ...form, webhookSecret: event.target.value })
-                }
-                placeholder="Used only for signature verification"
-                className="h-10 border-white/8 bg-white/[0.025]"
-              />
-            </>
-          ) : null}
-          <Button
-            onClick={save}
-            disabled={loading}
-            className="w-full bg-amber-300 text-[#17120a] hover:bg-amber-200"
-          >
-            {loading ? <Loader2 className="animate-spin" /> : <LockKeyhole />}{' '}
-            Encrypt and save
-          </Button>
-        </div>
-      </section>
     </div>
   );
 }
@@ -630,46 +379,6 @@ function Status({ value }: { value: string }) {
   );
 }
 
-const brandIcons: Record<string, { path: string; hex: string; title: string }> =
-  {
-    razorpay: siRazorpay,
-    whatsapp_cloud: siWhatsapp,
-    meta_ads: siMeta,
-    google_ads: siGoogleads,
-    hubspot: siHubspot,
-    shopify: siShopify,
-    zapier: siZapier,
-    n8n: siN8n,
-    google_sheets: siGooglesheets,
-    make: siMake,
-    anthropic_reasoning: siAnthropic,
-  };
-
-function BrandIcon({ type }: { type: string }) {
-  const icon = brandIcons[type];
-  if (!icon)
-    return (
-      <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/8 bg-white/[0.035]">
-        <Link2 className="size-4 text-violet-200" />
-      </span>
-    );
-  return (
-    <span
-      className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/8 bg-white/[0.94]"
-      title={icon.title}
-    >
-      <svg
-        aria-hidden="true"
-        viewBox="0 0 24 24"
-        className="size-5"
-        style={{ fill: `#${icon.hex}` }}
-      >
-        <path d={icon.path} />
-      </svg>
-      <span className="sr-only">{icon.title} logo</span>
-    </span>
-  );
-}
 
 function safeStringList(value: string) {
   try {

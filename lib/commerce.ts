@@ -190,35 +190,52 @@ export async function getRazorpayWebhookSecret(organizationId: string) {
   return bundle.secrets.webhookSecret ?? null;
 }
 
+/**
+ * The tenant's own merchant credential wins.
+ *
+ * A platform-wide env key used to take precedence, which would have collected a
+ * tenant's customer payments into the platform's own Razorpay account — exactly
+ * the ledger mixing the architecture forbids. The env pair is now only a
+ * development fallback for a workspace that has connected nothing.
+ */
 export async function getRazorpayCredentials(organizationId: string) {
+  const bundle = await integrationSecrets(organizationId, 'razorpay');
+  const keyId = bundle.publicConfig.accountId as string | undefined;
+  const keySecret = bundle.secrets.apiKey;
+  if (keyId && keySecret) return { keyId, keySecret, source: 'tenant' as const };
   if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
     return {
       keyId: process.env.RAZORPAY_KEY_ID,
       keySecret: process.env.RAZORPAY_KEY_SECRET,
+      source: 'platform_fallback' as const,
     };
   }
-  const bundle = await integrationSecrets(organizationId, 'razorpay');
-  return {
-    keyId: bundle.publicConfig.accountId as string | undefined,
-    keySecret: bundle.secrets.apiKey,
-  };
+  return { keyId, keySecret, source: 'unconfigured' as const };
 }
 
+/**
+ * The tenant's own WhatsApp sender wins, for the same reason: a shared env
+ * number would have sent every workspace's messages from one identity.
+ */
 async function whatsAppCredentials(organizationId: string) {
-  if (
-    process.env.WHATSAPP_ACCESS_TOKEN &&
-    process.env.WHATSAPP_PHONE_NUMBER_ID
-  ) {
-    return {
-      accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
-      phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
-      graphVersion: process.env.WHATSAPP_GRAPH_VERSION || 'v23.0',
-      templateName:
-        process.env.WHATSAPP_PAYMENT_TEMPLATE || 'vaani_payment_link',
-      templateLanguage: process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'en',
-    };
+  const tenant = await integrationSecrets(organizationId, 'whatsapp_cloud');
+  const tenantPhoneId = tenant.publicConfig.accountId as string | undefined;
+  if (!tenant.secrets.apiKey || !tenantPhoneId) {
+    if (
+      process.env.WHATSAPP_ACCESS_TOKEN &&
+      process.env.WHATSAPP_PHONE_NUMBER_ID
+    ) {
+      return {
+        accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
+        phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
+        graphVersion: process.env.WHATSAPP_GRAPH_VERSION || 'v23.0',
+        templateName:
+          process.env.WHATSAPP_PAYMENT_TEMPLATE || 'vaani_payment_link',
+        templateLanguage: process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'en',
+      };
+    }
   }
-  const bundle = await integrationSecrets(organizationId, 'whatsapp_cloud');
+  const bundle = tenant;
   return {
     accessToken: bundle.secrets.apiKey,
     phoneNumberId: bundle.publicConfig.accountId as string | undefined,

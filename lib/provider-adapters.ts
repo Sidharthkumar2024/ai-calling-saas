@@ -808,24 +808,115 @@ export async function testIntegrationConnection(
         'Credential format accepted; first synthesis performs the billable health check.',
     };
   }
+  if (row.type === 'openrouter') {
+    return probe('https://openrouter.ai/api/v1/key', {
+      authorization: `Bearer ${secrets.apiKey || ''}`,
+    });
+  }
+  if (row.type === 'deepgram') {
+    // Deepgram uses a Token scheme rather than Bearer.
+    return probe('https://api.deepgram.com/v1/projects', {
+      authorization: `Token ${secrets.apiKey || ''}`,
+    });
+  }
+  if (row.type === 'stripe') {
+    return probe('https://api.stripe.com/v1/balance', {
+      authorization: `Bearer ${secrets.apiKey || ''}`,
+    });
+  }
+  if (row.type === 'resend') {
+    return probe('https://api.resend.com/domains', {
+      authorization: `Bearer ${secrets.apiKey || ''}`,
+    });
+  }
+  if (row.type === 'hubspot') {
+    return probe(
+      'https://api.hubapi.com/crm/v3/objects/contacts?limit=1',
+      { authorization: `Bearer ${secrets.apiKey || ''}` },
+    );
+  }
+  if (row.type === 'shopify') {
+    const domain = configString(config, 'accountId').replace(
+      /^https?:\/\//,
+      '',
+    );
+    if (!domain || !secrets.apiKey)
+      throw new Error('Store domain and admin API token are required.');
+    return probe(`https://${domain}/admin/api/2024-10/shop.json`, {
+      'x-shopify-access-token': secrets.apiKey,
+    });
+  }
+  if (row.type === 'telephony_twilio') {
+    const sid = configString(config, 'accountId');
+    if (!sid || !secrets.apiKey)
+      throw new Error('Account SID and auth token are required.');
+    return probe(
+      `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(sid)}.json`,
+      { authorization: `Basic ${btoa(`${sid}:${secrets.apiKey}`)}` },
+    );
+  }
+  if (row.type === 'telephony_plivo') {
+    const authId = configString(config, 'accountId');
+    if (!authId || !secrets.apiKey)
+      throw new Error('Auth ID and auth token are required.');
+    return probe(
+      `https://api.plivo.com/v1/Account/${encodeURIComponent(authId)}/`,
+      { authorization: `Basic ${btoa(`${authId}:${secrets.apiKey}`)}` },
+    );
+  }
+  if (row.type === 'custom_llm') {
+    if (!baseUrl || !secrets.apiKey)
+      throw new Error('Base URL and API key are required.');
+    // OpenAI-compatible convention, which is what the field hint asks for.
+    return probe(`${baseUrl.replace(/\/+$/, '')}/models`, {
+      authorization: `Bearer ${secrets.apiKey}`,
+    });
+  }
   if (!baseUrl || !secrets.apiKey)
     throw new Error(
-      'Base URL and API key are required for this connection test.',
+      'This provider has no read-only credential test. Credentials are stored encrypted and verified by the first real call.',
     );
   return probe(baseUrl, { authorization: `Bearer ${secrets.apiKey}` });
 }
 
 async function probe(url: string, headers: HeadersInit) {
-  const response = await fetch(url, {
-    method: 'GET',
-    headers,
-    signal: AbortSignal.timeout(8_000),
-  });
-  if (!response.ok)
-    throw new Error(`Provider returned HTTP ${response.status}.`);
+  let host = url;
+  try {
+    host = new URL(url).host;
+  } catch {
+    throw new Error('The configured URL is not valid.');
+  }
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'GET',
+      headers,
+      signal: AbortSignal.timeout(8_000),
+    });
+  } catch (error) {
+    // A DNS failure or timeout surfaced as an opaque worker error, which read
+    // as a bad credential. Name what actually happened.
+    const timedOut =
+      error instanceof Error &&
+      (error.name === 'TimeoutError' || /abort/i.test(error.message));
+    throw new Error(
+      timedOut
+        ? `${host} did not respond within 8 seconds.`
+        : `Could not reach ${host}. Check the URL and that the host is publicly resolvable.`,
+    );
+  }
+  if (!response.ok) {
+    const hint =
+      response.status === 401 || response.status === 403
+        ? ' The credential was rejected.'
+        : response.status === 404
+          ? ' The endpoint was not found — check the base URL.'
+          : '';
+    throw new Error(`${host} returned HTTP ${response.status}.${hint}`);
+  }
   return {
     ok: true,
-    detail: `Provider responded with HTTP ${response.status}.`,
+    detail: `${host} responded with HTTP ${response.status}.`,
   };
 }
 

@@ -43,6 +43,24 @@ supply (no code) · **[POLISH]** UI/UX · **[DECIDED]** deferred on purpose.
   `number_routes`, `contacts`; shift-aware availability; per-number routing;
   `max_numbers` and plan concurrency enforced.
 
+**Integration marketplace (blueprint §13)**
+- `lib/integration-catalog.ts` is now the single source of truth for the 37
+  connectable providers across 9 categories — the supported set used to be a
+  bare Set on the server plus a hand-maintained `<option>` list in the UI, which
+  could disagree about what was connectable.
+- Provider grid with search and category filters, per-provider required fields,
+  live credential tests for the 13 providers that publish a safe read-only
+  endpoint, and **disconnect** — the credential vault requirement the panel
+  never had.
+- Providers added that were previously unsupported: Deepgram, Cartesia, Rime,
+  OpenRouter, Perplexity and Custom LLM (any OpenAI-compatible endpoint).
+- A provider with no read-only test is stored as `stored_unverified` and is
+  never shown as connected, and pressing Test on one no longer marks it failed.
+- Stored connections whose type is not in the catalog are surfaced instead of
+  being invisible while still holding a secret.
+- `GET /api/app/integrations` now requires `integrations.manage`; it used to
+  return every credential hint to any workspace member.
+
 **Defects found and fixed while testing**
 - The agent answered the *previous* question: playground history was ordered by
   a one-second-precision timestamp, so same-second turns came back scrambled.
@@ -51,6 +69,17 @@ supply (no code) · **[POLISH]** UI/UX · **[DECIDED]** deferred on purpose.
 - **Creating a campaign always failed** — the INSERT had eight placeholders and
   seven bindings. `npm test` now includes a repo-wide check for that class of bug.
 - `lib/job-queue.ts` and `lib/call-telemetry.ts` formed an import cycle.
+- **A platform-wide `RAZORPAY_KEY_ID` env pair took precedence over a tenant's
+  own merchant credential**, which would have collected that tenant's customer
+  payments into the platform's account — the ledger mixing §5 forbids. The same
+  applied to WhatsApp, where a shared env number would have sent every
+  workspace's messages from one identity (§10). The tenant's own credential now
+  wins and env is only a fallback for a workspace that has connected nothing.
+- Reconfiguring an integration returned a freshly generated id that was never
+  inserted (the upsert keeps the existing row), so any client using the returned
+  id got "Integration not found".
+- Connection-test failures surfaced as `internal error; reference = …`; DNS,
+  timeout, 401 and 404 now each say what actually happened.
 
 ## A. Genuine engineering left
 
@@ -76,6 +105,14 @@ supply (no code) · **[POLISH]** UI/UX · **[DECIDED]** deferred on purpose.
    to create, suspend or impersonate an organization.
 9. **[CODE] Non-Google sign-in providers** report `configured: false`
    unconditionally, so none can be enabled.
+10. **[CODE] Agent Desk call controls** (§4) — mute, hold and conference need the
+    media gateway from item 2; accept, reject, transfer-in and wrap-up work today.
+11. **[CODE] AI co-pilot for human agents** (§4) — live transcript suggestions and
+    next-best action while a human is on the call are not built.
+12. **[CODE] Multi-currency** (§14) — no tenant currency, FX source, price books or
+    base-currency normalisation; everything is INR.
+13. **[CODE] Localized dashboard** (§15) — the AI speaks 13 languages but the portal
+    UI is English only.
 
 ## B. External activation — you supply (admin panel toggles it on)
 

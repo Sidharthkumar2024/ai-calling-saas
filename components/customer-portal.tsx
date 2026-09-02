@@ -498,7 +498,6 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
         ) : null}
         {!loading && !error && active === 'integrations' ? (
           <CustomerIntegrations
-            integrations={data.integrations}
             apiKeys={data.apiKeys}
             webhooks={data.webhooks}
             onChanged={load}

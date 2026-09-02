@@ -154,6 +154,75 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ cleared: true });
   }
 
+  if (body.action === 'elevenlabs_tts_test') {
+    const secret = await platformProviderSecret('elevenlabs');
+    const apiKey = secret.apiKey || process.env.ELEVENLABS_API_KEY;
+    const voiceId =
+      body.config?.voiceId ||
+      String((secret.config as Record<string, unknown>)?.voiceId || '') ||
+      process.env.ELEVENLABS_VOICE_ID ||
+      '';
+    if (!apiKey)
+      return NextResponse.json(
+        { error: 'Save the ElevenLabs API key first.' },
+        { status: 400 },
+      );
+    if (!voiceId)
+      return NextResponse.json(
+        { error: 'Set a default voice ID first.' },
+        { status: 400 },
+      );
+    const modelId =
+      body.config?.modelId ||
+      String((secret.config as Record<string, unknown>)?.modelId || '') ||
+      process.env.ELEVENLABS_MODEL_ID ||
+      'eleven_multilingual_v2';
+    try {
+      const response = await fetch(
+        `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}`,
+        {
+          method: 'POST',
+          headers: {
+            'xi-api-key': apiKey,
+            accept: 'audio/mpeg',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            text: 'Namaste, this is a Vaani voice test.',
+            model_id: modelId,
+            output_format: 'mp3_44100_128',
+          }),
+          signal: AbortSignal.timeout(20_000),
+        },
+      );
+      if (!response.ok) {
+        const raw = await response.text();
+        let reason = raw.slice(0, 200);
+        try {
+          const parsed = JSON.parse(raw) as { detail?: unknown };
+          const d = parsed.detail as { status?: string; message?: string } | string;
+          reason =
+            typeof d === 'string'
+              ? d
+              : `${d?.status ?? ''}${d?.message ? `: ${d.message}` : ''}`;
+        } catch {
+          /* keep raw */
+        }
+        return NextResponse.json(
+          { error: `TTS failed (${response.status}): ${reason}`, voiceId, modelId },
+          { status: 502 },
+        );
+      }
+      const bytes = (await response.arrayBuffer()).byteLength;
+      return NextResponse.json({ ok: true, voiceId, modelId, bytes });
+    } catch {
+      return NextResponse.json(
+        { error: 'Could not reach ElevenLabs.' },
+        { status: 502 },
+      );
+    }
+  }
+
   if (body.action === 'elevenlabs_voices') {
     const apiKey =
       (typeof body.apiKey === 'string' && body.apiKey.trim()) ||
@@ -178,11 +247,28 @@ export async function PATCH(request: Request) {
         }>;
         detail?: unknown;
       };
-      if (!response.ok || !Array.isArray(payload.voices))
+      if (!response.ok || !Array.isArray(payload.voices)) {
+        const detail =
+          payload.detail &&
+          typeof payload.detail === 'object' &&
+          'message' in payload.detail
+            ? String((payload.detail as { message?: unknown }).message)
+            : typeof payload.detail === 'string'
+              ? payload.detail
+              : '';
+        const status =
+          payload.detail &&
+          typeof payload.detail === 'object' &&
+          'status' in payload.detail
+            ? String((payload.detail as { status?: unknown }).status)
+            : '';
         return NextResponse.json(
-          { error: `ElevenLabs rejected the key (${response.status}).` },
+          {
+            error: `ElevenLabs rejected the key (${response.status}${status ? ` · ${status}` : ''})${detail ? `: ${detail}` : ''}`,
+          },
           { status: 502 },
         );
+      }
       const voices = payload.voices.map((voice) => ({
         voiceId: voice.voice_id,
         name: voice.name,

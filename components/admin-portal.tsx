@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Activity,
   ArrowRight,
@@ -110,9 +110,14 @@ export function AdminPortal({ session }: { session: AdminSession }) {
   const [data, setData] = useState<AdminPayload>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const loadedOnceRef = useRef(false);
 
   async function load() {
-    setLoading(true);
+    // Only block the screen on the very first load. Later refreshes (after a
+    // save) stay silent so the section is not unmounted — otherwise inline
+    // success confirmations would be wiped out by the remount.
+    const firstLoad = !loadedOnceRef.current;
+    if (firstLoad) setLoading(true);
     setError('');
     try {
       const [response, platformResponse] = await Promise.all([
@@ -146,7 +151,8 @@ export function AdminPortal({ session }: { session: AdminSession }) {
         caught instanceof Error ? caught.message : 'Unable to load admin data.',
       );
     } finally {
-      setLoading(false);
+      loadedOnceRef.current = true;
+      if (firstLoad) setLoading(false);
     }
   }
 
@@ -566,7 +572,7 @@ function CallOperations() {
   const live = [
     [
       'UrbanNest Realty',
-      'Ira · Sales',
+      'Sara · Sales',
       '+91 98••• 4210',
       'Site visit',
       '03:12',
@@ -590,7 +596,7 @@ function CallOperations() {
     ],
     [
       'BrightSmile Dental',
-      'Ira · Reception',
+      'Sara · Reception',
       '+91 88••• 7062',
       'Human transfer',
       '04:26',
@@ -1590,13 +1596,20 @@ function ProviderKeyCard({
   const [config, setConfig] = useState<Record<string, string>>(savedConfig);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [voices, setVoices] = useState<
     { voiceId: string; name: string; category: string }[]
   >([]);
 
+  function flash(message: string) {
+    setNotice(message);
+    window.setTimeout(() => setNotice(''), 3000);
+  }
+
   async function call(payload: Record<string, unknown>, key: string) {
     setBusy(key);
     setError('');
+    setNotice('');
     try {
       const response = await fetch('/api/admin/platform', {
         method: 'PATCH',
@@ -1629,6 +1642,7 @@ function ProviderKeyCard({
     );
     if (result) {
       setApiKey('');
+      flash(apiKey.trim() ? 'Key saved ✓' : 'Saved ✓');
       await onChanged();
     }
   }
@@ -1641,6 +1655,7 @@ function ProviderKeyCard({
     if (result) {
       setConfig({});
       setVoices([]);
+      flash('Cleared');
       await onChanged();
     }
   }
@@ -1653,10 +1668,12 @@ function ProviderKeyCard({
       },
       'voices',
     );
-    if (result && Array.isArray(result.voices))
+    if (result && Array.isArray(result.voices)) {
       setVoices(
         result.voices as { voiceId: string; name: string; category: string }[],
       );
+      flash(`${result.voices.length} voices loaded ✓`);
+    }
   }
 
   return (
@@ -1735,6 +1752,9 @@ function ProviderKeyCard({
       </div>
 
       {error ? <p className="mt-2 text-[10px] text-red-300">{error}</p> : null}
+      {notice ? (
+        <p className="mt-2 text-[10px] font-medium text-emerald-300">{notice}</p>
+      ) : null}
 
       {voices.length ? (
         <div className="mt-3 max-h-44 overflow-y-auto rounded-lg border border-white/8 bg-black/20 p-2">

@@ -21,7 +21,7 @@ export type VaaniEngine = {
  */
 export const VAANI_ENGINES: VaaniEngine[] = [
   {
-    name: 'Vaani Ira',
+    name: 'Vaani Sara',
     role: 'Conversation intelligence',
     description:
       'Natural multilingual conversations that understand intent, context and business goals.',

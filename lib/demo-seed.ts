@@ -75,7 +75,7 @@ export async function ensureDemoLeads(organizationId: string) {
       .prepare(
         `INSERT OR IGNORE INTO crm_activities
          (id, organization_id, lead_id, type, subject, notes, due_at, created_by)
-         VALUES (?, ?, ?, 'ai_call', ?, ?, ?, 'Vaani Ira')`,
+         VALUES (?, ?, ?, 'ai_call', ?, ?, ?, 'Vaani Sara')`,
       )
       .bind(
         `activity_${crypto.randomUUID()}`,

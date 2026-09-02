@@ -80,7 +80,7 @@ export function CustomerNumbers({
   const numbers = (data.numbers ?? []) as NumberRow[];
   const [mode, setMode] = useState<'rent' | 'connect'>('rent');
   const [phoneNumber, setPhoneNumber] = useState('+91');
-  const [agentName, setAgentName] = useState('Ira · Sales');
+  const [agentName, setAgentName] = useState('Sara · Sales');
   const [providerCode, setProviderCode] = useState('auto');
   const [connectionMode, setConnectionMode] = useState<
     'native_import' | 'sip_trunk'

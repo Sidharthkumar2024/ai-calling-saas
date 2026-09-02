@@ -880,6 +880,7 @@ function TestConsole({
   const dataChannelRef = useRef<RTCDataChannel | null>(null);
   const realtimeAudioRef = useRef<HTMLAudioElement | null>(null);
   const realtimeTranscriptRef = useRef('');
+  const commitTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setCredits(initialCredits), 0);
@@ -898,6 +899,8 @@ function TestConsole({
   useEffect(
     () => () => {
       voiceActiveRef.current = false;
+      if (commitTimerRef.current !== null)
+        window.clearTimeout(commitTimerRef.current);
       recognitionRef.current?.abort();
       audioRef.current?.pause();
       dataChannelRef.current?.close();
@@ -1318,6 +1321,25 @@ function TestConsole({
     recognition.interimResults = true;
     recognition.continuous = false;
     let handled = false;
+    const clearCommitTimer = () => {
+      if (commitTimerRef.current !== null) {
+        window.clearTimeout(commitTimerRef.current);
+        commitTimerRef.current = null;
+      }
+    };
+    const commit = (text: string) => {
+      const value = text.trim();
+      if (handled || !value) return;
+      handled = true;
+      clearCommitTimer();
+      setInterimTranscript('');
+      try {
+        recognition.abort();
+      } catch {
+        /* recognition already stopped */
+      }
+      void sendMessage(value, true);
+    };
     recognition.onresult = (event) => {
       let interim = '';
       let final = '';
@@ -1330,18 +1352,25 @@ function TestConsole({
       setInterimTranscript(interim);
       setInput(final || interim);
       if (final.trim()) {
-        handled = true;
-        setInterimTranscript('');
-        void sendMessage(final, true);
+        commit(final);
+        return;
       }
+      // Fast turn-taking: if the caller pauses for ~0.8s, commit the interim
+      // transcript immediately instead of waiting for the browser's slower
+      // end-of-speech detection. This is what makes replies feel instant.
+      clearCommitTimer();
+      if (interim.trim())
+        commitTimerRef.current = window.setTimeout(() => commit(interim), 800);
     };
     recognition.onerror = () => {
+      clearCommitTimer();
       setError(
         'Microphone transcription did not complete. You can type instead.',
       );
       if (voiceActiveRef.current) setVoiceState('idle');
     };
     recognition.onend = () => {
+      clearCommitTimer();
       recognitionRef.current = null;
       if (!handled && voiceActiveRef.current) setVoiceState('idle');
     };
@@ -1361,6 +1390,10 @@ function TestConsole({
     setElapsed(0);
     setVoiceState('idle');
     setInterimTranscript('');
+    if (commitTimerRef.current !== null) {
+      window.clearTimeout(commitTimerRef.current);
+      commitTimerRef.current = null;
+    }
     recognitionRef.current?.abort();
     recognitionRef.current = null;
     audioRef.current?.pause();

@@ -7,6 +7,7 @@ import {
   type CustomerPermission,
 } from '@/lib/customer-rbac';
 import { recordAudit } from '@/lib/demo-seed';
+import { copilotForHandoff } from '@/lib/copilot';
 import {
   initiateWarmTransfer,
   resolveRouting,
@@ -80,7 +81,8 @@ export async function GET(request: Request) {
       .all(),
     db
       .prepare(`SELECT h.id, h.reason, h.ai_summary, h.status, h.assigned_agent_id,
-        h.accepted_at, h.queue_id, a.name AS agent_name, q.slug AS queue_slug
+        h.accepted_at, h.queue_id, h.call_id, h.session_id,
+        a.name AS agent_name, q.slug AS queue_slug
       FROM handoffs h
       LEFT JOIN support_agents a ON a.id = h.assigned_agent_id
       LEFT JOIN queues q ON q.id = h.queue_id
@@ -168,6 +170,7 @@ const ACTION_PERMISSIONS: Record<string, CustomerPermission> = {
   wrap_up: 'calls.monitor',
   test_route: 'calls.monitor',
   request_takeover: 'calls.monitor',
+  copilot: 'calls.monitor',
 };
 
 export async function POST(request: Request) {
@@ -560,6 +563,13 @@ export async function POST(request: Request) {
       disposition,
     });
     return NextResponse.json({ ok: true, disposition });
+  }
+
+  if (action === 'copilot') {
+    // Live assist for the human who took the conversation.
+    const handoffId = text(body.handoffId, 80);
+    const result = await copilotForHandoff({ organizationId, handoffId });
+    return NextResponse.json(result);
   }
 
   if (action === 'request_takeover') {

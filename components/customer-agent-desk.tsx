@@ -314,6 +314,7 @@ function AgentDeskView({
               <p className="mt-2 text-[12px] leading-relaxed text-white/75">
                 {str(row.ai_summary, 'No AI summary was attached.')}
               </p>
+              <CopilotCard handoffId={str(row.id)} />
               {wrapUp?.handoffId === str(row.id) ? (
                 <div className="mt-3 space-y-2.5">
                   <select
@@ -594,6 +595,146 @@ function WallboardView({
           ))}
         </div>
       </section>
+    </div>
+  );
+}
+
+type CopilotPayload = {
+  goal: string;
+  facts: string[];
+  suggestions: string[];
+  risks: string[];
+  nextAction: string;
+  turnCount: number;
+  model: string | null;
+  cached: boolean;
+  available: boolean;
+  reason?: string;
+};
+
+/**
+ * AI co-pilot (§4). Reads the actual conversation and suggests what to say
+ * next. Suggestions are cached server-side per transcript length, so the
+ * refresh button costs a model call only when the conversation has moved on.
+ */
+function CopilotCard({ handoffId }: { handoffId: string }) {
+  const [data, setData] = useState<CopilotPayload | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState<number | null>(null);
+
+  const fetchCopilot = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/app/queues', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'copilot', handoffId }),
+      });
+      const body = (await response.json()) as CopilotPayload;
+      setData(body);
+    } catch {
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [handoffId]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void fetchCopilot(), 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchCopilot]);
+
+  return (
+    <div className="mt-3 rounded-xl border border-sky-400/18 bg-sky-400/[0.05] p-3.5">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[9px] uppercase tracking-wider text-sky-200/70">
+          AI co-pilot
+          {data?.turnCount ? ` · ${data.turnCount} turns read` : ''}
+        </p>
+        <button
+          type="button"
+          disabled={loading}
+          onClick={() => void fetchCopilot()}
+          className="rounded-md border border-white/12 px-2 py-1 text-[9px] text-white/60 transition hover:text-white/90"
+        >
+          {loading ? 'Reading…' : 'Refresh'}
+        </button>
+      </div>
+
+      {!data && loading ? (
+        <p className="mt-2 text-[11px] text-white/40">Reading the conversation…</p>
+      ) : null}
+
+      {data && !data.available ? (
+        <p className="mt-2 text-[11px] leading-relaxed text-white/45">
+          {data.reason === 'no_transcript_yet'
+            ? 'Nothing has been said on this conversation yet.'
+            : data.reason === 'no_conversation_linked'
+              ? 'This handoff is not linked to a recorded conversation, so there is nothing to read.'
+              : data.reason?.startsWith('provider_unavailable')
+                ? 'No reasoning provider is reachable, so no suggestions were generated.'
+                : 'No suggestions could be generated for this conversation.'}
+        </p>
+      ) : null}
+
+      {data?.available ? (
+        <div className="mt-2.5 space-y-2.5">
+          {data.goal ? (
+            <p className="text-[11px] leading-relaxed text-white/75">
+              <span className="text-white/40">What they want: </span>
+              {data.goal}
+            </p>
+          ) : null}
+          {data.risks.length ? (
+            <ul className="space-y-1">
+              {data.risks.map((risk, index) => (
+                <li
+                  key={`risk-${index}`}
+                  className="rounded-lg border border-amber-400/25 bg-amber-400/[0.07] px-2.5 py-1.5 text-[10px] text-amber-100"
+                >
+                  {risk}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {data.suggestions.length ? (
+            <div className="space-y-1.5">
+              {data.suggestions.map((line, index) => (
+                <button
+                  key={`suggestion-${index}`}
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(line);
+                    setCopied(index);
+                  }}
+                  className="block w-full rounded-lg border border-white/10 bg-black/20 px-2.5 py-2 text-left text-[11px] leading-relaxed text-white/80 transition hover:border-white/25"
+                >
+                  {line}
+                  <span className="mt-1 block text-[9px] text-white/28">
+                    {copied === index ? 'copied' : 'click to copy'}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {data.facts.length ? (
+            <p className="text-[10px] leading-relaxed text-white/45">
+              <span className="text-white/30">Given so far: </span>
+              {data.facts.join(' · ')}
+            </p>
+          ) : null}
+          {data.nextAction ? (
+            <p className="text-[10px] leading-relaxed text-white/45">
+              <span className="text-white/30">Recommended: </span>
+              {data.nextAction}
+            </p>
+          ) : null}
+          <p className="text-[9px] text-white/25">
+            {data.cached ? 'Cached for this transcript length' : 'Freshly generated'}
+            {data.model ? ` · ${data.model}` : ''}
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }

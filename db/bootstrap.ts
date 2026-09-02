@@ -1108,6 +1108,25 @@ async function bootstrap() {
     db.prepare(
       `CREATE INDEX IF NOT EXISTS idx_reports_org_status ON report_definitions (organization_id, status)`,
     ),
+    // Co-pilot suggestions, cached per transcript length so a polling Agent
+    // Desk cannot re-bill the model on every refresh.
+    db.prepare(`CREATE TABLE IF NOT EXISTS copilot_suggestions (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      handoff_id TEXT NOT NULL,
+      call_id TEXT,
+      turn_count INTEGER DEFAULT 0 NOT NULL,
+      goal TEXT,
+      facts_json TEXT DEFAULT '[]' NOT NULL,
+      suggestions_json TEXT DEFAULT '[]' NOT NULL,
+      risks_json TEXT DEFAULT '[]' NOT NULL,
+      next_action TEXT,
+      model TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_copilot_handoff_turns ON copilot_suggestions (handoff_id, turn_count)`,
+    ),
     // Report runs. `report.generate` used to only bump last_generated_at, so a
     // scheduled report produced nothing a customer could open or download.
     db.prepare(`CREATE TABLE IF NOT EXISTS report_runs (

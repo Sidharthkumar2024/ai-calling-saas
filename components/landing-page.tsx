@@ -259,7 +259,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
       </header>
 
       <section id="top" className="landing-grid relative scroll-mt-24">
-        <div className="pointer-events-none absolute inset-x-0 top-0 mx-auto h-[520px] max-w-[1180px] bg-[radial-gradient(circle_at_68%_12%,rgba(167,139,250,0.16),transparent_36%),radial-gradient(circle_at_20%_5%,rgba(252,211,77,0.13),transparent_32%)]" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 mx-auto h-[580px] max-w-[1220px] bg-[radial-gradient(circle_at_72%_6%,rgba(139,92,246,0.20),transparent_44%),radial-gradient(circle_at_28%_0%,rgba(56,189,248,0.08),transparent_42%),radial-gradient(circle_at_50%_46%,rgba(251,191,36,0.05),transparent_58%)]" />
         <div className="relative mx-auto grid max-w-[1240px] gap-12 px-4 pb-20 pt-16 sm:px-6 sm:pt-24 xl:grid-cols-[minmax(0,0.95fr)_minmax(520px,1.05fr)] xl:items-center xl:gap-14 xl:pb-28">
           <div>
             <Badge
@@ -275,8 +275,8 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
             >
               <span className="block pb-[0.08em]">Lead आते ही बातचीत.</span>
               <span className="mt-2 block pb-[0.12em]">
-                बातचीत से{' '}
-                <span className="bg-[linear-gradient(90deg,#fde68a,#c4b5fd_62%,#67e8f9)] bg-clip-text text-transparent">
+                बातचीत से सीधे{' '}
+                <span className="bg-[linear-gradient(96deg,#fcd34d_0%,#fb9ec8_50%,#a78bfa_100%)] bg-clip-text text-transparent">
                   booking और revenue.
                 </span>
               </span>
@@ -334,7 +334,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
           </div>
 
           <div className="relative">
-            <div className="absolute -inset-5 rounded-[34px] bg-[linear-gradient(135deg,rgba(252,211,77,0.12),rgba(139,92,246,0.13),transparent)] blur-2xl" />
+            <div className="absolute -inset-5 rounded-[34px] bg-[linear-gradient(135deg,rgba(252,211,77,0.12),rgba(244,114,182,0.10),rgba(139,92,246,0.15),transparent)] blur-2xl" />
             <div className="relative overflow-hidden rounded-[26px] border border-white/12 bg-[#10131c] shadow-2xl shadow-black/45">
               <div className="flex items-center justify-between border-b border-white/8 px-4 py-3">
                 <div className="flex items-center gap-2">

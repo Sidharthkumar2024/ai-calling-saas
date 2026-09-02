@@ -298,3 +298,128 @@
     animation: none !important;
   }
 }
+
+/* ChatGPT-style living voice orb: layered colour blobs that slowly swirl. */
+.vaani-orb {
+  position: relative;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle at 45% 40%,
+    #cdbaf5 0%,
+    #9d94ea 28%,
+    #6f6fd0 52%,
+    #4a4a9c 76%,
+    #23234c 100%
+  );
+  box-shadow:
+    inset -26px -32px 70px rgba(8, 10, 34, 0.62),
+    inset 14px 12px 40px rgba(255, 255, 255, 0.16),
+    0 34px 90px -34px rgba(120, 116, 245, 0.6);
+  transition: transform 0.6s ease;
+}
+
+.vaani-orb__blob {
+  position: absolute;
+  inset: -30%;
+  border-radius: 9999px;
+  filter: blur(20px);
+  mix-blend-mode: screen;
+  opacity: 0.95;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+
+.vaani-orb__blob--a {
+  background: radial-gradient(
+    circle at 32% 30%,
+    rgba(255, 150, 214, 0.95),
+    transparent 42%
+  );
+  animation: vaani-orb-spin 15s linear infinite;
+}
+
+.vaani-orb__blob--b {
+  background: radial-gradient(
+    circle at 70% 34%,
+    rgba(120, 220, 255, 0.9),
+    transparent 42%
+  );
+  animation: vaani-orb-spin 19s linear infinite reverse;
+}
+
+.vaani-orb__blob--c {
+  background: radial-gradient(
+    circle at 52% 74%,
+    rgba(181, 138, 255, 0.95),
+    transparent 44%
+  );
+  animation: vaani-orb-spin 24s linear infinite;
+}
+
+.vaani-orb__blob--d {
+  background: radial-gradient(
+    circle at 44% 42%,
+    rgba(255, 224, 189, 0.7),
+    transparent 34%
+  );
+  animation: vaani-orb-spin 30s linear infinite reverse;
+}
+
+.vaani-orb__sheen {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle at 38% 28%,
+    rgba(255, 255, 255, 0.38),
+    transparent 34%
+  );
+  pointer-events: none;
+}
+
+/* Gently breathe at rest, breathe faster and glow while active. */
+.vaani-orb {
+  animation: vaani-orb-breathe 6s ease-in-out infinite;
+}
+
+.vaani-orb--listening {
+  animation: vaani-orb-breathe 3.4s ease-in-out infinite;
+}
+
+.vaani-orb--speaking {
+  animation: vaani-orb-breathe 1.5s ease-in-out infinite;
+}
+
+.vaani-orb--speaking .vaani-orb__blob--a {
+  animation-duration: 7s;
+}
+.vaani-orb--speaking .vaani-orb__blob--b {
+  animation-duration: 9s;
+}
+.vaani-orb--speaking .vaani-orb__blob--c {
+  animation-duration: 11s;
+}
+
+@keyframes vaani-orb-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes vaani-orb-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.035);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vaani-orb,
+  .vaani-orb__blob {
+    animation: none !important;
+  }
+}

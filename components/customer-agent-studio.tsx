@@ -1830,12 +1830,10 @@ function VoiceOrb({
         aria-hidden="true"
         className="absolute inset-x-10 top-1/2 h-24 -translate-y-1/2 rounded-full bg-cyan-300/[0.045] blur-3xl"
       />
-      <div className="relative mx-auto grid size-64 place-items-center sm:size-72">
+      <div className="relative mx-auto size-64 sm:size-72">
         <div
-          className={`absolute inset-0 rounded-full border transition duration-500 ${active ? 'scale-100 border-cyan-200/24 shadow-[0_0_80px_rgba(99,102,241,0.22)]' : 'scale-95 border-white/10'}`}
-        />
-        <div
-          className={`absolute inset-4 rounded-full bg-[radial-gradient(circle_at_30%_25%,rgba(244,213,255,0.9),rgba(117,196,255,0.72)_32%,rgba(122,105,255,0.76)_62%,rgba(20,26,48,0.96)_100%)] opacity-90 shadow-[inset_-30px_-25px_60px_rgba(12,14,36,0.45)] transition duration-500 ${state === 'speaking' ? 'scale-[1.02] animate-pulse' : state === 'listening' ? 'scale-[0.98]' : ''}`}
+          aria-hidden="true"
+          className={`absolute -inset-4 rounded-full bg-[radial-gradient(circle,rgba(139,140,248,0.4),transparent_70%)] blur-2xl transition-opacity duration-700 ${active ? 'opacity-80' : 'opacity-40'}`}
         />
         <button
           type="button"
@@ -1845,20 +1843,36 @@ function VoiceOrb({
               ? 'End browser voice conversation'
               : `Start talking to ${agentName}`
           }
-          className="relative z-10 grid size-24 place-items-center rounded-full border border-white/22 bg-black/22 text-white shadow-xl backdrop-blur-xl transition hover:scale-105 hover:bg-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200"
+          className={`vaani-orb group relative grid size-full place-items-center transition-transform duration-500 hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70 focus-visible:ring-offset-4 focus-visible:ring-offset-[#0b0f17] ${
+            state === 'speaking'
+              ? 'vaani-orb--speaking'
+              : state === 'listening'
+                ? 'vaani-orb--listening'
+                : ''
+          }`}
         >
+          <span aria-hidden="true" className="vaani-orb__blob vaani-orb__blob--a" />
+          <span aria-hidden="true" className="vaani-orb__blob vaani-orb__blob--b" />
+          <span aria-hidden="true" className="vaani-orb__blob vaani-orb__blob--c" />
+          <span aria-hidden="true" className="vaani-orb__blob vaani-orb__blob--d" />
+          <span aria-hidden="true" className="vaani-orb__sheen" />
           {active ? (
-            <div className="flex h-14 items-center gap-1" aria-hidden="true">
+            <span
+              className="relative z-10 flex h-16 items-center gap-1"
+              aria-hidden="true"
+            >
               {bars.map((height, index) => (
                 <span
                   key={`${height}-${index}`}
-                  className={`w-1 rounded-full bg-white/85 ${state === 'listening' || state === 'speaking' ? 'animate-pulse' : ''}`}
+                  className={`w-1 rounded-full bg-white/90 shadow-[0_0_8px_rgba(255,255,255,0.5)] ${state === 'listening' || state === 'speaking' ? 'animate-pulse' : ''}`}
                   style={{ height, animationDelay: `${index * 55}ms` }}
                 />
               ))}
-            </div>
+            </span>
           ) : (
-            <Mic2 className="size-8" />
+            <span className="relative z-10 grid size-16 place-items-center rounded-full bg-white/15 text-white shadow-lg ring-1 ring-white/30 backdrop-blur-md transition group-hover:bg-white/20">
+              <Mic2 className="size-7" />
+            </span>
           )}
         </button>
       </div>

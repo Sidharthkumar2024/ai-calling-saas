@@ -41,6 +41,41 @@ This file is the operator checklist for taking the local SaaS from sandbox mode 
 - Storage: use a private bucket, per-object authorization, encryption at rest, short-lived downloads and an explicit retention job.
 - Observability: export structured logs and traces without raw credentials or unrestricted transcript content; alert on latency, call failures, webhook retries and credit anomalies.
 
+## Inbound calling
+
+Vaani resolves inbound calls but does not bridge audio. A carrier — or the media
+gateway in front of it — posts the call to:
+
+```
+POST /api/webhooks/telephony/inbound
+header: x-vaani-inbound-secret: $INBOUND_WEBHOOK_SECRET
+body:   {"to": "+9198…", "from": "+9198…", "CallSid": "<carrier call id>"}
+```
+
+Set `INBOUND_WEBHOOK_SECRET` first (`openssl rand -hex 32`); without it the
+endpoint returns 503 rather than accepting unauthenticated calls.
+
+The response resolves the dialled number against `number_routes` (highest
+priority first) and reports one of:
+
+| action | meaning |
+|---|---|
+| `connect_agent` | bridge the caller to the named AI voice agent |
+| `enqueue` | a human queue has someone available |
+| `voicemail` / `callback` / `reject` | nobody is on shift; the route's `off_hours_action` |
+| `no_route` | the number has no active route |
+| `unknown_number` | no workspace owns that number |
+
+It opens the `call_records` row, is idempotent on the carrier's call id so a
+retry does not create a second call, and always returns `mediaBridged: false` —
+**audio is the gateway's job.** This worker has no WebSocket, Durable Object or
+queue-consumer binding, so a media socket cannot live here; that requires a
+separate service.
+
+Outbound calling is gated the same way on `VOICE_STREAM_URL` (a `wss://` URL);
+`POST /api/app/calls` returns 503 without it, and the campaign dialer records
+`telephony_unconfigured` instead of reporting a dial it could not make.
+
 ## Scheduler (required — background work does not run without it)
 
 The durable job queue (`lib/job-queue.ts`) has no self-starting timer. Alerts, retention

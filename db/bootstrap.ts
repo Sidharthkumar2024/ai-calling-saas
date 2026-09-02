@@ -1405,7 +1405,9 @@ async function bootstrap() {
     'channel',
     "TEXT DEFAULT 'phone' NOT NULL",
   );
-  await ensureColumn(db, 'call_records', 'intelligence_status', "TEXT");
+  await ensureColumn(db, 'call_records', 'intelligence_status', 'TEXT');
+  // Carrier's own call id, used to make an inbound webhook retry idempotent.
+  await ensureColumn(db, 'call_records', 'provider_reference', 'TEXT');
 
   // Bind an agent to a voice profile. Added separately because the column may
   // already exist on databases created before voice profiles shipped.

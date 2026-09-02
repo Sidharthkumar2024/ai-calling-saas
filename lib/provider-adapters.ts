@@ -143,9 +143,11 @@ export async function synthesizeSpeech(input: {
     process.env.ELEVENLABS_API_KEY ||
     elevenPlatform.apiKey ||
     globalVoice.secrets.apiKey;
+  // Admin-panel config wins for voice/model: it is the operator's control plane.
+  // Environment variables act as a bootstrap default only.
   const elevenLabsVoiceId =
-    process.env.ELEVENLABS_VOICE_ID ||
     configString(elevenPlatform.config, 'voiceId') ||
+    process.env.ELEVENLABS_VOICE_ID ||
     configString(globalVoice.publicConfig, 'accountId');
   const preferGlobalVoice =
     input.languageCode === 'en-IN' &&
@@ -156,8 +158,8 @@ export async function synthesizeSpeech(input: {
       apiKey: elevenLabsApiKey!,
       voiceId: elevenLabsVoiceId!,
       modelId:
-        process.env.ELEVENLABS_MODEL_ID ||
         configString(elevenPlatform.config, 'modelId') ||
+        process.env.ELEVENLABS_MODEL_ID ||
         undefined,
     });
   }

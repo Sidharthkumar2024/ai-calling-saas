@@ -22,6 +22,7 @@ const agent = (over = {}) => ({
   lastAssignedAt: over.lastAssignedAt ?? null,
   queuePriority: over.queuePriority ?? 100,
   availability: over.availability ?? 'online',
+  onShift: over.onShift,
 });
 
 console.log('empty and unavailable queues:');
@@ -156,6 +157,33 @@ ok(
     requiredSkill: 'billing',
     roleRank,
   }).agent.id === 'x',
+);
+
+console.log('shift awareness:');
+ok(
+  'an online agent who is off shift is not routable',
+  (() => {
+    const r = selectAgent([agent({ onShift: false })], {
+      strategy: 'least_busy',
+      roleRank,
+    });
+    return r.agent === null && r.reason === 'off_shift';
+  })(),
+);
+ok(
+  'the on-shift agent is chosen over the off-shift one',
+  selectAgent(
+    [
+      agent({ id: 'off', onShift: false, activeCalls: 0 }),
+      agent({ id: 'on', onShift: true, activeCalls: 3, maxConcurrentCalls: 5 }),
+    ],
+    { strategy: 'least_busy', roleRank },
+  ).agent.id === 'on',
+);
+ok(
+  'an agent with no shift data stays routable',
+  selectAgent([agent({})], { strategy: 'least_busy', roleRank }).reason ===
+    'matched',
 );
 
 console.log('membership priority:');

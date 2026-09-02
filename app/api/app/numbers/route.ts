@@ -5,6 +5,7 @@ import { requireCustomer } from '@/lib/api-session';
 import { recordAudit } from '@/lib/demo-seed';
 import { sha256 } from '@/lib/security';
 import { requireCustomerPermission } from '@/lib/customer-rbac';
+import { checkPlanLimit } from '@/lib/plan-limits';
 
 export const dynamic = 'force-dynamic';
 
@@ -78,6 +79,21 @@ export async function POST(request: Request) {
     Math.min(10_000_000, Math.round(Number(body.estimatedMonthlyMinutes || 0))),
   );
   if (body.action === 'rent') {
+    // plans.max_numbers was stored and shown on the overview but never checked,
+    // so a one-number plan could rent twenty.
+    const limit = await checkPlanLimit(
+      auth.session.organizationId!,
+      'numbers',
+    );
+    if (!limit.allowed)
+      return NextResponse.json(
+        {
+          error: limit.message ?? 'Your plan number limit has been reached.',
+          limit: limit.limit,
+          used: limit.used,
+        },
+        { status: 409 },
+      );
     const suffix = String(
       1000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 9000),
     );

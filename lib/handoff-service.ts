@@ -1,4 +1,5 @@
 import { getRawDb } from '@/db/index';
+import { agentOnShift, type Shift } from '@/lib/shifts';
 import {
   ROUTING_STRATEGIES,
   selectAgent,
@@ -95,6 +96,37 @@ export async function routeToAgent(input: {
         .bind(input.organizationId)
         .all<AgentRow>();
 
+  // Shift windows for the agents under consideration, so availability
+  // respects working hours rather than a stale presence flag.
+  const agentIds = (rows.results ?? []).map((row) => row.id);
+  const shiftRows = agentIds.length
+    ? await db
+        .prepare(`SELECT support_agent_id, days_json, start_minute, end_minute,
+          break_start_minute, break_end_minute, timezone, status
+        FROM shifts WHERE organization_id = ? AND support_agent_id IN (${agentIds
+          .map(() => '?')
+          .join(',')})`)
+        .bind(input.organizationId, ...agentIds)
+        .all<ShiftRow>()
+    : { results: [] as ShiftRow[] };
+  const shiftsByAgent = new Map<string, Shift[]>();
+  for (const row of shiftRows.results ?? []) {
+    const list = shiftsByAgent.get(row.support_agent_id) ?? [];
+    list.push({
+      days: jsonArray(row.days_json).map((value) => Number(value)),
+      startMinute: Number(row.start_minute),
+      endMinute: Number(row.end_minute),
+      breakStartMinute:
+        row.break_start_minute === null ? null : Number(row.break_start_minute),
+      breakEndMinute:
+        row.break_end_minute === null ? null : Number(row.break_end_minute),
+      timezone: row.timezone,
+      status: row.status,
+    });
+    shiftsByAgent.set(row.support_agent_id, list);
+  }
+  const now = new Date();
+
   const candidates: RoutableAgent[] = (rows.results ?? []).map((row) => ({
     id: row.id,
     name: row.name,
@@ -106,6 +138,10 @@ export async function routeToAgent(input: {
     lastAssignedAt: row.last_assigned_at ?? null,
     queuePriority: Number(row.queue_priority ?? 100),
     availability: row.availability,
+    ...(() => {
+      const verdict = agentOnShift(shiftsByAgent.get(row.id) ?? [], now);
+      return { onShift: verdict.onShift, offShiftReason: verdict.reason };
+    })(),
   }));
 
   const minRole = input.minRole ?? (queue?.min_role as ActorRole | null) ?? null;
@@ -130,6 +166,17 @@ export type QueueConfig = {
   sla_seconds: number;
   overflow_action: string;
   overflow_queue_id: string | null;
+};
+
+type ShiftRow = {
+  support_agent_id: string;
+  days_json: string;
+  start_minute: number;
+  end_minute: number;
+  break_start_minute: number | null;
+  break_end_minute: number | null;
+  timezone: string;
+  status: string;
 };
 
 type AgentRow = {

@@ -39,6 +39,12 @@ export type RoutableAgent = {
   /** Membership priority inside the queue; lower is preferred. */
   queuePriority: number;
   availability: string;
+  /**
+   * False when the agent's configured shift does not cover now. Absent means
+   * no shifts are configured, which counts as available.
+   */
+  onShift?: boolean;
+  offShiftReason?: string | null;
 };
 
 export type RoutingRequest = {
@@ -57,7 +63,8 @@ export type RoutingOutcome = {
     | 'all_offline'
     | 'at_capacity'
     | 'role_too_low'
-    | 'skill_unavailable';
+    | 'skill_unavailable'
+    | 'off_shift';
   considered: number;
   /** Present when a match was made: which fallback tier it came from. */
   matchTier?: 'skill_and_language' | 'skill_only' | 'language_only' | 'any';
@@ -86,8 +93,13 @@ export function selectAgent(
   const online = candidates.filter((agent) => agent.availability === 'online');
   if (!online.length) return { agent: null, reason: 'all_offline', considered };
 
+  // Shift filter before anything else: an agent who forgot to go offline must
+  // not take a call at 3am, and someone on a break must not be interrupted.
+  const onShift = online.filter((agent) => agent.onShift !== false);
+  if (!onShift.length) return { agent: null, reason: 'off_shift', considered };
+
   const minRank = request.minRoleRank ?? 1;
-  const senior = online.filter(
+  const senior = onShift.filter(
     (agent) => request.roleRank(agent.role) >= minRank,
   );
   if (!senior.length)

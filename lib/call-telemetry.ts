@@ -1,5 +1,5 @@
 import { getRawDb } from '@/db/index';
-import { enqueueJob } from '@/lib/job-queue';
+import { enqueueJob } from '@/lib/job-enqueue';
 
 /**
  * Call telemetry writer (§11-12).

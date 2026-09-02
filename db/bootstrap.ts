@@ -604,6 +604,104 @@ async function bootstrap() {
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
+    // Organisation structure (§5-6). None of this existed: a number was bound
+    // to a free-text `assigned_agent_name`, availability ignored working
+    // hours, and a person could not exist without being a lead.
+    db.prepare(`CREATE TABLE IF NOT EXISTS branches (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      code TEXT,
+      city TEXT,
+      timezone TEXT DEFAULT 'Asia/Kolkata' NOT NULL,
+      status TEXT DEFAULT 'active' NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS departments (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      code TEXT,
+      status TEXT DEFAULT 'active' NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS teams (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      branch_id TEXT REFERENCES branches(id) ON DELETE SET NULL,
+      department_id TEXT REFERENCES departments(id) ON DELETE SET NULL,
+      name TEXT NOT NULL,
+      lead_support_agent_id TEXT,
+      status TEXT DEFAULT 'active' NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS shifts (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      support_agent_id TEXT REFERENCES support_agents(id) ON DELETE CASCADE,
+      team_id TEXT REFERENCES teams(id) ON DELETE CASCADE,
+      name TEXT,
+      /** 0=Sunday .. 6=Saturday, as a JSON array of integers. */
+      days_json TEXT DEFAULT '[1,2,3,4,5]' NOT NULL,
+      start_minute INTEGER DEFAULT 540 NOT NULL,
+      end_minute INTEGER DEFAULT 1080 NOT NULL,
+      break_start_minute INTEGER,
+      break_end_minute INTEGER,
+      timezone TEXT DEFAULT 'Asia/Kolkata' NOT NULL,
+      status TEXT DEFAULT 'active' NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_shifts_agent ON shifts (support_agent_id)`,
+    ),
+    db.prepare(`CREATE TABLE IF NOT EXISTS agent_languages (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      support_agent_id TEXT NOT NULL REFERENCES support_agents(id) ON DELETE CASCADE,
+      language TEXT NOT NULL,
+      proficiency TEXT DEFAULT 'fluent' NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_languages_unique ON agent_languages (support_agent_id, language)`,
+    ),
+    db.prepare(`CREATE TABLE IF NOT EXISTS number_routes (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      number_id TEXT NOT NULL REFERENCES phone_numbers(id) ON DELETE CASCADE,
+      route_type TEXT DEFAULT 'reception' NOT NULL,
+      agent_id TEXT REFERENCES voice_agents(id) ON DELETE SET NULL,
+      queue_id TEXT REFERENCES queues(id) ON DELETE SET NULL,
+      campaign_id TEXT REFERENCES campaigns(id) ON DELETE SET NULL,
+      branch_id TEXT REFERENCES branches(id) ON DELETE SET NULL,
+      language TEXT,
+      priority INTEGER DEFAULT 100 NOT NULL,
+      off_hours_action TEXT DEFAULT 'voicemail' NOT NULL,
+      status TEXT DEFAULT 'active' NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_number_routes_number ON number_routes (number_id, priority)`,
+    ),
+    db.prepare(`CREATE TABLE IF NOT EXISTS contacts (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      full_name TEXT,
+      phone TEXT NOT NULL,
+      email TEXT,
+      preferred_language TEXT,
+      branch_id TEXT REFERENCES branches(id) ON DELETE SET NULL,
+      lead_id TEXT REFERENCES leads(id) ON DELETE SET NULL,
+      consent_status TEXT DEFAULT 'unknown' NOT NULL,
+      tags_json TEXT DEFAULT '[]' NOT NULL,
+      notes TEXT,
+      last_contacted_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_contacts_org_phone ON contacts (organization_id, phone)`,
+    ),
     // Queues and routing (§7-9). Handoff previously had one hardcoded
     // strategy (skill, then language, then least busy) with no queue, no
     // priority and no overflow.
@@ -1260,6 +1358,11 @@ async function bootstrap() {
     }
   }
 
+  // Place agents in the org structure.
+  await ensureColumn(db, 'support_agents', 'branch_id', 'TEXT');
+  await ensureColumn(db, 'support_agents', 'team_id', 'TEXT');
+  await ensureColumn(db, 'support_agents', 'department_id', 'TEXT');
+
   // Routing needs presence timing (longest-idle) and a queue binding.
   await ensureColumn(db, 'support_agents', 'last_assigned_at', 'TEXT');
   await ensureColumn(db, 'support_agents', 'presence_changed_at', 'TEXT');
@@ -1582,6 +1685,18 @@ async function seedLocalDemo(db: D1Database) {
       (id, organization_id, name, report_type, schedule, filters_json, status, last_generated_at)
       VALUES ('report_demo_weekly', 'org_vaani_demo', 'Weekly revenue calls', 'operations', 'weekly_monday',
        '{"agents":"all","include":["outcomes","qa","cost","conversion"]}', 'active', CURRENT_TIMESTAMP)`),
+    // A minimal org structure so the screen is not empty on a fresh install.
+    // Shifts are deliberately NOT seeded: they are opt-in, and seeding them
+    // would silently make agents unroutable outside those hours.
+    db.prepare(`INSERT OR IGNORE INTO branches
+      (id, organization_id, name, code, city, timezone)
+      VALUES ('branch_ggn', 'org_vaani_demo', 'Gurugram HQ', 'GGN', 'Gurugram', 'Asia/Kolkata')`),
+    db.prepare(`INSERT OR IGNORE INTO departments (id, organization_id, name, code)
+      VALUES ('dept_revenue', 'org_vaani_demo', 'Revenue', 'REV')`),
+    db.prepare(`INSERT OR IGNORE INTO teams
+      (id, organization_id, branch_id, department_id, name)
+      VALUES ('team_inside_sales', 'org_vaani_demo', 'branch_ggn', 'dept_revenue', 'Inside sales')`),
+
     // Human support bench, queues and routing rules so handoff works on a
     // fresh install instead of dead-ending with "no members".
     db.prepare(`INSERT OR IGNORE INTO support_agents
@@ -1645,6 +1760,10 @@ async function seedLocalDemo(db: D1Database) {
       (id, organization_id, name, match_type, match_value, queue_id, priority)
       VALUES ('rr_default', 'org_vaani_demo', 'Everything else', 'reason', '*',
        'queue_support', 900)`),
+    db.prepare(`UPDATE support_agents SET branch_id = 'branch_ggn',
+      team_id = 'team_inside_sales', department_id = 'dept_revenue'
+      WHERE organization_id = 'org_vaani_demo' AND id IN ('sa_sales', 'sa_sup')
+        AND branch_id IS NULL`),
     db.prepare(`INSERT OR IGNORE INTO support_tickets
       (id, organization_id, created_by_user_id, subject, category, priority, status, assigned_to)
       VALUES ('ticket_demo_sip', 'org_vaani_demo', 'user_vaani_owner', 'SIP trunk test call needs review',

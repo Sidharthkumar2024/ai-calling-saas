@@ -1,6 +1,9 @@
 import { getRawDb } from '@/db/index';
+import { enqueueJob } from '@/lib/job-enqueue';
 import { reasonWithTools } from '@/lib/provider-adapters';
 import { closeIdlePlaygroundCalls } from '@/lib/call-telemetry';
+
+export { enqueueJob };
 import { sendWhatsAppPaymentLink } from '@/lib/commerce';
 import { decryptSecret } from '@/lib/security';
 import { env } from 'cloudflare:workers';
@@ -14,36 +17,6 @@ type JobRow = {
   max_attempts: number;
 };
 
-export async function enqueueJob(input: {
-  organizationId?: string | null;
-  queue?: string;
-  type: string;
-  idempotencyKey: string;
-  payload: Record<string, unknown>;
-  priority?: number;
-  maxAttempts?: number;
-  availableAt?: string;
-}) {
-  const id = `job_${crypto.randomUUID()}`;
-  await getRawDb()
-    .prepare(`INSERT INTO background_jobs
-    (id, organization_id, queue, type, idempotency_key, payload_json, status, priority, max_attempts, available_at)
-    VALUES (?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?)
-    ON CONFLICT(idempotency_key) DO NOTHING`)
-    .bind(
-      id,
-      input.organizationId || null,
-      input.queue || 'default',
-      input.type,
-      input.idempotencyKey,
-      JSON.stringify(input.payload),
-      input.priority ?? 100,
-      input.maxAttempts ?? 5,
-      input.availableAt || new Date().toISOString(),
-    )
-    .run();
-  return id;
-}
 
 export async function enqueueDueScheduledActions(limit = 50) {
   const rows = await getRawDb()

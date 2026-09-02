@@ -5,6 +5,7 @@ import { getRawDb } from '@/db/index';
 import { recordAudit } from '@/lib/demo-seed';
 import { encryptSecret } from '@/lib/security';
 import { SUPPORTED_LANGUAGE_CODES } from '@/lib/languages';
+import { checkPlanLimit } from '@/lib/plan-limits';
 import {
   type CustomerPermission,
   requireAnyCustomerPermission,
@@ -222,6 +223,24 @@ export async function POST(request: Request) {
       start: validTime(body.windowStart, '10:00'),
       end: validTime(body.windowEnd, '19:00'),
     };
+    // The plan's concurrency ceiling was stored and never applied; a campaign
+    // could be created above what the workspace is allowed to run.
+    const requestedConcurrency = bounded(body.concurrency, 1, 50, 1);
+    const concurrencyLimit = await checkPlanLimit(
+      organizationId,
+      'concurrency',
+      requestedConcurrency,
+    );
+    if (!concurrencyLimit.allowed)
+      return NextResponse.json(
+        {
+          error:
+            concurrencyLimit.message ??
+            'Requested concurrency exceeds your plan.',
+          limit: concurrencyLimit.limit,
+        },
+        { status: 409 },
+      );
     await db
       .prepare(`INSERT INTO campaigns (id, organization_id, agent_id, name, status, audience_size, concurrency, retry_policy_json, calling_window_json)
       VALUES (?, ?, ?, ?, 'draft', ?, ?, ?, ?)`)
@@ -229,8 +248,12 @@ export async function POST(request: Request) {
         id,
         organizationId,
         agent.id,
+        // `name` was missing from these bindings, so the INSERT had eight
+        // placeholders and seven values: creating a campaign always failed
+        // with D1_ERROR "Wrong number of parameter bindings".
+        name,
         contacts.length || bounded(body.audienceSize, 0, 1_000_000, 0),
-        bounded(body.concurrency, 1, 50, 1),
+        requestedConcurrency,
         JSON.stringify(retryPolicy),
         JSON.stringify(callingWindow),
       )

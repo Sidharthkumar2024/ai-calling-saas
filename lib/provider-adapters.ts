@@ -376,19 +376,20 @@ export function buildVoiceAgentInstructions(input: {
   language: string;
   systemPrompt: string;
 }) {
-  const languageRule =
+  const openingLanguage =
     input.language === 'en-IN'
-      ? 'Reply only in concise natural Indian English.'
+      ? 'concise natural Indian English'
       : input.language === 'haryanvi'
-        ? 'Reply in natural, respectful Haryanvi written in Devanagari. Do not drift into English unless the customer uses a necessary product term.'
+        ? 'natural, respectful Haryanvi written in Devanagari'
         : input.language === 'hinglish'
-          ? 'Reply in natural spoken Hinglish, using Devanagari for Hindi and English only for common product terms.'
-          : `Reply only in natural ${languageName(input.language)}. For Hindi, use Devanagari and do not answer in English.`;
+          ? 'natural spoken Hinglish (Devanagari for Hindi, English only for common product terms)'
+          : `natural ${languageName(input.language)}`;
+  const languageRule = `Open the conversation in ${openingLanguage}. After that, always mirror the customer: reply in whichever language they speak or explicitly ask for, including Hindi, Indian English, Hinglish, Punjabi, Haryanvi, Marathi, Gujarati, Bengali, Tamil, Telugu, Kannada, Malayalam, Urdu, Bhojpuri and Rajasthani. If the customer asks you to switch language, switch on that same turn and stay in the new language until they change again. Write every language in its own natural script — Punjabi in Gurmukhi, Hindi/Haryanvi/Marathi in Devanagari, Bengali in Bengali script, Tamil in Tamil script — and keep brand, product and business terms exactly as given. Never claim you can only speak certain languages, and never refuse or deflect a language request.`;
   return `<identity>You are ${input.agentName}, the private voice agent for ${input.businessName}. Never reveal upstream model, voice, transcription or telephony vendors.</identity>
 <business_context>Use case: ${input.useCase || 'general customer conversation'}. The customer may sell a physical product, digital product, course, software, service or property. Use only the workspace instructions and approved knowledge; never assume which kind of product it is.</business_context>
 <conversation_rules>${languageRule} Speak in one or two short, easily interruptible sentences. Respond as soon as the customer's turn is complete. First answer the customer's actual words naturally, including greetings, jokes and small talk; only then guide gently toward the business goal. Adapt warmth, pace, formality and directness to the customer's speech and sentiment, but never imitate abuse or pressure the customer. Never respond to casual conversation with a menu of options. Ask only one question at a time. Avoid markdown, lists and long explanations.</conversation_rules>
 <action_safety>Never say an action succeeded unless a tool result confirms it. Before sending a payment link, ask whether the calling number is available on WhatsApp. If yes, confirm amount and timing, then use WhatsApp. If not, collect and read back an email address. Never request an OTP, CVV, card PIN, password or full card details. Obtain consent before messaging, booking, transferring or scheduling.</action_safety>
-<examples><example customer="क्या हो रहा है?" assistant="बस बढ़िया जी, आपसे बात हो रही है। आप सुनाइए, सब ठीक?"/><example customer="और तेरे के हाल हैं?" assistant="मैं बढ़िया सूँ जी, आप सुनाओ—आपके के हाल हैं?"/><example customer="payment link आठ बजे भेज देना" assistant="ठीक है जी। क्या इसी calling number पर WhatsApp चलता है?"/><example customer="इस नंबर पर WhatsApp नहीं है" assistant="कोई बात नहीं। किस email address पर link भेजूँ?"/></examples>
+<examples><example customer="क्या हो रहा है?" assistant="बस बढ़िया जी, आपसे बात हो रही है। आप सुनाइए, सब ठीक?"/><example customer="और तेरे के हाल हैं?" assistant="मैं बढ़िया सूँ जी, आप सुनाओ—आपके के हाल हैं?"/><example customer="पंजाबी में बात करो" assistant="ਹਾਂ ਜੀ, ਬਿਲਕੁਲ ਪੰਜਾਬੀ ਵਿੱਚ ਗੱਲ ਕਰਦੇ ਹਾਂ। ਦੱਸੋ, ਮੈਂ ਤੁਹਾਡੀ ਕੀ ਮਦਦ ਕਰਾਂ?"/><example customer="payment link आठ बजे भेज देना" assistant="ठीक है जी। क्या इसी calling number पर WhatsApp चलता है?"/><example customer="इस नंबर पर WhatsApp नहीं है" assistant="कोई बात नहीं। किस email address पर link भेजूँ?"/></examples>
 <workspace_instructions>${input.systemPrompt}</workspace_instructions>`;
 }
 
@@ -858,10 +859,15 @@ function extractText(content: unknown[] | undefined) {
 function languageName(code: string) {
   const names: Record<string, string> = {
     'hi-IN': 'Hindi written in Devanagari',
+    'pa-IN': 'Punjabi written in Gurmukhi',
     'bn-IN': 'Bengali',
     'ta-IN': 'Tamil',
     'te-IN': 'Telugu',
     'mr-IN': 'Marathi',
+    'gu-IN': 'Gujarati',
+    'kn-IN': 'Kannada',
+    'ml-IN': 'Malayalam',
+    'ur-IN': 'Urdu',
   };
   return names[code] || 'Hindi written in Devanagari';
 }

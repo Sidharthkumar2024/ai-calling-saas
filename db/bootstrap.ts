@@ -601,7 +601,7 @@ async function bootstrap() {
       organization_id TEXT PRIMARY KEY NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
       timezone TEXT DEFAULT 'Asia/Kolkata' NOT NULL,
       default_language TEXT DEFAULT 'hinglish' NOT NULL,
-      enabled_languages_json TEXT DEFAULT '["hi-IN","en-IN","hinglish","haryanvi"]' NOT NULL,
+      enabled_languages_json TEXT DEFAULT '["hi-IN","en-IN","hinglish","haryanvi","pa-IN","mr-IN","gu-IN","bn-IN","ta-IN","te-IN"]' NOT NULL,
       recording_policy TEXT DEFAULT 'record_with_consent' NOT NULL,
       recording_retention_days INTEGER DEFAULT 90 NOT NULL,
       transcript_retention_days INTEGER DEFAULT 180 NOT NULL,

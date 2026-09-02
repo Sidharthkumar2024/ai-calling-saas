@@ -1084,7 +1084,7 @@ async function seedLocalDemo(db: D1Database) {
       VALUES ('invoice_demo_paid', 'org_vaani_demo', 'VAI-2026-0831', 'paid', '[{"description":"Growth plan","quantity":1,"amount":799900}]', 799900, 143982, 943882, 'INR', '2026-08-31T10:00:00.000Z', '2026-08-31T10:02:00.000Z')`),
     db.prepare(`INSERT OR IGNORE INTO phone_numbers
       (id, organization_id, phone_number, country, number_type, acquisition_type, public_provider_name, assigned_agent_name, direction, kyc_status, status, monthly_rental)
-      VALUES ('number_demo_active', 'org_vaani_demo', '+911244982201', 'IN', 'local', 'platform_provided', 'Vaani Connect', 'Maya · Sales', 'inbound_outbound', 'approved', 'active', 49900)`),
+      VALUES ('number_demo_active', 'org_vaani_demo', '+911244982201', 'IN', 'local', 'platform_provided', 'Vaani Connect', 'Aira · Sales', 'inbound_outbound', 'approved', 'active', 49900)`),
     db.prepare(`INSERT OR IGNORE INTO phone_numbers
       (id, organization_id, phone_number, country, number_type, acquisition_type, public_provider_name, assigned_agent_name, direction, kyc_status, status, monthly_rental)
       VALUES ('number_demo_byoc', 'org_vaani_demo', '+919876500001', 'IN', 'mobile', 'bring_your_own', 'Vaani Connect', 'Meera · Reception', 'inbound', 'approved', 'active', 0)`),
@@ -1103,8 +1103,8 @@ async function seedLocalDemo(db: D1Database) {
        endpointing_ms, interrupt_words, tools_json, extractions_json, calling_config_json,
        cost_per_minute)
       VALUES (
-        'agent_demo_maya', 'org_vaani_demo', 'Maya', 'commerce_sales', 'active',
-        'नमस्ते, मैं Maya बोल रही हूँ. क्या अभी दो मिनट बात कर सकते हैं?',
+        'agent_demo_maya', 'org_vaani_demo', 'Aira', 'commerce_sales', 'active',
+        'नमस्ते, मैं Aira बोल रही हूँ. क्या अभी दो मिनट बात कर सकते हैं?',
         'You are a concise multilingual revenue agent. Understand intent, explain the product, confirm consent, and use approved tools for WhatsApp, payment links, appointments, or human transfer.',
         'hi-IN', 'Vaani Tara', 'Vaani Sense Balanced', 20, 250, 250, 2,
         '["send_whatsapp","create_payment_link","schedule_follow_up","book_appointment","transfer_human"]',

@@ -565,7 +565,7 @@ function CallOperations() {
   const live = [
     [
       'UrbanNest Realty',
-      'Maya · Sales',
+      'Aira · Sales',
       '+91 98••• 4210',
       'Site visit',
       '03:12',
@@ -589,7 +589,7 @@ function CallOperations() {
     ],
     [
       'BrightSmile Dental',
-      'Maya · Reception',
+      'Aira · Reception',
       '+91 88••• 7062',
       'Human transfer',
       '04:26',

@@ -83,7 +83,7 @@ const roadmapModules: RoadmapModule[] = [
     name: 'Realtime voice & telephony',
     status: 'To build',
     available: 'Live-call operations UI and provider-health presentation.',
-    next: 'Vaani Maya and Vaani Connect adapters, streaming orchestration, barge-in and transfers.',
+    next: 'Vaani Aira and Vaani Connect adapters, streaming orchestration, barge-in and transfers.',
   },
   {
     name: 'Campaigns & dialer',

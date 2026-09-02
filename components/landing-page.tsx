@@ -60,7 +60,7 @@ const revenueLoop = [
     step: '03',
     title: 'Call at the right moment',
     description:
-      'Vaani Maya speaks naturally, answers questions, handles objections and knows when to transfer.',
+      'Vaani Aira speaks naturally, answers questions, handles objections and knows when to transfer.',
     icon: PhoneCall,
   },
   {
@@ -342,7 +342,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                     <Sparkles className="size-3.5" />
                   </span>
                   <div>
-                    <p className="text-xs font-medium">Vaani Maya · Live</p>
+                    <p className="text-xs font-medium">Vaani Aira · Live</p>
                     <p className="text-[9px] text-white/38">
                       NCR buyer qualification
                     </p>
@@ -378,7 +378,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
 
                   <div className="space-y-4 text-xs leading-5">
                     <div className="max-w-[88%] rounded-2xl rounded-tl-md bg-white/[0.055] p-3 text-white/72">
-                      Hi Aditi, मैं Maya बोल रही हूँ UrbanNest से. आपने Dwarka
+                      Hi Aditi, मैं Aira बोल रही हूँ UrbanNest से. आपने Dwarka
                       Expressway project के बारे में enquiry की थी—क्या अभी दो मिनट
                       हैं?
                     </div>

@@ -1364,6 +1364,9 @@ function TestConsole({
     };
     recognition.onerror = () => {
       clearCommitTimer();
+      // We aborted recognition ourselves right after committing a transcript —
+      // that is expected, not a failure, so don't surface an error.
+      if (handled) return;
       setError(
         'Microphone transcription did not complete. You can type instead.',
       );

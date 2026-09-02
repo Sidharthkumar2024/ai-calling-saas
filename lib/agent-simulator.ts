@@ -12,6 +12,103 @@ export type SimulatedAction = {
   payload?: Record<string, string | number>;
 };
 
+type Lang = 'english' | 'hindi' | 'haryanvi' | 'punjabi';
+
+// Detect an explicit "talk in <language>" request in a piece of text.
+function detectLanguageRequest(text: string): Lang | null {
+  if (/english|अंग्रेज|angrez/i.test(text)) return 'english';
+  if (/punjabi|पंजाबी|पंजाब|ਪੰਜਾਬੀ| punjab/i.test(text)) return 'punjabi';
+  if (/haryanvi|हरियाणवी|हरयाणवी/i.test(text)) return 'haryanvi';
+  if (/hindi|हिंदी|हिन्दी/i.test(text)) return 'hindi';
+  return null;
+}
+
+// Deterministically pick a line that is not a repeat of the last reply.
+function pick(variants: string[], avoid: string, seed: number): string {
+  const normalizedAvoid = avoid.trim().toLowerCase();
+  const fresh = variants.filter(
+    (line) => line.trim().toLowerCase() !== normalizedAvoid,
+  );
+  const pool = fresh.length ? fresh : variants;
+  return pool[Math.abs(seed) % pool.length];
+}
+
+const GREETING: Record<Lang, string[]> = {
+  hindi: [
+    'मैं बढ़िया हूँ जी! आप सुनाइए—सब ठीक चल रहा है ना?',
+    'एकदम बढ़िया जी। आप बताइए, आज कैसे मदद करूँ?',
+    'बस मज़े में जी! आपका दिन कैसा जा रहा है?',
+  ],
+  haryanvi: [
+    'मैं बढ़िया सूँ जी! आप सुनाओ—सब ठीक-ठाक सै?',
+    'एकदम बढ़िया जी। बताओ, थारी के मदद करूँ?',
+    'बस मौज सै जी! थारा दिन कैसा जा रया सै?',
+  ],
+  punjabi: [
+    'ਮੈਂ ਬਿਲਕੁਲ ਵਧੀਆ ਹਾਂ ਜੀ! ਤੁਸੀਂ ਸੁਣਾਓ—ਸਭ ਠੀਕ ਹੈ ਨਾ?',
+    'ਬਹੁਤ ਵਧੀਆ ਜੀ। ਦੱਸੋ, ਅੱਜ ਮੈਂ ਤੁਹਾਡੀ ਕੀ ਮਦਦ ਕਰਾਂ?',
+    'ਬੱਸ ਮੌਜਾਂ ਜੀ! ਤੁਹਾਡਾ ਦਿਨ ਕਿਵੇਂ ਲੰਘ ਰਿਹਾ ਹੈ?',
+  ],
+  english: [
+    "I'm doing great, thanks! How are you—all good on your side?",
+    'All good here! Tell me, how can I help you today?',
+    "Doing well, thank you! What's on your mind today?",
+  ],
+};
+
+const DISCOVERY: Record<Lang, string[]> = {
+  hindi: [
+    'जी हाँ, मैं सुन रही हूँ। ज़रा खुलकर बताइए—आप किस बारे में जानना चाहते हैं?',
+    'अच्छा जी। आप बस बताइए आपको क्या चाहिए, बाकी मैं संभाल लेती हूँ।',
+    'हम्म, समझी। थोड़ा और बताइए ताकि मैं सही तरीके से मदद कर सकूँ।',
+  ],
+  haryanvi: [
+    'हाँ जी, बताओ ना—किस बारै मैं जाणना चाहो सो?',
+    'अच्छा जी। खुलकै बताओ, मैं थारी पूरी मदद करूँ सूँ।',
+    'हम्म, समझ गी। थोड़ा और बताओ, मैं ठीक तै मदद करूँ।',
+  ],
+  punjabi: [
+    'ਹਾਂ ਜੀ, ਦੱਸੋ ਨਾ—ਤੁਸੀਂ ਕਿਸ ਬਾਰੇ ਜਾਣਨਾ ਚਾਹੁੰਦੇ ਹੋ?',
+    'ਠੀਕ ਜੀ। ਖੁੱਲ੍ਹ ਕੇ ਦੱਸੋ, ਬਾਕੀ ਮੈਂ ਸੰਭਾਲ ਲੈਂਦੀ ਹਾਂ।',
+    'ਹਮਮ, ਸਮਝ ਗਈ। ਥੋੜ੍ਹਾ ਹੋਰ ਦੱਸੋ ਤਾਂ ਜੋ ਮੈਂ ਸਹੀ ਮਦਦ ਕਰ ਸਕਾਂ।',
+  ],
+  english: [
+    "Sure, I'm listening. Tell me a bit more—what would you like to know?",
+    "Got it. Just tell me what you need and I'll take care of the rest.",
+    'Mm, understood. Share a little more so I can help you properly.',
+  ],
+};
+
+const SWITCH_ACK: Record<Lang, string[]> = {
+  hindi: [
+    'बिल्कुल, हम हिंदी में ही बात करेंगे। आराम से बताइए, मैं आपकी क्या मदद करूँ?',
+    'जी हाँ, मैं हिंदी में ही बात कर रही हूँ। बेझिझक बताइए, क्या चाहिए?',
+  ],
+  haryanvi: [
+    'हाँ जी, बिल्कुल हरियाणवी में बात करांगे। आराम तै बताओ, मैं थारी के मदद करूँ?',
+    'हाँ जी, मैं हरियाणवी में ए बात कर री सूँ। बेझिझक बताओ, के चाहिए?',
+  ],
+  punjabi: [
+    'ਹਾਂ ਜੀ, ਬਿਲਕੁਲ ਪੰਜਾਬੀ ਵਿੱਚ ਗੱਲ ਕਰਦੇ ਹਾਂ। ਆਰਾਮ ਨਾਲ ਦੱਸੋ, ਮੈਂ ਤੁਹਾਡੀ ਕੀ ਮਦਦ ਕਰਾਂ?',
+    'ਜੀ ਹਾਂ, ਮੈਂ ਪੰਜਾਬੀ ਵਿੱਚ ਹੀ ਗੱਲ ਕਰ ਰਹੀ ਹਾਂ। ਬੇਝਿਜਕ ਦੱਸੋ, ਕੀ ਮਦਦ ਕਰਾਂ?',
+  ],
+  english: [
+    'Absolutely, I will continue in English. Please tell me how I can help you today.',
+    "Yes, I'm already speaking in English—please go ahead, how can I help?",
+  ],
+};
+
+const AFFIRM: Record<Lang, string> = {
+  hindi:
+    'बहुत अच्छा। आपकी ज़रूरत समझने के लिए बस एक-दो छोटी बातें—आपकी प्राथमिकता क्या है और कब तक करना चाहते हैं?',
+  haryanvi:
+    'भोत बढ़िया। थारी जरूरत समझण खातर एक-दो छोटी बात—थारी प्राथमिकता के सै अर कद तक करणा चाहो सो?',
+  punjabi:
+    'ਬਹੁਤ ਵਧੀਆ। ਤੁਹਾਡੀ ਲੋੜ ਸਮਝਣ ਲਈ ਬੱਸ ਇੱਕ-ਦੋ ਗੱਲਾਂ—ਤੁਹਾਡੀ ਤਰਜੀਹ ਕੀ ਹੈ ਤੇ ਕਦੋਂ ਤੱਕ ਕਰਨਾ ਹੈ?',
+  english:
+    "Wonderful. Just a couple of quick things to understand your need—what's your priority and by when would you like to move?",
+};
+
 export function simulateAgentTurn(input: {
   message: string;
   useCase: string;
@@ -22,20 +119,30 @@ export function simulateAgentTurn(input: {
   const started = Date.now();
   const raw = input.message.trim();
   const message = raw.toLowerCase();
-  const historyText = (input.history ?? [])
+  const history = input.history ?? [];
+  const historyText = history
     .slice(-6)
     .map((item) => item.content)
     .join(' ')
     .toLowerCase();
   const lastAssistant =
-    [...(input.history ?? [])]
-      .reverse()
-      .find((item) => item.role === 'assistant')
-      ?.content.toLowerCase() ?? '';
-  const wantsEnglish = /english|अंग्रेज/.test(message);
-  const wantsHindi = /hindi|हिंदी/.test(message);
-  const wantsHaryanvi =
-    /haryanvi|हरियाणवी/.test(message) || input.language === 'haryanvi';
+    [...history].reverse().find((item) => item.role === 'assistant')?.content ??
+    '';
+
+  // Active language: honour the most recent explicit request across the whole
+  // conversation so a "talk in Punjabi" instruction persists on later turns.
+  const baseLang: Lang = input.language === 'haryanvi' ? 'haryanvi' : 'hindi';
+  let activeLang: Lang = baseLang;
+  for (const item of history) {
+    if (item.role !== 'user') continue;
+    const requested = detectLanguageRequest(item.content);
+    if (requested) activeLang = requested;
+  }
+  const requestedThisTurn = detectLanguageRequest(raw);
+  if (requestedThisTurn) activeLang = requestedThisTurn;
+
+  const seed = history.length + raw.length;
+
   const wantsWhatsApp = /whatsapp|व्हाट्सऐप|व्हाट्सएप|details|brochure/.test(
     message,
   );
@@ -43,7 +150,7 @@ export function simulateAgentTurn(input: {
   const priorPayment = /payment|pay|पेमेंट|भुगतान|link|लिंक/.test(historyText);
   const awaitingWhatsAppConfirmation =
     /calling number|इसी नंबर|whatsapp.*नंबर|नंबर.*whatsapp|नंबर पर/.test(
-      lastAssistant,
+      lastAssistant.toLowerCase(),
     );
   const confirmsWhatsApp =
     /(?:yes|हाँ|हां|जी|yep|correct).{0,28}(?:whatsapp|व्हाट्सऐप|व्हाट्सएप|इसी|यही|same)|(?:whatsapp|व्हाट्सऐप|व्हाट्सएप).{0,28}(?:yes|हाँ|हां|जी|same)|(?:इसी|यही|same|this)\s*(?:number|नंबर)/.test(
@@ -67,7 +174,7 @@ export function simulateAgentTurn(input: {
       message,
     );
   const asksHowAreYou =
-    /कैसे\s*हो|कैसी\s*हो|के\s*हाल|तेरे\s*के\s*हाल|हाल[ -]?चाल|how are you|how'?re you/.test(
+    /कैसे\s*हो|कैसी\s*हो|के\s*हाल|तेरे\s*के\s*हाल|हाल[ -]?चाल|how are you|how'?re you|ki haal/.test(
       message,
     );
   const later = /8\s*(pm|p\.m\.|बजे)|eight\s*(pm|o'clock)|later|बाद में/.test(
@@ -141,22 +248,12 @@ export function simulateAgentTurn(input: {
   }
 
   let response: string;
-  if (asksHowAreYou && wantsHaryanvi) {
-    response = 'मैं बढ़िया सूँ जी, आप सुनाओ—आपके के हाल हैं?';
-  } else if (asksHowAreYou) {
-    response = 'मैं बढ़िया हूँ जी, आप सुनाइए—सब ठीक चल रहा है?';
-  } else if (asksWhatsUp && wantsHaryanvi) {
-    response = 'बस बढ़िया जी, आपसे बात हो री सै। आप सुनाओ, आज के चाल रया सै?';
-  } else if (asksWhatsUp) {
-    response = 'बस बढ़िया जी, आपसे बात हो रही है। आप सुनाइए, सब ठीक?';
-  } else if (wantsEnglish) {
-    response =
-      'Absolutely. I will continue in English. How may I help you with the product or order today?';
-  } else if (wantsHaryanvi) {
-    response = 'हाँ जी, बिल्कुल हरियाणवी में बात करांगे। आप आराम तै बताओ, मैं के मदद करूँ?';
-  } else if (wantsHindi) {
-    response =
-      'बिल्कुल, हम हिंदी में बात जारी रखेंगे। बताइए मैं प्रोडक्ट या ऑर्डर में आपकी क्या मदद कर सकती हूँ?';
+  if (asksHowAreYou || asksWhatsUp) {
+    response = pick(GREETING[activeLang], lastAssistant, seed);
+  } else if (requestedThisTurn) {
+    // The caller just asked to switch language — acknowledge in that language,
+    // varying the wording if they ask again.
+    response = pick(SWITCH_ACK[activeLang], lastAssistant, seed);
   } else if (paymentContext && confirmsWhatsApp) {
     response = later
       ? `बिल्कुल। ₹${amount.toLocaleString('en-IN')} का payment link इसी WhatsApp नंबर पर रात 8 बजे भेजने की request तैयार है। भेजने से पहले amount और timing दोनों confirm हैं।`
@@ -177,26 +274,40 @@ export function simulateAgentTurn(input: {
   } else if (wantsHuman) {
     response =
       'मैं एक sales specialist को warm transfer कर दूँगी और उन्हें इस बातचीत का छोटा summary भी दे दूँगी, ताकि आपको दोबारा सब न बताना पड़े।';
-  } else if (/yes|हाँ|जी|sure|okay|ok/.test(message)) {
+  } else if (/^(yes|हाँ|हां|जी|sure|okay|ok|हाँजी|ਹਾਂ)[.!\s]*$/i.test(message)) {
     response =
       input.useCase === 'commerce_sales'
         ? 'धन्यवाद। क्या आप product details पहले WhatsApp पर चाहेंगे, या मैं सीधे secure payment link तैयार करूँ?'
-        : 'बहुत अच्छा। आपकी जरूरत समझने के लिए मैं दो छोटे सवाल पूछूँगी—आपकी प्राथमिकता क्या है और निर्णय कब तक लेना चाहते हैं?';
+        : AFFIRM[activeLang];
   } else {
-    response = 'जी, मैं सुन रही हूँ। आप आराम से बताइए—आज किस चीज़ में मदद चाहिए?';
+    response = pick(DISCOVERY[activeLang], lastAssistant, seed);
   }
+
+  // A concrete intent was handled deterministically → answer instantly. Open
+  // discovery turns stay non-fast so a connected LLM can craft a natural reply
+  // when a provider key is configured (graceful fallback to the line above).
+  const matched =
+    asksHowAreYou ||
+    asksWhatsUp ||
+    Boolean(requestedThisTurn) ||
+    paymentContext ||
+    wantsWhatsApp ||
+    wantsAppointment ||
+    wantsHuman ||
+    /^(yes|हाँ|हां|जी|sure|okay|ok|हाँजी|ਹਾਂ)[.!\s]*$/i.test(message);
 
   return {
     response,
     actions,
     extraction: {
-      language: wantsEnglish
-        ? 'English'
-        : wantsHaryanvi
-          ? 'Haryanvi'
-          : wantsHindi
-            ? 'Hindi'
-            : input.language,
+      language:
+        activeLang === 'english'
+          ? 'English'
+          : activeLang === 'haryanvi'
+            ? 'Haryanvi'
+            : activeLang === 'punjabi'
+              ? 'Punjabi'
+              : 'Hindi',
       intent: paymentContext
         ? 'payment'
         : wantsWhatsApp
@@ -218,17 +329,7 @@ export function simulateAgentTurn(input: {
               ? 'confirmation_required'
               : null,
     },
-    fastPath:
-      wantsEnglish ||
-      wantsHindi ||
-      wantsHaryanvi ||
-      wantsWhatsApp ||
-      paymentContext ||
-      wantsAppointment ||
-      wantsHuman ||
-      asksWhatsUp ||
-      asksHowAreYou ||
-      /^(yes|हाँ|हां|जी|sure|okay|ok)[.!\s]*$/i.test(message),
+    fastPath: matched,
     latencyMs: Math.max(12, Date.now() - started),
   };
 }

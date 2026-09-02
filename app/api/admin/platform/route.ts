@@ -4,7 +4,22 @@ import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { requireAdmin } from '@/lib/api-session';
 import { recordAudit } from '@/lib/demo-seed';
-import { providerReadiness } from '@/lib/provider-adapters';
+import {
+  platformProviderSecret,
+  providerReadiness,
+} from '@/lib/provider-adapters';
+import { encryptSecret } from '@/lib/security';
+
+// Providers whose keys the admin panel may store.
+const MANAGED_PROVIDERS = new Set([
+  'sarvam',
+  'elevenlabs',
+  'anthropic',
+  'openai',
+  'razorpay',
+  'whatsapp',
+  'exotel',
+]);
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +28,7 @@ export async function GET(request: Request) {
   if (auth.response) return auth.response;
   await ensureSchema();
   const db = getRawDb();
-  const [authProviders, platformProviders, tickets, messages] =
+  const [authProviders, platformProviders, providerKeys, tickets, messages] =
     await Promise.all([
       db
         .prepare(
@@ -23,6 +38,12 @@ export async function GET(request: Request) {
       db
         .prepare(
           'SELECT id, public_name, category, required_credentials_json, status, health, usage_note, customer_visible, updated_at FROM platform_providers ORDER BY category, public_name',
+        )
+        .all(),
+      db
+        .prepare(
+          `SELECT provider, CASE WHEN encrypted_secret IS NULL THEN 0 ELSE 1 END AS has_secret,
+             public_config_json, updated_at FROM platform_provider_secrets`,
         )
         .all(),
       db
@@ -37,6 +58,7 @@ export async function GET(request: Request) {
   return NextResponse.json({
     authProviders: authProviders.results,
     platformProviders: platformProviders.results,
+    providerKeys: providerKeys.results,
     providerReadiness: await providerReadiness(),
     tickets: tickets.results,
     ticketMessages: messages.results,
@@ -68,8 +90,113 @@ export async function PATCH(request: Request) {
     price?: number;
     numberId?: string;
     rejectionReason?: string;
+    apiKey?: string;
+    config?: Record<string, string>;
   };
   const db = getRawDb();
+
+  if (body.action === 'provider_key_save') {
+    const provider = String(body.provider || '');
+    if (!MANAGED_PROVIDERS.has(provider))
+      return NextResponse.json(
+        { error: 'Unsupported provider.' },
+        { status: 400 },
+      );
+    const config = JSON.stringify(body.config ?? {});
+    const apiKey = typeof body.apiKey === 'string' ? body.apiKey.trim() : '';
+    if (apiKey) {
+      const encrypted = await encryptSecret(apiKey);
+      await db
+        .prepare(
+          `INSERT INTO platform_provider_secrets (provider, encrypted_secret, public_config_json, updated_by, updated_at)
+           VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+           ON CONFLICT(provider) DO UPDATE SET encrypted_secret = excluded.encrypted_secret,
+             public_config_json = excluded.public_config_json, updated_by = excluded.updated_by,
+             updated_at = CURRENT_TIMESTAMP`,
+        )
+        .bind(provider, encrypted, config, auth.session.userId)
+        .run();
+    } else {
+      // No new key supplied — update only the non-secret config (e.g. voiceId).
+      await db
+        .prepare(
+          `INSERT INTO platform_provider_secrets (provider, public_config_json, updated_by, updated_at)
+           VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+           ON CONFLICT(provider) DO UPDATE SET public_config_json = excluded.public_config_json,
+             updated_by = excluded.updated_by, updated_at = CURRENT_TIMESTAMP`,
+        )
+        .bind(provider, config, auth.session.userId)
+        .run();
+    }
+    await recordAudit(
+      auth.session,
+      'provider_key.saved',
+      'platform_provider',
+      provider,
+      { hasKey: Boolean(apiKey), config: body.config ?? {} },
+    );
+    return NextResponse.json({ saved: true });
+  }
+
+  if (body.action === 'provider_key_clear') {
+    const provider = String(body.provider || '');
+    await db
+      .prepare(`DELETE FROM platform_provider_secrets WHERE provider = ?`)
+      .bind(provider)
+      .run();
+    await recordAudit(
+      auth.session,
+      'provider_key.cleared',
+      'platform_provider',
+      provider,
+      {},
+    );
+    return NextResponse.json({ cleared: true });
+  }
+
+  if (body.action === 'elevenlabs_voices') {
+    const apiKey =
+      (typeof body.apiKey === 'string' && body.apiKey.trim()) ||
+      process.env.ELEVENLABS_API_KEY ||
+      (await platformProviderSecret('elevenlabs')).apiKey;
+    if (!apiKey)
+      return NextResponse.json(
+        { error: 'Save the ElevenLabs API key first.' },
+        { status: 400 },
+      );
+    try {
+      const response = await fetch('https://api.elevenlabs.io/v1/voices', {
+        headers: { 'xi-api-key': apiKey },
+        signal: AbortSignal.timeout(15_000),
+      });
+      const payload = (await response.json()) as {
+        voices?: Array<{
+          voice_id: string;
+          name: string;
+          category?: string;
+          labels?: Record<string, string>;
+        }>;
+        detail?: unknown;
+      };
+      if (!response.ok || !Array.isArray(payload.voices))
+        return NextResponse.json(
+          { error: `ElevenLabs rejected the key (${response.status}).` },
+          { status: 502 },
+        );
+      const voices = payload.voices.map((voice) => ({
+        voiceId: voice.voice_id,
+        name: voice.name,
+        category: voice.category ?? '',
+        labels: voice.labels ?? {},
+      }));
+      return NextResponse.json({ voices });
+    } catch {
+      return NextResponse.json(
+        { error: 'Could not reach ElevenLabs.' },
+        { status: 502 },
+      );
+    }
+  }
   if (body.action === 'auth_visibility') {
     const result = await db
       .prepare(

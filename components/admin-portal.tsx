@@ -52,6 +52,7 @@ type AdminPayload = {
   system?: Record<string, string>;
   authProviders?: Record<string, unknown>[];
   platformProviders?: Record<string, unknown>[];
+  providerKeys?: Record<string, unknown>[];
   tickets?: Record<string, unknown>[];
   ticketMessages?: Record<string, unknown>[];
   activitySeries?: Record<string, string | number>[];
@@ -1487,6 +1488,290 @@ function Integrations({ data }: { data: AdminPayload }) {
   );
 }
 
+type KeyProvider = {
+  id: string;
+  name: string;
+  note: string;
+  fields: { k: string; label: string; placeholder?: string }[];
+  fetchVoices?: boolean;
+};
+
+const KEY_PROVIDERS: KeyProvider[] = [
+  {
+    id: 'elevenlabs',
+    name: 'ElevenLabs — voices',
+    note: 'Premium human voices. Save the key, then fetch and pick a voice.',
+    fields: [
+      { k: 'voiceId', label: 'Default voice ID' },
+      { k: 'modelId', label: 'Model (optional)', placeholder: 'eleven_multilingual_v2' },
+    ],
+    fetchVoices: true,
+  },
+  {
+    id: 'sarvam',
+    name: 'Sarvam — speech + transcription',
+    note: 'Indian-language STT and TTS (Hindi, Punjabi, Haryanvi, English).',
+    fields: [],
+  },
+  {
+    id: 'anthropic',
+    name: 'Claude (Anthropic) — reasoning',
+    note: 'Natural, correct replies.',
+    fields: [
+      {
+        k: 'model',
+        label: 'Model',
+        placeholder: 'claude-haiku-4-5-20251001',
+      },
+    ],
+  },
+  {
+    id: 'openai',
+    name: 'OpenAI — realtime (optional)',
+    note: 'Only needed for full-duplex realtime streaming with barge-in.',
+    fields: [
+      { k: 'model', label: 'Model', placeholder: 'gpt-5.4-mini' },
+      { k: 'realtimeModel', label: 'Realtime model', placeholder: 'gpt-realtime' },
+    ],
+  },
+];
+
+function ProviderKeyPanel({
+  data,
+  onChanged,
+}: {
+  data: AdminPayload;
+  onChanged: () => Promise<void> | void;
+}) {
+  const saved = new Map(
+    (data.providerKeys ?? []).map((row) => [textValue(row.provider), row]),
+  );
+  return (
+    <Panel>
+      <PanelHeader
+        title="Provider API keys & voices"
+        description="Paste keys here to run the platform live. Keys are stored encrypted and never shown again."
+      />
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        {KEY_PROVIDERS.map((provider) => (
+          <ProviderKeyCard
+            key={provider.id}
+            provider={provider}
+            existing={saved.get(provider.id)}
+            onChanged={onChanged}
+          />
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+function ProviderKeyCard({
+  provider,
+  existing,
+  onChanged,
+}: {
+  provider: KeyProvider;
+  existing?: Record<string, unknown>;
+  onChanged: () => Promise<void> | void;
+}) {
+  const savedConfig = (() => {
+    try {
+      return JSON.parse(textValue(existing?.public_config_json, '{}')) as Record<
+        string,
+        string
+      >;
+    } catch {
+      return {};
+    }
+  })();
+  const hasKey = Boolean(existing && Number(existing.has_secret));
+  const [apiKey, setApiKey] = useState('');
+  const [config, setConfig] = useState<Record<string, string>>(savedConfig);
+  const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
+  const [voices, setVoices] = useState<
+    { voiceId: string; name: string; category: string }[]
+  >([]);
+
+  async function call(payload: Record<string, unknown>, key: string) {
+    setBusy(key);
+    setError('');
+    try {
+      const response = await fetch('/api/admin/platform', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const body = (await response.json()) as { error?: string } & Record<
+        string,
+        unknown
+      >;
+      if (!response.ok) throw new Error(body.error ?? 'Request failed.');
+      return body;
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Request failed.');
+      return null;
+    } finally {
+      setBusy('');
+    }
+  }
+
+  async function save() {
+    const result = await call(
+      {
+        action: 'provider_key_save',
+        provider: provider.id,
+        apiKey: apiKey.trim() || undefined,
+        config,
+      },
+      'save',
+    );
+    if (result) {
+      setApiKey('');
+      await onChanged();
+    }
+  }
+
+  async function clear() {
+    const result = await call(
+      { action: 'provider_key_clear', provider: provider.id },
+      'clear',
+    );
+    if (result) {
+      setConfig({});
+      setVoices([]);
+      await onChanged();
+    }
+  }
+
+  async function fetchVoices() {
+    const result = await call(
+      {
+        action: 'elevenlabs_voices',
+        apiKey: apiKey.trim() || undefined,
+      },
+      'voices',
+    );
+    if (result && Array.isArray(result.voices))
+      setVoices(
+        result.voices as { voiceId: string; name: string; category: string }[],
+      );
+  }
+
+  return (
+    <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4">
+      <div className="flex items-center justify-between">
+        <div className="min-w-0">
+          <p className="text-sm font-medium">{provider.name}</p>
+          <p className="mt-1 text-[9px] text-white/32">{provider.note}</p>
+        </div>
+        <Status value={hasKey ? 'key set' : 'not set'} />
+      </div>
+
+      <label className="mt-4 block text-[9px] uppercase tracking-wider text-white/32">
+        API key {hasKey ? '(leave blank to keep current)' : ''}
+      </label>
+      <Input
+        type="password"
+        value={apiKey}
+        onChange={(event) => setApiKey(event.target.value)}
+        placeholder={hasKey ? '•••••••• saved' : 'Paste key'}
+        className="mt-1 h-9 border-white/10 bg-black/30 text-xs"
+      />
+
+      {provider.fields.map((field) => (
+        <div key={field.k}>
+          <label className="mt-3 block text-[9px] uppercase tracking-wider text-white/32">
+            {field.label}
+          </label>
+          <Input
+            value={config[field.k] ?? ''}
+            onChange={(event) =>
+              setConfig((current) => ({
+                ...current,
+                [field.k]: event.target.value,
+              }))
+            }
+            placeholder={field.placeholder}
+            className="mt-1 h-9 border-white/10 bg-black/30 text-xs"
+          />
+        </div>
+      ))}
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button
+          disabled={busy === 'save'}
+          onClick={save}
+          className="h-8 bg-white text-[10px] text-black hover:bg-white/90"
+        >
+          {busy === 'save' ? <Loader2 className="animate-spin" /> : null} Save
+        </Button>
+        {provider.fetchVoices ? (
+          <Button
+            variant="outline"
+            disabled={busy === 'voices'}
+            onClick={fetchVoices}
+            className="h-8 border-white/12 bg-transparent text-[10px]"
+          >
+            {busy === 'voices' ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              <Activity />
+            )}{' '}
+            Fetch my voices
+          </Button>
+        ) : null}
+        {hasKey ? (
+          <Button
+            variant="outline"
+            disabled={busy === 'clear'}
+            onClick={clear}
+            className="h-8 border-red-400/20 bg-transparent text-[10px] text-red-200"
+          >
+            Clear
+          </Button>
+        ) : null}
+      </div>
+
+      {error ? <p className="mt-2 text-[10px] text-red-300">{error}</p> : null}
+
+      {voices.length ? (
+        <div className="mt-3 max-h-44 overflow-y-auto rounded-lg border border-white/8 bg-black/20 p-2">
+          <p className="mb-1 px-1 text-[9px] uppercase tracking-wider text-white/32">
+            {voices.length} voices · tap to select
+          </p>
+          {voices.map((voice) => (
+            <button
+              key={voice.voiceId}
+              type="button"
+              onClick={() =>
+                setConfig((current) => ({ ...current, voiceId: voice.voiceId }))
+              }
+              className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[11px] hover:bg-white/5 ${config.voiceId === voice.voiceId ? 'bg-white/[0.06] text-white' : 'text-white/70'}`}
+            >
+              <span className="truncate">
+                {voice.name}
+                {voice.category ? (
+                  <span className="ml-2 text-[9px] text-white/30">
+                    {voice.category}
+                  </span>
+                ) : null}
+              </span>
+              {config.voiceId === voice.voiceId ? (
+                <span className="text-[9px] text-emerald-300">selected</span>
+              ) : null}
+            </button>
+          ))}
+          <p className="mt-1 px-1 text-[8px] text-white/28">
+            Selecting a voice fills the Voice ID — press Save to apply.
+          </p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function PlatformApis({
   data,
   onChanged,
@@ -1518,6 +1803,7 @@ function PlatformApis({
         title="Identity, APIs and cloud requirements"
         description="Customer screens use Vaani product names. Provider credentials, readiness and health remain inside this operator console."
       />
+      <ProviderKeyPanel data={data} onChanged={onChanged} />
       <Panel>
         <PanelHeader
           title="Customer sign-in providers"

@@ -590,6 +590,13 @@ async function bootstrap() {
       customer_visible INTEGER DEFAULT 0 NOT NULL,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS platform_provider_secrets (
+      provider TEXT PRIMARY KEY NOT NULL,
+      encrypted_secret TEXT,
+      public_config_json TEXT DEFAULT '{}' NOT NULL,
+      updated_by TEXT,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
     db.prepare(`CREATE TABLE IF NOT EXISTS organization_settings (
       organization_id TEXT PRIMARY KEY NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
       timezone TEXT DEFAULT 'Asia/Kolkata' NOT NULL,

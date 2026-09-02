@@ -24,14 +24,20 @@ export type ProviderReadiness = {
 };
 
 export async function providerReadiness(organizationId?: string | null) {
-  const sarvam = Boolean(process.env.SARVAM_API_KEY);
-  const anthropic = Boolean(
-    process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_MODEL,
-  );
-  const openai = Boolean(process.env.OPENAI_API_KEY);
-  const elevenlabs = Boolean(
-    process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_VOICE_ID,
-  );
+  // Keys saved from the admin panel count the same as environment variables.
+  const platform = await platformSecretMap();
+  const platformConfig = (provider: string) =>
+    (platform.config.get(provider) ?? {}) as Record<string, unknown>;
+  const sarvam = Boolean(process.env.SARVAM_API_KEY) || platform.set.has('sarvam');
+  const anthropic =
+    Boolean(process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_MODEL) ||
+    (platform.set.has('anthropic') &&
+      Boolean(configString(platformConfig('anthropic'), 'model')));
+  const openai = Boolean(process.env.OPENAI_API_KEY) || platform.set.has('openai');
+  const elevenlabs =
+    Boolean(process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_VOICE_ID) ||
+    (platform.set.has('elevenlabs') &&
+      Boolean(configString(platformConfig('elevenlabs'), 'voiceId')));
   const exotel = Boolean(
     process.env.EXOTEL_ACCOUNT_SID &&
     process.env.EXOTEL_API_KEY &&
@@ -124,15 +130,22 @@ export async function synthesizeSpeech(input: {
   languageCode: string;
   speaker?: string;
 }) {
-  const [credentials, globalVoice] = await Promise.all([
-    connectionCredentials(input.organizationId, 'sarvam_voice'),
-    connectionCredentials(input.organizationId, 'elevenlabs_voice'),
-  ]);
-  const apiKey = process.env.SARVAM_API_KEY || credentials.secrets.apiKey;
+  const [credentials, globalVoice, sarvamPlatform, elevenPlatform] =
+    await Promise.all([
+      connectionCredentials(input.organizationId, 'sarvam_voice'),
+      connectionCredentials(input.organizationId, 'elevenlabs_voice'),
+      platformProviderSecret('sarvam'),
+      platformProviderSecret('elevenlabs'),
+    ]);
+  const apiKey =
+    process.env.SARVAM_API_KEY || sarvamPlatform.apiKey || credentials.secrets.apiKey;
   const elevenLabsApiKey =
-    process.env.ELEVENLABS_API_KEY || globalVoice.secrets.apiKey;
+    process.env.ELEVENLABS_API_KEY ||
+    elevenPlatform.apiKey ||
+    globalVoice.secrets.apiKey;
   const elevenLabsVoiceId =
     process.env.ELEVENLABS_VOICE_ID ||
+    configString(elevenPlatform.config, 'voiceId') ||
     configString(globalVoice.publicConfig, 'accountId');
   const preferGlobalVoice =
     input.languageCode === 'en-IN' &&
@@ -196,11 +209,12 @@ export async function transcribeSpeech(input: {
   contentType?: string;
   languageCode?: string;
 }) {
-  const credentials = await connectionCredentials(
-    input.organizationId,
-    'sarvam_voice',
-  );
-  const apiKey = process.env.SARVAM_API_KEY || credentials.secrets.apiKey;
+  const [credentials, platform] = await Promise.all([
+    connectionCredentials(input.organizationId, 'sarvam_voice'),
+    platformProviderSecret('sarvam'),
+  ]);
+  const apiKey =
+    process.env.SARVAM_API_KEY || platform.apiKey || credentials.secrets.apiKey;
   if (!apiKey)
     throw new ProviderConfigurationError(
       'No Vaani transcription engine is connected.',
@@ -255,25 +269,32 @@ export async function reasonWithTools(input: {
   tools?: Array<Record<string, unknown>>;
   maxTokens?: number;
 }) {
-  const openaiCredentials = await connectionCredentials(
-    input.organizationId,
-    'openai_platform',
-  );
+  const [openaiCredentials, openaiPlatform] = await Promise.all([
+    connectionCredentials(input.organizationId, 'openai_platform'),
+    platformProviderSecret('openai'),
+  ]);
   const openaiApiKey =
-    process.env.OPENAI_API_KEY || openaiCredentials.secrets.apiKey;
+    process.env.OPENAI_API_KEY ||
+    openaiPlatform.apiKey ||
+    openaiCredentials.secrets.apiKey;
   if (openaiApiKey)
     return reasonWithOpenAI(
       input,
       openaiApiKey,
-      configString(openaiCredentials.publicConfig, 'accountId'),
+      configString(openaiPlatform.config, 'model') ||
+        configString(openaiCredentials.publicConfig, 'accountId'),
     );
-  const credentials = await connectionCredentials(
-    input.organizationId,
-    'anthropic_reasoning',
-  );
-  const apiKey = process.env.ANTHROPIC_API_KEY || credentials.secrets.apiKey;
+  const [credentials, anthropicPlatform] = await Promise.all([
+    connectionCredentials(input.organizationId, 'anthropic_reasoning'),
+    platformProviderSecret('anthropic'),
+  ]);
+  const apiKey =
+    process.env.ANTHROPIC_API_KEY ||
+    anthropicPlatform.apiKey ||
+    credentials.secrets.apiKey;
   const model =
     process.env.ANTHROPIC_MODEL ||
+    configString(anthropicPlatform.config, 'model') ||
     configString(credentials.publicConfig, 'model');
   if (!apiKey || !model)
     throw new ProviderConfigurationError('Vaani Sense is not connected.');
@@ -724,6 +745,50 @@ async function connectionCredentials(organizationId: string, type: string) {
       ? await decodeSecrets(row.encrypted_secret)
       : ({} as SecretBundle),
   };
+}
+
+// Platform-wide provider keys saved from the admin panel (encrypted). Read as a
+// fallback after process.env and before per-organization integration secrets.
+export async function platformProviderSecret(provider: string) {
+  try {
+    const row = await getRawDb()
+      .prepare(
+        `SELECT encrypted_secret, public_config_json FROM platform_provider_secrets WHERE provider = ? LIMIT 1`,
+      )
+      .bind(provider)
+      .first<{ encrypted_secret: string | null; public_config_json: string }>();
+    return {
+      apiKey: row?.encrypted_secret
+        ? await decryptSecret(row.encrypted_secret)
+        : undefined,
+      config: safeObject(row?.public_config_json || '{}'),
+    };
+  } catch {
+    return { apiKey: undefined, config: {} as Record<string, unknown> };
+  }
+}
+
+async function platformSecretMap() {
+  try {
+    const rows = await getRawDb()
+      .prepare(
+        `SELECT provider, encrypted_secret, public_config_json FROM platform_provider_secrets`,
+      )
+      .all<{
+        provider: string;
+        encrypted_secret: string | null;
+        public_config_json: string;
+      }>();
+    const set = new Set<string>();
+    const config = new Map<string, Record<string, unknown>>();
+    for (const row of rows.results ?? []) {
+      if (row.encrypted_secret) set.add(row.provider);
+      config.set(row.provider, safeObject(row.public_config_json || '{}'));
+    }
+    return { set, config };
+  } catch {
+    return { set: new Set<string>(), config: new Map() };
+  }
 }
 
 async function decodeSecrets(encrypted: string): Promise<SecretBundle> {

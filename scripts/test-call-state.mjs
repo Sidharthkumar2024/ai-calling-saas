@@ -1,6 +1,6 @@
-import { nextCallState, canTransition, shouldPlayGreeting, normalizeAudioFormat, assertFrameMatchesFormat, AudioFormatError } from '../lib/call-state.ts';
+import { nextCallState, canTransition, shouldPlayGreeting, normalizeAudioFormat, assertFrameMatchesFormat } from '../lib/call-state.ts';
 let pass=0, fail=0;
-const ok=(name,cond)=>{ cond?pass++:fail++; console.log((cond?'  ✅ ':'  ❌ ')+name); };
+const ok=(name,cond)=>{ if(cond){pass++;}else{fail++;} console.log((cond?'  ✅ ':'  ❌ ')+name); };
 const throws=(name,fn)=>{ try{ fn(); fail++; console.log('  ❌ '+name+' (did not throw)'); }catch(e){ pass++; console.log('  ✅ '+name+' → '+e.message.slice(0,60)); } };
 
 console.log('state machine:');

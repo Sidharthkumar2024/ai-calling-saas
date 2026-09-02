@@ -5,9 +5,11 @@ import { requireCustomer } from '@/lib/api-session';
 import { simulateAgentTurn } from '@/lib/agent-simulator';
 import {
   generateVoiceAgentTurn,
+  platformProviderSecret,
   providerReadiness,
   ProviderConfigurationError,
 } from '@/lib/provider-adapters';
+import { routeTurn } from '@/lib/llm-router';
 
 export const dynamic = 'force-dynamic';
 const TEST_TURN_COST = 10;
@@ -195,6 +197,20 @@ export async function POST(request: Request) {
     // answers. The deterministic simulator is only a fallback for when no
     // provider is configured — it must never pre-empt the model.
     let toolCalls: Array<{ name: string; input: unknown; result: unknown }> = [];
+    // LLM router (§9): routine turns stay on the fast model, objections and
+    // repeated confusion escalate to the stronger one.
+    const anthropicConfig = await platformProviderSecret('anthropic');
+    const escalationModel =
+      typeof (anthropicConfig.config as Record<string, unknown>)
+        ?.escalationModel === 'string'
+        ? ((anthropicConfig.config as Record<string, unknown>)
+            .escalationModel as string)
+        : null;
+    const route = routeTurn({
+      message,
+      history: orderedHistory,
+      escalationModel,
+    });
     try {
       const live = await generateVoiceAgentTurn({
         organizationId: auth.session.organizationId!,
@@ -204,6 +220,7 @@ export async function POST(request: Request) {
         language: session.primary_language,
         systemPrompt: session.system_prompt,
         maxTokens: Number(session.max_tokens || 180),
+        modelOverride: route.model,
         messages: [
           ...orderedHistory.map((item) => ({
             role: item.role,
@@ -294,6 +311,12 @@ export async function POST(request: Request) {
       latencyMs,
       pipelineMode,
       voiceConnected,
+      routing: {
+        tier: route.tier,
+        model: route.model,
+        reason: route.reason,
+        suggestHumanHandoff: route.suggestHumanHandoff,
+      },
       turnId: turnId + 1,
       deduplicated: false,
       creditsRemaining: nextBalance,

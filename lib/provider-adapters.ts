@@ -302,6 +302,8 @@ export async function reasonWithTools(input: {
   messages: Array<{ role: 'user' | 'assistant'; content: string | unknown[] }>;
   tools?: Array<Record<string, unknown>>;
   maxTokens?: number;
+  /** LLM router override for this turn; falls back to the configured model. */
+  model?: string | null;
 }) {
   const [openaiCredentials, openaiPlatform] = await Promise.all([
     connectionCredentials(input.organizationId, 'openai_platform'),
@@ -326,10 +328,12 @@ export async function reasonWithTools(input: {
     process.env.ANTHROPIC_API_KEY ||
     anthropicPlatform.apiKey ||
     credentials.secrets.apiKey;
-  const model =
+  const configuredModel =
     process.env.ANTHROPIC_MODEL ||
     configString(anthropicPlatform.config, 'model') ||
     configString(credentials.publicConfig, 'model');
+  // The router may ask for a stronger model on this turn only.
+  const model = input.model?.trim() || configuredModel;
   if (!apiKey || !model)
     throw new ProviderConfigurationError('Vaani Sense is not connected.');
   const started = Date.now();
@@ -383,6 +387,8 @@ export async function generateVoiceAgentTurn(input: {
   messages: Array<{ role: 'user' | 'assistant'; content: string }>;
   /** Supplying this enables real business tool calling for the turn. */
   toolContext?: ToolContext;
+  /** LLM router decision for this turn. */
+  modelOverride?: string | null;
 }) {
   const system = buildVoiceAgentInstructions(input);
   const messages: Array<{
@@ -404,6 +410,7 @@ export async function generateVoiceAgentTurn(input: {
       maxTokens: Math.min(220, input.maxTokens),
       system,
       messages,
+      model: input.modelOverride ?? null,
       ...(input.toolContext ? { tools: VAANI_AGENT_TOOLS } : {}),
     });
     latencyMs += response.latencyMs;
@@ -444,6 +451,7 @@ export async function generateVoiceAgentTurn(input: {
     maxTokens: Math.min(220, input.maxTokens),
     system,
     messages,
+    model: input.modelOverride ?? null,
   });
   latencyMs += closing.latencyMs;
   providerReference = closing.id || providerReference;

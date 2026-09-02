@@ -1526,8 +1526,13 @@ const KEY_PROVIDERS: KeyProvider[] = [
     fields: [
       {
         k: 'model',
-        label: 'Model',
+        label: 'Model (routine calls)',
         placeholder: 'claude-haiku-4-5',
+      },
+      {
+        k: 'escalationModel',
+        label: 'Escalation model (objections, policy)',
+        placeholder: 'claude-sonnet-5',
       },
     ],
   },

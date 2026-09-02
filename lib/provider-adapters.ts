@@ -134,6 +134,13 @@ export async function synthesizeSpeech(input: {
   text: string;
   languageCode: string;
   speaker?: string;
+  /** Resolved voice profile: overrides the platform default for this turn. */
+  voice?: {
+    provider?: string;
+    voiceId?: string | null;
+    modelId?: string | null;
+    speakingRate?: string;
+  } | null;
 }) {
   const [credentials, globalVoice, sarvamPlatform, elevenPlatform] =
     await Promise.all([
@@ -148,24 +155,37 @@ export async function synthesizeSpeech(input: {
     process.env.ELEVENLABS_API_KEY ||
     elevenPlatform.apiKey ||
     globalVoice.secrets.apiKey;
-  // Admin-panel config wins for voice/model: it is the operator's control plane.
-  // Environment variables act as a bootstrap default only.
+  // Voice profile wins, then admin-panel config (the operator control plane),
+  // then environment variables as a bootstrap default.
+  const profileVoiceId =
+    input.voice?.provider === 'elevenlabs' ? input.voice.voiceId || '' : '';
   const elevenLabsVoiceId =
+    profileVoiceId ||
     configString(elevenPlatform.config, 'voiceId') ||
     process.env.ELEVENLABS_VOICE_ID ||
     configString(globalVoice.publicConfig, 'accountId');
+  const elevenLabsModelId =
+    (input.voice?.provider === 'elevenlabs' ? input.voice.modelId || '' : '') ||
+    configString(elevenPlatform.config, 'modelId') ||
+    process.env.ELEVENLABS_MODEL_ID ||
+    undefined;
+  // An explicit Sarvam profile keeps Indian-language pronunciation on Sarvam.
+  const prefersSarvamProfile =
+    input.voice?.provider === 'sarvam' && Boolean(apiKey);
   const preferGlobalVoice =
-    input.languageCode === 'en-IN' &&
+    !prefersSarvamProfile &&
+    (input.voice?.provider === 'elevenlabs' ||
+      input.languageCode === 'en-IN') &&
     Boolean(elevenLabsApiKey && elevenLabsVoiceId);
-  if (preferGlobalVoice || (!apiKey && elevenLabsApiKey && elevenLabsVoiceId)) {
+  if (
+    preferGlobalVoice ||
+    (!apiKey && elevenLabsApiKey && elevenLabsVoiceId)
+  ) {
     return synthesizeGlobalSpeech({
       ...input,
       apiKey: elevenLabsApiKey!,
       voiceId: elevenLabsVoiceId!,
-      modelId:
-        configString(elevenPlatform.config, 'modelId') ||
-        process.env.ELEVENLABS_MODEL_ID ||
-        undefined,
+      modelId: elevenLabsModelId,
     });
   }
   if (!apiKey)
@@ -180,7 +200,10 @@ export async function synthesizeSpeech(input: {
     body: JSON.stringify({
       text: input.text.slice(0, 2500),
       language_code: input.languageCode,
-      speaker: input.speaker || 'shubh',
+      speaker:
+        (input.voice?.provider === 'sarvam' ? input.voice.voiceId || '' : '') ||
+        input.speaker ||
+        'shubh',
       model: 'bulbul:v3',
       output_audio_codec: 'wav',
       speech_sample_rate: 16000,

@@ -7,6 +7,7 @@ import {
   synthesizeSpeech,
 } from '@/lib/provider-adapters';
 import { enforceRateLimit } from '@/lib/rate-limit';
+import { resolveAgentVoice } from '@/lib/voice-profiles';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,11 +40,20 @@ export async function POST(request: Request) {
   if (!agent)
     return NextResponse.json({ error: 'Agent not found.' }, { status: 404 });
   try {
+    const languageCode = normalizeLanguage(agent.primary_language);
+    // Voice Profile Engine: honour the agent's selected persona, voice lock and
+    // same-presentation fallback for this language.
+    const voice = await resolveAgentVoice({
+      organizationId: auth.session.organizationId!,
+      agentId: body.agentId,
+      languageCode,
+    });
     const speech = await synthesizeSpeech({
       organizationId: auth.session.organizationId!,
       text,
-      languageCode: normalizeLanguage(agent.primary_language),
+      languageCode,
       speaker: speakerFor(agent.voice_name),
+      voice,
     });
     return new Response(base64Bytes(speech.audioBase64), {
       headers: {

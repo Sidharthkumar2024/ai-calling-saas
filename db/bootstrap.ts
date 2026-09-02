@@ -1034,7 +1034,38 @@ async function bootstrap() {
     db.prepare(
       `CREATE UNIQUE INDEX IF NOT EXISTS idx_reconciliation_provider_external ON payment_reconciliations (provider, external_id)`,
     ),
+    db.prepare(`CREATE TABLE IF NOT EXISTS voice_profiles (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      presentation TEXT DEFAULT 'female' NOT NULL,
+      provider TEXT DEFAULT 'elevenlabs' NOT NULL,
+      provider_voice_id TEXT,
+      model_id TEXT,
+      default_language TEXT DEFAULT 'hi-IN' NOT NULL,
+      allowed_languages_json TEXT DEFAULT '["hi-IN","en-IN","hinglish"]' NOT NULL,
+      auto_language_switch INTEGER DEFAULT 1 NOT NULL,
+      accent_profile TEXT DEFAULT 'indian_neutral' NOT NULL,
+      speaking_rate TEXT DEFAULT 'normal' NOT NULL,
+      style TEXT DEFAULT 'warm' NOT NULL,
+      provider_policy TEXT DEFAULT 'elevenlabs_first' NOT NULL,
+      voice_lock INTEGER DEFAULT 0 NOT NULL,
+      fallback_profile_id TEXT,
+      status TEXT DEFAULT 'active' NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
   ]);
+
+  // Bind an agent to a voice profile. Added separately because the column may
+  // already exist on databases created before voice profiles shipped.
+  try {
+    await db
+      .prepare(`ALTER TABLE voice_agents ADD COLUMN voice_profile_id TEXT`)
+      .run();
+  } catch {
+    /* column already present */
+  }
 
   if (process.env.NODE_ENV !== 'production') {
     await seedLocalDemo(db);

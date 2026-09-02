@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 
+import { DocCode } from '@/components/doc-code';
+
 const leadExample = `curl --request POST \\
   --url http://localhost:3000/api/v1/leads \\
   --header 'Authorization: Bearer vaani_live_YOUR_KEY' \\
@@ -577,11 +579,7 @@ function DocSection({
   );
 }
 function Code({ children }: { children: string }) {
-  return (
-    <pre className="overflow-x-auto rounded-2xl border border-white/8 bg-black/30 p-5 font-mono text-[10px] leading-5 text-cyan-100/68">
-      <code>{children}</code>
-    </pre>
-  );
+  return <DocCode>{children}</DocCode>;
 }
 function Endpoint({
   method,

@@ -6,6 +6,8 @@ import { recordAudit } from '@/lib/demo-seed';
 import { encryptSecret } from '@/lib/security';
 import { SUPPORTED_LANGUAGE_CODES } from '@/lib/languages';
 import { checkPlanLimit } from '@/lib/plan-limits';
+import { runReportNow } from '@/lib/job-queue';
+import { dialCampaign } from '@/lib/campaign-dialer';
 import {
   type CustomerPermission,
   requireAnyCustomerPermission,
@@ -476,17 +478,81 @@ export async function POST(request: Request) {
         clean(body.schedule, 40) || 'manual',
       )
       .run();
+  } else if (action === 'set_campaign_status') {
+    // Campaigns were create-only: there was no way to start, pause or stop one,
+    // so the status column never moved off 'draft'.
+    const campaignId = clean(body.campaignId, 140);
+    const requested = clean(body.status, 20);
+    if (!['running', 'paused', 'stopped'].includes(requested))
+      return invalid('Status must be running, paused or stopped.');
+    const campaign = await db
+      .prepare(
+        `SELECT id, status, agent_id FROM campaigns WHERE id = ? AND organization_id = ? LIMIT 1`,
+      )
+      .bind(campaignId, organizationId)
+      .first<{ id: string; status: string; agent_id: string | null }>();
+    if (!campaign)
+      return NextResponse.json(
+        { error: 'Campaign not found.' },
+        { status: 404 },
+      );
+    if (requested === 'running') {
+      const contacts = await db
+        .prepare(`SELECT count(*) AS ready FROM campaign_contacts
+          WHERE campaign_id = ? AND status IN ('pending','retry')`)
+        .bind(campaignId)
+        .first<{ ready: number }>();
+      if (!Number(contacts?.ready ?? 0))
+        return invalid(
+          'This campaign has no contacts left to call. Add an audience before starting it.',
+        );
+      if (!campaign.agent_id)
+        return invalid('Assign an AI agent before starting the campaign.');
+    }
+    await db
+      .prepare(
+        `UPDATE campaigns SET status = ? WHERE id = ? AND organization_id = ?`,
+      )
+      .bind(requested, campaignId, organizationId)
+      .run();
+    let dialer: unknown = null;
+    if (requested === 'running') {
+      // Run one pass immediately so starting a campaign does something
+      // observable instead of waiting for the next scheduler tick.
+      dialer = await dialCampaign(organizationId, campaignId);
+    }
+    await recordAudit(
+      auth.session,
+      `campaign.${requested}`,
+      'campaign',
+      campaignId,
+      { from: campaign.status },
+    );
+    return NextResponse.json({ status: requested, dialer });
   } else if (action === 'generate_report') {
     const reportId = clean(body.reportId, 140);
-    const result = await db
-      .prepare(`UPDATE report_definitions SET last_generated_at = CURRENT_TIMESTAMP
-      WHERE id = ? AND organization_id = ?`)
-      .bind(reportId, organizationId)
-      .run();
-    if (!result.meta.changes)
-      return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
-    await recordAudit(auth.session, 'report.generated', 'report', reportId);
-    return NextResponse.json({ generated: true });
+    // Actually run it. This used to bump last_generated_at and claim success
+    // while producing nothing the customer could open.
+    try {
+      const run = await runReportNow(organizationId, reportId);
+      await recordAudit(auth.session, 'report.generated', 'report', reportId, {
+        runId: run.runId,
+        rows: run.rows,
+      });
+      return NextResponse.json({
+        generated: true,
+        runId: run.runId,
+        rows: run.rows,
+        bytes: run.bytes,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Report generation failed.';
+      return NextResponse.json(
+        { error: message },
+        { status: message.includes('not found') ? 404 : 500 },
+      );
+    }
   } else if (action === 'update_settings') {
     const defaultLanguage = clean(body.defaultLanguage, 40) || 'hinglish';
     // Honour the submitted language set (validated) instead of overwriting it
@@ -609,6 +675,7 @@ function invalid(error: string) {
 // read-only by definition and must never authorise a mutation.
 const OPERATION_PERMISSIONS: Record<string, CustomerPermission> = {
   create_campaign: 'campaigns.manage',
+  set_campaign_status: 'campaigns.manage',
   create_sip_trunk: 'telephony.manage',
   validate_sip_trunk: 'telephony.manage',
   create_knowledge_base: 'agents.manage',

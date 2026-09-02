@@ -4,6 +4,7 @@ import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { createOpaqueToken, sha256 } from '@/lib/security';
 import { recordAudit } from '@/lib/demo-seed';
+import { sendTransactionalEmail } from '@/lib/commerce';
 import {
   canManageTargetRole,
   getCustomerAccess,
@@ -92,14 +93,40 @@ export async function POST(request: Request) {
     )
     .run();
   const invitationUrl = `${new URL(request.url).origin}/signup?invite=${encodeURIComponent(token)}`;
+  // Actually send it. This used to report `email_pending` in production while
+  // nothing ever delivered an invitation.
+  let delivery: string;
+  let deliveryDetail: string | null = null;
+  try {
+    const sent = await sendTransactionalEmail({
+      organizationId: auth.session.organizationId!,
+      to: email,
+      subject: `You have been invited to ${auth.session.organizationName ?? 'a Vaani workspace'}`,
+      html: `<p>Hello,</p><p>You have been invited to join <strong>${escapeHtml(
+        auth.session.organizationName ?? 'a Vaani workspace',
+      )}</strong> as <strong>${escapeHtml(role)}</strong>.</p><p><a href="${escapeHtml(
+        invitationUrl,
+      )}">Accept the invitation</a></p><p>This link expires in 7 days.</p>`,
+    });
+    delivery = sent.status === 'sent' ? 'sent' : 'not_sent';
+    if (sent.status !== 'sent')
+      deliveryDetail =
+        'No transactional email provider is connected, so the invitation was not emailed. Share the link below instead.';
+  } catch (error) {
+    delivery = 'failed';
+    deliveryDetail =
+      error instanceof Error
+        ? error.message
+        : 'The email provider rejected the send.';
+  }
   return NextResponse.json(
     {
       id,
-      delivery:
-        process.env.NODE_ENV === 'production' ? 'email_pending' : 'development',
-      ...(process.env.NODE_ENV !== 'production'
-        ? { developmentToken: token, invitationUrl }
-        : {}),
+      delivery,
+      ...(deliveryDetail ? { deliveryDetail } : {}),
+      // The link is returned whenever the email did not go out, so an admin is
+      // never left with an invitation nobody can accept.
+      ...(delivery === 'sent' ? {} : { invitationUrl }),
     },
     { status: 201 },
   );
@@ -202,4 +229,14 @@ export async function PATCH(request: Request) {
     { error: 'Unsupported team action.' },
     { status: 400 },
   );
+}
+
+/** Invitation emails interpolate a workspace name and a role. */
+function escapeHtml(value: string) {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }

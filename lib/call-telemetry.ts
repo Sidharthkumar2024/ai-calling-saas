@@ -168,17 +168,25 @@ export async function completeCall(input: {
     return { completed: true, queued: false };
   }
 
-  const latency = await db
+  const stats = await db
     .prepare(
-      `SELECT coalesce(avg(latency_ms), 0) AS average FROM call_turns
-       WHERE call_id = ? AND role = 'agent' AND latency_ms IS NOT NULL`,
+      `SELECT coalesce(avg(latency_ms), 0) AS average, max(created_at) AS last_turn_at
+       FROM call_turns WHERE call_id = ?`,
     )
     .bind(input.callId)
-    .first<{ average: number }>();
+    .first<{ average: number; last_turn_at: string | null }>();
+  const latency = { average: stats?.average ?? 0 };
+  // Duration must end at the last thing that was said, not at the moment the
+  // idle sweeper happened to run — otherwise a conversation abandoned an hour
+  // ago is recorded as an hour of talk time and inflates every usage metric.
   const startedMs = Date.parse(call.started_at);
+  const lastTurn = stats?.last_turn_at
+    ? Date.parse(`${stats.last_turn_at.replace(' ', 'T')}Z`)
+    : Number.NaN;
+  const endedMs = Number.isNaN(lastTurn) ? Date.now() : lastTurn;
   const durationSeconds = Number.isNaN(startedMs)
     ? 0
-    : Math.max(0, Math.round((Date.now() - startedMs) / 1000));
+    : Math.max(0, Math.round((endedMs - startedMs) / 1000));
 
   await db
     .prepare(`UPDATE call_records SET status = 'completed', outcome = ?,

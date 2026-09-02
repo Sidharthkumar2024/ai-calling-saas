@@ -43,7 +43,8 @@ export type CredentialFieldKey =
   | 'accountId'
   | 'baseUrl'
   | 'webhookSecret'
-  | 'model';
+  | 'model'
+  | 'fromAddress';
 
 export type CredentialField = {
   key: CredentialFieldKey;
@@ -310,10 +311,19 @@ export const INTEGRATION_CATALOG: IntegrationDefinition[] = [
     id: 'resend',
     label: 'Resend',
     category: 'messaging',
-    blurb: 'Transactional email for links and receipts.',
+    blurb: 'Transactional email for links, receipts and team invitations.',
     monogram: 'Re',
     verifiable: true,
-    fields: [KEY('API key', 're_…')],
+    fields: [
+      KEY('API key', 're_…'),
+      {
+        key: 'fromAddress',
+        label: 'From address',
+        required: true,
+        placeholder: 'Vaani <no-reply@your-domain.com>',
+        hint: 'Must be a domain verified in Resend.',
+      },
+    ],
   },
 
   // ---- Payments ----

@@ -11,6 +11,9 @@ import {
 import { encryptSecret } from '@/lib/security';
 
 // Providers whose keys the admin panel may store.
+// Sign-in providers whose OAuth credentials the platform admin may store.
+const AUTH_PROVIDERS = new Set(['google', 'github', 'microsoft']);
+
 const MANAGED_PROVIDERS = new Set([
   'sarvam',
   'elevenlabs',
@@ -134,6 +137,9 @@ export async function PATCH(request: Request) {
     maxAgents?: number;
     maxNumbers?: number;
     concurrency?: number;
+    clientId?: string;
+    clientSecret?: string;
+    redirectUri?: string;
     credits?: number;
     price?: number;
     numberId?: string;
@@ -366,15 +372,108 @@ export async function PATCH(request: Request) {
     );
     return NextResponse.json({ updated: true });
   }
+  if (body.action === 'auth_provider_save') {
+    // The table already had credential columns but nothing wrote them, so
+    // `configured` was hardcoded false for every provider except Google and no
+    // other sign-in method could ever be enabled.
+    const provider = String(body.provider ?? '');
+    if (!AUTH_PROVIDERS.has(provider))
+      return NextResponse.json(
+        { error: 'Unsupported sign-in provider.' },
+        { status: 400 },
+      );
+    const clientId = String(body.clientId ?? '').trim();
+    const clientSecret = String(body.clientSecret ?? '').trim();
+    const redirectUri = String(body.redirectUri ?? '').trim();
+    if (!clientId || !clientSecret || !redirectUri)
+      return NextResponse.json(
+        { error: 'Client ID, client secret and redirect URI are required.' },
+        { status: 400 },
+      );
+    try {
+      const parsed = new URL(redirectUri);
+      if (!['https:', 'http:'].includes(parsed.protocol)) throw new Error();
+    } catch {
+      return NextResponse.json(
+        { error: 'Redirect URI must be a valid URL.' },
+        { status: 400 },
+      );
+    }
+    const result = await db
+      .prepare(`UPDATE auth_provider_settings
+        SET public_config_json = ?, encrypted_secret = ?, status = 'configured',
+            updated_by = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE provider = ?`)
+      .bind(
+        JSON.stringify({
+          clientId,
+          redirectUri,
+          secretHint: `••••${clientSecret.slice(-4)}`,
+        }),
+        await encryptSecret(clientSecret),
+        auth.session.userId,
+        provider,
+      )
+      .run();
+    if (!result.meta.changes)
+      return NextResponse.json(
+        { error: 'Auth provider not found.' },
+        { status: 404 },
+      );
+    await recordAudit(
+      auth.session,
+      'auth_provider.credentials_saved',
+      'auth_provider',
+      provider,
+      { redirectUri },
+    );
+    return NextResponse.json({
+      ok: true,
+      provider,
+      status: 'configured',
+      message:
+        'Credentials stored encrypted. Enable the provider to show its sign-in button.',
+    });
+  }
+
   if (body.action === 'auth_enabled') {
+    const provider = String(body.provider ?? '');
+    if (!AUTH_PROVIDERS.has(provider))
+      return NextResponse.json(
+        { error: 'Unsupported sign-in provider.' },
+        { status: 400 },
+      );
+    // Configured means: credentials saved here, or the Google env bootstrap.
+    const stored = await db
+      .prepare(
+        `SELECT public_config_json, encrypted_secret FROM auth_provider_settings WHERE provider = ? LIMIT 1`,
+      )
+      .bind(provider)
+      .first<{ public_config_json: string; encrypted_secret: string | null }>();
+    let hasStored = false;
+    if (stored?.encrypted_secret) {
+      try {
+        const config = JSON.parse(stored.public_config_json || '{}') as {
+          clientId?: unknown;
+          redirectUri?: unknown;
+        };
+        hasStored =
+          typeof config.clientId === 'string' &&
+          config.clientId.length > 0 &&
+          typeof config.redirectUri === 'string' &&
+          config.redirectUri.length > 0;
+      } catch {
+        hasStored = false;
+      }
+    }
     const configured =
-      body.provider === 'google'
-        ? Boolean(
-            process.env.GOOGLE_CLIENT_ID &&
+      hasStored ||
+      (provider === 'google' &&
+        Boolean(
+          process.env.GOOGLE_CLIENT_ID &&
             process.env.GOOGLE_CLIENT_SECRET &&
             process.env.GOOGLE_REDIRECT_URI,
-          )
-        : false;
+        ));
     if (body.enabled && !configured) {
       return NextResponse.json(
         {

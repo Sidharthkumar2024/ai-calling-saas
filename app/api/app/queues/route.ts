@@ -7,7 +7,10 @@ import {
   type CustomerPermission,
 } from '@/lib/customer-rbac';
 import { recordAudit } from '@/lib/demo-seed';
-import { resolveRouting } from '@/lib/handoff-service';
+import {
+  initiateWarmTransfer,
+  resolveRouting,
+} from '@/lib/handoff-service';
 import { ROUTING_STRATEGIES } from '@/lib/routing';
 
 export const dynamic = 'force-dynamic';
@@ -164,6 +167,7 @@ const ACTION_PERMISSIONS: Record<string, CustomerPermission> = {
   reject_handoff: 'calls.monitor',
   wrap_up: 'calls.monitor',
   test_route: 'calls.monitor',
+  request_takeover: 'calls.monitor',
 };
 
 export async function POST(request: Request) {
@@ -556,6 +560,61 @@ export async function POST(request: Request) {
       disposition,
     });
     return NextResponse.json({ ok: true, disposition });
+  }
+
+  if (action === 'request_takeover') {
+    // The live-monitor "Take over" button had no handler. Audio monitoring
+    // needs a media gateway, but escalating the call to a human is real work
+    // this runtime can do: it creates a routed handoff with the AI summary.
+    const callId = text(body.callId, 120);
+    const call = await db
+      .prepare(`SELECT c.id, c.agent_id, c.summary, c.customer_name,
+          t.language AS transcript_language
+        FROM call_records c LEFT JOIN transcripts t ON t.call_id = c.id
+        WHERE c.id = ? AND c.organization_id = ? LIMIT 1`)
+      .bind(callId, organizationId)
+      .first<{
+        id: string;
+        agent_id: string | null;
+        summary: string | null;
+        customer_name: string | null;
+        transcript_language: string | null;
+      }>();
+    if (!call)
+      return NextResponse.json({ error: 'Call not found.' }, { status: 404 });
+    const existing = await db
+      .prepare(`SELECT id, status FROM handoffs
+        WHERE organization_id = ? AND call_id = ? AND status IN ('queued','assigned','accepted')
+        LIMIT 1`)
+      .bind(organizationId, callId)
+      .first<{ id: string; status: string }>();
+    if (existing)
+      return NextResponse.json({
+        ok: true,
+        alreadyRequested: true,
+        handoffId: existing.id,
+        status: existing.status,
+        message: 'This call is already waiting for a human.',
+      });
+    const transfer = await initiateWarmTransfer({
+      organizationId,
+      agentId: call.agent_id,
+      callId: call.id,
+      reason: 'Supervisor requested takeover from live monitoring',
+      summary:
+        call.summary ||
+        `Live call with ${call.customer_name || 'an unidentified caller'}; no AI summary yet.`,
+      language: call.transcript_language,
+      skill: text(body.skill, 60) || null,
+    });
+    await recordAudit(
+      auth.session,
+      'call.takeover_requested',
+      'call_record',
+      callId,
+      { transferred: transfer.transferred, queue: transfer.queue ?? null },
+    );
+    return NextResponse.json(transfer);
   }
 
   if (action === 'test_route') {

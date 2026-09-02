@@ -318,6 +318,8 @@ export async function initiateWarmTransfer(input: {
   queueId?: string | null;
   useCase?: string | null;
   numberId?: string | null;
+  /** Set when a supervisor escalates a specific call. */
+  callId?: string | null;
 }): Promise<TransferResult> {
   const db = getRawDb();
   const { outcome, overflowedFrom } = await resolveRouting({
@@ -337,8 +339,8 @@ export async function initiateWarmTransfer(input: {
     .prepare(`INSERT INTO handoffs
       (id, organization_id, agent_id, session_id, reason, summary, status,
        assigned_agent_id, skill, language, queue_status, ai_summary,
-       queue_id, enqueued_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`)
+       queue_id, call_id, enqueued_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`)
     .bind(
       handoffId,
       input.organizationId,
@@ -353,6 +355,7 @@ export async function initiateWarmTransfer(input: {
       human ? 'assigned' : 'queued',
       input.summary ?? null,
       outcome.queue?.id ?? null,
+      input.callId ?? null,
     )
     .run();
 

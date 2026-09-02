@@ -1,7 +1,7 @@
 'use client';
 /* oxlint-disable jsx-a11y/media-has-caption -- call transcripts and QA summaries are available beside authenticated recordings */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   SUPPORTED_LANGUAGES,
   SUPPORTED_LANGUAGE_CODES,
@@ -95,7 +95,7 @@ export function CustomerOperations({
 }) {
   if (module === 'call_history') return <CallHistory data={data} />;
   if (module === 'live_monitor') return <LiveMonitor data={data} />;
-  if (module === 'analytics') return <Analytics data={data} />;
+  if (module === 'analytics') return <Analytics />;
   if (module === 'quality') return <Quality data={data} />;
   if (module === 'settings')
     return <WorkspaceSettings data={data} onChanged={onChanged} />;
@@ -1219,6 +1219,40 @@ function CallDetail({
 
 function LiveMonitor({ data }: { data: OperationsData }) {
   const live = data.calls.filter((call) => call.status === 'in_progress');
+  // "Listen" is deliberately absent: live audio monitoring needs a media
+  // gateway this runtime cannot host. Reading the transcript and escalating to
+  // a human are both real, so those are what the buttons do.
+  const [openCallId, setOpenCallId] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  async function takeOver(callId: string) {
+    setBusy(callId);
+    setNotice(null);
+    try {
+      const response = await fetch('/api/app/queues', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'request_takeover', callId }),
+      });
+      const body = (await response.json()) as {
+        error?: string;
+        message?: string;
+        transferred?: boolean;
+        agent?: { name?: string };
+      };
+      setNotice(
+        body.error ??
+          (body.transferred
+            ? `Assigned to ${body.agent?.name ?? 'an available agent'}.`
+            : (body.message ??
+              'Queued for a human — nobody is available right now.')),
+      );
+    } catch {
+      setNotice('Could not request a takeover.');
+    } finally {
+      setBusy(null);
+    }
+  }
   return (
     <div className="space-y-6">
       <Header
@@ -1233,6 +1267,11 @@ function LiveMonitor({ data }: { data: OperationsData }) {
         }
       />
       <Stats data={data} />
+      {notice ? (
+        <p className="rounded-lg border border-white/12 bg-white/[0.03] px-3 py-2 text-[11px] text-white/70">
+          {notice}
+        </p>
+      ) : null}
       <div className="grid gap-4 lg:grid-cols-2">
         {live.map((call) => (
           <section
@@ -1264,15 +1303,23 @@ function LiveMonitor({ data }: { data: OperationsData }) {
                 size="sm"
                 variant="outline"
                 className="border-white/10 bg-transparent text-[9px]"
+                onClick={() => setOpenCallId(str(call.id))}
               >
-                <Headphones /> Listen
+                <Headphones /> Transcript
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 className="border-white/10 bg-transparent text-[9px]"
+                disabled={busy === str(call.id)}
+                onClick={() => void takeOver(str(call.id))}
               >
-                <PhoneCall /> Take over
+                {busy === str(call.id) ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  <PhoneCall />
+                )}
+                Take over
               </Button>
             </div>
           </section>
@@ -1281,69 +1328,224 @@ function LiveMonitor({ data }: { data: OperationsData }) {
           <Empty icon={Radio} label="No calls are active right now." />
         ) : null}
       </div>
+      {openCallId ? (
+        <CallDetail callId={openCallId} onClose={() => setOpenCallId(null)} />
+      ) : null}
     </div>
   );
 }
 
-function Analytics({ data }: { data: OperationsData }) {
-  const outcomeCounts = useMemo(
-    () =>
-      Object.entries(
-        data.calls.reduce<Record<string, number>>((map, call) => {
-          const key = str(call.outcome, 'unknown');
-          map[key] = (map[key] ?? 0) + 1;
-          return map;
-        }, {}),
-      ).map(([name, value]) => ({ name, value })),
-    [data.calls],
-  );
-  const activity = useMemo(() => {
-    const days = Array.from({ length: 7 }, (_, offset) => {
-      const day = new Date();
-      day.setDate(day.getDate() - (6 - offset));
-      return day.toISOString().slice(0, 10);
-    });
-    return days.map((day) => ({
-      day,
-      calls: data.calls.filter(
-        (call) => str(call.started_at, '').slice(0, 10) === day,
-      ).length,
-      conversions: data.calls.filter(
-        (call) =>
-          str(call.started_at, '').slice(0, 10) === day &&
-          [
-            'appointment_booked',
-            'payment_link_requested',
-            'converted',
-          ].includes(str(call.outcome)),
-      ).length,
-      leads: 0,
-    }));
-  }, [data.calls]);
+type AnalyticsPayload = {
+  windowDays: number;
+  totals: {
+    calls: number;
+    leads: number;
+    totalMinutes: number;
+    credits: number;
+    avgLatencyMs: number;
+    resolutionRate: number;
+    transferRate: number;
+    failureRate: number;
+  };
+  series: Array<{
+    day: string;
+    calls: number;
+    conversions: number;
+    leads: number;
+    avgLatency: number;
+  }>;
+  outcomes: Array<{ name: string; value: number }>;
+  sentiments: Array<{ name: string; value: number }>;
+  byLanguage: Array<{
+    language: string;
+    label: string;
+    calls: number;
+    avgLatencyMs: number;
+    transferred: number;
+    avgQuality: number;
+  }>;
+  byAgent: Array<{
+    agent: string;
+    calls: number;
+    avgLatencyMs: number;
+    resolved: number;
+  }>;
+};
+
+/**
+ * Analytics now reads server-side aggregates over the whole window. It used to
+ * compute everything in the browser from the last 100 call rows and reported
+ * `leads: 0` because it had no lead data at all.
+ */
+function Analytics() {
+  const [days, setDays] = useState(30);
+  const [payload, setPayload] = useState<AnalyticsPayload | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const response = await fetch(`/api/app/analytics?days=${days}`);
+          const body = (await response.json()) as AnalyticsPayload & {
+            error?: string;
+          };
+          if (!active) return;
+          if (!response.ok) {
+            setError(body.error ?? 'Could not load analytics.');
+            return;
+          }
+          setPayload(body);
+          setError(null);
+        } catch {
+          if (active) setError('Could not load analytics.');
+        }
+      })();
+    }, 0);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [days]);
+
+  const totals = payload?.totals;
   return (
     <div className="space-y-6">
       <Header
         eyebrow="Performance intelligence"
         title="Analytics"
-        description="Call, outcome, latency, cost and conversion metrics generated from tenant-owned records."
+        description="Call, outcome, latency, language and conversion metrics aggregated across the whole window."
       />
-      <Stats data={data} />
-      <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-        <section className="portal-panel p-5">
-          <h2 className="text-sm font-semibold">Conversation trend</h2>
-          <p className="mt-1 text-[10px] text-white/32">
-            7 days · calls and conversions
-          </p>
-          <ActivityAreaChart data={activity} />
-        </section>
-        <section className="portal-panel p-5">
-          <h2 className="text-sm font-semibold">Outcome distribution</h2>
-          <p className="mt-1 text-[10px] text-white/32">
-            Recorded call outcomes
-          </p>
-          <DistributionChart data={outcomeCounts} />
-        </section>
+      <div className="flex flex-wrap items-center gap-2">
+        {[7, 30, 90].map((option) => (
+          <button
+            key={option}
+            type="button"
+            onClick={() => setDays(option)}
+            className={`rounded-lg border px-3 py-1.5 text-[11px] transition ${
+              days === option
+                ? 'border-white/30 bg-white/10 text-white'
+                : 'border-white/10 bg-white/4 text-white/55 hover:text-white/85'
+            }`}
+          >
+            Last {option} days
+          </button>
+        ))}
+        {payload ? (
+          <span className="text-[10px] text-white/28">
+            {payload.totals.calls} calls in window
+          </span>
+        ) : null}
       </div>
+      {error ? <p className="text-[11px] text-rose-300">{error}</p> : null}
+      {!payload && !error ? (
+        <p className="text-[11px] text-white/40">Loading aggregates…</p>
+      ) : null}
+
+      {totals ? (
+        <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-6">
+          <Mini label="Calls" value={String(totals.calls)} />
+          <Mini label="Leads created" value={String(totals.leads)} />
+          <Mini label="Talk minutes" value={String(totals.totalMinutes)} />
+          <Mini label="Resolution" value={`${totals.resolutionRate}%`} />
+          <Mini label="Transferred" value={`${totals.transferRate}%`} />
+          <Mini
+            label="Avg latency"
+            value={
+              totals.avgLatencyMs ? `${totals.avgLatencyMs}ms` : 'not measured'
+            }
+          />
+        </div>
+      ) : null}
+
+      {payload ? (
+        <>
+          <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+            <section className="portal-panel p-5">
+              <h2 className="text-sm font-semibold">Conversation trend</h2>
+              <p className="mt-1 text-[10px] text-white/32">
+                {payload.windowDays} days · calls, conversions and leads
+              </p>
+              <ActivityAreaChart data={payload.series} />
+            </section>
+            <section className="portal-panel p-5">
+              <h2 className="text-sm font-semibold">Outcome distribution</h2>
+              <p className="mt-1 text-[10px] text-white/32">
+                Every recorded outcome in the window
+              </p>
+              <DistributionChart
+                data={payload.outcomes.map((row) => ({
+                  name: row.name.replaceAll('_', ' '),
+                  value: row.value,
+                }))}
+              />
+            </section>
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-2">
+            <section className="portal-panel p-5">
+              <h2 className="text-sm font-semibold">Performance by language</h2>
+              <p className="mt-1 text-[10px] text-white/32">
+                A drop in one language is invisible in a blended average
+              </p>
+              <div className="mt-4 space-y-2">
+                {payload.byLanguage.length === 0 ? (
+                  <p className="text-[11px] text-white/35">
+                    No calls in this window.
+                  </p>
+                ) : null}
+                {payload.byLanguage.map((row) => (
+                  <div
+                    key={row.language}
+                    className="flex flex-wrap items-center gap-2 rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5 text-[11px]"
+                  >
+                    <span className="font-medium">{row.label}</span>
+                    <span className="text-white/45">{row.calls} calls</span>
+                    <span className="text-white/45">
+                      {row.avgLatencyMs ? `${row.avgLatencyMs}ms` : '—'}
+                    </span>
+                    <span className="text-white/45">
+                      {row.transferred} transferred
+                    </span>
+                    <span className="ml-auto text-[9px] text-white/32">
+                      {row.avgQuality ? `QA ${row.avgQuality}` : 'not reviewed'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+            <section className="portal-panel p-5">
+              <h2 className="text-sm font-semibold">Performance by agent</h2>
+              <p className="mt-1 text-[10px] text-white/32">
+                Calls, latency and resolved conversations
+              </p>
+              <div className="mt-4 space-y-2">
+                {payload.byAgent.length === 0 ? (
+                  <p className="text-[11px] text-white/35">
+                    No calls in this window.
+                  </p>
+                ) : null}
+                {payload.byAgent.map((row) => (
+                  <div
+                    key={row.agent}
+                    className="flex flex-wrap items-center gap-2 rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5 text-[11px]"
+                  >
+                    <span className="font-medium">{row.agent}</span>
+                    <span className="text-white/45">{row.calls} calls</span>
+                    <span className="text-white/45">
+                      {row.avgLatencyMs ? `${row.avgLatencyMs}ms` : '—'}
+                    </span>
+                    <span className="ml-auto text-[9px] text-white/32">
+                      {row.resolved} resolved
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }

@@ -1108,6 +1108,25 @@ async function bootstrap() {
     db.prepare(
       `CREATE INDEX IF NOT EXISTS idx_reports_org_status ON report_definitions (organization_id, status)`,
     ),
+    // Report runs. `report.generate` used to only bump last_generated_at, so a
+    // scheduled report produced nothing a customer could open or download.
+    db.prepare(`CREATE TABLE IF NOT EXISTS report_runs (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      report_id TEXT NOT NULL REFERENCES report_definitions(id) ON DELETE CASCADE,
+      status TEXT DEFAULT 'ready' NOT NULL,
+      report_type TEXT NOT NULL,
+      window_days INTEGER DEFAULT 30 NOT NULL,
+      row_count INTEGER DEFAULT 0 NOT NULL,
+      summary_json TEXT DEFAULT '{}' NOT NULL,
+      content_csv TEXT DEFAULT '' NOT NULL,
+      bytes INTEGER DEFAULT 0 NOT NULL,
+      error TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_report_runs_report ON report_runs (report_id, created_at)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS support_tickets (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -1373,6 +1392,7 @@ async function bootstrap() {
     'INTEGER DEFAULT 1 NOT NULL',
   );
   await ensureColumn(db, 'handoffs', 'queue_id', 'TEXT');
+  await ensureColumn(db, 'handoffs', 'call_id', 'TEXT');
   await ensureColumn(db, 'handoffs', 'enqueued_at', 'TEXT');
   await ensureColumn(db, 'handoffs', 'accepted_at', 'TEXT');
   await ensureColumn(db, 'handoffs', 'disposition', 'TEXT');
@@ -1549,6 +1569,9 @@ async function seedLocalDemo(db: D1Database) {
     db.prepare(`INSERT OR IGNORE INTO auth_provider_settings
       (provider, display_name, button_visible, enabled, status, public_config_json)
       VALUES ('google', 'Google', 1, 0, 'admin_disabled', '{"required":["GOOGLE_CLIENT_ID","GOOGLE_CLIENT_SECRET","GOOGLE_REDIRECT_URI"]}')`),
+    db.prepare(`INSERT OR IGNORE INTO auth_provider_settings
+      (provider, display_name, button_visible, enabled, status)
+      VALUES ('microsoft', 'Microsoft', 0, 0, 'not_configured')`),
     db.prepare(`INSERT OR IGNORE INTO auth_provider_settings
       (provider, display_name, button_visible, enabled, status, public_config_json)
       VALUES ('github', 'GitHub', 0, 0, 'hidden', '{"required":["GITHUB_CLIENT_ID","GITHUB_CLIENT_SECRET"]}')`),

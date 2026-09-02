@@ -250,6 +250,17 @@ async function whatsAppCredentials(organizationId: string) {
 }
 
 async function emailCredentials(organizationId: string) {
+  // The marketplace stores this provider as `resend`; `email_resend` is the
+  // legacy type kept so existing connections keep working. They used to
+  // disagree, which meant a connected Resend key was never read.
+  for (const type of ['resend', 'email_resend']) {
+    const tenant = await integrationSecrets(organizationId, type);
+    const from =
+      (tenant.publicConfig.fromAddress as string | undefined) ||
+      (tenant.publicConfig.from as string | undefined);
+    if (tenant.secrets.apiKey && from)
+      return { apiKey: tenant.secrets.apiKey, from };
+  }
   if (process.env.RESEND_API_KEY && process.env.EMAIL_FROM)
     return { apiKey: process.env.RESEND_API_KEY, from: process.env.EMAIL_FROM };
   const bundle = await integrationSecrets(organizationId, 'email_resend');
@@ -301,4 +312,46 @@ function escapeHtml(value: string) {
         character
       ] || character,
   );
+}
+
+/**
+ * Generic transactional email. Team invitations were never delivered — the API
+ * returned `delivery: 'email_pending'` in production and nothing ever sent one.
+ */
+export async function sendTransactionalEmail(input: {
+  organizationId: string;
+  to: string;
+  subject: string;
+  html: string;
+}): Promise<CommerceDeliveryResult> {
+  const credentials = await emailCredentials(input.organizationId);
+  if (!credentials.apiKey || !credentials.from) {
+    return {
+      status: 'sandbox_delivered',
+      providerReference: `sandbox_email_${crypto.randomUUID()}`,
+      payload: {
+        mode: 'local_sandbox',
+        reason:
+          'No transactional email provider is connected, so nothing was sent.',
+      },
+    };
+  }
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${credentials.apiKey}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: credentials.from,
+      to: [input.to],
+      subject: input.subject,
+      html: input.html,
+    }),
+    signal: AbortSignal.timeout(15_000),
+  });
+  const payload = (await response.json()) as { id?: string; message?: string };
+  if (!response.ok || !payload.id)
+    throw new Error(payload.message || 'The email provider rejected the send.');
+  return { status: 'sent', providerReference: payload.id, payload };
 }

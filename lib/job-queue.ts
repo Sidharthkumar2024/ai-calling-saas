@@ -2,6 +2,7 @@ import { getRawDb } from '@/db/index';
 import { enqueueJob } from '@/lib/job-enqueue';
 import { reasonWithTools } from '@/lib/provider-adapters';
 import { closeIdlePlaygroundCalls } from '@/lib/call-telemetry';
+import { dialCampaign } from '@/lib/campaign-dialer';
 
 export { enqueueJob };
 import { sendWhatsAppPaymentLink } from '@/lib/commerce';
@@ -198,6 +199,12 @@ async function executeJob(job: JobRow) {
   if (job.type === 'report.generate') return generateReport(job, payload);
   if (job.type === 'call.intelligence') return analyseCall(job, payload);
   if (job.type === 'calls.close_idle') return closeIdleCalls(job);
+  if (job.type === 'campaign.dial') {
+    if (!job.organization_id) throw new Error('Organization scope is required.');
+    const campaignId = stringValue(payload.campaignId);
+    if (!campaignId) throw new Error('campaignId is required.');
+    return dialCampaign(job.organization_id, campaignId);
+  }
   throw new Error(`No worker is registered for ${job.type}.`);
 }
 
@@ -230,17 +237,242 @@ async function enforceRetention(job: JobRow) {
   return { deleted: rows.results.length, retentionDays: days };
 }
 
+/**
+ * Produces a real report run: rows, a summary and a downloadable CSV. This used
+ * to only bump `last_generated_at`, so a scheduled report generated nothing the
+ * customer could open.
+ */
 async function generateReport(job: JobRow, payload: Record<string, unknown>) {
   if (!job.organization_id) throw new Error('Organization scope is required.');
   const reportId = stringValue(payload.reportId);
   if (!reportId) throw new Error('Report is required.');
-  const result = await getRawDb()
-    .prepare(`UPDATE report_definitions SET last_generated_at = CURRENT_TIMESTAMP
-    WHERE id = ? AND organization_id = ? AND status = 'active'`)
-    .bind(reportId, job.organization_id)
+  return runReportNow(job.organization_id, reportId);
+}
+
+/**
+ * Runs a report immediately. A manual "Generate" used to only bump
+ * `last_generated_at` and report success, producing nothing.
+ */
+export async function runReportNow(organizationId: string, reportId: string) {
+  const db = getRawDb();
+  const definition = await db
+    .prepare(`SELECT id, name, report_type, filters_json FROM report_definitions
+      WHERE id = ? AND organization_id = ? AND status = 'active' LIMIT 1`)
+    .bind(reportId, organizationId)
+    .first<{
+      id: string;
+      name: string;
+      report_type: string;
+      filters_json: string;
+    }>();
+  if (!definition) throw new Error('Active report was not found.');
+
+  const filters = safeObject(definition.filters_json);
+  const windowDays = Math.min(
+    Math.max(Number((filters as { windowDays?: unknown }).windowDays ?? 30), 1),
+    365,
+  );
+  const since = `-${windowDays} days`;
+  const built = await buildReportRows(
+    organizationId,
+    definition.report_type,
+    since,
+  );
+  const csv = toCsv(built.columns, built.rows);
+  const runId = `report_run_${crypto.randomUUID()}`;
+  await db
+    .prepare(`INSERT INTO report_runs
+      (id, organization_id, report_id, status, report_type, window_days,
+       row_count, summary_json, content_csv, bytes)
+      VALUES (?, ?, ?, 'ready', ?, ?, ?, ?, ?, ?)`)
+    .bind(
+      runId,
+      organizationId,
+      reportId,
+      definition.report_type,
+      windowDays,
+      built.rows.length,
+      JSON.stringify(built.summary),
+      csv,
+      new TextEncoder().encode(csv).length,
+    )
     .run();
-  if (!result.meta.changes) throw new Error('Active report was not found.');
-  return { reportId, generated: true };
+  await db
+    .prepare(`UPDATE report_definitions SET last_generated_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND organization_id = ?`)
+    .bind(reportId, organizationId)
+    .run();
+  // Keep the last 20 runs per report so a daily schedule cannot grow forever.
+  await db
+    .prepare(`DELETE FROM report_runs WHERE report_id = ? AND id NOT IN (
+        SELECT id FROM report_runs WHERE report_id = ? ORDER BY created_at DESC LIMIT 20
+      )`)
+    .bind(reportId, reportId)
+    .run();
+  return {
+    reportId,
+    runId,
+    generated: true,
+    rows: built.rows.length,
+    bytes: new TextEncoder().encode(csv).length,
+  };
+}
+
+/** One query per report type, each over real tenant data. */
+async function buildReportRows(
+  organizationId: string,
+  reportType: string,
+  since: string,
+): Promise<{
+  columns: string[];
+  rows: Array<Record<string, unknown>>;
+  summary: Record<string, unknown>;
+}> {
+  const db = getRawDb();
+  if (reportType === 'qa' || reportType === 'quality') {
+    const result = await db
+      .prepare(`SELECT q.created_at, c.customer_name, c.outcome, q.overall_score,
+          q.resolution_score, q.knowledge_score, q.naturalness_score,
+          q.policy_score, q.hallucination_count, q.status
+        FROM call_quality_reviews q
+        INNER JOIN call_records c ON c.id = q.call_id
+        WHERE q.organization_id = ? AND q.created_at >= datetime('now', ?)
+        ORDER BY q.created_at DESC LIMIT 5000`)
+      .bind(organizationId, since)
+      .all<Record<string, unknown>>();
+    const rows = result.results ?? [];
+    const scores = rows.map((row) => Number(row.overall_score ?? 0));
+    return {
+      columns: [
+        'created_at',
+        'customer_name',
+        'outcome',
+        'overall_score',
+        'resolution_score',
+        'knowledge_score',
+        'naturalness_score',
+        'policy_score',
+        'hallucination_count',
+        'status',
+      ],
+      rows,
+      summary: {
+        reviews: rows.length,
+        averageScore: scores.length
+          ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+          : 0,
+        notPassed: rows.filter((row) => row.status !== 'passed').length,
+      },
+    };
+  }
+
+  if (reportType === 'leads' || reportType === 'conversion') {
+    const result = await db
+      .prepare(`SELECT captured_at, name, phone, source_id, status, score, intent,
+          product_interest, campaign_name
+        FROM leads WHERE organization_id = ? AND captured_at >= datetime('now', ?)
+        ORDER BY captured_at DESC LIMIT 5000`)
+      .bind(organizationId, since)
+      .all<Record<string, unknown>>();
+    const rows = result.results ?? [];
+    return {
+      columns: [
+        'captured_at',
+        'name',
+        'phone',
+        'source_id',
+        'status',
+        'score',
+        'intent',
+        'product_interest',
+        'campaign_name',
+      ],
+      rows,
+      summary: {
+        leads: rows.length,
+        qualified: rows.filter((row) => row.status === 'qualified').length,
+      },
+    };
+  }
+
+  if (reportType === 'cost' || reportType === 'usage') {
+    const result = await db
+      .prepare(`SELECT date(created_at) AS day, provider, surface,
+          count(*) AS events, coalesce(sum(latency_ms), 0) AS latency_total,
+          coalesce(avg(latency_ms), 0) AS latency_avg
+        FROM provider_usage_events
+        WHERE organization_id = ? AND created_at >= datetime('now', ?)
+        GROUP BY 1, 2, 3 ORDER BY day DESC, events DESC LIMIT 5000`)
+      .bind(organizationId, since)
+      .all<Record<string, unknown>>();
+    const rows = result.results ?? [];
+    return {
+      columns: ['day', 'provider', 'surface', 'events', 'latency_total', 'latency_avg'],
+      rows,
+      summary: {
+        events: rows.reduce((sum, row) => sum + Number(row.events ?? 0), 0),
+        providers: new Set(rows.map((row) => String(row.provider))).size,
+      },
+    };
+  }
+
+  // Default: call outcomes, which is what most scheduled reports want.
+  const result = await db
+    .prepare(`SELECT c.started_at, c.channel, c.direction, c.customer_name,
+        c.to_number, a.name AS agent, c.status, c.outcome, c.sentiment,
+        c.duration_seconds, c.latency_ms, c.cost_credits
+      FROM call_records c LEFT JOIN voice_agents a ON a.id = c.agent_id
+      WHERE c.organization_id = ? AND c.started_at >= datetime('now', ?)
+      ORDER BY c.started_at DESC LIMIT 5000`)
+    .bind(organizationId, since)
+    .all<Record<string, unknown>>();
+  const rows = result.results ?? [];
+  return {
+    columns: [
+      'started_at',
+      'channel',
+      'direction',
+      'customer_name',
+      'to_number',
+      'agent',
+      'status',
+      'outcome',
+      'sentiment',
+      'duration_seconds',
+      'latency_ms',
+      'cost_credits',
+    ],
+    rows,
+    summary: {
+      calls: rows.length,
+      credits: rows.reduce((sum, row) => sum + Number(row.cost_credits ?? 0), 0),
+      talkMinutes: Math.round(
+        rows.reduce((sum, row) => sum + Number(row.duration_seconds ?? 0), 0) /
+          60,
+      ),
+    },
+  };
+}
+
+/** RFC-4180 style escaping so a comma or quote in a name cannot shift columns. */
+function toCsv(columns: string[], rows: Array<Record<string, unknown>>) {
+  const escape = (value: unknown) => {
+    if (value === null || value === undefined) return '';
+    const text =
+      typeof value === 'string'
+        ? value
+        : typeof value === 'number' ||
+            typeof value === 'boolean' ||
+            typeof value === 'bigint'
+          ? value.toString()
+          : JSON.stringify(value);
+    return /[",\n\r]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+  };
+  const lines = [columns.join(',')];
+  for (const row of rows) {
+    lines.push(columns.map((column) => escape(row[column])).join(','));
+  }
+  return lines.join('\n');
 }
 
 async function retryWebhook(job: JobRow, payload: Record<string, unknown>) {

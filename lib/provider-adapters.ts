@@ -1,4 +1,9 @@
 import { getRawDb } from '@/db/index';
+import {
+  executeAgentTool,
+  VAANI_AGENT_TOOLS,
+  type ToolContext,
+} from '@/lib/agent-tools';
 import { decryptSecret } from '@/lib/security';
 
 type StoredConnection = {
@@ -271,7 +276,7 @@ export async function transcribeSpeech(input: {
 export async function reasonWithTools(input: {
   organizationId: string;
   system: string;
-  messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+  messages: Array<{ role: 'user' | 'assistant'; content: string | unknown[] }>;
   tools?: Array<Record<string, unknown>>;
   maxTokens?: number;
 }) {
@@ -353,20 +358,75 @@ export async function generateVoiceAgentTurn(input: {
   systemPrompt: string;
   maxTokens: number;
   messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+  /** Supplying this enables real business tool calling for the turn. */
+  toolContext?: ToolContext;
 }) {
-  const response = await reasonWithTools({
+  const system = buildVoiceAgentInstructions(input);
+  const messages: Array<{
+    role: 'user' | 'assistant';
+    content: string | unknown[];
+  }> = input.messages.slice(-10);
+  const toolCalls: Array<{
+    name: string;
+    input: unknown;
+    result: unknown;
+  }> = [];
+  let latencyMs = 0;
+  let providerReference: string | null = null;
+
+  // Up to three rounds: the model may look something up, then answer.
+  for (let round = 0; round < 3; round += 1) {
+    const response = await reasonWithTools({
+      organizationId: input.organizationId,
+      maxTokens: Math.min(220, input.maxTokens),
+      system,
+      messages,
+      ...(input.toolContext ? { tools: VAANI_AGENT_TOOLS } : {}),
+    });
+    latencyMs += response.latencyMs;
+    providerReference = response.id || providerReference;
+    const blocks = Array.isArray(response.content)
+      ? (response.content as Array<Record<string, unknown>>)
+      : [];
+    const toolUses = blocks.filter((block) => block?.type === 'tool_use');
+    const stopReason = (response as { stop_reason?: string }).stop_reason;
+    if (!input.toolContext || stopReason !== 'tool_use' || !toolUses.length) {
+      const text = extractText(response.content);
+      if (!text) throw new Error('Vaani Sense returned no spoken response.');
+      return { text, latencyMs, providerReference, toolCalls };
+    }
+    // Feed the model's own tool_use blocks back, then the real results.
+    messages.push({ role: 'assistant', content: blocks });
+    const results: unknown[] = [];
+    for (const use of toolUses) {
+      const name = typeof use.name === 'string' ? use.name : '';
+      const args =
+        use.input && typeof use.input === 'object'
+          ? (use.input as Record<string, unknown>)
+          : {};
+      const outcome = await executeAgentTool(name, args, input.toolContext);
+      toolCalls.push({ name, input: args, result: outcome });
+      results.push({
+        type: 'tool_result',
+        tool_use_id: use.id,
+        content: JSON.stringify(outcome),
+      });
+    }
+    messages.push({ role: 'user', content: results });
+  }
+  // Round limit reached while still calling tools: ask once more without tools
+  // so the model has to speak instead of looping.
+  const closing = await reasonWithTools({
     organizationId: input.organizationId,
     maxTokens: Math.min(220, input.maxTokens),
-    system: buildVoiceAgentInstructions(input),
-    messages: input.messages.slice(-10),
+    system,
+    messages,
   });
-  const text = extractText(response.content);
-  if (!text) throw new Error('Vaani Sense returned no spoken response.');
-  return {
-    text,
-    latencyMs: response.latencyMs,
-    providerReference: response.id || null,
-  };
+  latencyMs += closing.latencyMs;
+  providerReference = closing.id || providerReference;
+  const closingText = extractText(closing.content);
+  if (!closingText) throw new Error('Vaani Sense returned no spoken response.');
+  return { text: closingText, latencyMs, providerReference, toolCalls };
 }
 
 export function buildVoiceAgentInstructions(input: {
@@ -675,7 +735,7 @@ async function reasonWithOpenAI(
   input: {
     organizationId: string;
     system: string;
-    messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+    messages: Array<{ role: 'user' | 'assistant'; content: string | unknown[] }>;
     maxTokens?: number;
   },
   apiKey: string,

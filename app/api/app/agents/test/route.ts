@@ -194,6 +194,7 @@ export async function POST(request: Request) {
     // Always prefer a connected reasoning provider so real questions get real
     // answers. The deterministic simulator is only a fallback for when no
     // provider is configured — it must never pre-empt the model.
+    let toolCalls: Array<{ name: string; input: unknown; result: unknown }> = [];
     try {
       const live = await generateVoiceAgentTurn({
         organizationId: auth.session.organizationId!,
@@ -210,10 +211,18 @@ export async function POST(request: Request) {
           })),
           { role: 'user' as const, content: message },
         ],
+        // Real business tools: lookups, slots, bookings, links, WhatsApp, handoff.
+        toolContext: {
+          organizationId: auth.session.organizationId!,
+          agentId: session.agent_id,
+          sessionId: session.id,
+          turnId: turnId + 1,
+        },
       });
       responseText = live.text;
       latencyMs = live.latencyMs;
       pipelineMode = 'connected';
+      toolCalls = live.toolCalls ?? [];
     } catch (error) {
       if (!(error instanceof ProviderConfigurationError)) {
         console.error(
@@ -222,6 +231,19 @@ export async function POST(request: Request) {
         );
       }
     }
+    // When the model actually ran tools, show those instead of guessed previews.
+    const executedActions = toolCalls.map((call) => {
+      const ok = Boolean((call.result as { ok?: boolean } | null)?.ok);
+      return {
+        type: call.name,
+        label: `${call.name.replaceAll('_', ' ')} — ${ok ? 'done' : 'failed'}`,
+        status: ok ? 'done' : 'failed',
+        payload: call.result,
+      };
+    });
+    const turnActions = executedActions.length
+      ? executedActions
+      : simulated.actions;
     const nextBalance = Number(session.balance) - TEST_TURN_COST;
     const userMessageId = `message_${crypto.randomUUID()}`;
     const assistantMessageId = `message_${crypto.randomUUID()}`;
@@ -239,7 +261,7 @@ export async function POST(request: Request) {
           assistantMessageId,
           session.id,
           responseText,
-          JSON.stringify(simulated.actions),
+          JSON.stringify(turnActions),
           latencyMs,
         ),
       db
@@ -266,7 +288,8 @@ export async function POST(request: Request) {
     );
     return NextResponse.json({
       message: responseText,
-      actions: simulated.actions,
+      actions: turnActions,
+      toolCalls,
       extraction: simulated.extraction,
       latencyMs,
       pipelineMode,

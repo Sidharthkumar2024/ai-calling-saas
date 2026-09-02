@@ -590,6 +590,46 @@ async function bootstrap() {
       customer_visible INTEGER DEFAULT 0 NOT NULL,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS appointments (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      lead_id TEXT,
+      agent_id TEXT,
+      customer_name TEXT,
+      customer_phone TEXT,
+      service TEXT,
+      slot_start TEXT NOT NULL,
+      slot_end TEXT,
+      mode TEXT DEFAULT 'in_person' NOT NULL,
+      status TEXT DEFAULT 'booked' NOT NULL,
+      idempotency_key TEXT UNIQUE,
+      notes TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS handoffs (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      agent_id TEXT,
+      session_id TEXT,
+      lead_id TEXT,
+      reason TEXT NOT NULL,
+      summary TEXT,
+      status TEXT DEFAULT 'pending' NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS agent_tool_calls (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL,
+      session_id TEXT,
+      turn_id INTEGER,
+      tool_name TEXT NOT NULL,
+      input_json TEXT DEFAULT '{}' NOT NULL,
+      result_json TEXT,
+      ok INTEGER DEFAULT 0 NOT NULL,
+      error_message TEXT,
+      latency_ms INTEGER,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
     db.prepare(`CREATE TABLE IF NOT EXISTS platform_provider_secrets (
       provider TEXT PRIMARY KEY NOT NULL,
       encrypted_secret TEXT,

@@ -1,77 +1,46 @@
 # Vaani — What's left (feature backlog)
 
-Status snapshot (2026-09-02): the product is already ~85–90% built. Landing page, customer
-portal (24 sections), admin portal, ~50 API routes, DB schema, billing, integrations,
-compliance and durable job queue are all coded. Google sign-in buttons already exist and are
-already admin-gated ("Admin disabled" badge). What remains is grouped below.
+Status (2026-09-02): product is ~90% built. Landing, customer portal (24 sections),
+admin portal, ~50 API routes, DB, billing, integrations, compliance, durable jobs are
+all coded. This file lists only what genuinely remains.
 
-Legend: **[CODE]** = real engineering work in this repo · **[KEY]** = external account/API key
-you must supply (no code) · **[POLISH]** = UI/UX/bug.
+Legend: **[CODE]** engineering in this repo · **[KEY]** external account/key you supply
+(no code) · **[POLISH]** UI/UX.
 
----
+## ✅ Done in recent sessions
+- Demo agent renamed **Maya → Aira** (source + live DB).
+- Browser voice made instant: removed the failed server-TTS round-trip, added
+  ~0.8s fast turn-taking, guarded the false "mic did not complete" error.
+- Multilingual demo conversation fixed: **Punjabi** added, language switch now
+  **persists**, warmer human lines, anti-repetition, deterministic switch ack.
+- Premium hero: sunset (amber→pink→violet) color grading, value-forward slogan.
+- Docs: copy-to-clipboard buttons on every code block.
+- Google sign-in button already present and admin-gated.
 
-## A. Genuine engineering left (highest value)
+## A. Genuine engineering left
+1. **[CODE+KEY] Truly human, real-time voice** — the WebRTC OpenAI-Realtime path
+   with barge-in is coded; it turns on when `OPENAI_API_KEY` is set. Until then the
+   demo uses browser STT/TTS (robotic, ~1s STT delay) — a browser limit, not code.
+2. **[KEY] Human voice timbre + Punjabi voice** — male & female voices exist in the
+   catalog (Tara/Meera/Riya, Kabir/Arjun/Veer, etc.); real human sound needs an
+   **ElevenLabs/Sarvam key**. Add a Punjabi TTS voice id once the key is in.
+3. **[CODE] Connected-LLM tone pass** — with an Anthropic/OpenAI key, open-discovery
+   turns already route to the LLM; tune the system prompts per industry for tone.
+4. **[CODE] Customer-side RBAC depth** — manager/agent/viewer roles inside a tenant.
+5. **[CODE] Admin billing/invoice/API-management depth** — richer invoice + provider
+   cost/margin surfaces.
 
-1. **[CODE] Realtime low-latency voice gateway** — this is the "slow response / not instant"
-   problem. Today the browser demo is request→think→reply. Needs a streaming
-   `STT → LLM(streaming) → TTS(streaming)` WebSocket media gateway with **barge-in**
-   (interrupt while AI is speaking) and regional routing. Target p50 < 800 ms first-audio.
-   → OpenAI Realtime API is the fastest path for telephonic.
+## B. Design-judgment (need your call)
+6. Landing/portal polish beyond the hero (demo card, stat chips, other sections).
+7. How close to Bolna's integration layout (you chose: same features, better design).
 
-2. **[CODE] Multi-language live switching + credit metering** — let the caller/user switch
-   English ↔ Hindi ↔ Haryanvi mid-conversation, inside the app and on calls. Wire the
-   **credit rule: 100 credits → 10 credits per unit** deduction into the live call ledger
-   (currently credits exist but the 10-per-unit call metering needs to be enforced end-to-end).
-
-3. **[CODE] Prebuilt AI agent "personalities"** — Sales agent, Support agent, Collections,
-   Real-estate, Lead-qualification presets, each with predefined tone/goals/guardrails, so the
-   product works across industries out of the box. (Presets file exists — needs the full set +
-   tone adaptation to how the customer speaks.)
-
-4. **[CODE] WhatsApp payment-link flow on call** — when a caller asks for a payment link, AI
-   asks "sir, is this your WhatsApp number?", confirms, then sends the link. Backend records
-   exist; the on-call conversational trigger + confirmation step needs wiring.
-
-5. **[CODE] Integrations parity with Bolna** — SIP, trunk, my-number, call history,
-   organization, API docs. Sections are scaffolded; make the integration cards actually
-   connect/test/save exactly like Bolna's panel (ditto layout you asked for).
-
-6. **[CODE] Admin billing/invoice/API management depth** — invoice management, per-tenant API
-   key management, provider cost/margin, credit top-ups and refunds surfaced in admin.
-
-7. **[CODE] Ticket system round-trip** — user raises ticket → lands in admin → admin
-   reply/assign/status. (Backend + UI exist; verify the full loop and notifications.)
-
-8. **[CODE] Customer-side role-based access** — managers/agents inside a customer org
-   (owner already exists; add manager/agent/viewer roles + permission gating).
-
-9. **[CODE] Voice picker** — Hindi/English/seasonal voices, country filter, pulled from
-   ElevenLabs, shown in agent studio.
-
-## B. Design-judgment items (need your confirmation before I build)
-
-10. **Copy Bolna user panel + landing page** — layout/flow parity. I'll match structure; you
-    confirm how close to "ditto" vs. our own polish.
-11. **Copy Retell landing page + selected pieces** (QA, alerting, live monitoring, analytics,
-    call recording look). Pick the exact pieces you want.
-12. **Color system upgrade** — make admin + customer portals read as a premium SaaS, not an
-    "AI toy". Landing page more impressive.
-
-## C. Polish / bugs
-
-13. **[POLISH] Overlapping issue** — need the exact page where you saw it (I checked
-    Overview/sidebar and they're clean; the sidebar nav scrolls correctly).
-14. **[POLISH] Forgot-password flow** — endpoint exists; verify UI round-trip.
-
-## D. External activation — you must supply (no code, admin panel toggles them on)
-
-- OpenAI key (+ Realtime model), ElevenLabs key + voice IDs, Sarvam key.
+## C. External activation — you supply (admin panel toggles on)
+- OpenAI (+ Realtime model), ElevenLabs + voice ids, Sarvam.
 - Exotel/Twilio number + carrier KYC + webhook/SIP.
 - Razorpay + Stripe live keys + signed webhooks.
-- Meta WhatsApp business + approved templates; Meta/Google Lead Ads OAuth apps.
-- Google OAuth app (to activate the existing Google sign-in button).
-- Private R2/S3 bucket for recordings; transactional email (Resend/SMTP).
+- Meta WhatsApp business + approved templates; Meta/Google Lead Ads OAuth.
+- Google OAuth app (activates the existing Google button).
+- Private R2/S3 for recordings; transactional email (Resend/SMTP).
 
-## E. Ship
-
-- Push to GitHub (`github.com/Sidharthkumar2024/ai-calling-saas`) once a track lands.
+## D. Ship
+- Push per track to `github.com/Sidharthkumar2024/ai-calling-saas` (ongoing).

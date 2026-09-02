@@ -604,6 +604,55 @@ async function bootstrap() {
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
+    // Queues and routing (§7-9). Handoff previously had one hardcoded
+    // strategy (skill, then language, then least busy) with no queue, no
+    // priority and no overflow.
+    db.prepare(`CREATE TABLE IF NOT EXISTS queues (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      slug TEXT NOT NULL,
+      description TEXT,
+      strategy TEXT DEFAULT 'skill_first' NOT NULL,
+      priority INTEGER DEFAULT 100 NOT NULL,
+      required_skill TEXT,
+      language TEXT,
+      min_role TEXT,
+      sla_seconds INTEGER DEFAULT 60 NOT NULL,
+      overflow_action TEXT DEFAULT 'callback' NOT NULL,
+      overflow_queue_id TEXT,
+      status TEXT DEFAULT 'active' NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_queues_org_slug ON queues (organization_id, slug)`,
+    ),
+    db.prepare(`CREATE TABLE IF NOT EXISTS queue_members (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      queue_id TEXT NOT NULL REFERENCES queues(id) ON DELETE CASCADE,
+      support_agent_id TEXT NOT NULL REFERENCES support_agents(id) ON DELETE CASCADE,
+      priority INTEGER DEFAULT 100 NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_queue_members_unique ON queue_members (queue_id, support_agent_id)`,
+    ),
+    db.prepare(`CREATE TABLE IF NOT EXISTS routing_rules (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      match_type TEXT NOT NULL,
+      match_value TEXT NOT NULL,
+      queue_id TEXT NOT NULL REFERENCES queues(id) ON DELETE CASCADE,
+      priority INTEGER DEFAULT 100 NOT NULL,
+      status TEXT DEFAULT 'active' NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_routing_rules_org ON routing_rules (organization_id, priority)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS approval_requests (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -1211,6 +1260,21 @@ async function bootstrap() {
     }
   }
 
+  // Routing needs presence timing (longest-idle) and a queue binding.
+  await ensureColumn(db, 'support_agents', 'last_assigned_at', 'TEXT');
+  await ensureColumn(db, 'support_agents', 'presence_changed_at', 'TEXT');
+  await ensureColumn(
+    db,
+    'support_agents',
+    'max_concurrent_calls',
+    'INTEGER DEFAULT 1 NOT NULL',
+  );
+  await ensureColumn(db, 'handoffs', 'queue_id', 'TEXT');
+  await ensureColumn(db, 'handoffs', 'enqueued_at', 'TEXT');
+  await ensureColumn(db, 'handoffs', 'accepted_at', 'TEXT');
+  await ensureColumn(db, 'handoffs', 'disposition', 'TEXT');
+  await ensureColumn(db, 'handoffs', 'disposition_notes', 'TEXT');
+
   // Distinguish real telephony from playground conversations in call history.
   await ensureColumn(
     db,
@@ -1518,6 +1582,69 @@ async function seedLocalDemo(db: D1Database) {
       (id, organization_id, name, report_type, schedule, filters_json, status, last_generated_at)
       VALUES ('report_demo_weekly', 'org_vaani_demo', 'Weekly revenue calls', 'operations', 'weekly_monday',
        '{"agents":"all","include":["outcomes","qa","cost","conversion"]}', 'active', CURRENT_TIMESTAMP)`),
+    // Human support bench, queues and routing rules so handoff works on a
+    // fresh install instead of dead-ending with "no members".
+    db.prepare(`INSERT OR IGNORE INTO support_agents
+      (id, organization_id, name, role, skills_json, languages_json, availability,
+       priority_tier, max_concurrent_calls)
+      VALUES ('sa_mgr', 'org_vaani_demo', 'Neha (Manager)', 'manager',
+       '["refund","escalation"]', '["hi-IN","en-IN"]', 'offline', 'priority', 2)`),
+    db.prepare(`INSERT OR IGNORE INTO support_agents
+      (id, organization_id, name, role, skills_json, languages_json, availability,
+       priority_tier, max_concurrent_calls)
+      VALUES ('sa_sup', 'org_vaani_demo', 'Rohit (Support)', 'support_agent',
+       '["support"]', '["hi-IN"]', 'offline', 'standard', 1)`),
+    // Linked to the demo owner so the Agent Desk is usable on a fresh install
+    // instead of showing "you are not on the support bench".
+    db.prepare(`UPDATE support_agents SET user_id = 'user_vaani_owner'
+      WHERE id = 'sa_sup' AND organization_id = 'org_vaani_demo' AND user_id IS NULL`),
+    db.prepare(`INSERT OR IGNORE INTO support_agents
+      (id, organization_id, name, role, skills_json, languages_json, availability,
+       priority_tier, max_concurrent_calls)
+      VALUES ('sa_sales', 'org_vaani_demo', 'Simran (Sales)', 'support_agent',
+       '["sales","site_visit"]', '["pa-IN","hi-IN","en-IN"]', 'offline', 'standard', 2)`),
+    db.prepare(`INSERT OR IGNORE INTO queues
+      (id, organization_id, name, slug, description, strategy, priority,
+       required_skill, min_role, sla_seconds, overflow_action, overflow_queue_id)
+      VALUES ('queue_escalation', 'org_vaani_demo', 'Escalations', 'escalation',
+       'Refunds, complaints and anything needing authority.', 'skill_first', 10,
+       'escalation', 'manager', 45, 'callback', NULL)`),
+    db.prepare(`INSERT OR IGNORE INTO queues
+      (id, organization_id, name, slug, description, strategy, priority,
+       required_skill, min_role, sla_seconds, overflow_action, overflow_queue_id)
+      VALUES ('queue_sales', 'org_vaani_demo', 'Sales', 'sales',
+       'Site visits, pricing and new enquiries.', 'longest_idle', 50,
+       'sales', NULL, 60, 'overflow_queue', 'queue_support')`),
+    db.prepare(`INSERT OR IGNORE INTO queues
+      (id, organization_id, name, slug, description, strategy, priority,
+       required_skill, min_role, sla_seconds, overflow_action, overflow_queue_id)
+      VALUES ('queue_support', 'org_vaani_demo', 'Support', 'support',
+       'General help for existing customers.', 'least_busy', 100,
+       NULL, NULL, 90, 'callback', NULL)`),
+    db.prepare(`INSERT OR IGNORE INTO queue_members
+      (id, organization_id, queue_id, support_agent_id, priority)
+      VALUES ('qm_esc_mgr', 'org_vaani_demo', 'queue_escalation', 'sa_mgr', 10)`),
+    db.prepare(`INSERT OR IGNORE INTO queue_members
+      (id, organization_id, queue_id, support_agent_id, priority)
+      VALUES ('qm_sales_simran', 'org_vaani_demo', 'queue_sales', 'sa_sales', 10)`),
+    db.prepare(`INSERT OR IGNORE INTO queue_members
+      (id, organization_id, queue_id, support_agent_id, priority)
+      VALUES ('qm_sup_rohit', 'org_vaani_demo', 'queue_support', 'sa_sup', 10)`),
+    db.prepare(`INSERT OR IGNORE INTO queue_members
+      (id, organization_id, queue_id, support_agent_id, priority)
+      VALUES ('qm_sup_simran', 'org_vaani_demo', 'queue_support', 'sa_sales', 200)`),
+    db.prepare(`INSERT OR IGNORE INTO routing_rules
+      (id, organization_id, name, match_type, match_value, queue_id, priority)
+      VALUES ('rr_refund', 'org_vaani_demo', 'Refunds to escalations', 'skill',
+       'escalation', 'queue_escalation', 10)`),
+    db.prepare(`INSERT OR IGNORE INTO routing_rules
+      (id, organization_id, name, match_type, match_value, queue_id, priority)
+      VALUES ('rr_sales', 'org_vaani_demo', 'Sales enquiries', 'skill', 'sales',
+       'queue_sales', 50)`),
+    db.prepare(`INSERT OR IGNORE INTO routing_rules
+      (id, organization_id, name, match_type, match_value, queue_id, priority)
+      VALUES ('rr_default', 'org_vaani_demo', 'Everything else', 'reason', '*',
+       'queue_support', 900)`),
     db.prepare(`INSERT OR IGNORE INTO support_tickets
       (id, organization_id, created_by_user_id, subject, category, priority, status, assigned_to)
       VALUES ('ticket_demo_sip', 'org_vaani_demo', 'user_vaani_owner', 'SIP trunk test call needs review',

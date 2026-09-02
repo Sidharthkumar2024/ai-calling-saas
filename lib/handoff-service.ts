@@ -1,5 +1,13 @@
 import { getRawDb } from '@/db/index';
 import {
+  ROUTING_STRATEGIES,
+  selectAgent,
+  selectQueue,
+  type RoutableAgent,
+  type RoutingOutcome,
+  type RoutingStrategy,
+} from '@/lib/routing';
+import {
   evaluateAction,
   roleCanAuthorise,
   type ActionDecision,
@@ -37,8 +45,109 @@ export type AvailableAgent = {
 };
 
 /**
- * Routing (§3): skill first, then language, then least busy. Only online agents
- * are eligible. Returns null when nobody is available — the caller must then
+ * Queue-aware routing (§7-9). Loads the queue's configuration and members,
+ * then applies the queue's strategy through the pure engine in lib/routing.ts.
+ * With no queue it considers every support agent in the workspace, which keeps
+ * the older callers working unchanged.
+ */
+export async function routeToAgent(input: {
+  organizationId: string;
+  queueId?: string | null;
+  skill?: string | null;
+  language?: string | null;
+  minRole?: ActorRole | null;
+}): Promise<RoutingOutcome & { queue: QueueConfig | null }> {
+  const db = getRawDb();
+  let queue: QueueConfig | null = null;
+  if (input.queueId) {
+    const row = await db
+      .prepare(`SELECT id, slug, name, strategy, required_skill, language, min_role,
+        sla_seconds, overflow_action, overflow_queue_id
+        FROM queues WHERE id = ? AND organization_id = ? AND status = 'active' LIMIT 1`)
+      .bind(input.queueId, input.organizationId)
+      .first<QueueConfig>();
+    queue = row ?? null;
+  }
+
+  const strategy: RoutingStrategy = ROUTING_STRATEGIES.includes(
+    (queue?.strategy ?? '') as RoutingStrategy,
+  )
+    ? (queue!.strategy as RoutingStrategy)
+    : 'skill_first';
+
+  const rows = queue
+    ? await db
+        .prepare(`SELECT a.id, a.name, a.role, a.skills_json, a.languages_json,
+          a.active_calls, a.availability, a.last_assigned_at,
+          coalesce(a.max_concurrent_calls, 1) AS max_concurrent_calls,
+          m.priority AS queue_priority
+        FROM queue_members m
+        INNER JOIN support_agents a ON a.id = m.support_agent_id
+        WHERE m.queue_id = ? AND m.organization_id = ?`)
+        .bind(queue.id, input.organizationId)
+        .all<AgentRow>()
+    : await db
+        .prepare(`SELECT a.id, a.name, a.role, a.skills_json, a.languages_json,
+          a.active_calls, a.availability, a.last_assigned_at,
+          coalesce(a.max_concurrent_calls, 1) AS max_concurrent_calls,
+          100 AS queue_priority
+        FROM support_agents a WHERE a.organization_id = ?`)
+        .bind(input.organizationId)
+        .all<AgentRow>();
+
+  const candidates: RoutableAgent[] = (rows.results ?? []).map((row) => ({
+    id: row.id,
+    name: row.name,
+    role: row.role,
+    skills: jsonArray(row.skills_json),
+    languages: jsonArray(row.languages_json),
+    activeCalls: Number(row.active_calls ?? 0),
+    maxConcurrentCalls: Number(row.max_concurrent_calls ?? 1),
+    lastAssignedAt: row.last_assigned_at ?? null,
+    queuePriority: Number(row.queue_priority ?? 100),
+    availability: row.availability,
+  }));
+
+  const minRole = input.minRole ?? (queue?.min_role as ActorRole | null) ?? null;
+  const outcome = selectAgent(candidates, {
+    strategy,
+    requiredSkill: input.skill ?? queue?.required_skill ?? null,
+    language: input.language ?? queue?.language ?? null,
+    minRoleRank: minRole ? (ROLE_RANK[minRole] ?? 1) : 1,
+    roleRank: (role) => ROLE_RANK[role] ?? 1,
+  });
+  return { ...outcome, queue };
+}
+
+export type QueueConfig = {
+  id: string;
+  slug: string;
+  name: string;
+  strategy: string;
+  required_skill: string | null;
+  language: string | null;
+  min_role: string | null;
+  sla_seconds: number;
+  overflow_action: string;
+  overflow_queue_id: string | null;
+};
+
+type AgentRow = {
+  id: string;
+  name: string;
+  role: string;
+  skills_json: string;
+  languages_json: string;
+  active_calls: number;
+  availability: string;
+  last_assigned_at: string | null;
+  max_concurrent_calls: number;
+  queue_priority: number;
+};
+
+/**
+ * Kept for callers that do not name a queue. Only online agents with spare
+ * capacity are eligible; null means nobody is available and the caller must
  * offer a truthful fallback instead of pretending the transfer worked.
  */
 export async function findAvailableAgent(input: {
@@ -47,53 +156,11 @@ export async function findAvailableAgent(input: {
   language?: string | null;
   minRole?: ActorRole | null;
 }): Promise<AvailableAgent | null> {
-  const rows = await getRawDb()
-    .prepare(`SELECT id, name, role, skills_json, languages_json, active_calls
-      FROM support_agents
-      WHERE organization_id = ? AND availability = 'online'
-      ORDER BY active_calls ASC, updated_at ASC`)
-    .bind(input.organizationId)
-    .all<{
-      id: string;
-      name: string;
-      role: string;
-      skills_json: string;
-      languages_json: string;
-      active_calls: number;
-    }>();
-  const minRank = input.minRole ? (ROLE_RANK[input.minRole] ?? 1) : 1;
-  const candidates = (rows.results ?? [])
-    .map((row) => ({
-      id: row.id,
-      name: row.name,
-      role: row.role,
-      skills: jsonArray(row.skills_json),
-      languages: jsonArray(row.languages_json),
-      activeCalls: Number(row.active_calls ?? 0),
-    }))
-    .filter((agent) => (ROLE_RANK[agent.role] ?? 1) >= minRank);
-  if (!candidates.length) return null;
-
-  const skill = input.skill?.trim().toLowerCase() || '';
-  const language = input.language?.trim().toLowerCase() || '';
-  const matches = (agent: AvailableAgent) => {
-    const skillOk =
-      !skill || agent.skills.some((item) => item.toLowerCase() === skill);
-    const langOk =
-      !language ||
-      agent.languages.some((item) => item.toLowerCase() === language);
-    return { skillOk, langOk };
-  };
-  // Skill + language, then skill only, then language only, then anyone.
-  return (
-    candidates.find((agent) => {
-      const m = matches(agent);
-      return m.skillOk && m.langOk;
-    }) ??
-    candidates.find((agent) => matches(agent).skillOk) ??
-    candidates.find((agent) => matches(agent).langOk) ??
-    candidates[0]
-  );
+  const outcome = await routeToAgent(input);
+  if (!outcome.agent) return null;
+  const { id: agentId, name, role, skills, languages, activeCalls } =
+    outcome.agent;
+  return { id: agentId, name, role, skills, languages, activeCalls };
 }
 
 export type TransferResult = {
@@ -103,9 +170,88 @@ export type TransferResult = {
   transferred: boolean;
   agent?: { id: string; name: string; role: string };
   queueStatus: 'assigned' | 'queued';
-  fallback?: 'callback' | 'ticket';
+  fallback?: 'callback' | 'ticket' | 'ai_continue';
+  /** Slug of the queue the handoff landed in, when one applied. */
+  queue?: string | null;
+  /** Which skill/language tier produced the match. */
+  matchTier?: string | null;
+  /** Why nobody could be assigned — drives the customer-facing answer. */
+  routingReason?: string;
+  /** Set when the first queue could not serve the caller and overflow ran. */
+  overflowedFrom?: string | null;
   message: string;
 };
+
+/**
+ * Resolves a conversation to a queue and an agent, applying the workspace's
+ * routing rules and one overflow hop. Shared by the real transfer and the
+ * dry-run route test so a supervisor's test cannot disagree with what a live
+ * transfer would actually do.
+ */
+export async function resolveRouting(input: {
+  organizationId: string;
+  queueId?: string | null;
+  skill?: string | null;
+  language?: string | null;
+  minRole?: ActorRole | null;
+  useCase?: string | null;
+  numberId?: string | null;
+  reason?: string | null;
+}) {
+  const db = getRawDb();
+  let queueId = input.queueId ?? null;
+  if (!queueId) {
+    const rules = await db
+      .prepare(`SELECT queue_id, match_type, match_value, priority
+        FROM routing_rules WHERE organization_id = ? AND status = 'active'`)
+      .bind(input.organizationId)
+      .all<{
+        queue_id: string;
+        match_type: string;
+        match_value: string;
+        priority: number;
+      }>();
+    queueId = selectQueue(
+      (rules.results ?? []).map((rule) => ({
+        queueId: rule.queue_id,
+        matchType: rule.match_type,
+        matchValue: rule.match_value,
+        priority: Number(rule.priority ?? 100),
+      })),
+      {
+        skill: input.skill ?? null,
+        language: input.language ?? null,
+        numberId: input.numberId ?? null,
+        useCase: input.useCase ?? null,
+        reason: input.reason ?? null,
+      },
+    );
+  }
+
+  let outcome = await routeToAgent({
+    organizationId: input.organizationId,
+    queueId,
+    skill: input.skill,
+    language: input.language,
+    minRole: input.minRole,
+  });
+  let overflowedFrom: string | null = null;
+  if (
+    !outcome.agent &&
+    outcome.queue?.overflow_action === 'overflow_queue' &&
+    outcome.queue.overflow_queue_id
+  ) {
+    overflowedFrom = outcome.queue.slug;
+    outcome = await routeToAgent({
+      organizationId: input.organizationId,
+      queueId: outcome.queue.overflow_queue_id,
+      skill: input.skill,
+      language: input.language,
+      minRole: input.minRole,
+    });
+  }
+  return { outcome, overflowedFrom };
+}
 
 /**
  * Warm transfer (§2): always record the handoff with the AI summary attached so
@@ -121,19 +267,31 @@ export async function initiateWarmTransfer(input: {
   skill?: string | null;
   language?: string | null;
   minRole?: ActorRole | null;
+  /** Explicit queue; omitted, the workspace's routing rules choose one. */
+  queueId?: string | null;
+  useCase?: string | null;
+  numberId?: string | null;
 }): Promise<TransferResult> {
-  const human = await findAvailableAgent({
+  const db = getRawDb();
+  const { outcome, overflowedFrom } = await resolveRouting({
     organizationId: input.organizationId,
+    queueId: input.queueId ?? null,
     skill: input.skill,
     language: input.language,
     minRole: input.minRole,
+    useCase: input.useCase ?? null,
+    numberId: input.numberId ?? null,
+    reason: input.reason,
   });
+
+  const human = outcome.agent;
   const handoffId = id('handoff');
-  await getRawDb()
+  await db
     .prepare(`INSERT INTO handoffs
       (id, organization_id, agent_id, session_id, reason, summary, status,
-       assigned_agent_id, skill, language, queue_status, ai_summary)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+       assigned_agent_id, skill, language, queue_status, ai_summary,
+       queue_id, enqueued_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`)
     .bind(
       handoffId,
       input.organizationId,
@@ -147,13 +305,19 @@ export async function initiateWarmTransfer(input: {
       input.language ?? null,
       human ? 'assigned' : 'queued',
       input.summary ?? null,
+      outcome.queue?.id ?? null,
     )
     .run();
+
   if (human) {
-    await getRawDb()
+    await db
       .prepare(
-        `UPDATE support_agents SET active_calls = active_calls + 1, availability = 'busy',
-         updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        `UPDATE support_agents SET active_calls = active_calls + 1,
+         availability = CASE
+           WHEN active_calls + 1 >= coalesce(max_concurrent_calls, 1) THEN 'busy'
+           ELSE availability END,
+         last_assigned_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
       )
       .bind(human.id)
       .run();
@@ -163,17 +327,48 @@ export async function initiateWarmTransfer(input: {
       transferred: true,
       agent: { id: human.id, name: human.name, role: human.role },
       queueStatus: 'assigned',
+      queue: outcome.queue?.slug ?? null,
+      matchTier: outcome.matchTier ?? null,
+      overflowedFrom,
       message: `Connecting the caller to ${human.name}. Summary delivered before pickup.`,
     };
   }
+
+  // Nobody available: the fallback comes from the queue's own configuration,
+  // and the message must never imply a connection is happening.
+  const overflow = outcome.queue?.overflow_action ?? 'callback';
+  const fallback =
+    overflow === 'ticket'
+      ? 'ticket'
+      : overflow === 'ai_continue'
+        ? 'ai_continue'
+        : 'callback';
+  const because =
+    outcome.reason === 'at_capacity'
+      ? 'Every agent is already on a call'
+      : outcome.reason === 'skill_unavailable'
+        ? 'No online agent has the required skill'
+        : outcome.reason === 'role_too_low'
+          ? 'No online agent is senior enough for this case'
+          : outcome.reason === 'no_members'
+            ? 'This queue has no members'
+            : 'No human agent is online right now';
+  const guidance =
+    fallback === 'ticket'
+      ? 'Raise a ticket and tell the caller a specialist will follow up.'
+      : fallback === 'ai_continue'
+        ? 'Continue helping the caller yourself within policy; do not promise a human.'
+        : 'Offer a callback instead.';
   return {
     ok: true,
     handoffId,
     transferred: false,
     queueStatus: 'queued',
-    fallback: 'callback',
-    message:
-      'No human agent is online right now. Do not tell the caller they are being connected — offer a callback or raise a ticket instead.',
+    queue: outcome.queue?.slug ?? null,
+    fallback,
+    routingReason: outcome.reason,
+    overflowedFrom,
+    message: `${because}. Do not tell the caller they are being connected — ${guidance}`,
   };
 }
 

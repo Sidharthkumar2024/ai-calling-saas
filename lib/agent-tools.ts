@@ -122,12 +122,32 @@ export const VAANI_AGENT_TOOLS: Array<Record<string, unknown>> = [
   {
     name: 'transfer_to_human',
     description:
-      'Hand the conversation to a human with a short summary. Use on request, on repeated misunderstanding, or for policy decisions.',
+      'Hand the conversation to a human with a short summary. Call this immediately when the caller asks for a person, manager or supervisor — do not interrogate them first. Also use it on repeated misunderstanding or for decisions you are not allowed to make. The result tells you whether a human actually took it; if transferred is false, never say you are connecting them.',
     input_schema: {
       type: 'object',
       properties: {
-        reason: { type: 'string' },
-        summary: { type: 'string' },
+        reason: {
+          type: 'string',
+          description: 'Why a human is needed, in one short line.',
+        },
+        summary: {
+          type: 'string',
+          description:
+            'What the human needs to know before picking up: who the caller is and what they want.',
+        },
+        // Declared so the model can actually drive queue routing. These were
+        // read by the handler but missing from the schema, which meant every
+        // transfer arrived with no skill and could not reach a skill queue.
+        skill: {
+          type: 'string',
+          description:
+            'Skill the case needs, e.g. sales, support, billing, escalation. Omit if unsure.',
+        },
+        language: {
+          type: 'string',
+          description:
+            'Language the caller is speaking, as a code such as hi-IN, pa-IN or en-IN.',
+        },
       },
       required: ['reason'],
     },

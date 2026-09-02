@@ -64,6 +64,7 @@ import {
   CustomerCommerce,
   type CommerceData,
 } from '@/components/customer-commerce';
+import { CustomerAgentDesk } from '@/components/customer-agent-desk';
 import { CustomerApprovals } from '@/components/customer-approvals';
 import { CustomerVoiceProfiles } from '@/components/customer-voice-profiles';
 import { PortalShell, type PortalNavGroup } from '@/components/portal-shell';
@@ -211,6 +212,8 @@ const groups: PortalNavGroup[] = [
     items: [
       { id: 'billing', label: 'Billing & credits', icon: CreditCard },
       { id: 'team', label: 'Team', icon: UsersRound },
+      { id: 'agent_desk', label: 'Agent desk', icon: Headphones },
+      { id: 'wallboard', label: 'Supervisor wallboard', icon: Gauge },
       { id: 'approvals', label: 'Approvals & handoff', icon: ShieldAlert },
       { id: 'tickets', label: 'Support tickets', icon: LifeBuoy },
       { id: 'settings', label: 'Settings', icon: Settings2 },
@@ -238,6 +241,8 @@ const navPermissions: Record<string, string> = {
   integrations: 'integrations.manage',
   billing: 'billing.manage',
   team: 'team.manage',
+  agent_desk: 'calls.monitor',
+  wallboard: 'calls.monitor',
   approvals: 'support.manage',
   tickets: 'support.manage',
   settings: 'workspace.manage',
@@ -500,6 +505,12 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
         ) : null}
         {!loading && !error && active === 'team' ? (
           <CustomerTeam data={data.team} onChanged={load} />
+        ) : null}
+        {!loading && !error && active === 'agent_desk' ? (
+          <CustomerAgentDesk view="desk" />
+        ) : null}
+        {!loading && !error && active === 'wallboard' ? (
+          <CustomerAgentDesk view="wallboard" />
         ) : null}
         {!loading && !error && active === 'approvals' ? (
           <CustomerApprovals />

@@ -590,6 +590,74 @@ async function bootstrap() {
       customer_visible INTEGER DEFAULT 0 NOT NULL,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS support_agents (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      user_id TEXT,
+      name TEXT NOT NULL,
+      role TEXT DEFAULT 'support_agent' NOT NULL,
+      skills_json TEXT DEFAULT '[]' NOT NULL,
+      languages_json TEXT DEFAULT '["hi-IN","en-IN"]' NOT NULL,
+      availability TEXT DEFAULT 'offline' NOT NULL,
+      active_calls INTEGER DEFAULT 0 NOT NULL,
+      priority_tier TEXT DEFAULT 'standard' NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS approval_requests (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      session_id TEXT,
+      handoff_id TEXT,
+      action TEXT NOT NULL,
+      amount INTEGER,
+      currency TEXT DEFAULT 'INR' NOT NULL,
+      reason TEXT,
+      case_summary TEXT,
+      evidence_json TEXT DEFAULT '{}' NOT NULL,
+      risk_level TEXT NOT NULL,
+      policy_decision TEXT NOT NULL,
+      policy_version INTEGER DEFAULT 1 NOT NULL,
+      policy_reasons_json TEXT DEFAULT '[]' NOT NULL,
+      ai_recommendation TEXT,
+      status TEXT DEFAULT 'pending' NOT NULL,
+      decided_by TEXT,
+      decided_at TEXT,
+      decision_reason TEXT,
+      idempotency_key TEXT UNIQUE,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS refunds (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      approval_id TEXT,
+      session_id TEXT,
+      order_reference TEXT,
+      customer_phone TEXT,
+      amount INTEGER NOT NULL,
+      currency TEXT DEFAULT 'INR' NOT NULL,
+      reason TEXT,
+      status TEXT DEFAULT 'requested' NOT NULL,
+      provider TEXT,
+      provider_reference TEXT,
+      failure_reason TEXT,
+      policy_version INTEGER DEFAULT 1 NOT NULL,
+      authorised_by TEXT,
+      idempotency_key TEXT UNIQUE NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      confirmed_at TEXT
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS callback_requests (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      session_id TEXT,
+      customer_name TEXT,
+      customer_phone TEXT NOT NULL,
+      reason TEXT,
+      requested_window TEXT,
+      status TEXT DEFAULT 'pending' NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
     db.prepare(`CREATE TABLE IF NOT EXISTS appointments (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -1056,6 +1124,22 @@ async function bootstrap() {
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
   ]);
+
+  // Handoff routing columns, added separately for databases created before the
+  // human-handoff engine shipped.
+  for (const column of [
+    'assigned_agent_id TEXT',
+    'skill TEXT',
+    'language TEXT',
+    'queue_status TEXT',
+    'ai_summary TEXT',
+  ]) {
+    try {
+      await db.prepare(`ALTER TABLE handoffs ADD COLUMN ${column}`).run();
+    } catch {
+      /* column already present */
+    }
+  }
 
   // Bind an agent to a voice profile. Added separately because the column may
   // already exist on databases created before voice profiles shipped.

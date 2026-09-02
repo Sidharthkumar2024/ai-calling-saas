@@ -1,4 +1,11 @@
 import { getRawDb } from '@/db/index';
+import { DEFAULT_REFUND_POLICY } from '@/lib/action-policy';
+import {
+  createApprovalRequest,
+  createCallbackRequest,
+  initiateWarmTransfer,
+  recordRefundRequest,
+} from '@/lib/handoff-service';
 
 export type ToolContext = {
   organizationId: string;
@@ -123,6 +130,49 @@ export const VAANI_AGENT_TOOLS: Array<Record<string, unknown>> = [
         summary: { type: 'string' },
       },
       required: ['reason'],
+    },
+  },
+  {
+    name: 'request_refund',
+    description:
+      'Start a refund. You do NOT decide refunds — this runs the business policy engine, which either auto-approves a small eligible refund, raises a manager approval card, or routes to a human. Never tell the caller a refund is done; only that it is submitted or sent for approval.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        amount: { type: 'number', description: 'Refund amount in rupees.' },
+        order_reference: {
+          type: 'string',
+          description: 'Order / payment reference the caller gave.',
+        },
+        reason: {
+          type: 'string',
+          description: 'Why the caller wants a refund, in their words.',
+        },
+        customer_phone: { type: 'string' },
+        case_summary: {
+          type: 'string',
+          description: 'Two-line summary for the human approver.',
+        },
+      },
+      required: ['amount', 'reason'],
+    },
+  },
+  {
+    name: 'create_callback',
+    description:
+      'Offer a callback. Use this when no human is available instead of claiming the caller is being connected.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        customer_phone: { type: 'string' },
+        customer_name: { type: 'string' },
+        reason: { type: 'string' },
+        requested_window: {
+          type: 'string',
+          description: 'When the caller wants the callback.',
+        },
+      },
+      required: ['customer_phone'],
     },
   },
   {
@@ -342,21 +392,139 @@ async function runTool(
   if (name === 'transfer_to_human') {
     const reason = str(input, 'reason');
     if (!reason) return { ok: false, reason: 'reason required' };
-    const handoffId = id('handoff');
-    await db
-      .prepare(`INSERT INTO handoffs
-        (id, organization_id, agent_id, session_id, reason, summary, status)
-        VALUES (?, ?, ?, ?, ?, ?, 'pending')`)
-      .bind(
-        handoffId,
-        ctx.organizationId,
-        ctx.agentId ?? null,
-        ctx.sessionId ?? null,
+    const transfer = await initiateWarmTransfer({
+      organizationId: ctx.organizationId,
+      agentId: ctx.agentId,
+      sessionId: ctx.sessionId,
+      reason,
+      summary: str(input, 'summary') || null,
+      skill: str(input, 'skill') || null,
+      language: str(input, 'language') || null,
+    });
+    return { ...transfer };
+  }
+
+  if (name === 'request_refund') {
+    const amount = Number(input.amount);
+    const reason = str(input, 'reason');
+    if (!Number.isFinite(amount) || amount <= 0)
+      return { ok: false, reason: 'invalid_amount' };
+    if (!reason) return { ok: false, reason: 'reason required' };
+    const orderReference = str(input, 'order_reference');
+    const phone = digits(input.customer_phone);
+
+    // Deterministic eligibility from real records — not model reasoning.
+    const conditions: string[] = [];
+    const failed: string[] = [];
+    if (orderReference) {
+      const priorRefund = await db
+        .prepare(`SELECT id FROM refunds WHERE organization_id = ? AND order_reference = ?
+          AND status != 'failed' LIMIT 1`)
+        .bind(ctx.organizationId, orderReference)
+        .first<{ id: string }>();
+      if (priorRefund) conditions.push('duplicate_refund');
+      const payment = await db
+        .prepare(`SELECT id, status, amount FROM payment_links
+          WHERE organization_id = ? AND (reference_id = ? OR id = ?) LIMIT 1`)
+        .bind(ctx.organizationId, orderReference, orderReference)
+        .first<{ id: string; status: string; amount: number }>();
+      if (!payment) failed.push('payment_record_not_found');
+      else if (Number(payment.amount) < Math.round(amount))
+        failed.push('amount_exceeds_payment');
+    } else {
+      failed.push('order_reference_missing');
+    }
+
+    const idempotencyKey = `refund:${ctx.organizationId}:${orderReference || phone || ctx.sessionId}:${Math.round(amount)}`;
+    const card = await createApprovalRequest({
+      organizationId: ctx.organizationId,
+      sessionId: ctx.sessionId,
+      action: 'refund',
+      amount,
+      reason,
+      caseSummary: str(input, 'case_summary') || null,
+      evidence: { order_reference: orderReference, customer_phone: phone },
+      policy: DEFAULT_REFUND_POLICY,
+      eligibility: { passed: failed.length === 0, failed },
+      conditions,
+      idempotencyKey: `approval:${idempotencyKey}`,
+    });
+
+    if (card.decision === 'auto_execute') {
+      const refund = await recordRefundRequest({
+        organizationId: ctx.organizationId,
+        approvalId: card.approvalId,
+        sessionId: ctx.sessionId,
+        orderReference: orderReference || null,
+        customerPhone: phone || null,
+        amount,
         reason,
-        str(input, 'summary') || null,
-      )
-      .run();
-    return { ok: true, handoff_id: handoffId, status: 'pending' };
+        policyVersion: card.policyVersion,
+        authorisedBy: 'policy:auto_execute',
+        idempotencyKey,
+      });
+      return {
+        ok: true,
+        decision: 'auto_execute',
+        risk_level: card.riskLevel,
+        policy_version: card.policyVersion,
+        refund_id: refund.refundId,
+        status: refund.status,
+        confirmed: false,
+        say_to_customer:
+          'The refund request is submitted and you will get a confirmation once the payment provider processes it. Do not say it is already refunded.',
+      };
+    }
+
+    if (card.decision === 'manager_approval') {
+      return {
+        ok: true,
+        decision: 'manager_approval',
+        risk_level: card.riskLevel,
+        policy_reasons: card.reasons,
+        approval_id: card.approvalId,
+        status: card.status,
+        confirmed: false,
+        say_to_customer:
+          'This refund needs a manager approval. Tell the caller it has been sent for approval and they will hear back — do not promise the outcome.',
+      };
+    }
+
+    // human_only / blocked
+    const transfer = await initiateWarmTransfer({
+      organizationId: ctx.organizationId,
+      agentId: ctx.agentId,
+      sessionId: ctx.sessionId,
+      reason: `refund_${card.decision}: ${reason}`,
+      summary: str(input, 'case_summary') || reason,
+      skill: 'refund',
+      minRole: 'manager',
+    });
+    return {
+      ok: true,
+      decision: card.decision,
+      risk_level: card.riskLevel,
+      policy_reasons: card.reasons,
+      approval_id: card.approvalId,
+      transfer,
+      confirmed: false,
+      say_to_customer: transfer.transferred
+        ? 'Tell the caller you are connecting them to a specialist now.'
+        : 'No human is available. Offer a callback with create_callback — do not say they are being connected.',
+    };
+  }
+
+  if (name === 'create_callback') {
+    const phone = digits(input.customer_phone);
+    if (phone.length < 6) return { ok: false, reason: 'invalid_phone' };
+    return createCallbackRequest({
+      organizationId: ctx.organizationId,
+      sessionId: ctx.sessionId,
+      customerName: str(input, 'customer_name') || null,
+      customerPhone: phone,
+      reason: str(input, 'reason') || null,
+      requestedWindow: str(input, 'requested_window') || null,
+    });
   }
 
   if (name === 'end_call') {

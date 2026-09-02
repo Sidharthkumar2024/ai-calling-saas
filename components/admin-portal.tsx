@@ -1527,7 +1527,7 @@ const KEY_PROVIDERS: KeyProvider[] = [
       {
         k: 'model',
         label: 'Model',
-        placeholder: 'claude-haiku-4-5-20251001',
+        placeholder: 'claude-haiku-4-5',
       },
     ],
   },

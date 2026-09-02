@@ -159,8 +159,8 @@ export function CustomerVoiceProfiles() {
         </h2>
         <p className="mt-2 max-w-2xl text-xs text-white/45">
           A profile decides which voice speaks, which languages it is allowed to
-          speak, and whether the voice may change mid-call. Locking a voice keeps
-          the same identity even when the caller switches language.
+          speak, and whether the voice may change mid-call. Locking a voice
+          keeps the same identity even when the caller switches language.
         </p>
       </div>
 
@@ -226,7 +226,9 @@ export function CustomerVoiceProfiles() {
                 value={voiceId}
                 onChange={(event) => setVoiceId(event.target.value)}
                 placeholder={
-                  provider === 'sarvam' ? 'e.g. shubh' : 'e.g. MF4J4IDTRo0AxOO4dpFR'
+                  provider === 'sarvam'
+                    ? 'e.g. shubh'
+                    : 'e.g. MF4J4IDTRo0AxOO4dpFR'
                 }
                 className="h-9 border-white/10 bg-black/30 font-mono text-[11px]"
               />
@@ -370,7 +372,9 @@ export function CustomerVoiceProfiles() {
                     profile.id,
                   );
                   if (ok)
-                    flash(profile.voiceLock ? 'Voice unlocked' : 'Voice locked ✓');
+                    flash(
+                      profile.voiceLock ? 'Voice unlocked' : 'Voice locked ✓',
+                    );
                 }}
                 className="h-8 border-white/12 bg-transparent text-[10px]"
               >
@@ -411,8 +415,8 @@ export function CustomerVoiceProfiles() {
 
       {!loading && !profiles.length ? (
         <p className="text-xs text-white/40">
-          No voice profiles yet. Create one and paste an ElevenLabs voice ID (or a
-          Sarvam speaker) to give this agent its own persona.
+          No voice profiles yet. Create one and paste an ElevenLabs voice ID (or
+          a Sarvam speaker) to give this agent its own persona.
         </p>
       ) : null}
     </div>

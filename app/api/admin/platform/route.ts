@@ -203,7 +203,9 @@ export async function PATCH(request: Request) {
         let reason = raw.slice(0, 200);
         try {
           const parsed = JSON.parse(raw) as { detail?: unknown };
-          const d = parsed.detail as { status?: string; message?: string } | string;
+          const d = parsed.detail as
+            | { status?: string; message?: string }
+            | string;
           reason =
             typeof d === 'string'
               ? d
@@ -212,7 +214,11 @@ export async function PATCH(request: Request) {
           /* keep raw */
         }
         return NextResponse.json(
-          { error: `TTS failed (${response.status}): ${reason}`, voiceId, modelId },
+          {
+            error: `TTS failed (${response.status}): ${reason}`,
+            voiceId,
+            modelId,
+          },
           { status: 502 },
         );
       }

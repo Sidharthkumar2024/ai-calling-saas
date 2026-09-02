@@ -207,9 +207,9 @@ export function CustomerApprovals() {
           <p className="text-sm font-medium">Agent presence</p>
         </div>
         <p className="mt-1 text-[10px] text-white/38">
-          Routing picks an online agent by skill, then language, then least busy.
-          With nobody online the AI offers a callback instead of pretending to
-          transfer.
+          Routing picks an online agent by skill, then language, then least
+          busy. With nobody online the AI offers a callback instead of
+          pretending to transfer.
         </p>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           {agents.map((agent) => (
@@ -221,8 +221,9 @@ export function CustomerApprovals() {
                 <div className="min-w-0">
                   <p className="truncate text-xs font-medium">{agent.name}</p>
                   <p className="mt-0.5 text-[9px] text-white/38">
-                    {agent.role} · {parseList(agent.skills_json).join(', ') || 'no skills'}{' '}
-                    · {parseList(agent.languages_json).join('/')} ·{' '}
+                    {agent.role} ·{' '}
+                    {parseList(agent.skills_json).join(', ') || 'no skills'} ·{' '}
+                    {parseList(agent.languages_json).join('/')} ·{' '}
                     {agent.active_calls} active
                   </p>
                 </div>
@@ -359,7 +360,10 @@ export function CustomerApprovals() {
                         },
                         `${card.id}:approved`,
                       );
-                      if (ok) flash('Approved ✓ — refund recorded, awaiting provider');
+                      if (ok)
+                        flash(
+                          'Approved ✓ — refund recorded, awaiting provider',
+                        );
                     }}
                     className="h-8 bg-emerald-400/90 text-[10px] text-black hover:bg-emerald-400"
                   >

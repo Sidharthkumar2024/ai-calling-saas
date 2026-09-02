@@ -47,8 +47,9 @@ export function routeTurn(input: {
   const confusionTurns = history
     .filter((turn) => turn.role === 'assistant')
     .slice(-4)
-    .filter((turn) => CONFUSION_PATTERNS.some((rx) => rx.test(turn.content)))
-    .length;
+    .filter((turn) =>
+      CONFUSION_PATTERNS.some((rx) => rx.test(turn.content)),
+    ).length;
 
   if (confusionTurns >= 2) {
     return {

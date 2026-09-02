@@ -34,14 +34,18 @@ export async function providerReadiness(organizationId?: string | null) {
   const platform = await platformSecretMap();
   const platformConfig = (provider: string) =>
     (platform.config.get(provider) ?? {}) as Record<string, unknown>;
-  const sarvam = Boolean(process.env.SARVAM_API_KEY) || platform.set.has('sarvam');
+  const sarvam =
+    Boolean(process.env.SARVAM_API_KEY) || platform.set.has('sarvam');
   const anthropic =
     Boolean(process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_MODEL) ||
     (platform.set.has('anthropic') &&
       Boolean(configString(platformConfig('anthropic'), 'model')));
-  const openai = Boolean(process.env.OPENAI_API_KEY) || platform.set.has('openai');
+  const openai =
+    Boolean(process.env.OPENAI_API_KEY) || platform.set.has('openai');
   const elevenlabs =
-    Boolean(process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_VOICE_ID) ||
+    Boolean(
+      process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_VOICE_ID,
+    ) ||
     (platform.set.has('elevenlabs') &&
       Boolean(configString(platformConfig('elevenlabs'), 'voiceId')));
   const exotel = Boolean(
@@ -151,7 +155,9 @@ export async function synthesizeSpeech(input: {
       platformProviderSecret('elevenlabs'),
     ]);
   const apiKey =
-    process.env.SARVAM_API_KEY || sarvamPlatform.apiKey || credentials.secrets.apiKey;
+    process.env.SARVAM_API_KEY ||
+    sarvamPlatform.apiKey ||
+    credentials.secrets.apiKey;
   const elevenLabsApiKey =
     process.env.ELEVENLABS_API_KEY ||
     elevenPlatform.apiKey ||
@@ -178,10 +184,7 @@ export async function synthesizeSpeech(input: {
     (input.voice?.provider === 'elevenlabs' ||
       input.languageCode === 'en-IN') &&
     Boolean(elevenLabsApiKey && elevenLabsVoiceId);
-  if (
-    preferGlobalVoice ||
-    (!apiKey && elevenLabsApiKey && elevenLabsVoiceId)
-  ) {
+  if (preferGlobalVoice || (!apiKey && elevenLabsApiKey && elevenLabsVoiceId)) {
     return synthesizeGlobalSpeech({
       ...input,
       apiKey: elevenLabsApiKey!,
@@ -308,7 +311,9 @@ async function transcribeWithElevenLabs(
   });
   const raw = await response.text();
   if (!response.ok)
-    throw new Error(`ElevenLabs STT failed (${response.status}): ${raw.slice(0, 160)}`);
+    throw new Error(
+      `ElevenLabs STT failed (${response.status}): ${raw.slice(0, 160)}`,
+    );
   let payload: { text?: string; language_code?: string } = {};
   try {
     payload = JSON.parse(raw) as { text?: string; language_code?: string };
@@ -855,7 +860,10 @@ async function reasonWithOpenAI(
   input: {
     organizationId: string;
     system: string;
-    messages: Array<{ role: 'user' | 'assistant'; content: string | unknown[] }>;
+    messages: Array<{
+      role: 'user' | 'assistant';
+      content: string | unknown[];
+    }>;
     maxTokens?: number;
   },
   apiKey: string,

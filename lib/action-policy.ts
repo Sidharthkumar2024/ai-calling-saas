@@ -108,7 +108,10 @@ export function evaluateAction(input: EvaluateInput): EvaluateResult {
   const reasons: string[] = [];
   const conditions = input.conditions ?? [];
   const riskFlags = input.riskFlags ?? [];
-  const eligibility = input.eligibility ?? { passed: false, failed: ['unknown'] };
+  const eligibility = input.eligibility ?? {
+    passed: false,
+    failed: ['unknown'],
+  };
   const amount = typeof input.amount === 'number' ? input.amount : null;
 
   // 1. Restricted conditions are never automated and never manager-only.

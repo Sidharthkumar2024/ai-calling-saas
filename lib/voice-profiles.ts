@@ -80,7 +80,8 @@ export async function resolveAgentVoice(input: {
   if (!profile) return null;
 
   const allowed = parseLanguages(profile.allowed_languages_json);
-  const supported = allowed.length === 0 || allowed.includes(input.languageCode);
+  const supported =
+    allowed.length === 0 || allowed.includes(input.languageCode);
   const locked = Boolean(profile.voice_lock);
 
   if (!supported && !locked && profile.fallback_profile_id) {

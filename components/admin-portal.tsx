@@ -1509,7 +1509,11 @@ const KEY_PROVIDERS: KeyProvider[] = [
     note: 'Premium human voices. Save the key, then fetch and pick a voice.',
     fields: [
       { k: 'voiceId', label: 'Default voice ID' },
-      { k: 'modelId', label: 'Model (optional)', placeholder: 'eleven_multilingual_v2' },
+      {
+        k: 'modelId',
+        label: 'Model (optional)',
+        placeholder: 'eleven_multilingual_v2',
+      },
     ],
     fetchVoices: true,
   },
@@ -1542,7 +1546,11 @@ const KEY_PROVIDERS: KeyProvider[] = [
     note: 'Only needed for full-duplex realtime streaming with barge-in.',
     fields: [
       { k: 'model', label: 'Model', placeholder: 'gpt-5.4-mini' },
-      { k: 'realtimeModel', label: 'Realtime model', placeholder: 'gpt-realtime' },
+      {
+        k: 'realtimeModel',
+        label: 'Realtime model',
+        placeholder: 'gpt-realtime',
+      },
     ],
   },
 ];
@@ -1588,10 +1596,9 @@ function ProviderKeyCard({
 }) {
   const savedConfig = (() => {
     try {
-      return JSON.parse(textValue(existing?.public_config_json, '{}')) as Record<
-        string,
-        string
-      >;
+      return JSON.parse(
+        textValue(existing?.public_config_json, '{}'),
+      ) as Record<string, string>;
     } catch {
       return {};
     }
@@ -1758,7 +1765,9 @@ function ProviderKeyCard({
 
       {error ? <p className="mt-2 text-[10px] text-red-300">{error}</p> : null}
       {notice ? (
-        <p className="mt-2 text-[10px] font-medium text-emerald-300">{notice}</p>
+        <p className="mt-2 text-[10px] font-medium text-emerald-300">
+          {notice}
+        </p>
       ) : null}
 
       {voices.length ? (

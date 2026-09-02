@@ -336,7 +336,11 @@ export async function decideApproval(input: {
     .first<{ id: string; status: string; policy_decision: ActionDecision }>();
   if (!row) return { ok: false, reason: 'not_found' as const };
   if (row.status !== 'pending')
-    return { ok: false, reason: 'already_decided' as const, status: row.status };
+    return {
+      ok: false,
+      reason: 'already_decided' as const,
+      status: row.status,
+    };
   if (
     input.outcome === 'approved' &&
     !roleCanAuthorise(input.actorRole, row.policy_decision)
@@ -379,9 +383,7 @@ export async function recordRefundRequest(input: {
 }) {
   const db = getRawDb();
   const existing = await db
-    .prepare(
-      `SELECT id, status FROM refunds WHERE idempotency_key = ? LIMIT 1`,
-    )
+    .prepare(`SELECT id, status FROM refunds WHERE idempotency_key = ? LIMIT 1`)
     .bind(input.idempotencyKey)
     .first<{ id: string; status: string }>();
   if (existing)

@@ -551,6 +551,7 @@ function SettingsPanel({
                 <option value="haryanvi">Haryanvi</option>
                 <option value="hi-IN">Hindi</option>
                 <option value="en-IN">Indian English</option>
+                <option value="en-AE">Gulf English</option>
                 <option value="bn-IN">Bengali</option>
                 <option value="ta-IN">Tamil</option>
                 <option value="te-IN">Telugu</option>
@@ -1213,7 +1214,8 @@ function TestConsole({
             body: JSON.stringify({ agentId: agent.id, text }),
             signal: controller.signal,
           });
-          if (!response.ok) throw new Error('Connected voice is not available.');
+          if (!response.ok)
+            throw new Error('Connected voice is not available.');
           const blob = await response.blob();
           if (interruptedRef.current) return;
           const url = URL.createObjectURL(blob);
@@ -1476,11 +1478,9 @@ function TestConsole({
       return;
     }
     mediaStreamRef.current = stream;
-    const mimeType = [
-      'audio/webm;codecs=opus',
-      'audio/webm',
-      'audio/mp4',
-    ].find((type) => MediaRecorder.isTypeSupported(type));
+    const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'].find(
+      (type) => MediaRecorder.isTypeSupported(type),
+    );
     const recorder = new MediaRecorder(
       stream,
       mimeType ? { mimeType } : undefined,
@@ -1496,7 +1496,9 @@ function TestConsole({
         void audioCtxRef.current.close().catch(() => undefined);
         audioCtxRef.current = null;
       }
-      const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+      const blob = new Blob(chunks, {
+        type: recorder.mimeType || 'audio/webm',
+      });
       if (blob.size < 1400) {
         // Too little audio — quietly listen again.
         if (voiceActiveRef.current) void startConnectedListening();
@@ -1985,10 +1987,22 @@ function VoiceOrb({
                 : ''
           }`}
         >
-          <span aria-hidden="true" className="vaani-orb__blob vaani-orb__blob--a" />
-          <span aria-hidden="true" className="vaani-orb__blob vaani-orb__blob--b" />
-          <span aria-hidden="true" className="vaani-orb__blob vaani-orb__blob--c" />
-          <span aria-hidden="true" className="vaani-orb__blob vaani-orb__blob--d" />
+          <span
+            aria-hidden="true"
+            className="vaani-orb__blob vaani-orb__blob--a"
+          />
+          <span
+            aria-hidden="true"
+            className="vaani-orb__blob vaani-orb__blob--b"
+          />
+          <span
+            aria-hidden="true"
+            className="vaani-orb__blob vaani-orb__blob--c"
+          />
+          <span
+            aria-hidden="true"
+            className="vaani-orb__blob vaani-orb__blob--d"
+          />
           <span aria-hidden="true" className="vaani-orb__sheen" />
           {active ? (
             <span

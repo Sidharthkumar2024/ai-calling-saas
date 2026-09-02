@@ -141,8 +141,7 @@ export function assertFrameMatchesFormat(
   format: AudioFormat,
   frameByteLength: number,
 ): void {
-  if (frameByteLength <= 0)
-    throw new AudioFormatError('Empty media frame.');
+  if (frameByteLength <= 0) throw new AudioFormatError('Empty media frame.');
   if (frameByteLength % format.bytesPerSample !== 0)
     throw new AudioFormatError(
       `Frame of ${frameByteLength} bytes is not aligned to ${format.bytesPerSample}-byte samples — the declared encoding is probably wrong.`,

@@ -204,7 +204,8 @@ function id(prefix: string) {
 }
 
 function digits(value: unknown) {
-  const text = typeof value === 'string' || typeof value === 'number' ? String(value) : '';
+  const text =
+    typeof value === 'string' || typeof value === 'number' ? String(value) : '';
   return text.replace(/\D/g, '');
 }
 
@@ -279,7 +280,10 @@ async function runTool(
     const customer = str(input, 'customer_name');
     const phone = digits(input.customer_phone);
     if (!slot || !customer || phone.length < 6)
-      return { ok: false, reason: 'slot_start, customer_name and phone required' };
+      return {
+        ok: false,
+        reason: 'slot_start, customer_name and phone required',
+      };
     // Never accept an invented time. The slot must be a real bookable slot in
     // the exact shape get_available_slots returns.
     const shape = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):00$/.exec(slot);
@@ -305,7 +309,12 @@ async function runTool(
       .bind(key)
       .first<{ id: string }>();
     if (existing)
-      return { ok: true, appointment_id: existing.id, slot_start: slot, already_booked: true };
+      return {
+        ok: true,
+        appointment_id: existing.id,
+        slot_start: slot,
+        already_booked: true,
+      };
     const clash = await db
       .prepare(`SELECT id FROM appointments
         WHERE organization_id = ? AND slot_start = ? AND status != 'cancelled' LIMIT 1`)
@@ -575,7 +584,10 @@ export async function executeAgentTool(
         outcome.ok ? 1 : 0,
         outcome.ok
           ? null
-          : (typeof outcome.reason === 'string' ? outcome.reason : 'failed').slice(0, 300),
+          : (typeof outcome.reason === 'string'
+              ? outcome.reason
+              : 'failed'
+            ).slice(0, 300),
         latencyMs,
       )
       .run();

@@ -8,6 +8,7 @@ Legend: **[CODE]** engineering in this repo · **[KEY]** external account/key yo
 (no code) · **[POLISH]** UI/UX.
 
 ## ✅ Done in recent sessions
+
 - Demo agent renamed **Maya → Aira** (source + live DB).
 - Browser voice made instant: removed the failed server-TTS round-trip, added
   ~0.8s fast turn-taking, guarded the false "mic did not complete" error.
@@ -18,6 +19,7 @@ Legend: **[CODE]** engineering in this repo · **[KEY]** external account/key yo
 - Google sign-in button already present and admin-gated.
 
 ## A. Genuine engineering left
+
 1. **[CODE+KEY] Truly human, real-time voice** — the WebRTC OpenAI-Realtime path
    with barge-in is coded; it turns on when `OPENAI_API_KEY` is set. Until then the
    demo uses browser STT/TTS (robotic, ~1s STT delay) — a browser limit, not code.
@@ -31,10 +33,12 @@ Legend: **[CODE]** engineering in this repo · **[KEY]** external account/key yo
    cost/margin surfaces.
 
 ## B. Design-judgment (need your call)
+
 6. Landing/portal polish beyond the hero (demo card, stat chips, other sections).
 7. How close to Bolna's integration layout (you chose: same features, better design).
 
 ## C. External activation — you supply (admin panel toggles on)
+
 - OpenAI (+ Realtime model), ElevenLabs + voice ids, Sarvam.
 - Exotel/Twilio number + carrier KYC + webhook/SIP.
 - Razorpay + Stripe live keys + signed webhooks.
@@ -43,4 +47,5 @@ Legend: **[CODE]** engineering in this repo · **[KEY]** external account/key yo
 - Private R2/S3 for recordings; transactional email (Resend/SMTP).
 
 ## D. Ship
+
 - Push per track to `github.com/Sidharthkumar2024/ai-calling-saas` (ongoing).

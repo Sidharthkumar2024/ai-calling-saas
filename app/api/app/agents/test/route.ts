@@ -152,7 +152,10 @@ export async function POST(request: Request) {
           AND (strftime('%s','now') - strftime('%s', u.created_at)) < 10
         ORDER BY u.created_at DESC LIMIT 1`)
       .bind(session.id, message)
-      .first<{ assistant_content: string | null; actions_json: string | null }>();
+      .first<{
+        assistant_content: string | null;
+        actions_json: string | null;
+      }>();
     const turnCount = await db
       .prepare(
         `SELECT COUNT(*) AS turns FROM agent_test_messages WHERE session_id = ? AND role = 'user'`,
@@ -196,7 +199,8 @@ export async function POST(request: Request) {
     // Always prefer a connected reasoning provider so real questions get real
     // answers. The deterministic simulator is only a fallback for when no
     // provider is configured — it must never pre-empt the model.
-    let toolCalls: Array<{ name: string; input: unknown; result: unknown }> = [];
+    let toolCalls: Array<{ name: string; input: unknown; result: unknown }> =
+      [];
     // LLM router (§9): routine turns stay on the fast model, objections and
     // repeated confusion escalate to the stronger one.
     const anthropicConfig = await platformProviderSecret('anthropic');

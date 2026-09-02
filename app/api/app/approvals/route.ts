@@ -104,7 +104,10 @@ export async function PATCH(request: Request) {
   const db = getRawDb();
 
   if (body.action === 'set_presence') {
-    if (!body.agentId || !['online', 'busy', 'offline', 'break'].includes(body.availability ?? ''))
+    if (
+      !body.agentId ||
+      !['online', 'busy', 'offline', 'break'].includes(body.availability ?? '')
+    )
       return NextResponse.json(
         { error: 'agentId and a valid availability are required.' },
         { status: 400 },

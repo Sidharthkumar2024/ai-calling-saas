@@ -10,6 +10,11 @@ import {
   ProviderConfigurationError,
 } from '@/lib/provider-adapters';
 import { routeTurn } from '@/lib/llm-router';
+import {
+  completeCall,
+  ensurePlaygroundCallRecord,
+  recordCallTurn,
+} from '@/lib/call-telemetry';
 
 export const dynamic = 'force-dynamic';
 const TEST_TURN_COST = 10;
@@ -18,7 +23,7 @@ export async function POST(request: Request) {
   const auth = await requireCustomer(request);
   if (auth.response) return auth.response;
   const body = (await request.json()) as {
-    action?: 'start' | 'message';
+    action?: 'start' | 'message' | 'end';
     agentId?: string;
     sessionId?: string;
     mode?: 'text' | 'browser_voice';
@@ -34,10 +39,15 @@ export async function POST(request: Request) {
     }
     const agent = await db
       .prepare(
-        `SELECT id, welcome_message FROM voice_agents WHERE id = ? AND organization_id = ? LIMIT 1`,
+        `SELECT id, name, primary_language, welcome_message FROM voice_agents WHERE id = ? AND organization_id = ? LIMIT 1`,
       )
       .bind(body.agentId, auth.session.organizationId)
-      .first<{ id: string; welcome_message: string }>();
+      .first<{
+        id: string;
+        name: string;
+        primary_language: string;
+        welcome_message: string;
+      }>();
     if (!agent)
       return NextResponse.json({ error: 'Agent not found.' }, { status: 404 });
     // Turn manager: a duplicate start (reconnect, double tap, re-render) must
@@ -80,6 +90,23 @@ export async function POST(request: Request) {
           agent.welcome_message,
         ),
     ]);
+    // Real call telemetry: the playground reports into the same tables as
+    // telephony, tagged channel='playground' so it is never shown as a call.
+    const callId = await ensurePlaygroundCallRecord({
+      organizationId: auth.session.organizationId!,
+      agentId: agent.id,
+      sessionId,
+      agentName: agent.name,
+      language: agent.primary_language,
+    });
+    await recordCallTurn({
+      organizationId: auth.session.organizationId!,
+      callId,
+      role: 'agent',
+      content: agent.welcome_message,
+      language: agent.primary_language,
+      latencyMs: 0,
+    });
     return NextResponse.json({
       sessionId,
       message: agent.welcome_message,
@@ -141,16 +168,16 @@ export async function POST(request: Request) {
       .prepare(`SELECT
           (SELECT a.content FROM agent_test_messages a
              WHERE a.session_id = u.session_id AND a.role = 'assistant'
-               AND a.created_at >= u.created_at
-             ORDER BY a.created_at ASC LIMIT 1) AS assistant_content,
+               AND a.rowid > u.rowid
+             ORDER BY a.rowid ASC LIMIT 1) AS assistant_content,
           (SELECT a.actions_json FROM agent_test_messages a
              WHERE a.session_id = u.session_id AND a.role = 'assistant'
-               AND a.created_at >= u.created_at
-             ORDER BY a.created_at ASC LIMIT 1) AS actions_json
+               AND a.rowid > u.rowid
+             ORDER BY a.rowid ASC LIMIT 1) AS actions_json
         FROM agent_test_messages u
         WHERE u.session_id = ? AND u.role = 'user' AND u.content = ?
           AND (strftime('%s','now') - strftime('%s', u.created_at)) < 10
-        ORDER BY u.created_at DESC LIMIT 1`)
+        ORDER BY u.rowid DESC LIMIT 1`)
       .bind(session.id, message)
       .first<{
         assistant_content: string | null;
@@ -178,9 +205,12 @@ export async function POST(request: Request) {
         creditsRemaining: Number(session.balance),
       });
     }
+    // Order by rowid, not created_at: CURRENT_TIMESTAMP has one-second
+    // precision, so turns inside the same second tied and came back in
+    // arbitrary order — which made the agent answer the previous question.
     const history = await db
       .prepare(`SELECT role, content FROM agent_test_messages
-      WHERE session_id = ? ORDER BY created_at DESC LIMIT 10`)
+      WHERE session_id = ? ORDER BY rowid DESC LIMIT 10`)
       .bind(session.id)
       .all<{ role: 'user' | 'assistant'; content: string }>();
     const orderedHistory = history.results.reverse();
@@ -299,6 +329,33 @@ export async function POST(request: Request) {
           VALUES (?, ?, 'trial_usage', -${TEST_TURN_COST}, ?, 'agent_test', ?, 'No-call agent playground turn')`)
         .bind(ledgerId, auth.session.organizationId, nextBalance, session.id),
     ]);
+    // Mirror the exchange into call telemetry so transcripts, summaries and
+    // QA reviews come from real conversations instead of seed rows.
+    const callId = await ensurePlaygroundCallRecord({
+      organizationId: auth.session.organizationId!,
+      agentId: session.agent_id,
+      sessionId: session.id,
+      agentName: session.agent_name,
+      language: session.primary_language,
+    });
+    await recordCallTurn({
+      organizationId: auth.session.organizationId!,
+      callId,
+      role: 'customer',
+      content: message,
+      language: session.primary_language,
+    });
+    await recordCallTurn({
+      organizationId: auth.session.organizationId!,
+      callId,
+      role: 'agent',
+      content: responseText,
+      language: session.primary_language,
+      latencyMs,
+      model: pipelineMode === 'connected' ? route.model : null,
+      toolCalls,
+    });
+
     // Whether a real TTS voice (Sarvam or ElevenLabs) is connected — so the
     // client can play server voice even when reasoning is in fallback mode.
     const readiness = await providerReadiness(auth.session.organizationId);
@@ -325,6 +382,39 @@ export async function POST(request: Request) {
       deduplicated: false,
       creditsRemaining: nextBalance,
     });
+  }
+
+  if (body.action === 'end') {
+    if (!body.sessionId)
+      return NextResponse.json(
+        { error: 'Session is required.' },
+        { status: 400 },
+      );
+    const session = await db
+      .prepare(
+        `SELECT id FROM agent_test_sessions WHERE id = ? AND organization_id = ? LIMIT 1`,
+      )
+      .bind(body.sessionId, auth.session.organizationId)
+      .first<{ id: string }>();
+    if (!session)
+      return NextResponse.json(
+        { error: 'Test session not found.' },
+        { status: 404 },
+      );
+    await db
+      .prepare(
+        `UPDATE agent_test_sessions SET status = 'ended', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      )
+      .bind(session.id)
+      .run();
+    // Ending the conversation queues post-call intelligence for it.
+    const result = await completeCall({
+      organizationId: auth.session.organizationId!,
+      callId: `call_${session.id}`,
+      outcome: 'completed',
+      disconnectReason: 'ended_by_user',
+    });
+    return NextResponse.json({ ended: true, ...result });
   }
 
   return NextResponse.json(

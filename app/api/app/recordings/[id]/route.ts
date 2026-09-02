@@ -69,46 +69,16 @@ export async function GET(
         },
       });
   }
-  const audio = makeDemoWav();
-  return new NextResponse(audio, {
-    headers: {
-      'content-type': 'audio/wav',
-      'content-length': String(audio.byteLength),
-      'cache-control': 'private, max-age=300',
-      'content-disposition': `inline; filename="${id}-demo.wav"`,
+  // No fabricated audio: a 220 Hz demo tone used to be returned for every call
+  // whose media was never stored, which sounded like a real (silent) recording.
+  return NextResponse.json(
+    {
+      error: 'Recording is not available for this call.',
+      reason: call.recording_storage_key
+        ? 'stored_object_missing'
+        : 'never_captured',
+      recordingStatus: call.recording_status,
     },
-  });
-}
-
-function makeDemoWav() {
-  const sampleRate = 8000;
-  const samples = sampleRate * 2;
-  const buffer = new ArrayBuffer(44 + samples * 2);
-  const view = new DataView(buffer);
-  const write = (offset: number, value: string) =>
-    value
-      .split('')
-      .forEach((char, index) =>
-        view.setUint8(offset + index, char.charCodeAt(0)),
-      );
-  write(0, 'RIFF');
-  view.setUint32(4, 36 + samples * 2, true);
-  write(8, 'WAVE');
-  write(12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, 1, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-  write(36, 'data');
-  view.setUint32(40, samples * 2, true);
-  for (let i = 0; i < samples; i += 1) {
-    const envelope = Math.min(1, i / 800) * Math.min(1, (samples - i) / 800);
-    const tone =
-      Math.sin((2 * Math.PI * 220 * i) / sampleRate) * 0.035 * envelope;
-    view.setInt16(44 + i * 2, Math.round(tone * 32767), true);
-  }
-  return buffer;
+    { status: 404 },
+  );
 }

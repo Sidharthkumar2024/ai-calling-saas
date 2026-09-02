@@ -56,12 +56,13 @@ export async function GET(request: Request) {
     scoped(db, 'graph_agents', organizationId, 'updated_at DESC'),
     db
       .prepare(`SELECT c.id, c.agent_id, c.lead_id, c.campaign_id, c.direction,
-        c.from_number, c.to_number, c.customer_name, c.status, c.outcome,
+        c.channel, c.from_number, c.to_number, c.customer_name, c.status, c.outcome,
         c.duration_seconds, c.latency_ms, c.sentiment, c.summary,
         c.recording_status, c.cost_credits, c.disconnect_reason, c.started_at,
-        c.ended_at, c.created_at, a.name AS agent_name, q.overall_score,
-        q.status AS qa_status
+        c.ended_at, c.created_at, c.intelligence_status, a.name AS agent_name,
+        t.turn_count, q.overall_score, q.status AS qa_status
       FROM call_records c LEFT JOIN voice_agents a ON a.id = c.agent_id
+      LEFT JOIN transcripts t ON t.call_id = c.id
       LEFT JOIN call_quality_reviews q ON q.call_id = c.id
       WHERE c.organization_id = ? ORDER BY c.started_at DESC LIMIT 100`)
       .bind(organizationId)

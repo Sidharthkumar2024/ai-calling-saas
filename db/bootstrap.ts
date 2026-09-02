@@ -831,6 +831,76 @@ async function bootstrap() {
     db.prepare(
       `CREATE INDEX IF NOT EXISTS idx_call_records_org_status ON call_records (organization_id, status)`,
     ),
+    // Call telemetry (§11-12). Conversation content used to live only in the
+    // seed-only `call_records.transcript_json` blob, so no real call could
+    // produce a transcript, a summary or a QA review.
+    db.prepare(`CREATE TABLE IF NOT EXISTS call_turns (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      call_id TEXT NOT NULL REFERENCES call_records(id) ON DELETE CASCADE,
+      turn_index INTEGER NOT NULL,
+      role TEXT NOT NULL,
+      content TEXT NOT NULL,
+      language TEXT,
+      latency_ms INTEGER,
+      model TEXT,
+      tool_calls_json TEXT DEFAULT '[]' NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_call_turns_call_index ON call_turns (call_id, turn_index)`,
+    ),
+    db.prepare(`CREATE TABLE IF NOT EXISTS transcripts (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      call_id TEXT NOT NULL UNIQUE REFERENCES call_records(id) ON DELETE CASCADE,
+      language TEXT,
+      source TEXT DEFAULT 'playground' NOT NULL,
+      turn_count INTEGER DEFAULT 0 NOT NULL,
+      full_text TEXT DEFAULT '' NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS summaries (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      call_id TEXT NOT NULL UNIQUE REFERENCES call_records(id) ON DELETE CASCADE,
+      summary TEXT NOT NULL,
+      intent TEXT,
+      sentiment TEXT,
+      outcome TEXT,
+      objections_json TEXT DEFAULT '[]' NOT NULL,
+      next_action TEXT,
+      model TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS call_participants (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      call_id TEXT NOT NULL REFERENCES call_records(id) ON DELETE CASCADE,
+      participant_type TEXT NOT NULL,
+      reference_id TEXT,
+      display_name TEXT,
+      joined_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      left_at TEXT
+    )`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_call_participants_call ON call_participants (call_id)`,
+    ),
+    db.prepare(`CREATE TABLE IF NOT EXISTS recordings (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      call_id TEXT NOT NULL REFERENCES call_records(id) ON DELETE CASCADE,
+      storage_key TEXT,
+      status TEXT DEFAULT 'not_available' NOT NULL,
+      format TEXT,
+      duration_seconds INTEGER DEFAULT 0 NOT NULL,
+      bytes INTEGER DEFAULT 0 NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_recordings_call ON recordings (call_id)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS call_quality_reviews (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -1140,6 +1210,15 @@ async function bootstrap() {
       /* column already present */
     }
   }
+
+  // Distinguish real telephony from playground conversations in call history.
+  await ensureColumn(
+    db,
+    'call_records',
+    'channel',
+    "TEXT DEFAULT 'phone' NOT NULL",
+  );
+  await ensureColumn(db, 'call_records', 'intelligence_status', "TEXT");
 
   // Bind an agent to a voice profile. Added separately because the column may
   // already exist on databases created before voice profiles shipped.

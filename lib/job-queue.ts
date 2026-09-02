@@ -1,4 +1,6 @@
 import { getRawDb } from '@/db/index';
+import { reasonWithTools } from '@/lib/provider-adapters';
+import { closeIdlePlaygroundCalls } from '@/lib/call-telemetry';
 import { sendWhatsAppPaymentLink } from '@/lib/commerce';
 import { decryptSecret } from '@/lib/security';
 import { env } from 'cloudflare:workers';
@@ -80,6 +82,16 @@ export async function enqueueMaintenanceJobs() {
       type: 'alerts.evaluate',
       idempotencyKey: `alerts:${organization.id}:${hour}`,
       payload: {},
+    });
+    // Conversations the user simply walked away from must still be closed and
+    // analysed, or their telemetry stays 'in progress' forever.
+    await enqueueJob({
+      organizationId: organization.id,
+      queue: 'monitoring',
+      type: 'calls.close_idle',
+      idempotencyKey: `close-idle:${organization.id}:${hour}`,
+      payload: {},
+      priority: 150,
     });
     await enqueueJob({
       organizationId: organization.id,
@@ -211,6 +223,8 @@ async function executeJob(job: JobRow) {
   if (job.type === 'webhook.deliver') return retryWebhook(job, payload);
   if (job.type === 'retention.enforce') return enforceRetention(job);
   if (job.type === 'report.generate') return generateReport(job, payload);
+  if (job.type === 'call.intelligence') return analyseCall(job, payload);
+  if (job.type === 'calls.close_idle') return closeIdleCalls(job);
   throw new Error(`No worker is registered for ${job.type}.`);
 }
 
@@ -433,6 +447,224 @@ async function syncAudience(job: JobRow, payload: Record<string, unknown>) {
     .bind(audienceId)
     .run();
   return { audienceId, destination: audience.destination, synced: true };
+}
+
+/**
+ * Post-call intelligence (§12): one model pass over the stored turns produces
+ * the summary, intent, sentiment, objections and next action that call history
+ * and analytics used to read from seed rows only. It also writes a real QA
+ * review, sampled at the workspace's configured `qa_sample_rate`.
+ */
+async function closeIdleCalls(job: JobRow) {
+  if (!job.organization_id) throw new Error('Organization scope is required.');
+  const closed = await closeIdlePlaygroundCalls(job.organization_id);
+  return { closed };
+}
+
+async function analyseCall(job: JobRow, payload: Record<string, unknown>) {
+  if (!job.organization_id) throw new Error('Organization scope is required.');
+  const callId = typeof payload.callId === 'string' ? payload.callId : '';
+  if (!callId) throw new Error('callId is required.');
+  const db = getRawDb();
+  const organizationId = job.organization_id;
+
+  const transcript = await db
+    .prepare(
+      `SELECT full_text, turn_count, language FROM transcripts WHERE call_id = ? LIMIT 1`,
+    )
+    .bind(callId)
+    .first<{ full_text: string; turn_count: number; language: string | null }>();
+  if (!transcript?.full_text?.trim()) {
+    // Nothing was said; record that honestly instead of inventing a summary.
+    await db
+      .prepare(
+        `UPDATE call_records SET intelligence_status = 'no_transcript' WHERE id = ?`,
+      )
+      .bind(callId)
+      .run();
+    return { callId, analysed: false, reason: 'no_transcript' };
+  }
+
+  const system = `You review one customer conversation for a business.
+Return ONLY minified JSON with these keys and nothing else:
+{"summary":string,"intent":string,"sentiment":"positive"|"neutral"|"negative","outcome":"resolved"|"information_provided"|"appointment_booked"|"payment_link_sent"|"callback_scheduled"|"transferred_to_human"|"not_interested"|"incomplete","objections":string[],"next_action":string,"customer_name":string|null,"quality":{"overall":0-100,"resolution":0-100,"knowledge":0-100,"naturalness":0-100,"policy":0-100,"hallucinations":number,"findings":string[]}}
+Rules: base every field only on the transcript. The outcome field must be exactly one of the listed values - it is grouped in analytics, so free text is not accepted; put the detail in next_action instead. Use null for a customer name that was never given. Keep summary under 40 words and write it in English. Score policy low if the agent claimed an action succeeded without confirmation, requested an OTP/CVV/PIN, or promised a refund outright.`;
+
+  let parsed: Record<string, unknown> | null = null;
+  let usedModel: string | null = null;
+  try {
+    const response = await reasonWithTools({
+      organizationId,
+      system,
+      maxTokens: 700,
+      messages: [
+        {
+          role: 'user',
+          content: `Transcript (${transcript.turn_count} turns):\n${transcript.full_text.slice(0, 12_000)}`,
+        },
+      ],
+    });
+    const meta = response as unknown as { model?: unknown };
+    usedModel = typeof meta.model === 'string' ? meta.model : null;
+    const blocks = ((response as { content?: unknown[] }).content ??
+      []) as Array<{ type?: string; text?: string }>;
+    const text = blocks
+      .filter((block) => block.type === 'text' && typeof block.text === 'string')
+      .map((block) => block.text as string)
+      .join('')
+      .trim();
+    const jsonStart = text.indexOf('{');
+    const jsonEnd = text.lastIndexOf('}');
+    if (jsonStart >= 0 && jsonEnd > jsonStart) {
+      parsed = JSON.parse(text.slice(jsonStart, jsonEnd + 1)) as Record<
+        string,
+        unknown
+      >;
+    }
+  } catch (error) {
+    // A missing key or a provider outage must not fabricate intelligence.
+    await db
+      .prepare(
+        `UPDATE call_records SET intelligence_status = 'unavailable' WHERE id = ?`,
+      )
+      .bind(callId)
+      .run();
+    return {
+      callId,
+      analysed: false,
+      reason: 'provider_unavailable',
+      detail: error instanceof Error ? error.message : String(error),
+    };
+  }
+  if (!parsed) {
+    await db
+      .prepare(
+        `UPDATE call_records SET intelligence_status = 'unparsed' WHERE id = ?`,
+      )
+      .bind(callId)
+      .run();
+    return { callId, analysed: false, reason: 'unparsed_model_output' };
+  }
+
+  const text = (key: string, fallback = '') =>
+    typeof parsed?.[key] === 'string' ? (parsed[key] as string) : fallback;
+  const sentiment = ['positive', 'neutral', 'negative'].includes(
+    text('sentiment'),
+  )
+    ? text('sentiment')
+    : 'neutral';
+  // Outcome is grouped in analytics, so an off-list value becomes 'incomplete'
+  // rather than creating a one-off bucket.
+  const CALL_OUTCOMES = [
+    'resolved',
+    'information_provided',
+    'appointment_booked',
+    'payment_link_sent',
+    'callback_scheduled',
+    'transferred_to_human',
+    'not_interested',
+    'incomplete',
+  ];
+  const callOutcome = CALL_OUTCOMES.includes(text('outcome'))
+    ? text('outcome')
+    : 'incomplete';
+  const objections = Array.isArray(parsed.objections)
+    ? parsed.objections.map((item) => String(item)).slice(0, 10)
+    : [];
+  const customerName = text('customer_name') || null;
+
+  await db
+    .prepare(`INSERT INTO summaries
+      (id, organization_id, call_id, summary, intent, sentiment, outcome, objections_json, next_action, model)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(call_id) DO UPDATE SET summary = excluded.summary, intent = excluded.intent,
+        sentiment = excluded.sentiment, outcome = excluded.outcome,
+        objections_json = excluded.objections_json, next_action = excluded.next_action,
+        model = excluded.model`)
+    .bind(
+      `summary_${crypto.randomUUID()}`,
+      organizationId,
+      callId,
+      text('summary', 'No summary produced.'),
+      text('intent') || null,
+      sentiment,
+      callOutcome,
+      JSON.stringify(objections),
+      text('next_action') || null,
+      usedModel,
+    )
+    .run();
+  await db
+    .prepare(`UPDATE call_records SET summary = ?, sentiment = ?, outcome = ?,
+      customer_name = coalesce(?, customer_name), intelligence_status = 'ready'
+      WHERE id = ?`)
+    .bind(
+      text('summary', 'No summary produced.'),
+      sentiment,
+      callOutcome,
+      customerName,
+      callId,
+    )
+    .run();
+
+  // QA sampling: honour the workspace setting that nothing used to read.
+  const settings = await db
+    .prepare(
+      `SELECT qa_sample_rate FROM organization_settings WHERE organization_id = ? LIMIT 1`,
+    )
+    .bind(organizationId)
+    .first<{ qa_sample_rate: number }>();
+  const sampleRate = Math.min(
+    Math.max(Number(settings?.qa_sample_rate ?? 100), 0),
+    100,
+  );
+  let qaReviewed = false;
+  const quality = (parsed.quality ?? null) as Record<string, unknown> | null;
+  if (quality && Math.random() * 100 < sampleRate) {
+    const score = (key: string) => {
+      const value = Number(quality[key]);
+      return Number.isFinite(value)
+        ? Math.min(100, Math.max(0, Math.round(value)))
+        : 0;
+    };
+    const overall = score('overall');
+    const findings = Array.isArray(quality.findings)
+      ? quality.findings.map((item) => String(item)).slice(0, 10)
+      : [];
+    const hallucinations = Number.isFinite(Number(quality.hallucinations))
+      ? Math.max(0, Math.round(Number(quality.hallucinations)))
+      : 0;
+    await db
+      .prepare(`INSERT INTO call_quality_reviews
+        (id, organization_id, call_id, overall_score, resolution_score, knowledge_score,
+         naturalness_score, policy_score, hallucination_count, overlap_count, status, findings_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`)
+      .bind(
+        `review_${crypto.randomUUID()}`,
+        organizationId,
+        callId,
+        overall,
+        score('resolution'),
+        score('knowledge'),
+        score('naturalness'),
+        score('policy'),
+        hallucinations,
+        overall >= 70 && hallucinations === 0 ? 'passed' : 'needs_review',
+        JSON.stringify(findings),
+      )
+      .run();
+    qaReviewed = true;
+  }
+
+  return {
+    callId,
+    analysed: true,
+    sentiment,
+    objections: objections.length,
+    qaReviewed,
+    qaSampleRate: sampleRate,
+    model: usedModel,
+  };
 }
 
 async function evaluateAlerts(job: JobRow) {

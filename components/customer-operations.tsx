@@ -1,7 +1,7 @@
 'use client';
 /* oxlint-disable jsx-a11y/media-has-caption -- call transcripts and QA summaries are available beside authenticated recordings */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   SUPPORTED_LANGUAGES,
   SUPPORTED_LANGUAGE_CODES,
@@ -876,6 +876,7 @@ function CreatorField({
 }
 
 function CallHistory({ data }: { data: OperationsData }) {
+  const [openCallId, setOpenCallId] = useState<string | null>(null);
   return (
     <div className="space-y-6">
       <Header
@@ -892,12 +893,14 @@ function CallHistory({ data }: { data: OperationsData }) {
                 {[
                   'Customer',
                   'Agent',
+                  'Channel',
                   'Status',
                   'Outcome',
                   'Duration',
                   'Latency',
                   'Sentiment',
                   'Credits',
+                  'Transcript',
                   'Recording',
                 ].map((item) => (
                   <th key={item} className="px-4 py-3 font-medium">
@@ -914,11 +917,28 @@ function CallHistory({ data }: { data: OperationsData }) {
                       {str(call.customer_name, 'Unknown')}
                     </p>
                     <p className="mt-1 font-mono text-[9px] text-white/28">
-                      {str(call.to_number)}
+                      {str(call.channel, 'phone') === 'playground'
+                        ? 'browser test'
+                        : str(call.to_number)}
                     </p>
                   </td>
                   <td className="px-4 py-4 text-white/55">
                     {str(call.agent_name)}
+                  </td>
+                  <td className="px-4 py-4">
+                    {/* A playground conversation is real telemetry but not a
+                        phone call, so it is labelled rather than blended in. */}
+                    <span
+                      className={`rounded-md px-2 py-1 text-[9px] uppercase tracking-wide ${
+                        str(call.channel, 'phone') === 'playground'
+                          ? 'bg-sky-400/12 text-sky-200'
+                          : 'bg-white/6 text-white/45'
+                      }`}
+                    >
+                      {str(call.channel, 'phone') === 'playground'
+                        ? 'Playground'
+                        : str(call.direction, 'phone')}
+                    </span>
                   </td>
                   <td className="px-4 py-4">
                     <Status value={str(call.status)} />
@@ -935,6 +955,19 @@ function CallHistory({ data }: { data: OperationsData }) {
                   </td>
                   <td className="px-4 py-4">{str(call.cost_credits)}</td>
                   <td className="px-4 py-4">
+                    {Number(call.turn_count ?? 0) > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => setOpenCallId(str(call.id))}
+                        className="rounded-lg border border-white/12 px-2.5 py-1.5 text-[10px] text-white/70 transition hover:border-white/25 hover:text-white"
+                      >
+                        {str(call.turn_count)} turns
+                      </button>
+                    ) : (
+                      <span className="text-white/25">No transcript</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-4">
                     {str(call.recording_status) !== 'not_available' ? (
                       <audio
                         controls
@@ -943,13 +976,241 @@ function CallHistory({ data }: { data: OperationsData }) {
                         src={`/api/app/recordings/${encodeURIComponent(str(call.id))}`}
                       />
                     ) : (
-                      <span className="text-white/25">Recording disabled</span>
+                      <span className="text-white/25">
+                        {str(call.channel, 'phone') === 'playground'
+                          ? 'No audio captured'
+                          : 'Recording unavailable'}
+                      </span>
                     )}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      </section>
+      {openCallId ? (
+        <CallDetail callId={openCallId} onClose={() => setOpenCallId(null)} />
+      ) : null}
+    </div>
+  );
+}
+
+/** Transcript, post-call intelligence, QA and tool timeline for one call. */
+function CallDetail({
+  callId,
+  onClose,
+}: {
+  callId: string;
+  onClose: () => void;
+}) {
+  const [detail, setDetail] = useState<Record<string, unknown> | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const response = await fetch(
+          `/api/app/calls/${encodeURIComponent(callId)}`,
+        );
+        const payload = (await response.json()) as Record<string, unknown>;
+        if (!active) return;
+        if (!response.ok) {
+          setError(str(payload.error, 'Could not load this call.'));
+          return;
+        }
+        setDetail(payload);
+      } catch {
+        if (active) setError('Could not load this call.');
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [callId]);
+
+  const call = (detail?.call ?? {}) as Record<string, unknown>;
+  const summary = (detail?.summary ?? null) as Record<string, unknown> | null;
+  const review = (detail?.qualityReview ?? null) as Record<
+    string,
+    unknown
+  > | null;
+  const turns = (detail?.turns ?? []) as Array<Record<string, unknown>>;
+  const objections = (() => {
+    try {
+      const parsed = JSON.parse(str(summary?.objections_json, '[]')) as unknown;
+      return Array.isArray(parsed) ? parsed.map((item) => String(item)) : [];
+    } catch {
+      return [];
+    }
+  })();
+  const intelligence = str(call.intelligence_status);
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/55 p-0 sm:p-4">
+      <button
+        type="button"
+        aria-label="Close call detail"
+        onClick={onClose}
+        className="absolute inset-0 cursor-default"
+      />
+      <section className="relative flex h-full w-full max-w-2xl flex-col overflow-hidden rounded-none border border-white/10 bg-[#0b1220] sm:rounded-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-white/8 px-5 py-4">
+          <div>
+            <p className="text-[9px] uppercase tracking-wider text-white/28">
+              Call detail
+            </p>
+            <h2 className="mt-1 text-sm font-semibold">
+              {str(call.customer_name, 'Unknown caller')}
+            </h2>
+            <p className="mt-1 text-[10px] text-white/40">
+              {str(call.agent_name)} · {callTimestamp(call.started_at)} ·{' '}
+              {duration(call.duration_seconds)} ·{' '}
+              {str(call.latency_ms, '—')}ms avg
+            </p>
+          </div>
+          <Button onClick={onClose} className="shrink-0">
+            Close
+          </Button>
+        </div>
+        <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5">
+          {error ? <p className="text-[11px] text-rose-300">{error}</p> : null}
+          {!detail && !error ? (
+            <p className="text-[11px] text-white/40">Loading…</p>
+          ) : null}
+          {detail ? (
+            <>
+              <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4">
+                <p className="text-[9px] uppercase tracking-wider text-white/28">
+                  Post-call intelligence
+                </p>
+                {summary ? (
+                  <>
+                    <p className="mt-2 text-[12px] leading-relaxed text-white/80">
+                      {str(summary.summary)}
+                    </p>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                      <Mini label="Intent" value={str(summary.intent, '—')} />
+                      <Mini
+                        label="Sentiment"
+                        value={str(summary.sentiment, '—')}
+                      />
+                      <Mini
+                        label="Outcome"
+                        value={str(summary.outcome, '—').replaceAll('_', ' ')}
+                      />
+                    </div>
+                    {objections.length ? (
+                      <p className="mt-3 text-[11px] text-white/55">
+                        <span className="text-white/32">Objections: </span>
+                        {objections.join(', ')}
+                      </p>
+                    ) : null}
+                    {str(summary.next_action) ? (
+                      <p className="mt-2 text-[11px] text-white/55">
+                        <span className="text-white/32">Next action: </span>
+                        {str(summary.next_action)}
+                      </p>
+                    ) : null}
+                    <p className="mt-3 text-[9px] text-white/25">
+                      Generated by {str(summary.model, 'the configured model')}
+                    </p>
+                  </>
+                ) : (
+                  <p className="mt-2 text-[11px] text-white/45">
+                    {intelligence === 'queued'
+                      ? 'Queued — runs on the next job tick.'
+                      : intelligence === 'unavailable'
+                        ? 'Not generated: no reasoning provider was reachable.'
+                        : intelligence === 'no_transcript'
+                          ? 'Nothing was said on this call.'
+                          : 'No summary has been generated for this call.'}
+                  </p>
+                )}
+              </div>
+
+              {review ? (
+                <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[9px] uppercase tracking-wider text-white/28">
+                      AI quality review
+                    </p>
+                    <Status value={str(review.status)} />
+                  </div>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-5">
+                    <Mini label="Overall" value={str(review.overall_score)} />
+                    <Mini
+                      label="Resolution"
+                      value={str(review.resolution_score)}
+                    />
+                    <Mini
+                      label="Knowledge"
+                      value={str(review.knowledge_score)}
+                    />
+                    <Mini
+                      label="Natural"
+                      value={str(review.naturalness_score)}
+                    />
+                    <Mini label="Policy" value={str(review.policy_score)} />
+                  </div>
+                </div>
+              ) : null}
+
+              <div>
+                <p className="text-[9px] uppercase tracking-wider text-white/28">
+                  Transcript · {turns.length} turns
+                </p>
+                <div className="mt-3 space-y-2">
+                  {turns.map((turn) => {
+                    const isCustomer = str(turn.role) === 'customer';
+                    let tools: Array<Record<string, unknown>> = [];
+                    try {
+                      const parsed = JSON.parse(
+                        str(turn.tool_calls_json, '[]'),
+                      ) as unknown;
+                      tools = Array.isArray(parsed)
+                        ? (parsed as Array<Record<string, unknown>>)
+                        : [];
+                    } catch {
+                      tools = [];
+                    }
+                    return (
+                      <div
+                        key={str(turn.turn_index)}
+                        className={`rounded-xl border px-3 py-2.5 ${
+                          isCustomer
+                            ? 'border-white/8 bg-white/[0.03]'
+                            : 'border-emerald-400/15 bg-emerald-400/[0.05]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between text-[9px] uppercase tracking-wider text-white/28">
+                          <span>{isCustomer ? 'Customer' : 'Agent'}</span>
+                          <span>
+                            {turn.latency_ms ? `${str(turn.latency_ms)}ms` : ''}
+                          </span>
+                        </div>
+                        <p className="mt-1.5 text-[12px] leading-relaxed text-white/80">
+                          {str(turn.content)}
+                        </p>
+                        {tools.length ? (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {tools.map((tool, index) => (
+                              <span
+                                key={`${str(turn.turn_index)}-${index}`}
+                                className="rounded-md bg-amber-400/12 px-2 py-1 text-[9px] text-amber-200"
+                              >
+                                {str(tool.name).replaceAll('_', ' ')}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          ) : null}
         </div>
       </section>
     </div>
@@ -1529,6 +1790,19 @@ function str(value: unknown, fallback = '—') {
   )
     return value.toString();
   return fallback;
+}
+/** Timestamps are stored as UTC text; show them in the reader's local time. */
+function callTimestamp(value: unknown) {
+  const raw = str(value);
+  if (!raw) return '—';
+  const parsed = new Date(raw.includes('T') ? raw : `${raw}Z`);
+  if (Number.isNaN(parsed.getTime())) return raw;
+  return parsed.toLocaleString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }
 function duration(value: unknown) {
   const seconds = Number(value ?? 0);

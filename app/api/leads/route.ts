@@ -20,7 +20,9 @@ export async function GET(request: Request) {
   const tenant = {
     organizationId: auth.session.organizationId!,
     organizationName: auth.session.organizationName!,
-    organizationSlug: auth.session.organizationName!.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    organizationSlug: auth.session
+      .organizationName!.toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-'),
     role: 'admin' as const,
   };
   const db = getDb();

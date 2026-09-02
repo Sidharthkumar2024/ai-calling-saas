@@ -77,9 +77,12 @@ export async function dispatchWebhook(
             });
           }
         } catch (error) {
-          responseSnippet = error instanceof Error ? error.message : 'Delivery failed';
+          responseSnippet =
+            error instanceof Error ? error.message : 'Delivery failed';
           await db
-            .prepare('UPDATE webhook_endpoints SET failure_count = failure_count + 1 WHERE id = ?')
+            .prepare(
+              'UPDATE webhook_endpoints SET failure_count = failure_count + 1 WHERE id = ?',
+            )
             .bind(endpoint.id)
             .run();
           await enqueueJob({
@@ -111,7 +114,9 @@ export async function dispatchWebhook(
 
 async function fingerprint(value: string) {
   const digest = await crypto.subtle.digest('SHA-256', encoder.encode(value));
-  return Array.from(new Uint8Array(digest).slice(0, 8), (byte) => byte.toString(16).padStart(2, '0')).join('');
+  return Array.from(new Uint8Array(digest).slice(0, 8), (byte) =>
+    byte.toString(16).padStart(2, '0'),
+  ).join('');
 }
 
 async function sign(value: string, secret: string) {
@@ -122,7 +127,11 @@ async function sign(value: string, secret: string) {
     false,
     ['sign'],
   );
-  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(value));
+  const signature = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    encoder.encode(value),
+  );
   return Array.from(new Uint8Array(signature), (byte) =>
     byte.toString(16).padStart(2, '0'),
   ).join('');

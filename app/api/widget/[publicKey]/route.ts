@@ -2,12 +2,26 @@ import { getRawDb } from '@/db/index';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request, { params }: { params: Promise<{ publicKey: string }> }) {
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ publicKey: string }> },
+) {
   const { publicKey } = await params;
-  const form = await getRawDb().prepare(`SELECT name, fields_json, settings_json, status
-    FROM lead_forms WHERE public_key = ? LIMIT 1`).bind(publicKey)
-    .first<{ name: string; fields_json: string; settings_json: string; status: string }>();
-  if (!form || form.status !== 'active') return new Response('/* Vaani form is not published. */', { status: 404, headers: scriptHeaders() });
+  const form = await getRawDb()
+    .prepare(`SELECT name, fields_json, settings_json, status
+    FROM lead_forms WHERE public_key = ? LIMIT 1`)
+    .bind(publicKey)
+    .first<{
+      name: string;
+      fields_json: string;
+      settings_json: string;
+      status: string;
+    }>();
+  if (!form || form.status !== 'active')
+    return new Response('/* Vaani form is not published. */', {
+      status: 404,
+      headers: scriptHeaders(),
+    });
   const origin = new URL(request.url).origin;
   const payload = JSON.stringify({
     publicKey,
@@ -29,6 +43,28 @@ root.querySelector('.x').onclick=()=>host.remove();root.querySelector('form').on
 window.VaaniLeadForm={open};if(s.placement==='inline'){console.warn('Vaani inline placement needs a manual open call.');return}if(s.trigger==='manual')return;if(s.trigger==='exit_intent'){document.addEventListener('mouseout',e=>{if(e.clientY<=0)open()},{once:true});return}setTimeout(open,Math.max(0,Number(s.delaySeconds||0))*1000)})();`;
 }
 
-function safeObject(value: string) { try { const parsed = JSON.parse(value) as unknown; return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}; } catch { return {}; } }
-function safeArray(value: string) { try { const parsed = JSON.parse(value) as unknown; return Array.isArray(parsed) ? parsed : []; } catch { return []; } }
-function scriptHeaders() { return { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'public, max-age=60, stale-while-revalidate=300', 'x-content-type-options': 'nosniff' }; }
+function safeObject(value: string) {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed
+      : {};
+  } catch {
+    return {};
+  }
+}
+function safeArray(value: string) {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+function scriptHeaders() {
+  return {
+    'content-type': 'application/javascript; charset=utf-8',
+    'cache-control': 'public, max-age=60, stale-while-revalidate=300',
+    'x-content-type-options': 'nosniff',
+  };
+}

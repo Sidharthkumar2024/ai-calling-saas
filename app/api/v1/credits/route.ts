@@ -8,7 +8,10 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   const auth = await authenticateApiKey(request, 'credits:read');
   if (!auth) {
-    return NextResponse.json({ error: 'Valid API key with credits:read is required.' }, { status: 401 });
+    return NextResponse.json(
+      { error: 'Valid API key with credits:read is required.' },
+      { status: 401 },
+    );
   }
   const wallet = await getRawDb()
     .prepare(
@@ -17,5 +20,7 @@ export async function GET(request: Request) {
     )
     .bind(auth.organizationId)
     .first();
-  return NextResponse.json({ data: wallet ?? { balance: 0, low_balance_threshold: 0 } });
+  return NextResponse.json({
+    data: wallet ?? { balance: 0, low_balance_threshold: 0 },
+  });
 }

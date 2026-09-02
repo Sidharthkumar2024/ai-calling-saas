@@ -76,16 +76,12 @@
       "indexes": {
         "idx_api_credentials_key_hash": {
           "name": "idx_api_credentials_key_hash",
-          "columns": [
-            "key_hash"
-          ],
+          "columns": ["key_hash"],
           "isUnique": true
         },
         "idx_api_credentials_org": {
           "name": "idx_api_credentials_org",
-          "columns": [
-            "organization_id"
-          ],
+          "columns": ["organization_id"],
           "isUnique": false
         }
       },
@@ -94,12 +90,8 @@
           "name": "api_credentials_organization_id_organizations_id_fk",
           "tableFrom": "api_credentials",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -180,17 +172,12 @@
       "indexes": {
         "idx_app_users_email": {
           "name": "idx_app_users_email",
-          "columns": [
-            "email"
-          ],
+          "columns": ["email"],
           "isUnique": true
         },
         "idx_app_users_org_role": {
           "name": "idx_app_users_org_role",
-          "columns": [
-            "organization_id",
-            "role"
-          ],
+          "columns": ["organization_id", "role"],
           "isUnique": false
         }
       },
@@ -199,12 +186,8 @@
           "name": "app_users_organization_id_organizations_id_fk",
           "tableFrom": "app_users",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -278,10 +261,7 @@
       "indexes": {
         "idx_audit_events_org_created": {
           "name": "idx_audit_events_org_created",
-          "columns": [
-            "organization_id",
-            "created_at"
-          ],
+          "columns": ["organization_id", "created_at"],
           "isUnique": false
         }
       },
@@ -290,12 +270,8 @@
           "name": "audit_events_organization_id_organizations_id_fk",
           "tableFrom": "audit_events",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -347,16 +323,12 @@
       "indexes": {
         "idx_auth_sessions_token_hash": {
           "name": "idx_auth_sessions_token_hash",
-          "columns": [
-            "token_hash"
-          ],
+          "columns": ["token_hash"],
           "isUnique": true
         },
         "idx_auth_sessions_user": {
           "name": "idx_auth_sessions_user",
-          "columns": [
-            "user_id"
-          ],
+          "columns": ["user_id"],
           "isUnique": false
         }
       },
@@ -365,12 +337,8 @@
           "name": "auth_sessions_user_id_app_users_id_fk",
           "tableFrom": "auth_sessions",
           "tableTo": "app_users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -423,9 +391,7 @@
       "indexes": {
         "idx_billing_events_external": {
           "name": "idx_billing_events_external",
-          "columns": [
-            "external_event_id"
-          ],
+          "columns": ["external_event_id"],
           "isUnique": true
         }
       },
@@ -508,11 +474,7 @@
       "indexes": {
         "idx_call_jobs_org_status_scheduled": {
           "name": "idx_call_jobs_org_status_scheduled",
-          "columns": [
-            "organization_id",
-            "status",
-            "scheduled_at"
-          ],
+          "columns": ["organization_id", "status", "scheduled_at"],
           "isUnique": false
         }
       },
@@ -521,12 +483,8 @@
           "name": "call_jobs_organization_id_organizations_id_fk",
           "tableFrom": "call_jobs",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -534,12 +492,8 @@
           "name": "call_jobs_lead_id_leads_id_fk",
           "tableFrom": "call_jobs",
           "tableTo": "leads",
-          "columnsFrom": [
-            "lead_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["lead_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -619,10 +573,7 @@
       "indexes": {
         "idx_credit_ledger_org_created": {
           "name": "idx_credit_ledger_org_created",
-          "columns": [
-            "organization_id",
-            "created_at"
-          ],
+          "columns": ["organization_id", "created_at"],
           "isUnique": false
         }
       },
@@ -631,12 +582,8 @@
           "name": "credit_ledger_organization_id_organizations_id_fk",
           "tableFrom": "credit_ledger",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -723,10 +670,7 @@
       "indexes": {
         "idx_crm_activities_org_lead": {
           "name": "idx_crm_activities_org_lead",
-          "columns": [
-            "organization_id",
-            "lead_id"
-          ],
+          "columns": ["organization_id", "lead_id"],
           "isUnique": false
         }
       },
@@ -735,12 +679,8 @@
           "name": "crm_activities_organization_id_organizations_id_fk",
           "tableFrom": "crm_activities",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -748,12 +688,8 @@
           "name": "crm_activities_lead_id_leads_id_fk",
           "tableFrom": "crm_activities",
           "tableTo": "leads",
-          "columnsFrom": [
-            "lead_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["lead_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -835,10 +771,7 @@
       "indexes": {
         "idx_integration_connections_org_type": {
           "name": "idx_integration_connections_org_type",
-          "columns": [
-            "organization_id",
-            "type"
-          ],
+          "columns": ["organization_id", "type"],
           "isUnique": true
         }
       },
@@ -847,12 +780,8 @@
           "name": "integration_connections_organization_id_organizations_id_fk",
           "tableFrom": "integration_connections",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -971,17 +900,12 @@
       "indexes": {
         "idx_invoices_number": {
           "name": "idx_invoices_number",
-          "columns": [
-            "invoice_number"
-          ],
+          "columns": ["invoice_number"],
           "isUnique": true
         },
         "idx_invoices_org_issued": {
           "name": "idx_invoices_org_issued",
-          "columns": [
-            "organization_id",
-            "issued_at"
-          ],
+          "columns": ["organization_id", "issued_at"],
           "isUnique": false
         }
       },
@@ -990,12 +914,8 @@
           "name": "invoices_organization_id_organizations_id_fk",
           "tableFrom": "invoices",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1055,10 +975,7 @@
       "indexes": {
         "idx_lead_events_org_lead": {
           "name": "idx_lead_events_org_lead",
-          "columns": [
-            "organization_id",
-            "lead_id"
-          ],
+          "columns": ["organization_id", "lead_id"],
           "isUnique": false
         }
       },
@@ -1067,12 +984,8 @@
           "name": "lead_events_organization_id_organizations_id_fk",
           "tableFrom": "lead_events",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1080,12 +993,8 @@
           "name": "lead_events_lead_id_leads_id_fk",
           "tableFrom": "lead_events",
           "tableTo": "leads",
-          "columnsFrom": [
-            "lead_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["lead_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1160,9 +1069,7 @@
       "indexes": {
         "idx_lead_forms_public_key": {
           "name": "idx_lead_forms_public_key",
-          "columns": [
-            "public_key"
-          ],
+          "columns": ["public_key"],
           "isUnique": true
         }
       },
@@ -1171,12 +1078,8 @@
           "name": "lead_forms_organization_id_organizations_id_fk",
           "tableFrom": "lead_forms",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1250,10 +1153,7 @@
       "indexes": {
         "idx_lead_sources_org_type": {
           "name": "idx_lead_sources_org_type",
-          "columns": [
-            "organization_id",
-            "type"
-          ],
+          "columns": ["organization_id", "type"],
           "isUnique": true
         }
       },
@@ -1262,12 +1162,8 @@
           "name": "lead_sources_organization_id_organizations_id_fk",
           "tableFrom": "lead_sources",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1401,35 +1297,22 @@
       "indexes": {
         "idx_leads_org_captured": {
           "name": "idx_leads_org_captured",
-          "columns": [
-            "organization_id",
-            "captured_at"
-          ],
+          "columns": ["organization_id", "captured_at"],
           "isUnique": false
         },
         "idx_leads_org_status": {
           "name": "idx_leads_org_status",
-          "columns": [
-            "organization_id",
-            "status"
-          ],
+          "columns": ["organization_id", "status"],
           "isUnique": false
         },
         "idx_leads_org_score": {
           "name": "idx_leads_org_score",
-          "columns": [
-            "organization_id",
-            "score"
-          ],
+          "columns": ["organization_id", "score"],
           "isUnique": false
         },
         "idx_leads_org_external": {
           "name": "idx_leads_org_external",
-          "columns": [
-            "organization_id",
-            "source_id",
-            "external_lead_id"
-          ],
+          "columns": ["organization_id", "source_id", "external_lead_id"],
           "isUnique": true
         }
       },
@@ -1438,12 +1321,8 @@
           "name": "leads_organization_id_organizations_id_fk",
           "tableFrom": "leads",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1451,12 +1330,8 @@
           "name": "leads_source_id_lead_sources_id_fk",
           "tableFrom": "leads",
           "tableTo": "lead_sources",
-          "columnsFrom": [
-            "source_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["source_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -1531,9 +1406,7 @@
       "indexes": {
         "idx_number_verifications_phone": {
           "name": "idx_number_verifications_phone",
-          "columns": [
-            "phone_number_id"
-          ],
+          "columns": ["phone_number_id"],
           "isUnique": false
         }
       },
@@ -1542,12 +1415,8 @@
           "name": "number_verifications_phone_number_id_phone_numbers_id_fk",
           "tableFrom": "number_verifications",
           "tableTo": "phone_numbers",
-          "columnsFrom": [
-            "phone_number_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["phone_number_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1607,17 +1476,12 @@
       "indexes": {
         "idx_members_org_user": {
           "name": "idx_members_org_user",
-          "columns": [
-            "organization_id",
-            "user_id"
-          ],
+          "columns": ["organization_id", "user_id"],
           "isUnique": true
         },
         "idx_members_user": {
           "name": "idx_members_user",
-          "columns": [
-            "user_id"
-          ],
+          "columns": ["user_id"],
           "isUnique": false
         }
       },
@@ -1626,12 +1490,8 @@
           "name": "organization_members_organization_id_organizations_id_fk",
           "tableFrom": "organization_members",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1681,12 +1541,8 @@
           "name": "organization_wallets_organization_id_organizations_id_fk",
           "tableFrom": "organization_wallets",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1739,9 +1595,7 @@
       "indexes": {
         "idx_organizations_slug": {
           "name": "idx_organizations_slug",
-          "columns": [
-            "slug"
-          ],
+          "columns": ["slug"],
           "isUnique": true
         }
       },
@@ -1863,17 +1717,12 @@
       "indexes": {
         "idx_phone_numbers_number": {
           "name": "idx_phone_numbers_number",
-          "columns": [
-            "phone_number"
-          ],
+          "columns": ["phone_number"],
           "isUnique": true
         },
         "idx_phone_numbers_org_status": {
           "name": "idx_phone_numbers_org_status",
-          "columns": [
-            "organization_id",
-            "status"
-          ],
+          "columns": ["organization_id", "status"],
           "isUnique": false
         }
       },
@@ -1882,12 +1731,8 @@
           "name": "phone_numbers_organization_id_organizations_id_fk",
           "tableFrom": "phone_numbers",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1983,9 +1828,7 @@
       "indexes": {
         "idx_plans_code": {
           "name": "idx_plans_code",
-          "columns": [
-            "code"
-          ],
+          "columns": ["code"],
           "isUnique": true
         }
       },
@@ -2069,18 +1912,12 @@
       "indexes": {
         "idx_opportunities_org_stage": {
           "name": "idx_opportunities_org_stage",
-          "columns": [
-            "organization_id",
-            "stage"
-          ],
+          "columns": ["organization_id", "stage"],
           "isUnique": false
         },
         "idx_opportunities_org_lead": {
           "name": "idx_opportunities_org_lead",
-          "columns": [
-            "organization_id",
-            "lead_id"
-          ],
+          "columns": ["organization_id", "lead_id"],
           "isUnique": true
         }
       },
@@ -2089,12 +1926,8 @@
           "name": "sales_opportunities_organization_id_organizations_id_fk",
           "tableFrom": "sales_opportunities",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2102,12 +1935,8 @@
           "name": "sales_opportunities_lead_id_leads_id_fk",
           "tableFrom": "sales_opportunities",
           "tableTo": "leads",
-          "columnsFrom": [
-            "lead_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["lead_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2181,16 +2010,12 @@
       "indexes": {
         "idx_subscriptions_org": {
           "name": "idx_subscriptions_org",
-          "columns": [
-            "organization_id"
-          ],
+          "columns": ["organization_id"],
           "isUnique": true
         },
         "idx_subscriptions_external": {
           "name": "idx_subscriptions_external",
-          "columns": [
-            "external_subscription_id"
-          ],
+          "columns": ["external_subscription_id"],
           "isUnique": false
         }
       },
@@ -2199,12 +2024,8 @@
           "name": "subscriptions_organization_id_organizations_id_fk",
           "tableFrom": "subscriptions",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2212,12 +2033,8 @@
           "name": "subscriptions_plan_id_plans_id_fk",
           "tableFrom": "subscriptions",
           "tableTo": "plans",
-          "columnsFrom": [
-            "plan_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["plan_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -2284,9 +2101,7 @@
       "indexes": {
         "idx_webhook_deliveries_endpoint": {
           "name": "idx_webhook_deliveries_endpoint",
-          "columns": [
-            "endpoint_id"
-          ],
+          "columns": ["endpoint_id"],
           "isUnique": false
         }
       },
@@ -2295,12 +2110,8 @@
           "name": "webhook_deliveries_endpoint_id_webhook_endpoints_id_fk",
           "tableFrom": "webhook_deliveries",
           "tableTo": "webhook_endpoints",
-          "columnsFrom": [
-            "endpoint_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["endpoint_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2397,9 +2208,7 @@
       "indexes": {
         "idx_webhook_endpoints_org": {
           "name": "idx_webhook_endpoints_org",
-          "columns": [
-            "organization_id"
-          ],
+          "columns": ["organization_id"],
           "isUnique": false
         }
       },
@@ -2408,12 +2217,8 @@
           "name": "webhook_endpoints_organization_id_organizations_id_fk",
           "tableFrom": "webhook_endpoints",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }

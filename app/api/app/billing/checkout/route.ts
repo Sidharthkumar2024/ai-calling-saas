@@ -2,14 +2,14 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
 import { getRawDb } from '@/db/index';
-import { requireCustomer } from '@/lib/api-session';
 import { applyCreditPurchase, applyPlanPurchase } from '@/lib/billing';
 import { recordAudit } from '@/lib/demo-seed';
+import { requireCustomerPermission } from '@/lib/customer-rbac';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
-  const auth = await requireCustomer(request);
+  const auth = await requireCustomerPermission(request, 'billing.manage');
   if (auth.response) return auth.response;
   const body = (await request.json()) as {
     purchaseType?: 'credits' | 'plan';

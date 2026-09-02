@@ -2,7 +2,11 @@ import { NextResponse } from 'next/server';
 
 import { ensureSchema } from '@/db/bootstrap';
 import { requireAdmin } from '@/lib/api-session';
-import { enqueueDueScheduledActions, enqueueMaintenanceJobs, processJobs } from '@/lib/job-queue';
+import {
+  enqueueDueScheduledActions,
+  enqueueMaintenanceJobs,
+  processJobs,
+} from '@/lib/job-queue';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,5 +20,10 @@ export async function POST(request: Request) {
   const queued = await enqueueDueScheduledActions();
   const maintenance = await enqueueMaintenanceJobs();
   const processed = await processJobs({ limit: 25 });
-  return NextResponse.json({ queued, maintenance, processed, at: new Date().toISOString() });
+  return NextResponse.json({
+    queued,
+    maintenance,
+    processed,
+    at: new Date().toISOString(),
+  });
 }

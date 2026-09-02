@@ -46,7 +46,9 @@ export function PortalShell({
   credits,
   children,
 }: PortalShellProps) {
-  const activeItem = groups.flatMap((group) => group.items).find((item) => item.id === active);
+  const activeItem = groups
+    .flatMap((group) => group.items)
+    .find((item) => item.id === active);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
@@ -58,7 +60,10 @@ export function PortalShell({
   return (
     <main className="portal-shell min-h-screen text-white lg:grid lg:grid-cols-[244px_minmax(0,1fr)]">
       <aside className="sticky top-0 hidden h-screen border-r border-white/[0.07] bg-[#080a0f]/88 backdrop-blur-2xl lg:flex lg:flex-col">
-        <Link href="/" className="flex h-[74px] items-center gap-3 border-b border-white/8 px-5">
+        <Link
+          href="/"
+          className="flex h-[74px] items-center gap-3 border-b border-white/8 px-5"
+        >
           <span className="grid size-9 place-items-center rounded-xl border border-white/20 bg-white text-black shadow-[0_12px_34px_-14px_rgba(255,255,255,.7)]">
             <Activity className="size-5" />
           </span>
@@ -78,7 +83,9 @@ export function PortalShell({
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-medium">{workspace || 'Vaani Platform'}</p>
+              <p className="truncate text-xs font-medium">
+                {workspace || 'Vaani Platform'}
+              </p>
               <p className="truncate text-[10px] text-white/35">
                 {mode === 'admin' ? 'Global control plane' : 'Growth workspace'}
               </p>
@@ -87,10 +94,15 @@ export function PortalShell({
           </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label={`${mode} navigation`}>
+        <nav
+          className="flex-1 overflow-y-auto px-3 py-4"
+          aria-label={`${mode} navigation`}
+        >
           {groups.map((group, groupIndex) => (
             <div key={group.label} className={groupIndex ? 'mt-6' : ''}>
-              <p className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-white/28">{group.label}</p>
+              <p className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-white/28">
+                {group.label}
+              </p>
               <div className="space-y-1">
                 {group.items.map((item) => (
                   <button
@@ -103,10 +115,14 @@ export function PortalShell({
                         : 'text-white/48 hover:bg-white/[0.045] hover:text-white/78'
                     }`}
                   >
-                    <item.icon className={`size-3.5 ${active === item.id ? 'text-[#afbcff]' : ''}`} />
+                    <item.icon
+                      className={`size-3.5 ${active === item.id ? 'text-[#afbcff]' : ''}`}
+                    />
                     <span className="flex-1">{item.label}</span>
                     {item.badge ? (
-                      <span className="rounded-md border border-white/10 bg-white/[0.06] px-1.5 py-0.5 font-mono text-[9px] text-white/65">{item.badge}</span>
+                      <span className="rounded-md border border-white/10 bg-white/[0.06] px-1.5 py-0.5 font-mono text-[9px] text-white/65">
+                        {item.badge}
+                      </span>
                     ) : null}
                   </button>
                 ))}
@@ -118,13 +134,20 @@ export function PortalShell({
         <div className="border-t border-white/8 p-3">
           <div className="mb-2 flex items-center gap-2 rounded-lg px-2 py-2">
             <Avatar className="size-8">
-              <AvatarFallback className="bg-white/7 text-[10px]">{name.slice(0, 2).toUpperCase()}</AvatarFallback>
+              <AvatarFallback className="bg-white/7 text-[10px]">
+                {name.slice(0, 2).toUpperCase()}
+              </AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
               <p className="truncate text-[11px] font-medium">{name}</p>
               <p className="truncate text-[9px] text-white/32">{email}</p>
             </div>
-            <button type="button" onClick={logout} className="rounded-md p-2 text-white/35 hover:bg-white/5 hover:text-white" aria-label="Log out">
+            <button
+              type="button"
+              onClick={logout}
+              className="rounded-md p-2 text-white/35 hover:bg-white/5 hover:text-white"
+              aria-label="Log out"
+            >
               <LogOut className="size-3.5" />
             </button>
           </div>
@@ -133,40 +156,111 @@ export function PortalShell({
 
       <section className="min-w-0">
         <header className="sticky top-0 z-40 flex h-[62px] items-center gap-3 border-b border-white/[0.07] bg-[#080a0f]/72 px-4 backdrop-blur-2xl sm:px-6">
-          <Button onClick={() => setMobileOpen((value) => !value)} variant="ghost" size="icon-sm" className="lg:hidden" aria-label="Open navigation" aria-expanded={mobileOpen}>
+          <Button
+            onClick={() => setMobileOpen((value) => !value)}
+            variant="ghost"
+            size="icon-sm"
+            className="lg:hidden"
+            aria-label="Open navigation"
+            aria-expanded={mobileOpen}
+          >
             <Menu />
           </Button>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{activeItem?.label ?? 'Overview'}</p>
+            <p className="truncate text-sm font-medium">
+              {activeItem?.label ?? 'Overview'}
+            </p>
             <p className="hidden text-[10px] text-white/32 sm:block">
               {mode === 'admin' ? 'Vaani platform control plane' : workspace}
             </p>
           </div>
           <div className="hidden w-56 items-center gap-2 rounded-lg border border-white/8 bg-white/[0.025] px-3 py-2 text-[10px] text-white/28 xl:flex">
             <Search className="size-3.5" /> Search anything
-            <span className="ml-auto rounded border border-white/8 px-1.5 py-0.5">⌘K</span>
+            <span className="ml-auto rounded border border-white/8 px-1.5 py-0.5">
+              ⌘K
+            </span>
           </div>
           {typeof credits === 'number' ? (
-            <button type="button" onClick={() => onNavigate('billing')} className="flex items-center gap-2 rounded-lg border border-white/8 bg-white/[0.035] px-3 py-2 text-[10px] text-white/68">
-              <Coins className="size-3.5 text-[#afbcff]" /> {credits.toLocaleString('en-IN')}
+            <button
+              type="button"
+              onClick={() => onNavigate('billing')}
+              className="flex items-center gap-2 rounded-lg border border-white/8 bg-white/[0.035] px-3 py-2 text-[10px] text-white/68"
+            >
+              <Coins className="size-3.5 text-[#afbcff]" />{' '}
+              {credits.toLocaleString('en-IN')}
             </button>
           ) : null}
-          <Link href="/docs" className="hidden items-center gap-2 rounded-lg px-2 py-2 text-[10px] text-white/42 hover:bg-white/5 hover:text-white sm:flex">
+          <Link
+            href="/docs"
+            className="hidden items-center gap-2 rounded-lg px-2 py-2 text-[10px] text-white/42 hover:bg-white/5 hover:text-white sm:flex"
+          >
             <BookOpenText className="size-3.5" /> Docs
           </Link>
-          <div className="relative"><Button onClick={() => setNotificationsOpen((value) => !value)} variant="ghost" size="icon-sm" className="relative" aria-label="Notifications" aria-expanded={notificationsOpen}><Bell /><span className="absolute right-1 top-1 size-1.5 rounded-full bg-[#91a7ff]" /></Button>{notificationsOpen?<div className="absolute right-0 top-11 z-50 w-72 rounded-xl border border-white/12 bg-[#0b0f17]/98 p-4 shadow-2xl backdrop-blur-xl"><p className="text-xs font-semibold">Notifications</p><div className="mt-3 space-y-2"><div className="rounded-lg border border-white/7 bg-white/[0.025] p-3"><p className="text-[10px] text-white/65">Workspace systems are healthy.</p><p className="mt-1 text-[8px] text-white/28">Provider readiness is shown on Overview.</p></div><button type="button" onClick={() => { onNavigate(mode === 'admin' ? 'system_audit' : 'alerts'); setNotificationsOpen(false); }} className="w-full rounded-lg border border-white/8 px-3 py-2 text-[9px] text-white/55 hover:bg-white/5">Open notification center</button></div></div>:null}</div>
-          <Badge variant="outline" className="hidden border-emerald-400/15 bg-emerald-400/6 text-[9px] text-emerald-300 sm:inline-flex">
+          <div className="relative">
+            <Button
+              onClick={() => setNotificationsOpen((value) => !value)}
+              variant="ghost"
+              size="icon-sm"
+              className="relative"
+              aria-label="Notifications"
+              aria-expanded={notificationsOpen}
+            >
+              <Bell />
+              <span className="absolute right-1 top-1 size-1.5 rounded-full bg-[#91a7ff]" />
+            </Button>
+            {notificationsOpen ? (
+              <div className="absolute right-0 top-11 z-50 w-72 rounded-xl border border-white/12 bg-[#0b0f17]/98 p-4 shadow-2xl backdrop-blur-xl">
+                <p className="text-xs font-semibold">Notifications</p>
+                <div className="mt-3 space-y-2">
+                  <div className="rounded-lg border border-white/7 bg-white/[0.025] p-3">
+                    <p className="text-[10px] text-white/65">
+                      Workspace systems are healthy.
+                    </p>
+                    <p className="mt-1 text-[8px] text-white/28">
+                      Provider readiness is shown on Overview.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onNavigate(mode === 'admin' ? 'system_audit' : 'alerts');
+                      setNotificationsOpen(false);
+                    }}
+                    className="w-full rounded-lg border border-white/8 px-3 py-2 text-[9px] text-white/55 hover:bg-white/5"
+                  >
+                    Open notification center
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+          <Badge
+            variant="outline"
+            className="hidden border-emerald-400/15 bg-emerald-400/6 text-[9px] text-emerald-300 sm:inline-flex"
+          >
             Core healthy
           </Badge>
         </header>
 
-        <div className={`${mobileOpen ? 'block' : 'hidden'} border-b border-white/8 bg-[#090b11]/90 px-3 py-2 backdrop-blur-xl lg:hidden`}>
+        <div
+          className={`${mobileOpen ? 'block' : 'hidden'} border-b border-white/8 bg-[#090b11]/90 px-3 py-2 backdrop-blur-xl lg:hidden`}
+        >
           <div className="flex gap-1 overflow-x-auto">
-            {groups.flatMap((group) => group.items).map((item) => (
-              <button key={item.id} type="button" onClick={() => { onNavigate(item.id); setMobileOpen(false); }} className={`whitespace-nowrap rounded-lg px-3 py-2 text-[10px] ${active === item.id ? 'bg-white text-black' : 'text-white/48'}`}>
-                {item.label}
-              </button>
-            ))}
+            {groups
+              .flatMap((group) => group.items)
+              .map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    onNavigate(item.id);
+                    setMobileOpen(false);
+                  }}
+                  className={`whitespace-nowrap rounded-lg px-3 py-2 text-[10px] ${active === item.id ? 'bg-white text-black' : 'text-white/48'}`}
+                >
+                  {item.label}
+                </button>
+              ))}
           </div>
         </div>
         {children}

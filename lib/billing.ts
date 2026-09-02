@@ -58,7 +58,9 @@ export async function applyCreditPurchase(input: {
       ),
   ]);
   const wallet = await db
-    .prepare('SELECT balance FROM organization_wallets WHERE organization_id = ?')
+    .prepare(
+      'SELECT balance FROM organization_wallets WHERE organization_id = ?',
+    )
     .bind(input.organizationId)
     .first<{ balance: number }>();
   await db

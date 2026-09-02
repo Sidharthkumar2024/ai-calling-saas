@@ -21,7 +21,10 @@ export async function GET(
   const url = new URL(request.url);
   const workspace = url.searchParams.get('workspace');
   if (!workspace || source !== 'meta') {
-    return NextResponse.json({ error: 'Verification failed.' }, { status: 403 });
+    return NextResponse.json(
+      { error: 'Verification failed.' },
+      { status: 403 },
+    );
   }
   await ensureSchema();
   const db = getDb();
@@ -114,8 +117,17 @@ export async function POST(
       );
     }
 
-    const rateLimit = await enforceRateLimit({ namespace: 'lead-webhook', identifier: requestFingerprint(request, `${workspace}:${source}`), limit: 300, windowSeconds: 60 });
-    if (!rateLimit.allowed) return NextResponse.json({ error: 'Webhook rate limit exceeded.' }, { status: 429 });
+    const rateLimit = await enforceRateLimit({
+      namespace: 'lead-webhook',
+      identifier: requestFingerprint(request, `${workspace}:${source}`),
+      limit: 300,
+      windowSeconds: 60,
+    });
+    if (!rateLimit.allowed)
+      return NextResponse.json(
+        { error: 'Webhook rate limit exceeded.' },
+        { status: 429 },
+      );
     const fields = extractProviderFields(raw);
     const input = normalizeLeadInput({
       sourceType,
@@ -165,7 +177,10 @@ function extractProviderFields(body: Record<string, unknown>) {
   return rows.reduce<Record<string, unknown>>((result, row) => {
     if (!row || typeof row !== 'object') return result;
     const item = row as Record<string, unknown>;
-    const key = stringValue(item.name) ?? stringValue(item.column_id) ?? stringValue(item.column_name);
+    const key =
+      stringValue(item.name) ??
+      stringValue(item.column_id) ??
+      stringValue(item.column_name);
     const values = Array.isArray(item.values) ? item.values : [];
     const value =
       stringValue(values[0]) ??

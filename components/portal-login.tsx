@@ -55,6 +55,10 @@ export function PortalLogin({ portal }: PortalLoginProps) {
   const [error, setError] = useState('');
   const [otp, setOtp] = useState('');
   const [mfaRequired, setMfaRequired] = useState(false);
+  const [resetMode, setResetMode] = useState(false);
+  const [resetToken, setResetToken] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [resetNotice, setResetNotice] = useState('');
 
   async function submit(event: { preventDefault: () => void }) {
     event.preventDefault();
@@ -64,7 +68,12 @@ export function PortalLogin({ portal }: PortalLoginProps) {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email, password, portal, ...(mfaRequired ? { otp } : {}) }),
+        body: JSON.stringify({
+          email,
+          password,
+          portal,
+          ...(mfaRequired ? { otp } : {}),
+        }),
       });
       const payload = (await response.json()) as {
         error?: string;
@@ -82,27 +91,108 @@ export function PortalLogin({ portal }: PortalLoginProps) {
     }
   }
 
+  async function requestReset() {
+    setLoading(true);
+    setError('');
+    setResetNotice('');
+    try {
+      const response = await fetch('/api/auth/password-reset', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'request', email }),
+      });
+      const payload = (await response.json()) as {
+        error?: string;
+        message?: string;
+        developmentToken?: string;
+      };
+      if (!response.ok)
+        throw new Error(payload.error ?? 'Unable to start password reset.');
+      setResetToken(payload.developmentToken ?? '');
+      setResetNotice(
+        payload.developmentToken
+          ? 'Local reset token is ready below.'
+          : (payload.message ?? 'Check your email for the secure reset link.'),
+      );
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : 'Unable to start password reset.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function confirmReset() {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch('/api/auth/password-reset', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: 'confirm',
+          token: resetToken,
+          password: newPassword,
+        }),
+      });
+      const payload = (await response.json()) as {
+        error?: string;
+        reset?: boolean;
+      };
+      if (!response.ok || !payload.reset)
+        throw new Error(payload.error ?? 'Unable to reset password.');
+      setResetMode(false);
+      setPassword(newPassword);
+      setNewPassword('');
+      setResetToken('');
+      setResetNotice('Password updated. Sign in with the new password.');
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : 'Unable to reset password.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#090b11] text-white">
-      <div className={`pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(252,211,77,0.12),transparent_32%),radial-gradient(circle_at_82%_15%,rgba(139,92,246,0.12),transparent_32%)]`} />
+      <div
+        className={`pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(252,211,77,0.12),transparent_32%),radial-gradient(circle_at_82%_15%,rgba(139,92,246,0.12),transparent_32%)]`}
+      />
       <div className="relative mx-auto flex min-h-screen max-w-[1180px] items-center px-4 py-10 sm:px-6">
         <div className="grid w-full overflow-hidden rounded-[30px] border border-white/10 bg-[#0e1119]/94 shadow-2xl shadow-black/40 lg:grid-cols-[0.92fr_1.08fr]">
-          <section className={`relative hidden min-h-[690px] overflow-hidden border-r border-white/8 bg-gradient-to-br ${config.accent} p-10 lg:flex lg:flex-col`}>
-            <Link href="/" className="flex items-center gap-3 text-white" aria-label="Vaani home">
+          <section
+            className={`relative hidden min-h-[690px] overflow-hidden border-r border-white/8 bg-gradient-to-br ${config.accent} p-10 lg:flex lg:flex-col`}
+          >
+            <Link
+              href="/"
+              className="flex items-center gap-3 text-white"
+              aria-label="Vaani home"
+            >
               <span className="grid size-10 place-items-center rounded-xl bg-amber-300 text-[#17120a]">
                 <Activity className="size-5" />
               </span>
               <span>
                 <span className="block text-base font-semibold">Vaani</span>
-                <span className="block text-[10px] uppercase tracking-[0.2em] text-white/45">Revenue Voice OS</span>
+                <span className="block text-[10px] uppercase tracking-[0.2em] text-white/45">
+                  Revenue Voice OS
+                </span>
               </span>
             </Link>
             <div className="my-auto max-w-md">
               <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] text-white/65">
                 <Sparkles className="size-3 text-amber-300" /> {config.eyebrow}
               </span>
-              <h1 className="mt-6 text-5xl font-semibold leading-[1.02] tracking-[-0.05em]">{config.title}</h1>
-              <p className="mt-5 text-base leading-7 text-white/55">{config.description}</p>
+              <h1 className="mt-6 text-5xl font-semibold leading-[1.02] tracking-[-0.05em]">
+                {config.title}
+              </h1>
+              <p className="mt-5 text-base leading-7 text-white/55">
+                {config.description}
+              </p>
               <div className="mt-8 space-y-3 text-sm text-white/68">
                 {[
                   'Strict role and tenant isolation',
@@ -115,27 +205,45 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                 ))}
               </div>
             </div>
-            <p className="text-xs text-white/35">Local development workspace · Vaani control plane</p>
+            <p className="text-xs text-white/35">
+              Local development workspace · Vaani control plane
+            </p>
           </section>
 
           <section className="flex min-h-[690px] items-center justify-center p-6 sm:p-10 lg:p-14">
             <div className="w-full max-w-md">
-              <Link href="/" className="mb-10 inline-flex items-center gap-2 text-xs text-white/45 transition-colors hover:text-white lg:hidden">
+              <Link
+                href="/"
+                className="mb-10 inline-flex items-center gap-2 text-xs text-white/45 transition-colors hover:text-white lg:hidden"
+              >
                 <ArrowLeft className="size-3.5" /> Back to Vaani
               </Link>
               <span className="grid size-12 place-items-center rounded-2xl border border-white/10 bg-white/5">
                 <Icon className="size-5 text-amber-300" />
               </span>
-              <p className="mt-7 text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">{config.eyebrow}</p>
-              <h2 className="mt-2 text-3xl font-semibold tracking-tight">Sign in</h2>
-              <p className="mt-2 text-sm leading-6 text-white/48">Use the dedicated {portal} account. Accounts cannot cross between portals.</p>
+              <p className="mt-7 text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
+                {config.eyebrow}
+              </p>
+              <h2 className="mt-2 text-3xl font-semibold tracking-tight">
+                Sign in
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-white/48">
+                Use the dedicated {portal} account. Accounts cannot cross
+                between portals.
+              </p>
 
               <div className="mt-6 rounded-2xl border border-white/9 bg-white/[0.035] p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">Local demo credentials</p>
-                    <p className="mt-2 font-mono text-xs text-white/72">{config.email}</p>
-                    <p className="mt-1 font-mono text-xs text-white/72">{config.password}</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">
+                      Local demo credentials
+                    </p>
+                    <p className="mt-2 font-mono text-xs text-white/72">
+                      {config.email}
+                    </p>
+                    <p className="mt-1 font-mono text-xs text-white/72">
+                      {config.password}
+                    </p>
                   </div>
                   <KeyRound className="size-5 text-white/25" />
                 </div>
@@ -143,50 +251,209 @@ export function PortalLogin({ portal }: PortalLoginProps) {
 
               {portal === 'customer' ? <SocialAuthButtons /> : null}
 
-              <form className={`${portal === 'customer' ? 'mt-2' : 'mt-7'} space-y-4`} onSubmit={submit}>
-                <label htmlFor={`${portal}-email`} className="block text-xs font-medium text-white/65">
-                  Email
-                  <Input
-                    id={`${portal}-email`}
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    type="email"
-                    autoComplete="username"
-                    className="mt-2 h-11 border-white/10 bg-white/[0.035] text-white placeholder:text-white/25"
-                    required
-                  />
-                </label>
-                {mfaRequired ? (
-                  <label htmlFor={`${portal}-otp`} className="block text-xs font-medium text-white/65">
-                    Authenticator code
-                    <Input id={`${portal}-otp`} value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="6-digit code" className="mt-2 h-11 border-white/10 bg-white/[0.035] font-mono tracking-[0.3em] text-white" required />
+              {resetMode ? (
+                <div
+                  className={`${portal === 'customer' ? 'mt-2' : 'mt-7'} space-y-4`}
+                >
+                  <label
+                    htmlFor={`${portal}-reset-email`}
+                    className="block text-xs font-medium text-white/65"
+                  >
+                    Account email
+                    <Input
+                      id={`${portal}-reset-email`}
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      type="email"
+                      autoComplete="email"
+                      className="mt-2 h-11 border-white/10 bg-white/[0.035]"
+                    />
                   </label>
-                ) : null}
-                <label htmlFor={`${portal}-password`} className="block text-xs font-medium text-white/65">
-                  Password
-                  <Input
-                    id={`${portal}-password`}
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    type="password"
-                    autoComplete="current-password"
-                    className="mt-2 h-11 border-white/10 bg-white/[0.035] text-white placeholder:text-white/25"
-                    required
-                  />
-                </label>
-                {error ? (
-                  <div className="rounded-xl border border-red-400/20 bg-red-400/8 px-3 py-2.5 text-xs text-red-200">{error}</div>
-                ) : null}
-                <Button type="submit" disabled={loading} className="h-11 w-full bg-amber-300 text-[#17120a] hover:bg-amber-200">
-                  {loading ? <Loader2 className="animate-spin" /> : <LockKeyhole />}
-                  {loading ? 'Signing in…' : `Open ${portal} portal`}
-                  {!loading && <ArrowRight className="ml-auto" />}
-                </Button>
-              </form>
+                  <Button
+                    type="button"
+                    onClick={() => void requestReset()}
+                    disabled={loading || !email}
+                    variant="outline"
+                    className="h-11 w-full border-white/10 bg-white/[0.025]"
+                  >
+                    {loading ? (
+                      <Loader2 className="animate-spin" />
+                    ) : (
+                      <KeyRound />
+                    )}{' '}
+                    Send secure reset link
+                  </Button>
+                  {resetToken ? (
+                    <>
+                      <label
+                        htmlFor={`${portal}-reset-token`}
+                        className="block text-xs font-medium text-white/65"
+                      >
+                        Reset token
+                        <Input
+                          id={`${portal}-reset-token`}
+                          value={resetToken}
+                          onChange={(event) =>
+                            setResetToken(event.target.value)
+                          }
+                          autoComplete="one-time-code"
+                          className="mt-2 h-11 border-white/10 bg-white/[0.035] font-mono text-[10px]"
+                        />
+                      </label>
+                      <label
+                        htmlFor={`${portal}-new-password`}
+                        className="block text-xs font-medium text-white/65"
+                      >
+                        New password
+                        <Input
+                          id={`${portal}-new-password`}
+                          value={newPassword}
+                          onChange={(event) =>
+                            setNewPassword(event.target.value)
+                          }
+                          type="password"
+                          autoComplete="new-password"
+                          placeholder="10+ characters with letters and numbers"
+                          className="mt-2 h-11 border-white/10 bg-white/[0.035]"
+                        />
+                      </label>
+                      <Button
+                        type="button"
+                        onClick={() => void confirmReset()}
+                        disabled={
+                          loading || !resetToken || newPassword.length < 10
+                        }
+                        className="h-11 w-full bg-amber-300 text-black hover:bg-amber-200"
+                      >
+                        <LockKeyhole /> Update password
+                      </Button>
+                    </>
+                  ) : null}
+                  {resetNotice ? (
+                    <p className="rounded-xl border border-emerald-400/15 bg-emerald-400/6 p-3 text-xs text-emerald-100">
+                      {resetNotice}
+                    </p>
+                  ) : null}
+                  {error ? (
+                    <p className="rounded-xl border border-red-400/15 bg-red-400/5 p-3 text-xs text-red-100">
+                      {error}
+                    </p>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResetMode(false);
+                      setError('');
+                    }}
+                    className="text-xs text-white/42 hover:text-white"
+                  >
+                    Back to sign in
+                  </button>
+                </div>
+              ) : (
+                <form
+                  className={`${portal === 'customer' ? 'mt-2' : 'mt-7'} space-y-4`}
+                  onSubmit={submit}
+                >
+                  <label
+                    htmlFor={`${portal}-email`}
+                    className="block text-xs font-medium text-white/65"
+                  >
+                    Email
+                    <Input
+                      id={`${portal}-email`}
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      type="email"
+                      autoComplete="username"
+                      className="mt-2 h-11 border-white/10 bg-white/[0.035] text-white placeholder:text-white/25"
+                      required
+                    />
+                  </label>
+                  {mfaRequired ? (
+                    <label
+                      htmlFor={`${portal}-otp`}
+                      className="block text-xs font-medium text-white/65"
+                    >
+                      Authenticator code
+                      <Input
+                        id={`${portal}-otp`}
+                        value={otp}
+                        onChange={(event) =>
+                          setOtp(
+                            event.target.value.replace(/\D/g, '').slice(0, 6),
+                          )
+                        }
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        placeholder="6-digit code"
+                        className="mt-2 h-11 border-white/10 bg-white/[0.035] font-mono tracking-[0.3em] text-white"
+                        required
+                      />
+                    </label>
+                  ) : null}
+                  <label
+                    htmlFor={`${portal}-password`}
+                    className="block text-xs font-medium text-white/65"
+                  >
+                    Password
+                    <Input
+                      id={`${portal}-password`}
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      type="password"
+                      autoComplete="current-password"
+                      className="mt-2 h-11 border-white/10 bg-white/[0.035] text-white placeholder:text-white/25"
+                      required
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResetMode(true);
+                      setError('');
+                      setResetNotice('');
+                    }}
+                    className="text-xs text-white/42 hover:text-white"
+                  >
+                    Forgot password?
+                  </button>
+                  {error ? (
+                    <div className="rounded-xl border border-red-400/20 bg-red-400/8 px-3 py-2.5 text-xs text-red-200">
+                      {error}
+                    </div>
+                  ) : null}
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="h-11 w-full bg-amber-300 text-[#17120a] hover:bg-amber-200"
+                  >
+                    {loading ? (
+                      <Loader2 className="animate-spin" />
+                    ) : (
+                      <LockKeyhole />
+                    )}
+                    {loading ? 'Signing in…' : `Open ${portal} portal`}
+                    {!loading && <ArrowRight className="ml-auto" />}
+                  </Button>
+                </form>
+              )}
+              {!resetMode && resetNotice ? (
+                <p className="mt-4 rounded-xl border border-emerald-400/15 bg-emerald-400/6 p-3 text-xs text-emerald-100">
+                  {resetNotice}
+                </p>
+              ) : null}
               <div className="mt-7 flex items-center justify-between text-xs text-white/38">
-                <Link href="/docs" className="hover:text-white">API documentation</Link>
-                <Link href={portal === 'admin' ? '/login' : '/signup'} className="hover:text-white">
-                  {portal === 'admin' ? 'Customer login' : 'Create free account'}
+                <Link href="/docs" className="hover:text-white">
+                  API documentation
+                </Link>
+                <Link
+                  href={portal === 'admin' ? '/login' : '/signup'}
+                  className="hover:text-white"
+                >
+                  {portal === 'admin'
+                    ? 'Customer login'
+                    : 'Create free account'}
                 </Link>
               </div>
             </div>

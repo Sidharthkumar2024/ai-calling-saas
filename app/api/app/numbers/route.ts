@@ -4,6 +4,7 @@ import { getRawDb } from '@/db/index';
 import { requireCustomer } from '@/lib/api-session';
 import { recordAudit } from '@/lib/demo-seed';
 import { sha256 } from '@/lib/security';
+import { requireCustomerPermission } from '@/lib/customer-rbac';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireCustomer(request);
+  const auth = await requireCustomerPermission(request, 'telephony.manage');
   if (auth.response) return auth.response;
   const body = (await request.json()) as {
     action?: 'rent' | 'connect';

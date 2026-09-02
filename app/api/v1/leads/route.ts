@@ -10,10 +10,16 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: Request) {
   const auth = await authenticateApiKey(request, 'leads:write');
   if (!auth) {
-    return NextResponse.json({ error: 'Valid API key with leads:write is required.' }, { status: 401 });
+    return NextResponse.json(
+      { error: 'Valid API key with leads:write is required.' },
+      { status: 401 },
+    );
   }
   try {
-    const lead = await ingestLead(auth.organizationId, normalizeLeadInput(await request.json()));
+    const lead = await ingestLead(
+      auth.organizationId,
+      normalizeLeadInput(await request.json()),
+    );
     await dispatchWebhook(auth.organizationId, 'lead.created', { lead });
     if (lead.score >= 75) {
       await dispatchWebhook(auth.organizationId, 'lead.qualified', { lead });
@@ -21,7 +27,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ data: lead }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unable to create lead.' },
+      {
+        error:
+          error instanceof Error ? error.message : 'Unable to create lead.',
+      },
       { status: 400 },
     );
   }
@@ -30,7 +39,10 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   const auth = await authenticateApiKey(request, 'leads:read');
   if (!auth) {
-    return NextResponse.json({ error: 'Valid API key with leads:read is required.' }, { status: 401 });
+    return NextResponse.json(
+      { error: 'Valid API key with leads:read is required.' },
+      { status: 401 },
+    );
   }
   const rows = await getRawDb()
     .prepare(

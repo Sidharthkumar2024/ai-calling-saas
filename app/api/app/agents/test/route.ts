@@ -3,7 +3,10 @@ import { NextResponse } from 'next/server';
 import { getRawDb } from '@/db/index';
 import { requireCustomer } from '@/lib/api-session';
 import { simulateAgentTurn } from '@/lib/agent-simulator';
-import { generateVoiceAgentTurn, ProviderConfigurationError } from '@/lib/provider-adapters';
+import {
+  generateVoiceAgentTurn,
+  ProviderConfigurationError,
+} from '@/lib/provider-adapters';
 
 export const dynamic = 'force-dynamic';
 const TEST_TURN_COST = 10;
@@ -21,13 +24,19 @@ export async function POST(request: Request) {
   const db = getRawDb();
   if (body.action === 'start') {
     if (!body.agentId || !['text', 'browser_voice'].includes(body.mode ?? '')) {
-      return NextResponse.json({ error: 'Agent and no-call test mode are required.' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Agent and no-call test mode are required.' },
+        { status: 400 },
+      );
     }
     const agent = await db
-      .prepare(`SELECT id, welcome_message FROM voice_agents WHERE id = ? AND organization_id = ? LIMIT 1`)
+      .prepare(
+        `SELECT id, welcome_message FROM voice_agents WHERE id = ? AND organization_id = ? LIMIT 1`,
+      )
       .bind(body.agentId, auth.session.organizationId)
       .first<{ id: string; welcome_message: string }>();
-    if (!agent) return NextResponse.json({ error: 'Agent not found.' }, { status: 404 });
+    if (!agent)
+      return NextResponse.json({ error: 'Agent not found.' }, { status: 404 });
     const sessionId = `test_${crypto.randomUUID()}`;
     await db.batch([
       db
@@ -37,15 +46,27 @@ export async function POST(request: Request) {
       db
         .prepare(`INSERT INTO agent_test_messages
           (id, session_id, role, content, actions_json, latency_ms) VALUES (?, ?, 'assistant', ?, '[]', 0)`)
-        .bind(`message_${crypto.randomUUID()}`, sessionId, agent.welcome_message),
+        .bind(
+          `message_${crypto.randomUUID()}`,
+          sessionId,
+          agent.welcome_message,
+        ),
     ]);
-    return NextResponse.json({ sessionId, message: agent.welcome_message, creditsUsed: 0 });
+    return NextResponse.json({
+      sessionId,
+      message: agent.welcome_message,
+      creditsUsed: 0,
+    });
   }
 
   if (body.action === 'message') {
+    const turnStarted = Date.now();
     const message = body.message?.trim();
     if (!body.sessionId || !message || message.length > 1000) {
-      return NextResponse.json({ error: 'Active session and message are required.' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Active session and message are required.' },
+        { status: 400 },
+      );
     }
     const session = await db
       .prepare(`SELECT s.id, s.agent_id, s.mode, a.name AS agent_name, a.use_case,
@@ -69,41 +90,65 @@ export async function POST(request: Request) {
         business_name: string;
         balance: number;
       }>();
-    if (!session) return NextResponse.json({ error: 'Test session not found.' }, { status: 404 });
+    if (!session)
+      return NextResponse.json(
+        { error: 'Test session not found.' },
+        { status: 404 },
+      );
     if (Number(session.balance) < TEST_TURN_COST) {
-      return NextResponse.json({ error: 'Trial credits are finished. Add credits to continue testing.' }, { status: 402 });
+      return NextResponse.json(
+        {
+          error: 'Trial credits are finished. Add credits to continue testing.',
+        },
+        { status: 402 },
+      );
     }
+    const history = await db
+      .prepare(`SELECT role, content FROM agent_test_messages
+      WHERE session_id = ? ORDER BY created_at DESC LIMIT 10`)
+      .bind(session.id)
+      .all<{ role: 'user' | 'assistant'; content: string }>();
+    const orderedHistory = history.results.reverse();
     const simulated = simulateAgentTurn({
       message,
       useCase: session.use_case,
       language: session.primary_language,
       businessName: session.business_name,
+      history: orderedHistory,
     });
-    const history = await db.prepare(`SELECT role, content FROM agent_test_messages
-      WHERE session_id = ? ORDER BY created_at DESC LIMIT 10`).bind(session.id)
-      .all<{ role: 'user' | 'assistant'; content: string }>();
     let responseText = simulated.response;
-    let latencyMs = simulated.latencyMs;
-    let pipelineMode: 'connected' | 'fallback' = 'fallback';
-    try {
-      const live = await generateVoiceAgentTurn({
-        organizationId: auth.session.organizationId!,
-        agentName: session.agent_name,
-        businessName: session.business_name,
-        language: session.primary_language,
-        systemPrompt: session.system_prompt,
-        maxTokens: Number(session.max_tokens || 180),
-        messages: [
-          ...history.results.reverse().map((item) => ({ role: item.role, content: item.content })),
-          { role: 'user' as const, content: message },
-        ],
-      });
-      responseText = live.text;
-      latencyMs = live.latencyMs;
-      pipelineMode = 'connected';
-    } catch (error) {
-      if (!(error instanceof ProviderConfigurationError)) {
-        console.error('Connected playground reasoning failed; using deterministic fallback.', error);
+    let latencyMs = Math.max(simulated.latencyMs, Date.now() - turnStarted);
+    let pipelineMode: 'connected' | 'fallback' | 'instant' = simulated.fastPath
+      ? 'instant'
+      : 'fallback';
+    if (!simulated.fastPath) {
+      try {
+        const live = await generateVoiceAgentTurn({
+          organizationId: auth.session.organizationId!,
+          agentName: session.agent_name,
+          businessName: session.business_name,
+          useCase: session.use_case,
+          language: session.primary_language,
+          systemPrompt: session.system_prompt,
+          maxTokens: Number(session.max_tokens || 180),
+          messages: [
+            ...orderedHistory.map((item) => ({
+              role: item.role,
+              content: item.content,
+            })),
+            { role: 'user' as const, content: message },
+          ],
+        });
+        responseText = live.text;
+        latencyMs = live.latencyMs;
+        pipelineMode = 'connected';
+      } catch (error) {
+        if (!(error instanceof ProviderConfigurationError)) {
+          console.error(
+            'Connected playground reasoning failed; using deterministic fallback.',
+            error,
+          );
+        }
       }
     }
     const nextBalance = Number(session.balance) - TEST_TURN_COST;
@@ -150,5 +195,8 @@ export async function POST(request: Request) {
     });
   }
 
-  return NextResponse.json({ error: 'Unsupported test action.' }, { status: 400 });
+  return NextResponse.json(
+    { error: 'Unsupported test action.' },
+    { status: 400 },
+  );
 }

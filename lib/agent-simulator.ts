@@ -1,9 +1,11 @@
 export type SimulatedAction = {
   type:
     | 'send_whatsapp'
+    | 'send_email'
     | 'create_payment_link'
     | 'schedule_follow_up'
     | 'book_appointment'
+    | 'create_ticket'
     | 'transfer_human';
   label: string;
   status: 'preview';
@@ -15,9 +17,21 @@ export function simulateAgentTurn(input: {
   useCase: string;
   language: string;
   businessName: string;
+  history?: Array<{ role: 'user' | 'assistant'; content: string }>;
 }) {
+  const started = Date.now();
   const raw = input.message.trim();
   const message = raw.toLowerCase();
+  const historyText = (input.history ?? [])
+    .slice(-6)
+    .map((item) => item.content)
+    .join(' ')
+    .toLowerCase();
+  const lastAssistant =
+    [...(input.history ?? [])]
+      .reverse()
+      .find((item) => item.role === 'assistant')
+      ?.content.toLowerCase() ?? '';
   const wantsEnglish = /english|अंग्रेज/.test(message);
   const wantsHindi = /hindi|हिंदी/.test(message);
   const wantsHaryanvi =
@@ -26,6 +40,23 @@ export function simulateAgentTurn(input: {
     message,
   );
   const wantsPayment = /payment|pay|पेमेंट|भुगतान|link|लिंक/.test(message);
+  const priorPayment = /payment|pay|पेमेंट|भुगतान|link|लिंक/.test(historyText);
+  const awaitingWhatsAppConfirmation =
+    /calling number|इसी नंबर|whatsapp.*नंबर|नंबर.*whatsapp|नंबर पर/.test(
+      lastAssistant,
+    );
+  const confirmsWhatsApp =
+    /(?:yes|हाँ|हां|जी|yep|correct).{0,28}(?:whatsapp|व्हाट्सऐप|व्हाट्सएप|इसी|यही|same)|(?:whatsapp|व्हाट्सऐप|व्हाट्सएप).{0,28}(?:yes|हाँ|हां|जी|same)|(?:इसी|यही|same|this)\s*(?:number|नंबर)/.test(
+      message,
+    ) ||
+    (awaitingWhatsAppConfirmation &&
+      /^(yes|हाँ|हां|जी|बिल्कुल|correct|sure)[.!\s]*$/i.test(message));
+  const deniesWhatsApp =
+    /(?:no|नहीं|नही).{0,28}(?:whatsapp|व्हाट्सऐप|व्हाट्सएप|इस नंबर|इसी नंबर)|(?:whatsapp|व्हाट्सऐप|व्हाट्सएप).{0,28}(?:नहीं|नही|no)/.test(
+      message,
+    );
+  const emailMatch = raw.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  const paymentContext = wantsPayment || priorPayment;
   const wantsAppointment =
     /appointment|meeting|site visit|slot|अपॉइंटमेंट|मुलाकात/.test(message);
   const wantsHuman = /human|person|manager|sales guy|executive|इंसान|मैनेजर/.test(
@@ -40,15 +71,15 @@ export function simulateAgentTurn(input: {
       message,
     );
   const later = /8\s*(pm|p\.m\.|बजे)|eight\s*(pm|o'clock)|later|बाद में/.test(
-    message,
+    `${message} ${historyText}`,
   );
-  const amountMatch = raw.match(
+  const amountMatch = `${raw} ${historyText}`.match(
     /(?:₹|rs\.?|inr|रुपये?)?\s*(\d{2,7}(?:,\d{3})*)/i,
   );
   const amount = amountMatch ? Number(amountMatch[1].replaceAll(',', '')) : 550;
   const actions: SimulatedAction[] = [];
 
-  if (wantsWhatsApp) {
+  if (wantsWhatsApp && !paymentContext) {
     actions.push({
       type: 'send_whatsapp',
       label: 'Preview WhatsApp product details',
@@ -56,7 +87,7 @@ export function simulateAgentTurn(input: {
       payload: { template: 'vaani_product_details' },
     });
   }
-  if (wantsPayment) {
+  if (paymentContext && (confirmsWhatsApp || emailMatch)) {
     actions.push({
       type: 'create_payment_link',
       label: `Create ₹${amount.toLocaleString('en-IN')} payment link`,
@@ -65,8 +96,26 @@ export function simulateAgentTurn(input: {
         amount,
         provider: 'Razorpay',
         delivery: later ? 'scheduled' : 'instant',
+        channel: confirmsWhatsApp ? 'whatsapp' : 'email',
       },
     });
+    actions.push(
+      confirmsWhatsApp
+        ? {
+            type: 'send_whatsapp',
+            label: later
+              ? 'Deliver approved payment link on WhatsApp at 8:00 PM'
+              : 'Deliver approved payment link on WhatsApp',
+            status: 'preview',
+            payload: { channel: 'calling_number', consent: 'confirmed' },
+          }
+        : {
+            type: 'send_email',
+            label: `Deliver approved payment link to ${emailMatch![0]}`,
+            status: 'preview',
+            payload: { email: emailMatch![0], consent: 'confirmed' },
+          },
+    );
     if (later) {
       actions.push({
         type: 'schedule_follow_up',
@@ -108,10 +157,17 @@ export function simulateAgentTurn(input: {
   } else if (wantsHindi) {
     response =
       'बिल्कुल, हम हिंदी में बात जारी रखेंगे। बताइए मैं प्रोडक्ट या ऑर्डर में आपकी क्या मदद कर सकती हूँ?';
-  } else if (wantsPayment && later) {
-    response = `ज़रूर। मैंने ₹${amount.toLocaleString('en-IN')} का सुरक्षित payment link रात 8 बजे WhatsApp पर भेजने के लिए तैयार कर दिया है। Live mode में भेजने से पहले आपका consent और नंबर दोबारा confirm होगा।`;
+  } else if (paymentContext && confirmsWhatsApp) {
+    response = later
+      ? `बिल्कुल। ₹${amount.toLocaleString('en-IN')} का payment link इसी WhatsApp नंबर पर रात 8 बजे भेजने की request तैयार है। भेजने से पहले amount और timing दोनों confirm हैं।`
+      : `बिल्कुल। ₹${amount.toLocaleString('en-IN')} का payment link इसी WhatsApp नंबर पर भेजने की request तैयार है।`;
+  } else if (paymentContext && emailMatch) {
+    response = `धन्यवाद। मैंने ${emailMatch[0]} पर ₹${amount.toLocaleString('en-IN')} का payment link भेजने की request तैयार कर दी है।`;
+  } else if (paymentContext && deniesWhatsApp) {
+    response =
+      'कोई बात नहीं। कृपया वह email address बताइए जिस पर payment link भेजना है।';
   } else if (wantsPayment) {
-    response = `ठीक है। ₹${amount.toLocaleString('en-IN')} का secure payment link अभी WhatsApp पर भेजने के लिए तैयार है। क्या मैं इसी नंबर पर भेज दूँ?`;
+    response = `ठीक है। ₹${amount.toLocaleString('en-IN')} का secure payment link भेजने से पहले confirm कर दूँ—क्या इसी calling number पर WhatsApp चलता है?`;
   } else if (wantsWhatsApp) {
     response =
       'ज़रूर। मैंने product details और approved brochure का WhatsApp preview तैयार कर दिया है। Live mode में यह केवल consent वाले नंबर पर भेजा जाएगा।';
@@ -141,7 +197,7 @@ export function simulateAgentTurn(input: {
           : wantsHindi
             ? 'Hindi'
             : input.language,
-      intent: wantsPayment
+      intent: paymentContext
         ? 'payment'
         : wantsWhatsApp
           ? 'product_details'
@@ -150,9 +206,29 @@ export function simulateAgentTurn(input: {
             : wantsHuman
               ? 'human_transfer'
               : 'discovery',
-      amount: wantsPayment ? amount : null,
-      timing: later ? '20:00 Asia/Kolkata' : wantsPayment ? 'instant' : null,
+      amount: paymentContext ? amount : null,
+      timing: later ? '20:00 Asia/Kolkata' : paymentContext ? 'instant' : null,
+      delivery_channel: confirmsWhatsApp
+        ? 'whatsapp'
+        : emailMatch
+          ? 'email'
+          : deniesWhatsApp
+            ? 'email_requested'
+            : paymentContext
+              ? 'confirmation_required'
+              : null,
     },
-    latencyMs: 420 + Math.floor(Math.random() * 180),
+    fastPath:
+      wantsEnglish ||
+      wantsHindi ||
+      wantsHaryanvi ||
+      wantsWhatsApp ||
+      paymentContext ||
+      wantsAppointment ||
+      wantsHuman ||
+      asksWhatsUp ||
+      asksHowAreYou ||
+      /^(yes|हाँ|हां|जी|sure|okay|ok)[.!\s]*$/i.test(message),
+    latencyMs: Math.max(12, Date.now() - started),
   };
 }

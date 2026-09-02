@@ -38,10 +38,7 @@ export async function verifyPassword(password: string, encodedHash: string) {
     256,
   );
 
-  return timingSafeEqual(
-    new Uint8Array(derived),
-    fromBase64(expectedValue),
-  );
+  return timingSafeEqual(new Uint8Array(derived), fromBase64(expectedValue));
 }
 
 export async function hashPassword(password: string) {
@@ -69,7 +66,10 @@ export function createOpaqueToken(prefix = '') {
 
 export async function encryptSecret(secret: string) {
   const rawKey = getEncryptionKey();
-  const keyBytes = await crypto.subtle.digest('SHA-256', encoder.encode(rawKey));
+  const keyBytes = await crypto.subtle.digest(
+    'SHA-256',
+    encoder.encode(rawKey),
+  );
   const key = await crypto.subtle.importKey(
     'raw',
     keyBytes,
@@ -92,7 +92,10 @@ export async function decryptSecret(encodedSecret: string) {
     throw new Error('Encrypted secret format is invalid.');
   }
   const rawKey = getEncryptionKey();
-  const keyBytes = await crypto.subtle.digest('SHA-256', encoder.encode(rawKey));
+  const keyBytes = await crypto.subtle.digest(
+    'SHA-256',
+    encoder.encode(rawKey),
+  );
   const key = await crypto.subtle.importKey(
     'raw',
     keyBytes,
@@ -153,9 +156,9 @@ function toBase64Url(value: Uint8Array) {
 }
 
 function fromBase64Url(value: string) {
-  const padded = value.replaceAll('-', '+').replaceAll('_', '/').padEnd(
-    Math.ceil(value.length / 4) * 4,
-    '=',
-  );
+  const padded = value
+    .replaceAll('-', '+')
+    .replaceAll('_', '/')
+    .padEnd(Math.ceil(value.length / 4) * 4, '=');
   return fromBase64(padded);
 }

@@ -2,7 +2,10 @@ import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { sha256 } from '@/lib/security';
 
-export async function authenticateApiKey(request: Request, requiredScope: string) {
+export async function authenticateApiKey(
+  request: Request,
+  requiredScope: string,
+) {
   await ensureSchema();
   const authorization = request.headers.get('authorization');
   const token = authorization?.startsWith('Bearer ')
@@ -20,7 +23,9 @@ export async function authenticateApiKey(request: Request, requiredScope: string
   const scopes = JSON.parse(row.scopes_json) as string[];
   if (!scopes.includes(requiredScope)) return null;
   await getRawDb()
-    .prepare('UPDATE api_credentials SET last_used_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .prepare(
+      'UPDATE api_credentials SET last_used_at = CURRENT_TIMESTAMP WHERE id = ?',
+    )
     .bind(row.id)
     .run();
   return { apiKeyId: row.id, organizationId: row.organization_id, scopes };

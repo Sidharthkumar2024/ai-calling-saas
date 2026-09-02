@@ -15,86 +15,105 @@ export async function GET(request: Request) {
   await ensureDemoLeads(organizationId);
   const db = getRawDb();
 
-  const [leadStats, opportunityStats, calls, wallet, subscription, sources, numbers, recentLeads, activitySeries, outcomeBreakdown, readiness] =
-    await Promise.all([
-      db
-        .prepare(
-          `SELECT count(*) AS total,
+  const [
+    leadStats,
+    opportunityStats,
+    calls,
+    wallet,
+    subscription,
+    sources,
+    numbers,
+    recentLeads,
+    activitySeries,
+    outcomeBreakdown,
+    readiness,
+  ] = await Promise.all([
+    db
+      .prepare(
+        `SELECT count(*) AS total,
              sum(CASE WHEN score >= 75 THEN 1 ELSE 0 END) AS qualified,
              round(avg(score), 1) AS average_score
            FROM leads WHERE organization_id = ?`,
-        )
-        .bind(organizationId)
-        .first(),
-      db
-        .prepare(
-          `SELECT count(*) AS total, coalesce(sum(estimated_value), 0) AS value
+      )
+      .bind(organizationId)
+      .first(),
+    db
+      .prepare(
+        `SELECT count(*) AS total, coalesce(sum(estimated_value), 0) AS value
            FROM sales_opportunities WHERE organization_id = ?`,
-        )
-        .bind(organizationId)
-        .first(),
-      db
-        .prepare(
-          `SELECT count(*) AS total,
+      )
+      .bind(organizationId)
+      .first(),
+    db
+      .prepare(
+        `SELECT count(*) AS total,
              sum(CASE WHEN status = 'queued' THEN 1 ELSE 0 END) AS queued
            FROM call_jobs WHERE organization_id = ?`,
-        )
-        .bind(organizationId)
-        .first(),
-      db
-        .prepare(
-          `SELECT balance, low_balance_threshold
+      )
+      .bind(organizationId)
+      .first(),
+    db
+      .prepare(
+        `SELECT balance, low_balance_threshold
            FROM organization_wallets WHERE organization_id = ?`,
-        )
-        .bind(organizationId)
-        .first(),
-      db
-        .prepare(
-          `SELECT s.status, s.current_period_end, p.id AS plan_id, p.name AS plan_name,
+      )
+      .bind(organizationId)
+      .first(),
+    db
+      .prepare(
+        `SELECT s.status, s.current_period_end, p.id AS plan_id, p.name AS plan_name,
              p.code AS plan_code, p.included_credits, p.max_agents, p.max_numbers, p.concurrency
            FROM subscriptions s INNER JOIN plans p ON p.id = s.plan_id
            WHERE s.organization_id = ? LIMIT 1`,
-        )
-        .bind(organizationId)
-        .first(),
-      db
-        .prepare(
-          `SELECT type, name, status FROM lead_sources
+      )
+      .bind(organizationId)
+      .first(),
+    db
+      .prepare(
+        `SELECT type, name, status FROM lead_sources
            WHERE organization_id = ? ORDER BY name`,
-        )
-        .bind(organizationId)
-        .all(),
-      db
-        .prepare(
-          `SELECT id, phone_number, acquisition_type, assigned_agent_name,
+      )
+      .bind(organizationId)
+      .all(),
+    db
+      .prepare(
+        `SELECT id, phone_number, acquisition_type, assigned_agent_name,
              direction, kyc_status, status
            FROM phone_numbers WHERE organization_id = ? ORDER BY created_at DESC`,
-        )
-        .bind(organizationId)
-        .all(),
-      db
-        .prepare(
-          `SELECT l.id, l.name, l.phone, l.score, l.intent, l.status,
+      )
+      .bind(organizationId)
+      .all(),
+    db
+      .prepare(
+        `SELECT l.id, l.name, l.phone, l.score, l.intent, l.status,
              l.ai_summary, s.name AS source_name, o.stage, o.estimated_value
            FROM leads l
            INNER JOIN lead_sources s ON s.id = l.source_id
            LEFT JOIN sales_opportunities o ON o.lead_id = l.id
            WHERE l.organization_id = ? ORDER BY l.captured_at DESC LIMIT 6`,
-        )
-        .bind(organizationId)
-        .all(),
-      db.prepare(`WITH RECURSIVE days(day) AS (
+      )
+      .bind(organizationId)
+      .all(),
+    db
+      .prepare(`WITH RECURSIVE days(day) AS (
           SELECT date('now','-13 days') UNION ALL SELECT date(day,'+1 day') FROM days WHERE day < date('now')
         ) SELECT day,
           (SELECT count(*) FROM leads l WHERE l.organization_id = ? AND date(l.captured_at) = day) AS leads,
           (SELECT count(*) FROM call_records c WHERE c.organization_id = ? AND date(c.started_at) = day) AS calls,
           (SELECT count(*) FROM call_records c WHERE c.organization_id = ? AND date(c.started_at) = day
              AND c.outcome IN ('appointment_booked','payment_link_requested','converted')) AS conversions
-        FROM days`).bind(organizationId, organizationId, organizationId).all(),
-      db.prepare(`SELECT coalesce(outcome, 'unknown') AS name, count(*) AS value
-        FROM call_records WHERE organization_id = ? GROUP BY outcome ORDER BY value DESC`).bind(organizationId).all(),
-      import('@/lib/provider-adapters').then(({ providerReadiness }) => providerReadiness(organizationId)),
-    ]);
+        FROM days`)
+      .bind(organizationId, organizationId, organizationId)
+      .all(),
+    db
+      .prepare(`SELECT coalesce(outcome, 'unknown') AS name, count(*) AS value
+        FROM call_records WHERE organization_id = ? GROUP BY outcome ORDER BY value DESC`)
+      .bind(organizationId)
+      .all(),
+    import('@/lib/provider-adapters').then(({ providerReadiness }) =>
+      providerReadiness(organizationId),
+    ),
+  ]);
 
   return NextResponse.json({
     workspace: {

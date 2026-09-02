@@ -1,14 +1,16 @@
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
-import { createOpaqueToken, decryptSecret, sha256, verifyPassword } from '@/lib/security';
+import {
+  createOpaqueToken,
+  decryptSecret,
+  sha256,
+  verifyPassword,
+} from '@/lib/security';
 import { verifyTotp } from '@/lib/totp';
 
 export const SESSION_COOKIE = 'vaani_session';
 
-export type AppRole =
-  | 'platform_admin'
-  | 'customer_owner'
-  | 'customer_agent';
+export type AppRole = 'platform_admin' | 'customer_owner' | 'customer_agent';
 
 export type AppSession = {
   sessionId: string;
@@ -30,7 +32,11 @@ type UserRow = {
   status: string;
 };
 
-export async function loginWithPassword(email: string, password: string, otp?: string) {
+export async function loginWithPassword(
+  email: string,
+  password: string,
+  otp?: string,
+) {
   await ensureSchema();
   const db = getRawDb();
   const user = await db
@@ -49,12 +55,20 @@ export async function loginWithPassword(email: string, password: string, otp?: s
     return null;
   }
 
-  const security = await db.prepare(`SELECT mfa_enabled, totp_secret_encrypted
-    FROM user_security_settings WHERE user_id = ?`).bind(user.id)
+  const security = await db
+    .prepare(`SELECT mfa_enabled, totp_secret_encrypted
+    FROM user_security_settings WHERE user_id = ?`)
+    .bind(user.id)
     .first<{ mfa_enabled: number; totp_secret_encrypted: string | null }>();
   if (security?.mfa_enabled) {
     if (!otp) return { mfaRequired: true as const };
-    if (!security.totp_secret_encrypted || !(await verifyTotp(await decryptSecret(security.totp_secret_encrypted), otp))) {
+    if (
+      !security.totp_secret_encrypted ||
+      !(await verifyTotp(
+        await decryptSecret(security.totp_secret_encrypted),
+        otp,
+      ))
+    ) {
       return { mfaInvalid: true as const };
     }
   }
@@ -62,7 +76,9 @@ export async function loginWithPassword(email: string, password: string, otp?: s
   const token = createOpaqueToken('vs_');
   const tokenHash = await sha256(token);
   const sessionId = `session_${crypto.randomUUID()}`;
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const expiresAt = new Date(
+    Date.now() + 7 * 24 * 60 * 60 * 1000,
+  ).toISOString();
 
   await db.batch([
     db
@@ -81,11 +97,18 @@ export async function loginWithPassword(email: string, password: string, otp?: s
       )
       .bind(sessionId, user.id, tokenHash, expiresAt),
     db
-      .prepare('UPDATE app_users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?')
+      .prepare(
+        'UPDATE app_users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?',
+      )
       .bind(user.id),
   ]);
 
-  return { token, user, mfaRequired: false as const, mfaInvalid: false as const };
+  return {
+    token,
+    user,
+    mfaRequired: false as const,
+    mfaInvalid: false as const,
+  };
 }
 
 export async function getSessionFromHeaders(

@@ -30,12 +30,18 @@ export async function POST(request: Request) {
     events?: string[];
   };
   if (!body.name?.trim() || !body.url?.trim()) {
-    return NextResponse.json({ error: 'Name and endpoint URL are required.' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Name and endpoint URL are required.' },
+      { status: 400 },
+    );
   }
   try {
     const parsed = new URL(body.url);
     const local = ['localhost', '127.0.0.1'].includes(parsed.hostname);
-    if (parsed.protocol !== 'https:' && !(local && parsed.protocol === 'http:')) {
+    if (
+      parsed.protocol !== 'https:' &&
+      !(local && parsed.protocol === 'http:')
+    ) {
       throw new Error();
     }
   } catch {
@@ -51,8 +57,8 @@ export async function POST(request: Request) {
     'appointment.booked',
     'credit.low',
   ]);
-  const events = (body.events ?? ['lead.qualified', 'call.completed']).filter((event) =>
-    allowedEvents.has(event),
+  const events = (body.events ?? ['lead.qualified', 'call.completed']).filter(
+    (event) => allowedEvents.has(event),
   );
   const secret = createOpaqueToken('whsec_');
   const id = `webhook_${crypto.randomUUID()}`;
@@ -77,7 +83,8 @@ export async function POST(request: Request) {
     {
       id,
       signingSecret: secret,
-      warning: 'Copy this signing secret now. It is encrypted at rest and not shown again.',
+      warning:
+        'Copy this signing secret now. It is encrypted at rest and not shown again.',
     },
     { status: 201 },
   );

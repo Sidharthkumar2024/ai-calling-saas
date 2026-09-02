@@ -36,7 +36,10 @@ export async function POST(request: Request) {
     if (!limit.allowed) {
       return NextResponse.json(
         { error: 'Too many sign-in attempts. Try again later.' },
-        { status: 429, headers: { 'Retry-After': String(limit.retryAfterSeconds) } },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(limit.retryAfterSeconds) },
+        },
       );
     }
 
@@ -48,10 +51,19 @@ export async function POST(request: Request) {
       );
     }
     if ('mfaRequired' in result && result.mfaRequired) {
-      return NextResponse.json({ error: 'Enter the six-digit authenticator code.', code: 'MFA_REQUIRED' }, { status: 401 });
+      return NextResponse.json(
+        {
+          error: 'Enter the six-digit authenticator code.',
+          code: 'MFA_REQUIRED',
+        },
+        { status: 401 },
+      );
     }
     if ('mfaInvalid' in result && result.mfaInvalid) {
-      return NextResponse.json({ error: 'Authenticator code is invalid.', code: 'MFA_REQUIRED' }, { status: 401 });
+      return NextResponse.json(
+        { error: 'Authenticator code is invalid.', code: 'MFA_REQUIRED' },
+        { status: 401 },
+      );
     }
 
     const portalMatches =
@@ -87,8 +99,7 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : 'Unable to sign in.',
+        error: error instanceof Error ? error.message : 'Unable to sign in.',
       },
       { status: 500 },
     );

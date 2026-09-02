@@ -41,7 +41,10 @@ export async function POST(
       windowSeconds: 60 * 60,
     });
     if (!rateLimit.allowed) {
-      return NextResponse.json({ error: 'Too many submissions. Try again later.' }, { status: 429, headers: result.corsHeaders });
+      return NextResponse.json(
+        { error: 'Too many submissions. Try again later.' },
+        { status: 429, headers: result.corsHeaders },
+      );
     }
     const contentLength = Number(request.headers.get('content-length') ?? 0);
     if (contentLength > 64 * 1024) {

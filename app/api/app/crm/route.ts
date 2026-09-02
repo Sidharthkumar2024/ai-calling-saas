@@ -72,7 +72,10 @@ export async function PATCH(request: Request) {
     nextAction?: string;
   };
   if (!body.leadId || !body.stage || !allowedStages.has(body.stage)) {
-    return NextResponse.json({ error: 'Valid lead and stage are required.' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Valid lead and stage are required.' },
+      { status: 400 },
+    );
   }
 
   const db = getRawDb();
@@ -80,7 +83,8 @@ export async function PATCH(request: Request) {
     .prepare('SELECT id FROM leads WHERE id = ? AND organization_id = ?')
     .bind(body.leadId, organizationId)
     .first();
-  if (!lead) return NextResponse.json({ error: 'Lead not found.' }, { status: 404 });
+  if (!lead)
+    return NextResponse.json({ error: 'Lead not found.' }, { status: 404 });
 
   const opportunityId = `opportunity_${crypto.randomUUID()}`;
   await db
@@ -106,7 +110,9 @@ export async function PATCH(request: Request) {
     )
     .run();
   await db
-    .prepare('UPDATE leads SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .prepare(
+      'UPDATE leads SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+    )
     .bind(body.stage === 'won' ? 'converted' : body.stage, body.leadId)
     .run();
   await recordAudit(auth.session, 'crm.stage_changed', 'lead', body.leadId, {
@@ -127,7 +133,10 @@ export async function POST(request: Request) {
     dueAt?: string;
   };
   if (!body.leadId || !body.subject?.trim()) {
-    return NextResponse.json({ error: 'Lead and subject are required.' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Lead and subject are required.' },
+      { status: 400 },
+    );
   }
 
   const db = getRawDb();
@@ -135,7 +144,8 @@ export async function POST(request: Request) {
     .prepare('SELECT id FROM leads WHERE id = ? AND organization_id = ?')
     .bind(body.leadId, organizationId)
     .first();
-  if (!lead) return NextResponse.json({ error: 'Lead not found.' }, { status: 404 });
+  if (!lead)
+    return NextResponse.json({ error: 'Lead not found.' }, { status: 404 });
 
   const activityId = `activity_${crypto.randomUUID()}`;
   await db
@@ -155,6 +165,11 @@ export async function POST(request: Request) {
       auth.session.name,
     )
     .run();
-  await recordAudit(auth.session, 'crm.activity_created', 'crm_activity', activityId);
+  await recordAudit(
+    auth.session,
+    'crm.activity_created',
+    'crm_activity',
+    activityId,
+  );
   return NextResponse.json({ id: activityId }, { status: 201 });
 }

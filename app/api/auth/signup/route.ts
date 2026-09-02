@@ -38,7 +38,10 @@ export async function POST(request: Request) {
       windowSeconds: 60 * 60,
     });
     if (!signupLimit.allowed) {
-      return NextResponse.json({ error: 'Too many account creation attempts. Try again later.' }, { status: 429 });
+      return NextResponse.json(
+        { error: 'Too many account creation attempts. Try again later.' },
+        { status: 429 },
+      );
     }
     const body = (await request.json()) as {
       name?: string;
@@ -62,26 +65,57 @@ export async function POST(request: Request) {
       ? body.language!
       : 'hi-IN';
     const db = getRawDb();
-    const invitation = body.inviteToken ? await db.prepare(`SELECT i.id, i.organization_id, i.email, i.role, o.name AS organization_name
+    const invitation = body.inviteToken
+      ? await db
+          .prepare(`SELECT i.id, i.organization_id, i.email, i.role, o.name AS organization_name
       FROM team_invitations i INNER JOIN organizations o ON o.id = i.organization_id
       WHERE i.token_hash = ? AND i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > ? LIMIT 1`)
-      .bind(await sha256(body.inviteToken), new Date().toISOString())
-      .first<{ id: string; organization_id: string; email: string; role: string; organization_name: string }>() : null;
+          .bind(await sha256(body.inviteToken), new Date().toISOString())
+          .first<{
+            id: string;
+            organization_id: string;
+            email: string;
+            role: string;
+            organization_name: string;
+          }>()
+      : null;
 
-    if (body.inviteToken && !invitation) return NextResponse.json({ error: 'Invitation is expired or already used.' }, { status: 400 });
-    if (!name || name.length > 80 || (!invitation && (!businessName || businessName.length > 100))) {
+    if (body.inviteToken && !invitation)
+      return NextResponse.json(
+        { error: 'Invitation is expired or already used.' },
+        { status: 400 },
+      );
+    if (
+      !name ||
+      name.length > 80 ||
+      (!invitation && (!businessName || businessName.length > 100))
+    ) {
       return NextResponse.json(
         { error: 'Your name and business name are required.' },
         { status: 400 },
       );
     }
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return NextResponse.json({ error: 'Enter a valid email address.' }, { status: 400 });
-    }
-    if (invitation && invitation.email.toLowerCase() !== email) return NextResponse.json({ error: 'Use the email address that received this invitation.' }, { status: 400 });
-    if (password.length < 10 || !/[a-zA-Z]/.test(password) || !/\d/.test(password)) {
       return NextResponse.json(
-        { error: 'Password must be at least 10 characters with a letter and number.' },
+        { error: 'Enter a valid email address.' },
+        { status: 400 },
+      );
+    }
+    if (invitation && invitation.email.toLowerCase() !== email)
+      return NextResponse.json(
+        { error: 'Use the email address that received this invitation.' },
+        { status: 400 },
+      );
+    if (
+      password.length < 10 ||
+      !/[a-zA-Z]/.test(password) ||
+      !/\d/.test(password)
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            'Password must be at least 10 characters with a letter and number.',
+        },
         { status: 400 },
       );
     }
@@ -102,9 +136,13 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     }
-    const freePlan = invitation ? null : await db
-      .prepare("SELECT id, included_credits FROM plans WHERE code = 'free' LIMIT 1")
-      .first<{ id: string; included_credits: number }>();
+    const freePlan = invitation
+      ? null
+      : await db
+          .prepare(
+            "SELECT id, included_credits FROM plans WHERE code = 'free' LIMIT 1",
+          )
+          .first<{ id: string; included_credits: number }>();
     if (!invitation && !freePlan) {
       return NextResponse.json(
         { error: 'Free trial plan is not configured.' },
@@ -122,24 +160,50 @@ export async function POST(request: Request) {
     const webSourceId = `source_web_${suffix}`;
     const formId = `form_${suffix}`;
     const publicFormKey = `form_${crypto.randomUUID().replaceAll('-', '').slice(0, 18)}`;
-    const slugBase = (businessName ?? invitation?.organization_name ?? 'workspace')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
-      .slice(0, 38) || 'workspace';
+    const slugBase =
+      (businessName ?? invitation?.organization_name ?? 'workspace')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 38) || 'workspace';
     const passwordHash = await hashPassword(password);
     if (invitation) {
       await db.batch([
-        db.prepare(`INSERT INTO app_users (id, organization_id, name, email, password_hash, role, status)
-          VALUES (?, ?, ?, ?, ?, 'customer_agent', 'active')`).bind(userId, invitation.organization_id, name, email, passwordHash),
-        db.prepare(`INSERT INTO organization_members (id, organization_id, user_id, email, role) VALUES (?, ?, ?, ?, ?)`)
-          .bind(memberId, invitation.organization_id, userId, email, invitation.role),
-        db.prepare('UPDATE team_invitations SET accepted_at = CURRENT_TIMESTAMP WHERE id = ? AND accepted_at IS NULL').bind(invitation.id),
+        db
+          .prepare(`INSERT INTO app_users (id, organization_id, name, email, password_hash, role, status)
+          VALUES (?, ?, ?, ?, ?, 'customer_agent', 'active')`)
+          .bind(userId, invitation.organization_id, name, email, passwordHash),
+        db
+          .prepare(
+            `INSERT INTO organization_members (id, organization_id, user_id, email, role) VALUES (?, ?, ?, ?, ?)`,
+          )
+          .bind(
+            memberId,
+            invitation.organization_id,
+            userId,
+            email,
+            invitation.role,
+          ),
+        db
+          .prepare(
+            'UPDATE team_invitations SET accepted_at = CURRENT_TIMESTAMP WHERE id = ? AND accepted_at IS NULL',
+          )
+          .bind(invitation.id),
       ]);
       const result = await loginWithPassword(email, password);
-      if (!result || !('token' in result) || typeof result.token !== 'string') throw new Error('Account was created but sign-in could not start.');
-      const response = NextResponse.json({ redirectTo: '/app', joinedOrganization: invitation.organization_name }, { status: 201 });
-      response.headers.set('Set-Cookie', sessionCookie(result.token, new URL(request.url).protocol === 'https:'));
+      if (!result || !('token' in result) || typeof result.token !== 'string')
+        throw new Error('Account was created but sign-in could not start.');
+      const response = NextResponse.json(
+        {
+          redirectTo: '/app',
+          joinedOrganization: invitation.organization_name,
+        },
+        { status: 201 },
+      );
+      response.headers.set(
+        'Set-Cookie',
+        sessionCookie(result.token, new URL(request.url).protocol === 'https:'),
+      );
       return response;
     }
     const welcome =
@@ -149,8 +213,15 @@ export async function POST(request: Request) {
 
     await db.batch([
       db
-        .prepare('INSERT INTO organizations (id, slug, name, status) VALUES (?, ?, ?, ?)')
-        .bind(organizationId, `${slugBase}-${suffix.slice(0, 5)}`, businessName, 'active'),
+        .prepare(
+          'INSERT INTO organizations (id, slug, name, status) VALUES (?, ?, ?, ?)',
+        )
+        .bind(
+          organizationId,
+          `${slugBase}-${suffix.slice(0, 5)}`,
+          businessName,
+          'active',
+        ),
       db
         .prepare(`INSERT INTO app_users
           (id, organization_id, name, email, password_hash, role, status)
@@ -225,7 +296,14 @@ export async function POST(request: Request) {
             'book_appointment',
             'transfer_human',
           ]),
-          JSON.stringify(['language', 'intent', 'product', 'amount', 'payment_timing', 'next_action']),
+          JSON.stringify([
+            'language',
+            'intent',
+            'product',
+            'amount',
+            'payment_timing',
+            'next_action',
+          ]),
           JSON.stringify({
             inbound: false,
             outbound: false,
@@ -236,7 +314,8 @@ export async function POST(request: Request) {
     ]);
 
     const result = await loginWithPassword(email, password);
-    if (!result || !('token' in result) || typeof result.token !== 'string') throw new Error('Account was created but sign-in could not start.');
+    if (!result || !('token' in result) || typeof result.token !== 'string')
+      throw new Error('Account was created but sign-in could not start.');
     const response = NextResponse.json(
       {
         redirectTo: '/app',
@@ -252,7 +331,10 @@ export async function POST(request: Request) {
     return response;
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unable to create account.' },
+      {
+        error:
+          error instanceof Error ? error.message : 'Unable to create account.',
+      },
       { status: 500 },
     );
   }

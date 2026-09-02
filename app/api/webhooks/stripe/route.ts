@@ -11,20 +11,33 @@ export async function POST(request: Request) {
   const stripeKey = process.env.STRIPE_SECRET_KEY;
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!stripeKey || !webhookSecret) {
-    return NextResponse.json({ error: 'Stripe webhook is not configured.' }, { status: 503 });
+    return NextResponse.json(
+      { error: 'Stripe webhook is not configured.' },
+      { status: 503 },
+    );
   }
   const signature = request.headers.get('stripe-signature');
   if (!signature) {
-    return NextResponse.json({ error: 'Stripe signature is required.' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Stripe signature is required.' },
+      { status: 400 },
+    );
   }
 
   const stripe = new Stripe(stripeKey);
   const payload = await request.text();
   let event: Stripe.Event;
   try {
-    event = await stripe.webhooks.constructEventAsync(payload, signature, webhookSecret);
+    event = await stripe.webhooks.constructEventAsync(
+      payload,
+      signature,
+      webhookSecret,
+    );
   } catch {
-    return NextResponse.json({ error: 'Invalid Stripe signature.' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Invalid Stripe signature.' },
+      { status: 400 },
+    );
   }
 
   await ensureSchema();
@@ -40,7 +53,10 @@ export async function POST(request: Request) {
     const organizationId = checkout.metadata?.organizationId;
     const purchaseType = checkout.metadata?.purchaseType;
     if (!organizationId || !purchaseType) {
-      return NextResponse.json({ error: 'Checkout metadata is incomplete.' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Checkout metadata is incomplete.' },
+        { status: 400 },
+      );
     }
     if (purchaseType === 'credits') {
       await applyCreditPurchase({
@@ -56,7 +72,9 @@ export async function POST(request: Request) {
         planId: checkout.metadata.planId,
         amount: checkout.amount_total ?? 0,
         externalCustomerId:
-          typeof checkout.customer === 'string' ? checkout.customer : checkout.customer?.id,
+          typeof checkout.customer === 'string'
+            ? checkout.customer
+            : checkout.customer?.id,
         externalSubscriptionId:
           typeof checkout.subscription === 'string'
             ? checkout.subscription

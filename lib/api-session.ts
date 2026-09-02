@@ -11,7 +11,9 @@ type SessionResult =
   | { session: AppSession; response?: never }
   | { session?: never; response: NextResponse };
 
-export async function requireCustomer(request: Request): Promise<SessionResult> {
+export async function requireCustomer(
+  request: Request,
+): Promise<SessionResult> {
   const session = await getSessionFromHeaders(request.headers);
   if (!session) {
     return {

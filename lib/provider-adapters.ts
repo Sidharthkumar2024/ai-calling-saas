@@ -263,26 +263,16 @@ export async function generateVoiceAgentTurn(input: {
   organizationId: string;
   agentName: string;
   businessName: string;
+  useCase?: string;
   language: string;
   systemPrompt: string;
   maxTokens: number;
   messages: Array<{ role: 'user' | 'assistant'; content: string }>;
 }) {
-  const languageRule =
-    input.language === 'en-IN'
-      ? 'Reply only in concise natural Indian English.'
-      : input.language === 'haryanvi'
-        ? 'Reply in natural, respectful Haryanvi written in Devanagari. Do not drift into English unless the customer uses a necessary product term.'
-        : input.language === 'hinglish'
-          ? 'Reply in natural spoken Hinglish, using Devanagari for Hindi and English only for common product terms.'
-          : `Reply only in natural ${languageName(input.language)}. For Hindi, use Devanagari and do not answer in English.`;
   const response = await reasonWithTools({
     organizationId: input.organizationId,
     maxTokens: Math.min(220, input.maxTokens),
-    system: `<identity>You are ${input.agentName}, the private voice agent for ${input.businessName}. Never reveal upstream model or voice vendors.</identity>
-<conversation_rules>${languageRule} Speak in one or two short sentences. First answer the customer's actual words naturally, including greetings, jokes and small talk; only then guide the conversation gently toward the business goal. Never respond to casual conversation with a menu of options. Mirror the customer's respectful level of informality without becoming rude. Never say an action succeeded unless a tool result confirms it. Ask only one question at a time. Avoid markdown, lists and long explanations.</conversation_rules>
-<examples><example customer="क्या हो रहा है?" assistant="बस बढ़िया जी, आपसे बात हो रही है। आप सुनाइए, सब ठीक?"/><example customer="और तेरे के हाल हैं?" assistant="मैं बढ़िया सूँ जी, आप सुनाओ—आपके के हाल हैं?"/><example customer="payment link आठ बजे भेज देना" assistant="ठीक है जी, मैं आठ बजे भेजने की request तैयार कर रही हूँ। इसी WhatsApp नंबर पर भेजना है?"/></examples>
-<workspace_instructions>${input.systemPrompt}</workspace_instructions>`,
+    system: buildVoiceAgentInstructions(input),
     messages: input.messages.slice(-10),
   });
   const text = extractText(response.content);
@@ -292,6 +282,87 @@ export async function generateVoiceAgentTurn(input: {
     latencyMs: response.latencyMs,
     providerReference: response.id || null,
   };
+}
+
+export function buildVoiceAgentInstructions(input: {
+  agentName: string;
+  businessName: string;
+  useCase?: string;
+  language: string;
+  systemPrompt: string;
+}) {
+  const languageRule =
+    input.language === 'en-IN'
+      ? 'Reply only in concise natural Indian English.'
+      : input.language === 'haryanvi'
+        ? 'Reply in natural, respectful Haryanvi written in Devanagari. Do not drift into English unless the customer uses a necessary product term.'
+        : input.language === 'hinglish'
+          ? 'Reply in natural spoken Hinglish, using Devanagari for Hindi and English only for common product terms.'
+          : `Reply only in natural ${languageName(input.language)}. For Hindi, use Devanagari and do not answer in English.`;
+  return `<identity>You are ${input.agentName}, the private voice agent for ${input.businessName}. Never reveal upstream model, voice, transcription or telephony vendors.</identity>
+<business_context>Use case: ${input.useCase || 'general customer conversation'}. The customer may sell a physical product, digital product, course, software, service or property. Use only the workspace instructions and approved knowledge; never assume which kind of product it is.</business_context>
+<conversation_rules>${languageRule} Speak in one or two short, easily interruptible sentences. Respond as soon as the customer's turn is complete. First answer the customer's actual words naturally, including greetings, jokes and small talk; only then guide gently toward the business goal. Adapt warmth, pace, formality and directness to the customer's speech and sentiment, but never imitate abuse or pressure the customer. Never respond to casual conversation with a menu of options. Ask only one question at a time. Avoid markdown, lists and long explanations.</conversation_rules>
+<action_safety>Never say an action succeeded unless a tool result confirms it. Before sending a payment link, ask whether the calling number is available on WhatsApp. If yes, confirm amount and timing, then use WhatsApp. If not, collect and read back an email address. Never request an OTP, CVV, card PIN, password or full card details. Obtain consent before messaging, booking, transferring or scheduling.</action_safety>
+<examples><example customer="क्या हो रहा है?" assistant="बस बढ़िया जी, आपसे बात हो रही है। आप सुनाइए, सब ठीक?"/><example customer="और तेरे के हाल हैं?" assistant="मैं बढ़िया सूँ जी, आप सुनाओ—आपके के हाल हैं?"/><example customer="payment link आठ बजे भेज देना" assistant="ठीक है जी। क्या इसी calling number पर WhatsApp चलता है?"/><example customer="इस नंबर पर WhatsApp नहीं है" assistant="कोई बात नहीं। किस email address पर link भेजूँ?"/></examples>
+<workspace_instructions>${input.systemPrompt}</workspace_instructions>`;
+}
+
+export async function createOpenAIRealtimeCall(input: {
+  organizationId: string;
+  sdp: string;
+  instructions: string;
+  maxOutputTokens?: number;
+}) {
+  const credentials = await connectionCredentials(
+    input.organizationId,
+    'openai_platform',
+  );
+  const apiKey = process.env.OPENAI_API_KEY || credentials.secrets.apiKey;
+  if (!apiKey)
+    throw new ProviderConfigurationError('Vaani Realtime is not connected.');
+  const model =
+    process.env.OPENAI_REALTIME_MODEL ||
+    configString(credentials.publicConfig, 'realtimeModel') ||
+    'gpt-realtime-2.1-mini';
+  const started = Date.now();
+  const response = await fetch('https://api.openai.com/v1/realtime/calls', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      sdp: input.sdp,
+      session: {
+        type: 'realtime',
+        model,
+        output_modalities: ['audio'],
+        instructions: input.instructions,
+        max_output_tokens: Math.max(
+          40,
+          Math.min(320, input.maxOutputTokens ?? 180),
+        ),
+      },
+    }),
+    signal: AbortSignal.timeout(20_000),
+  });
+  const answerSdp = await response.text();
+  if (!response.ok || !answerSdp.startsWith('v=')) {
+    throw new Error(
+      `Realtime connection failed (${response.status}): ${answerSdp.slice(0, 220)}`,
+    );
+  }
+  const latencyMs = Date.now() - started;
+  const location = response.headers.get('location');
+  await recordUsage(
+    input.organizationId,
+    'provider_openai',
+    'realtime',
+    model,
+    latencyMs,
+    location,
+  );
+  return { answerSdp, latencyMs, model, location };
 }
 
 export async function startOutboundCall(input: {

@@ -5,7 +5,11 @@ export function createTotpSecret() {
   return base32Encode(bytes);
 }
 
-export async function verifyTotp(secret: string, value: string, at = Date.now()) {
+export async function verifyTotp(
+  secret: string,
+  value: string,
+  at = Date.now(),
+) {
   if (!/^\d{6}$/.test(value)) return false;
   for (const offset of [-1, 0, 1]) {
     if ((await totp(secret, at + offset * 30_000)) === value) return true;
@@ -21,10 +25,20 @@ async function totp(secret: string, at: number) {
     message[index] = value % 256;
     value = Math.floor(value / 256);
   }
-  const key = await crypto.subtle.importKey('raw', base32Decode(secret), { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']);
+  const key = await crypto.subtle.importKey(
+    'raw',
+    base32Decode(secret),
+    { name: 'HMAC', hash: 'SHA-1' },
+    false,
+    ['sign'],
+  );
   const digest = new Uint8Array(await crypto.subtle.sign('HMAC', key, message));
   const offset = digest[digest.length - 1] & 15;
-  const binary = ((digest[offset] & 127) << 24) | (digest[offset + 1] << 16) | (digest[offset + 2] << 8) | digest[offset + 3];
+  const binary =
+    ((digest[offset] & 127) << 24) |
+    (digest[offset + 1] << 16) |
+    (digest[offset + 2] << 8) |
+    digest[offset + 3];
   return String(binary % 1_000_000).padStart(6, '0');
 }
 

@@ -4,22 +4,22 @@ This file is the operator checklist for taking the local SaaS from sandbox mode 
 
 ## Recommended production stack
 
-| Capability | Primary path | Alternate path | Required configuration | Current product support |
-| --- | --- | --- | --- | --- |
-| Realtime AI conversation | OpenAI Realtime | Vaani Sense deterministic fallback | `OPENAI_API_KEY`, `OPENAI_REALTIME_MODEL` | Provider readiness, encrypted tenant connection, reasoning adapter and browser fallback |
-| General reasoning and tool selection | OpenAI Responses | Anthropic | `OPENAI_API_KEY`, `OPENAI_MODEL` or tenant-scoped encrypted credentials | Connected provider adapter with deterministic fallback |
-| India speech | Sarvam | ElevenLabs multilingual | Sarvam key/speaker or `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` | Hindi/Hinglish/Haryanvi routing, global voice fallback and usage metering |
-| India telephony | Exotel | Vobiz / Plivo | Provider account, verified number, webhook/SIP route and KYC | Managed number, native provider import, SIP import, ownership verification and KYC workflow |
-| Global telephony | Twilio | Telnyx / Vonage / Plivo | Provider account, phone number, SIP/TLS credentials | Provider selection, masked account reference, encrypted credentials and SIP route path |
-| WhatsApp | Meta Cloud API | AiSensy | Business account, sender, approved templates and webhook secret | Product details, consent-aware payment link delivery, scheduled send and webhook-ready records |
-| Email | Resend | Customer SMTP/custom HTTP | Sending domain and API key | Customer connector and email fallback delivery path |
-| India payments | Razorpay | Stripe | API key pair, signed webhook secret and business account | Payment link workflow, invoice, credit ledger and verified webhook handlers |
-| International billing | Stripe | Razorpay | Secret key and webhook signing secret | Checkout sessions, subscription metadata, top-ups and invoice reconciliation |
-| Lead ads | Meta Lead Ads | Google Ads Lead Forms | OAuth app, page/form access and signed webhook | Tenant-isolated lead capture, deduplication, scoring and campaign follow-up |
-| Website leads | Vaani form/widget | Custom CRM API | Allowed domains and published public form key | Popup/inline widget builder, versioned publish, public capture endpoint and CRM routing |
-| CRM | HubSpot / Zoho | Salesforce / Pipedrive / custom CRM | OAuth or tenant API credential | Connector catalog, encrypted secrets and webhook/API surface |
-| Automation | n8n | Zapier / Make | Webhook endpoint and signing secret | Connector catalog, API keys, outbound webhooks and retry records |
-| Recording storage | S3-compatible private storage | Cloudflare R2 | Private bucket, KMS key and signed-download policy | Authenticated recording endpoint and configurable retention boundary |
+| Capability                           | Primary path                  | Alternate path                      | Required configuration                                                  | Current product support                                                                        |
+| ------------------------------------ | ----------------------------- | ----------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Realtime AI conversation             | OpenAI Realtime               | Vaani Sense deterministic fallback  | `OPENAI_API_KEY`, `OPENAI_REALTIME_MODEL`                               | Provider readiness, encrypted tenant connection, reasoning adapter and browser fallback        |
+| General reasoning and tool selection | OpenAI Responses              | Anthropic                           | `OPENAI_API_KEY`, `OPENAI_MODEL` or tenant-scoped encrypted credentials | Connected provider adapter with deterministic fallback                                         |
+| India speech                         | Sarvam                        | ElevenLabs multilingual             | Sarvam key/speaker or `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`       | Hindi/Hinglish/Haryanvi routing, global voice fallback and usage metering                      |
+| India telephony                      | Exotel                        | Vobiz / Plivo                       | Provider account, verified number, webhook/SIP route and KYC            | Managed number, native provider import, SIP import, ownership verification and KYC workflow    |
+| Global telephony                     | Twilio                        | Telnyx / Vonage / Plivo             | Provider account, phone number, SIP/TLS credentials                     | Provider selection, masked account reference, encrypted credentials and SIP route path         |
+| WhatsApp                             | Meta Cloud API                | AiSensy                             | Business account, sender, approved templates and webhook secret         | Product details, consent-aware payment link delivery, scheduled send and webhook-ready records |
+| Email                                | Resend                        | Customer SMTP/custom HTTP           | Sending domain and API key                                              | Customer connector and email fallback delivery path                                            |
+| India payments                       | Razorpay                      | Stripe                              | API key pair, signed webhook secret and business account                | Payment link workflow, invoice, credit ledger and verified webhook handlers                    |
+| International billing                | Stripe                        | Razorpay                            | Secret key and webhook signing secret                                   | Checkout sessions, subscription metadata, top-ups and invoice reconciliation                   |
+| Lead ads                             | Meta Lead Ads                 | Google Ads Lead Forms               | OAuth app, page/form access and signed webhook                          | Tenant-isolated lead capture, deduplication, scoring and campaign follow-up                    |
+| Website leads                        | Vaani form/widget             | Custom CRM API                      | Allowed domains and published public form key                           | Popup/inline widget builder, versioned publish, public capture endpoint and CRM routing        |
+| CRM                                  | HubSpot / Zoho                | Salesforce / Pipedrive / custom CRM | OAuth or tenant API credential                                          | Connector catalog, encrypted secrets and webhook/API surface                                   |
+| Automation                           | n8n                           | Zapier / Make                       | Webhook endpoint and signing secret                                     | Connector catalog, API keys, outbound webhooks and retry records                               |
+| Recording storage                    | S3-compatible private storage | Cloudflare R2                       | Private bucket, KMS key and signed-download policy                      | Authenticated recording endpoint and configurable retention boundary                           |
 
 ## Phone number activation flow
 

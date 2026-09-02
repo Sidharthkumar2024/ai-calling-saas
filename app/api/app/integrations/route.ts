@@ -5,6 +5,7 @@ import { requireCustomer } from '@/lib/api-session';
 import { recordAudit } from '@/lib/demo-seed';
 import { encryptSecret } from '@/lib/security';
 import { testIntegrationConnection } from '@/lib/provider-adapters';
+import { requireCustomerPermission } from '@/lib/customer-rbac';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,7 +58,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireCustomer(request);
+  const auth = await requireCustomerPermission(request, 'integrations.manage');
   if (auth.response) return auth.response;
   const body = (await request.json()) as {
     type?: string;
@@ -138,7 +139,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const auth = await requireCustomer(request);
+  const auth = await requireCustomerPermission(request, 'integrations.manage');
   if (auth.response) return auth.response;
   const body = (await request.json()) as { action?: string; id?: string };
   if (body.action !== 'test' || !body.id) {

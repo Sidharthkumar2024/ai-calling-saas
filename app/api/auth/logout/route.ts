@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import {
-  clearedSessionCookie,
-  destroySession,
-} from '@/lib/app-auth';
+import { clearedSessionCookie, destroySession } from '@/lib/app-auth';
 
 export const dynamic = 'force-dynamic';
 

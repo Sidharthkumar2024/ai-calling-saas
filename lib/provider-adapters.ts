@@ -155,6 +155,10 @@ export async function synthesizeSpeech(input: {
       ...input,
       apiKey: elevenLabsApiKey!,
       voiceId: elevenLabsVoiceId!,
+      modelId:
+        process.env.ELEVENLABS_MODEL_ID ||
+        configString(elevenPlatform.config, 'modelId') ||
+        undefined,
     });
   }
   if (!apiKey)
@@ -611,6 +615,7 @@ async function synthesizeGlobalSpeech(input: {
   languageCode: string;
   apiKey: string;
   voiceId: string;
+  modelId?: string;
 }) {
   const started = Date.now();
   const response = await fetch(
@@ -624,7 +629,7 @@ async function synthesizeGlobalSpeech(input: {
       },
       body: JSON.stringify({
         text: input.text.slice(0, 2500),
-        model_id: process.env.ELEVENLABS_MODEL_ID || 'eleven_multilingual_v2',
+        model_id: input.modelId || 'eleven_multilingual_v2',
         output_format: 'mp3_44100_128',
         voice_settings: {
           stability: 0.48,

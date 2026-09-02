@@ -190,6 +190,64 @@ export async function synthesizeSpeech(input: {
   };
 }
 
+export async function transcribeSpeech(input: {
+  organizationId: string;
+  audio: ArrayBuffer;
+  contentType?: string;
+  languageCode?: string;
+}) {
+  const credentials = await connectionCredentials(
+    input.organizationId,
+    'sarvam_voice',
+  );
+  const apiKey = process.env.SARVAM_API_KEY || credentials.secrets.apiKey;
+  if (!apiKey)
+    throw new ProviderConfigurationError(
+      'No Vaani transcription engine is connected.',
+    );
+  const started = Date.now();
+  const form = new FormData();
+  form.append(
+    'file',
+    new Blob([input.audio], { type: input.contentType || 'audio/wav' }),
+    'audio.wav',
+  );
+  form.append('model', 'saarika:v2.5');
+  // 'unknown' lets Sarvam auto-detect the spoken language (Hindi, Punjabi,
+  // Haryanvi, English, etc.) so the caller can switch languages freely.
+  form.append('language_code', input.languageCode || 'unknown');
+  const response = await fetch('https://api.sarvam.ai/speech-to-text', {
+    method: 'POST',
+    headers: { 'api-subscription-key': apiKey },
+    body: form,
+    signal: AbortSignal.timeout(20_000),
+  });
+  const payload = (await response.json()) as {
+    request_id?: string;
+    transcript?: string;
+    language_code?: string;
+    error?: { message?: string };
+  };
+  if (!response.ok || typeof payload.transcript !== 'string')
+    throw new Error(
+      payload.error?.message || `Transcription failed (${response.status}).`,
+    );
+  const latencyMs = Date.now() - started;
+  await recordUsage(
+    input.organizationId,
+    'provider_sarvam',
+    'speech',
+    'stt',
+    latencyMs,
+    payload.request_id || null,
+  );
+  return {
+    transcript: payload.transcript.trim(),
+    languageCode: payload.language_code || null,
+    latencyMs,
+  };
+}
+
 export async function reasonWithTools(input: {
   organizationId: string;
   system: string;

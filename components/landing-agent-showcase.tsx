@@ -30,7 +30,7 @@ const examples = {
   },
   'Lead qualification': {
     icon: Target,
-    agent: 'Aira · Qualification',
+    agent: 'Ira · Qualification',
     language: 'Hindi + English',
     customer: 'My budget is around ₹2 crore and I want possession this year.',
     response:

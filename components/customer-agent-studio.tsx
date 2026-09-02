@@ -881,6 +881,10 @@ function TestConsole({
   const realtimeAudioRef = useRef<HTMLAudioElement | null>(null);
   const realtimeTranscriptRef = useRef('');
   const commitTimerRef = useRef<number | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  // 'auto' tries connected Sarvam STT; flips to 'browser' if no engine is set.
+  const sttEngineRef = useRef<'auto' | 'connected' | 'browser'>('auto');
 
   useEffect(() => {
     const timer = window.setTimeout(() => setCredits(initialCredits), 0);
@@ -902,6 +906,13 @@ function TestConsole({
       if (commitTimerRef.current !== null)
         window.clearTimeout(commitTimerRef.current);
       recognitionRef.current?.abort();
+      try {
+        if (recorderRef.current && recorderRef.current.state !== 'inactive')
+          recorderRef.current.stop();
+      } catch {
+        /* recorder already stopped */
+      }
+      void audioCtxRef.current?.close().catch(() => undefined);
       audioRef.current?.pause();
       dataChannelRef.current?.close();
       peerRef.current?.close();
@@ -1287,7 +1298,158 @@ function TestConsole({
     realtimeTranscriptRef.current = '';
   }
 
+  // Dispatcher: prefer connected Sarvam STT (accurate for Indian languages);
+  // fall back to the browser's Web Speech API when no engine is connected.
   function startListening(automatic = false) {
+    if (sttEngineRef.current === 'browser') {
+      startBrowserListening(automatic);
+      return;
+    }
+    void startConnectedListening();
+  }
+
+  function stopRecorder() {
+    try {
+      if (recorderRef.current && recorderRef.current.state !== 'inactive')
+        recorderRef.current.stop();
+    } catch {
+      /* recorder already stopped */
+    }
+    recorderRef.current = null;
+    if (audioCtxRef.current) {
+      void audioCtxRef.current.close().catch(() => undefined);
+      audioCtxRef.current = null;
+    }
+  }
+
+  // Record one utterance, auto-stop on ~0.9s of silence, then transcribe with
+  // Sarvam. On success we send the accurate transcript; if no transcription
+  // engine is connected we permanently fall back to browser recognition.
+  async function startConnectedListening() {
+    if (
+      typeof MediaRecorder === 'undefined' ||
+      !navigator.mediaDevices?.getUserMedia ||
+      typeof AudioContext === 'undefined'
+    ) {
+      sttEngineRef.current = 'browser';
+      startBrowserListening(true);
+      return;
+    }
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true },
+      });
+    } catch {
+      sttEngineRef.current = 'browser';
+      startBrowserListening(true);
+      return;
+    }
+    mediaStreamRef.current = stream;
+    const mimeType = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/mp4',
+    ].find((type) => MediaRecorder.isTypeSupported(type));
+    const recorder = new MediaRecorder(
+      stream,
+      mimeType ? { mimeType } : undefined,
+    );
+    recorderRef.current = recorder;
+    const chunks: Blob[] = [];
+    recorder.ondataavailable = (event) => {
+      if (event.data.size) chunks.push(event.data);
+    };
+    recorder.onstop = async () => {
+      stream.getTracks().forEach((track) => track.stop());
+      if (audioCtxRef.current) {
+        void audioCtxRef.current.close().catch(() => undefined);
+        audioCtxRef.current = null;
+      }
+      const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+      if (blob.size < 1400) {
+        // Too little audio — quietly listen again.
+        if (voiceActiveRef.current) void startConnectedListening();
+        return;
+      }
+      setVoiceState('thinking');
+      const form = new FormData();
+      form.append('audio', blob, 'turn.webm');
+      form.append('agentId', agent.id);
+      try {
+        const response = await fetch('/api/app/agents/stt', {
+          method: 'POST',
+          body: form,
+        });
+        if (response.status === 409) {
+          // No transcription engine configured — use the browser from now on.
+          sttEngineRef.current = 'browser';
+          if (voiceActiveRef.current) startBrowserListening(true);
+          return;
+        }
+        const data = (await response.json()) as {
+          transcript?: string;
+          error?: string;
+        };
+        if (!response.ok || !data.transcript)
+          throw new Error(data.error ?? 'Could not understand the audio.');
+        sttEngineRef.current = 'connected';
+        setInterimTranscript('');
+        await sendMessage(data.transcript, true);
+      } catch {
+        setError('Could not understand that clearly. Please try again.');
+        if (voiceActiveRef.current) setVoiceState('idle');
+      }
+    };
+
+    // Silence detection via Web Audio RMS.
+    const context = new AudioContext();
+    audioCtxRef.current = context;
+    const source = context.createMediaStreamSource(stream);
+    const analyser = context.createAnalyser();
+    analyser.fftSize = 512;
+    source.connect(analyser);
+    const samples = new Uint8Array(analyser.frequencyBinCount);
+    let spoke = false;
+    let silenceSince = 0;
+    const startedAt = nowMs();
+    recorder.start();
+    voiceActiveRef.current = true;
+    setVoiceActive(true);
+    setVoiceState('listening');
+    setInterimTranscript('Listening…');
+
+    const monitor = () => {
+      if (!voiceActiveRef.current || recorder.state === 'inactive') return;
+      analyser.getByteTimeDomainData(samples);
+      let sum = 0;
+      for (const value of samples) {
+        const centered = (value - 128) / 128;
+        sum += centered * centered;
+      }
+      const rms = Math.sqrt(sum / samples.length);
+      const now = nowMs();
+      if (rms > 0.045) {
+        spoke = true;
+        silenceSince = 0;
+      } else if (spoke) {
+        if (!silenceSince) silenceSince = now;
+        else if (now - silenceSince > 900) {
+          recorder.stop();
+          return;
+        }
+      }
+      // Hard stop after 15s so a stuck stream never records forever.
+      if (now - startedAt > 15_000) {
+        recorder.stop();
+        return;
+      }
+      window.setTimeout(monitor, 120);
+    };
+    monitor();
+  }
+
+  function startBrowserListening(automatic = false) {
     type RecognitionEvent = {
       results: ArrayLike<{ 0: { transcript: string }; isFinal?: boolean }>;
     };
@@ -1399,6 +1561,7 @@ function TestConsole({
     }
     recognitionRef.current?.abort();
     recognitionRef.current = null;
+    stopRecorder();
     audioRef.current?.pause();
     audioRef.current = null;
     cleanupRealtime();
@@ -1762,6 +1925,11 @@ function previewInBrowser(text: string, language: string) {
     );
   if (matching) utterance.voice = matching;
   window.speechSynthesis.speak(utterance);
+}
+
+// Module-level so the wall-clock read stays outside component render purity.
+function nowMs() {
+  return Date.now();
 }
 
 function browserSpeak(text: string, language: string) {

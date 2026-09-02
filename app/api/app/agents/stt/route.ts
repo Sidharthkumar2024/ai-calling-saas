@@ -74,6 +74,7 @@ export async function POST(request: Request) {
       transcript: result.transcript,
       languageCode: result.languageCode,
       latencyMs: result.latencyMs,
+      provider: result.provider,
       mode: 'connected',
     });
   } catch (error) {

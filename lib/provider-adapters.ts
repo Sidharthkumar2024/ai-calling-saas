@@ -5,6 +5,7 @@ import {
   type ToolContext,
 } from '@/lib/agent-tools';
 import { decryptSecret } from '@/lib/security';
+import { sttProviderOrder, type SttProvider } from '@/lib/stt-router';
 
 type StoredConnection = {
   public_config_json: string;
@@ -243,16 +244,104 @@ export async function transcribeSpeech(input: {
   contentType?: string;
   languageCode?: string;
 }) {
-  const [credentials, platform] = await Promise.all([
-    connectionCredentials(input.organizationId, 'sarvam_voice'),
-    platformProviderSecret('sarvam'),
-  ]);
-  const apiKey =
+  const [credentials, platform, elevenPlatform, elevenConnection] =
+    await Promise.all([
+      connectionCredentials(input.organizationId, 'sarvam_voice'),
+      platformProviderSecret('sarvam'),
+      platformProviderSecret('elevenlabs'),
+      connectionCredentials(input.organizationId, 'elevenlabs_voice'),
+    ]);
+  const sarvamKey =
     process.env.SARVAM_API_KEY || platform.apiKey || credentials.secrets.apiKey;
-  if (!apiKey)
+  const elevenKey =
+    process.env.ELEVENLABS_API_KEY ||
+    elevenPlatform.apiKey ||
+    elevenConnection.secrets.apiKey;
+  if (!sarvamKey && !elevenKey)
     throw new ProviderConfigurationError(
       'No Vaani transcription engine is connected.',
     );
+  const sttModelId =
+    process.env.ELEVENLABS_STT_MODEL_ID ||
+    configString(elevenPlatform.config, 'sttModelId') ||
+    'scribe_v1';
+  const failures: string[] = [];
+  for (const provider of sttProviderOrder(input.languageCode)) {
+    try {
+      if (provider === 'sarvam' && sarvamKey)
+        return {
+          ...(await transcribeWithSarvam(input, sarvamKey)),
+          provider: 'sarvam' as SttProvider,
+        };
+      if (provider === 'elevenlabs' && elevenKey)
+        return {
+          ...(await transcribeWithElevenLabs(input, elevenKey, sttModelId)),
+          provider: 'elevenlabs' as SttProvider,
+        };
+    } catch (error) {
+      failures.push(
+        `${provider}: ${error instanceof Error ? error.message : 'failed'}`,
+      );
+    }
+  }
+  throw new Error(failures.join(' | ') || 'Transcription failed.');
+}
+
+async function transcribeWithElevenLabs(
+  input: { organizationId: string; audio: ArrayBuffer; contentType?: string },
+  apiKey: string,
+  modelId: string,
+) {
+  const started = Date.now();
+  const form = new FormData();
+  form.append(
+    'file',
+    new Blob([input.audio], { type: input.contentType || 'audio/webm' }),
+    'audio.webm',
+  );
+  form.append('model_id', modelId);
+  const response = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
+    method: 'POST',
+    headers: { 'xi-api-key': apiKey },
+    body: form,
+    signal: AbortSignal.timeout(25_000),
+  });
+  const raw = await response.text();
+  if (!response.ok)
+    throw new Error(`ElevenLabs STT failed (${response.status}): ${raw.slice(0, 160)}`);
+  let payload: { text?: string; language_code?: string } = {};
+  try {
+    payload = JSON.parse(raw) as { text?: string; language_code?: string };
+  } catch {
+    throw new Error('ElevenLabs STT returned an unreadable response.');
+  }
+  if (typeof payload.text !== 'string')
+    throw new Error('ElevenLabs STT returned no transcript.');
+  const latencyMs = Date.now() - started;
+  await recordUsage(
+    input.organizationId,
+    'provider_elevenlabs',
+    'speech',
+    'stt',
+    latencyMs,
+    null,
+  );
+  return {
+    transcript: payload.text.trim(),
+    languageCode: payload.language_code || null,
+    latencyMs,
+  };
+}
+
+async function transcribeWithSarvam(
+  input: {
+    organizationId: string;
+    audio: ArrayBuffer;
+    contentType?: string;
+    languageCode?: string;
+  },
+  apiKey: string,
+) {
   const started = Date.now();
   const form = new FormData();
   form.append(

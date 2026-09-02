@@ -21,6 +21,7 @@ import {
   LifeBuoy,
   Loader2,
   Megaphone,
+  Mic2,
   PhoneCall,
   Radio,
   RefreshCcw,
@@ -62,6 +63,7 @@ import {
   CustomerCommerce,
   type CommerceData,
 } from '@/components/customer-commerce';
+import { CustomerVoiceProfiles } from '@/components/customer-voice-profiles';
 import { PortalShell, type PortalNavGroup } from '@/components/portal-shell';
 import {
   CustomerOperations,
@@ -163,6 +165,7 @@ const groups: PortalNavGroup[] = [
       { id: 'overview', label: 'Overview', icon: LayoutDashboard },
       { id: 'crm', label: 'Advanced CRM', icon: Target },
       { id: 'agents', label: 'AI agents', icon: Bot },
+      { id: 'voice_profiles', label: 'Voice profiles', icon: Mic2 },
       { id: 'graph_agents', label: 'Graph agents', icon: GitBranch },
       { id: 'workflows', label: 'Workflows', icon: Workflow },
       { id: 'knowledge', label: 'Knowledge base', icon: BookOpenText },
@@ -215,6 +218,7 @@ const groups: PortalNavGroup[] = [
 const navPermissions: Record<string, string> = {
   crm: 'crm.manage',
   agents: 'agents.manage',
+  voice_profiles: 'agents.manage',
   graph_agents: 'agents.manage',
   workflows: 'agents.manage',
   knowledge: 'agents.manage',
@@ -454,6 +458,9 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
             data={data.operations}
             onChanged={load}
           />
+        ) : null}
+        {!loading && !error && active === 'voice_profiles' ? (
+          <CustomerVoiceProfiles />
         ) : null}
         {!loading && !error && active === 'numbers' ? (
           <CustomerNumbers

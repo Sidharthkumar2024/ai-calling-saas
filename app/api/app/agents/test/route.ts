@@ -5,6 +5,7 @@ import { requireCustomer } from '@/lib/api-session';
 import { simulateAgentTurn } from '@/lib/agent-simulator';
 import {
   generateVoiceAgentTurn,
+  providerReadiness,
   ProviderConfigurationError,
 } from '@/lib/provider-adapters';
 
@@ -185,12 +186,21 @@ export async function POST(request: Request) {
           VALUES (?, ?, 'trial_usage', -${TEST_TURN_COST}, ?, 'agent_test', ?, 'No-call agent playground turn')`)
         .bind(ledgerId, auth.session.organizationId, nextBalance, session.id),
     ]);
+    // Whether a real TTS voice (Sarvam or ElevenLabs) is connected — so the
+    // client can play server voice even when reasoning is in fallback mode.
+    const readiness = await providerReadiness(auth.session.organizationId);
+    const voiceConnected = readiness.some(
+      (provider) =>
+        (provider.adapter === 'sarvam' || provider.adapter === 'elevenlabs') &&
+        provider.configured,
+    );
     return NextResponse.json({
       message: responseText,
       actions: simulated.actions,
       extraction: simulated.extraction,
       latencyMs,
       pipelineMode,
+      voiceConnected,
       creditsRemaining: nextBalance,
     });
   }

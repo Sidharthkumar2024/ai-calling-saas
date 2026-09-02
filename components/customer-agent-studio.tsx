@@ -1007,6 +1007,7 @@ function TestConsole({
         latencyMs?: number;
         creditsRemaining?: number;
         pipelineMode?: 'connected' | 'instant' | 'fallback';
+        voiceConnected?: boolean;
         error?: string;
       };
       if (!response.ok || !payload.message)
@@ -1027,10 +1028,10 @@ function TestConsole({
         await speakAgentMessage(
           payload.message,
           continueVoice,
-          // Only attempt the server TTS round-trip when the reasoning pipeline is
-          // actually connected to a provider. In 'instant'/'fallback' mode speak
-          // locally right away instead of waiting for a request that will fail.
-          payload.pipelineMode !== 'connected',
+          // Use the real server voice (ElevenLabs/Sarvam) whenever one is
+          // connected; only fall back to instant local browser speech when no
+          // voice provider is configured.
+          !payload.voiceConnected,
         );
       await onChanged();
     } catch (caught) {
@@ -1058,10 +1059,10 @@ function TestConsole({
       }
       if (!sessionId) {
         const activeSession = await startSession('browser_voice');
-        // Realtime failed, so we are in the local fast-path — greet instantly with
-        // browser speech instead of a doomed server TTS round-trip.
+        // Greet with the real server voice when one is connected; speakAgentMessage
+        // falls back to instant browser speech if no voice provider is configured.
         if (activeSession)
-          await speakAgentMessage(agent.welcome_message, true, true);
+          await speakAgentMessage(agent.welcome_message, true, false);
       } else {
         startListening(false);
       }

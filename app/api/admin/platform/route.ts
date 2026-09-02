@@ -157,9 +157,12 @@ export async function PATCH(request: Request) {
   if (body.action === 'elevenlabs_tts_test') {
     const secret = await platformProviderSecret('elevenlabs');
     const apiKey = secret.apiKey || process.env.ELEVENLABS_API_KEY;
+    const cfg = (secret.config ?? {}) as Record<string, unknown>;
+    const cfgStr = (key: string) =>
+      typeof cfg[key] === 'string' ? (cfg[key] as string) : '';
     const voiceId =
       body.config?.voiceId ||
-      String((secret.config as Record<string, unknown>)?.voiceId || '') ||
+      cfgStr('voiceId') ||
       process.env.ELEVENLABS_VOICE_ID ||
       '';
     if (!apiKey)
@@ -174,7 +177,7 @@ export async function PATCH(request: Request) {
       );
     const modelId =
       body.config?.modelId ||
-      String((secret.config as Record<string, unknown>)?.modelId || '') ||
+      cfgStr('modelId') ||
       process.env.ELEVENLABS_MODEL_ID ||
       'eleven_multilingual_v2';
     try {

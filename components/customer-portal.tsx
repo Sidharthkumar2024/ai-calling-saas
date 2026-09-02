@@ -22,6 +22,7 @@ import {
   Loader2,
   Megaphone,
   Mic2,
+  ShieldAlert,
   PhoneCall,
   Radio,
   RefreshCcw,
@@ -63,6 +64,7 @@ import {
   CustomerCommerce,
   type CommerceData,
 } from '@/components/customer-commerce';
+import { CustomerApprovals } from '@/components/customer-approvals';
 import { CustomerVoiceProfiles } from '@/components/customer-voice-profiles';
 import { PortalShell, type PortalNavGroup } from '@/components/portal-shell';
 import {
@@ -209,6 +211,7 @@ const groups: PortalNavGroup[] = [
     items: [
       { id: 'billing', label: 'Billing & credits', icon: CreditCard },
       { id: 'team', label: 'Team', icon: UsersRound },
+      { id: 'approvals', label: 'Approvals & handoff', icon: ShieldAlert },
       { id: 'tickets', label: 'Support tickets', icon: LifeBuoy },
       { id: 'settings', label: 'Settings', icon: Settings2 },
     ],
@@ -235,6 +238,7 @@ const navPermissions: Record<string, string> = {
   integrations: 'integrations.manage',
   billing: 'billing.manage',
   team: 'team.manage',
+  approvals: 'support.manage',
   tickets: 'support.manage',
   settings: 'workspace.manage',
 };
@@ -496,6 +500,9 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
         ) : null}
         {!loading && !error && active === 'team' ? (
           <CustomerTeam data={data.team} onChanged={load} />
+        ) : null}
+        {!loading && !error && active === 'approvals' ? (
+          <CustomerApprovals />
         ) : null}
         {!loading && !error && active === 'tickets' ? (
           <CustomerTickets data={data.tickets} onChanged={load} />

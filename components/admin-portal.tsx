@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Activity,
   ArrowRight,
@@ -523,8 +523,227 @@ function Customers({ data }: { data: AdminPayload }) {
           icon={BarChart3}
         />
       </div>
+      <TenantLifecycle />
       <CustomersTable rows={data.customers ?? []} />
     </div>
+  );
+}
+
+
+/**
+ * Tenant lifecycle. There was no admin API to create or suspend an
+ * organization at all, and the portal's "Invite customer" button had no
+ * handler — it was removed rather than left dead.
+ */
+function TenantLifecycle() {
+  const [rows, setRows] = useState<Record<string, unknown>[]>([]);
+  const [capabilities, setCapabilities] = useState<string[]>([]);
+  const [adminRole, setAdminRole] = useState<string>('');
+  const [form, setForm] = useState({ name: '', ownerEmail: '', ownerName: '' });
+  const [reason, setReason] = useState<Record<string, string>>({});
+  const [notice, setNotice] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const response = await fetch('/api/admin/organizations');
+      const body = (await response.json()) as {
+        organizations?: Record<string, unknown>[];
+        capabilities?: string[];
+        adminRole?: string;
+        error?: string;
+      };
+      if (!response.ok) {
+        setNotice(body.error ?? 'Could not load organizations.');
+        return;
+      }
+      setRows(body.organizations ?? []);
+      setCapabilities(body.capabilities ?? []);
+      setAdminRole(body.adminRole ?? '');
+    } catch {
+      setNotice('Could not load organizations.');
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
+
+  async function act(label: string, payload: Record<string, unknown>) {
+    setBusy(label);
+    setNotice(null);
+    try {
+      const response = await fetch('/api/admin/organizations', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const body = (await response.json()) as Record<string, unknown>;
+      if (!response.ok) {
+        setNotice(textValue(body.error, 'Action failed.'));
+        return null;
+      }
+      await load();
+      return body;
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const canManage = capabilities.includes('tenants.manage');
+  const canSuspend = capabilities.includes('tenants.suspend');
+
+  return (
+    <section className="rounded-2xl border border-white/8 bg-white/[0.02] p-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-[11px] font-semibold text-white/75">
+            Create and suspend workspaces
+          </h2>
+          <p className="mt-1 text-[10px] text-white/32">
+            Suspending pauses running campaigns, cancels queued jobs and blocks
+            the workspace&apos;s API access immediately.
+          </p>
+        </div>
+        {adminRole ? (
+          <span className="rounded-md bg-white/6 px-2 py-1 text-[9px] uppercase tracking-wide text-white/50">
+            your role: {adminRole.replaceAll('_', ' ')}
+          </span>
+        ) : null}
+      </div>
+
+      {notice ? (
+        <p className="mt-3 rounded-lg border border-white/12 bg-white/[0.03] px-3 py-2 text-[11px] text-white/70">
+          {notice}
+        </p>
+      ) : null}
+
+      {canManage ? (
+        <div className="mt-4 flex flex-wrap items-end gap-2">
+          <input
+            placeholder="Workspace name"
+            value={form.name}
+            onChange={(event) => setForm({ ...form, name: event.target.value })}
+            className="rounded-lg border border-white/10 bg-white/4 px-3 py-2 text-[11px] outline-none focus:border-white/25"
+          />
+          <input
+            placeholder="Owner email"
+            value={form.ownerEmail}
+            onChange={(event) =>
+              setForm({ ...form, ownerEmail: event.target.value })
+            }
+            className="rounded-lg border border-white/10 bg-white/4 px-3 py-2 text-[11px] outline-none focus:border-white/25"
+          />
+          <input
+            placeholder="Owner name"
+            value={form.ownerName}
+            onChange={(event) =>
+              setForm({ ...form, ownerName: event.target.value })
+            }
+            className="rounded-lg border border-white/10 bg-white/4 px-3 py-2 text-[11px] outline-none focus:border-white/25"
+          />
+          <Button
+            disabled={busy === 'create' || !form.name || !form.ownerEmail}
+            onClick={async () => {
+              const created = await act('create', {
+                action: 'create',
+                ...form,
+              });
+              if (created) {
+                setForm({ name: '', ownerEmail: '', ownerName: '' });
+                setNotice(
+                  `Created ${textValue(created.slug)}. Temporary password: ${textValue(
+                    created.temporaryPassword,
+                  )} — hand this over out of band; it is shown once.`,
+                );
+              }
+            }}
+          >
+            Create workspace
+          </Button>
+        </div>
+      ) : (
+        <p className="mt-4 text-[11px] text-white/35">
+          Your admin role cannot create workspaces.
+        </p>
+      )}
+
+      <div className="mt-5 space-y-2">
+        {rows.map((row) => {
+          const id = String(row.id);
+          const suspended = String(row.status) !== 'active';
+          return (
+            <div
+              key={id}
+              className="flex flex-wrap items-center gap-2 rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5 text-[11px]"
+            >
+              <span className="font-medium">{textValue(row.name)}</span>
+              <span className="font-mono text-[9px] text-white/28">
+                {textValue(row.slug)}
+              </span>
+              <span
+                className={`rounded-md px-2 py-0.5 text-[9px] uppercase tracking-wide ${
+                  suspended
+                    ? 'bg-rose-400/12 text-rose-200'
+                    : 'bg-emerald-400/12 text-emerald-200'
+                }`}
+              >
+                {textValue(row.status)}
+              </span>
+              <span className="text-[9px] text-white/32">
+                {textValue(row.plan_name, 'no plan')} · {num(row.users)} users ·{' '}
+                {num(row.calls_30d)} calls/30d
+              </span>
+              {row.suspension_reason ? (
+                <span className="text-[9px] text-rose-200/70">
+                  {textValue(row.suspension_reason)}
+                </span>
+              ) : null}
+              {canSuspend ? (
+                suspended ? (
+                  <Button
+                    className="ml-auto"
+                    disabled={busy === `on-${id}`}
+                    onClick={() =>
+                      void act(`on-${id}`, {
+                        action: 'reactivate',
+                        organizationId: id,
+                      })
+                    }
+                  >
+                    Reactivate
+                  </Button>
+                ) : (
+                  <div className="ml-auto flex items-center gap-2">
+                    <input
+                      placeholder="Suspension reason"
+                      value={reason[id] ?? ''}
+                      onChange={(event) =>
+                        setReason({ ...reason, [id]: event.target.value })
+                      }
+                      className="w-44 rounded-lg border border-white/10 bg-white/4 px-2.5 py-1.5 text-[10px] outline-none focus:border-white/25"
+                    />
+                    <Button
+                      disabled={busy === `off-${id}` || !(reason[id] ?? '').trim()}
+                      onClick={() =>
+                        void act(`off-${id}`, {
+                          action: 'suspend',
+                          organizationId: id,
+                          reason: reason[id],
+                        })
+                      }
+                    >
+                      Suspend
+                    </Button>
+                  </div>
+                )
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

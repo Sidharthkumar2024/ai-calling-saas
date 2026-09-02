@@ -1377,6 +1377,11 @@ async function bootstrap() {
     }
   }
 
+  // Platform admin sub-roles, so tenant-destructive actions are deliberate.
+  await ensureColumn(db, 'app_users', 'admin_role', 'TEXT');
+  await ensureColumn(db, 'organizations', 'suspended_at', 'TEXT');
+  await ensureColumn(db, 'organizations', 'suspension_reason', 'TEXT');
+
   // Place agents in the org structure.
   await ensureColumn(db, 'support_agents', 'branch_id', 'TEXT');
   await ensureColumn(db, 'support_agents', 'team_id', 'TEXT');

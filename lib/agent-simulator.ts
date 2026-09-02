@@ -251,9 +251,14 @@ export function simulateAgentTurn(input: {
   if (asksHowAreYou || asksWhatsUp) {
     response = pick(GREETING[activeLang], lastAssistant, seed);
   } else if (requestedThisTurn) {
-    // The caller just asked to switch language — acknowledge in that language,
-    // varying the wording if they ask again.
-    response = pick(SWITCH_ACK[activeLang], lastAssistant, seed);
+    // The caller asked to switch language — acknowledge in that language. If the
+    // previous turn already requested the same language, use the "already
+    // speaking this" variant instead of repeating the switch line.
+    const prevUser = [...history].reverse().find((h) => h.role === 'user');
+    const repeatRequest = prevUser
+      ? detectLanguageRequest(prevUser.content) === activeLang
+      : false;
+    response = SWITCH_ACK[activeLang][repeatRequest ? 1 : 0];
   } else if (paymentContext && confirmsWhatsApp) {
     response = later
       ? `बिल्कुल। ₹${amount.toLocaleString('en-IN')} का payment link इसी WhatsApp नंबर पर रात 8 बजे भेजने की request तैयार है। भेजने से पहले amount और timing दोनों confirm हैं।`

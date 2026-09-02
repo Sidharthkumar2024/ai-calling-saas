@@ -1013,7 +1013,10 @@ function TestConsole({
         await speakAgentMessage(
           payload.message,
           continueVoice,
-          payload.pipelineMode === 'instant',
+          // Only attempt the server TTS round-trip when the reasoning pipeline is
+          // actually connected to a provider. In 'instant'/'fallback' mode speak
+          // locally right away instead of waiting for a request that will fail.
+          payload.pipelineMode !== 'connected',
         );
       await onChanged();
     } catch (caught) {
@@ -1041,7 +1044,10 @@ function TestConsole({
       }
       if (!sessionId) {
         const activeSession = await startSession('browser_voice');
-        if (activeSession) await speakAgentMessage(agent.welcome_message, true);
+        // Realtime failed, so we are in the local fast-path — greet instantly with
+        // browser speech instead of a doomed server TTS round-trip.
+        if (activeSession)
+          await speakAgentMessage(agent.welcome_message, true, true);
       } else {
         startListening(false);
       }

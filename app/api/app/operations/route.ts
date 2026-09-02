@@ -4,6 +4,7 @@ import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { recordAudit } from '@/lib/demo-seed';
 import { encryptSecret } from '@/lib/security';
+import { SUPPORTED_LANGUAGE_CODES } from '@/lib/languages';
 import {
   type CustomerPermission,
   requireAnyCustomerPermission,
@@ -12,21 +13,6 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-const SUPPORTED_LANGUAGES = new Set([
-  'hi-IN',
-  'en-IN',
-  'hinglish',
-  'haryanvi',
-  'pa-IN',
-  'mr-IN',
-  'gu-IN',
-  'bn-IN',
-  'ta-IN',
-  'te-IN',
-  'kn-IN',
-  'ml-IN',
-  'ur-IN',
-]);
 
 export async function GET(request: Request) {
   const auth = await requireAnyCustomerPermission(request, [
@@ -484,7 +470,7 @@ export async function POST(request: Request) {
     const submittedLanguages = Array.isArray(body.enabledLanguages)
       ? body.enabledLanguages
           .map((item) => String(item))
-          .filter((item) => SUPPORTED_LANGUAGES.has(item))
+          .filter((item) => SUPPORTED_LANGUAGE_CODES.has(item))
       : [];
     const enabledLanguages = submittedLanguages.length
       ? Array.from(new Set([defaultLanguage, ...submittedLanguages]))

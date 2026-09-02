@@ -470,6 +470,22 @@ export async function reasonWithTools(input: {
   return { ...payload, latencyMs };
 }
 
+/** Reads the workspace's enabled conversation languages, tolerating bad JSON. */
+export async function workspaceEnabledLanguages(organizationId: string) {
+  try {
+    const row = await getRawDb()
+      .prepare(
+        `SELECT enabled_languages_json FROM organization_settings WHERE organization_id = ? LIMIT 1`,
+      )
+      .bind(organizationId)
+      .first<{ enabled_languages_json: string | null }>();
+    const parsed = JSON.parse(row?.enabled_languages_json || '[]') as unknown;
+    return Array.isArray(parsed) ? parsed.map((item) => String(item)) : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function generateVoiceAgentTurn(input: {
   organizationId: string;
   agentName: string;
@@ -484,7 +500,10 @@ export async function generateVoiceAgentTurn(input: {
   /** LLM router decision for this turn. */
   modelOverride?: string | null;
 }) {
-  const system = buildVoiceAgentInstructions(input);
+  const system = buildVoiceAgentInstructions({
+    ...input,
+    enabledLanguages: await workspaceEnabledLanguages(input.organizationId),
+  });
   const messages: Array<{
     role: 'user' | 'assistant';
     content: string | unknown[];
@@ -560,6 +579,13 @@ export function buildVoiceAgentInstructions(input: {
   useCase?: string;
   language: string;
   systemPrompt: string;
+  /**
+   * Workspace-enabled languages (`organization_settings.enabled_languages_json`).
+   * These are the languages the workspace guarantees and the agent may offer
+   * proactively. It still mirrors any language the caller actually uses — the
+   * setting must never bring back the "I only speak Hindi and English" refusal.
+   */
+  enabledLanguages?: string[];
 }) {
   const openingLanguage =
     input.language === 'en-IN'
@@ -569,7 +595,13 @@ export function buildVoiceAgentInstructions(input: {
         : input.language === 'hinglish'
           ? 'natural spoken Hinglish (Devanagari for Hindi, English only for common product terms)'
           : `natural ${languageName(input.language)}`;
-  const languageRule = `Open the conversation in ${openingLanguage}. After that, always mirror the customer: reply in whichever language they speak or explicitly ask for, including Hindi, Indian English, Hinglish, Punjabi, Haryanvi, Marathi, Gujarati, Bengali, Tamil, Telugu, Kannada, Malayalam, Urdu, Bhojpuri and Rajasthani. If the customer asks you to switch language, switch on that same turn and stay in the new language until they change again. Write every language in its own natural script — Punjabi in Gurmukhi, Hindi/Haryanvi/Marathi in Devanagari, Bengali in Bengali script, Tamil in Tamil script — and keep brand, product and business terms exactly as given. Never claim you can only speak certain languages, and never refuse or deflect a language request.`;
+  const workspaceLanguages = (input.enabledLanguages ?? [])
+    .filter((code) => code !== input.language)
+    .map((code) => languageName(code));
+  const workspaceRule = workspaceLanguages.length
+    ? ` This workspace also runs in ${workspaceLanguages.join(', ')}, so you may offer those proactively.`
+    : '';
+  const languageRule = `Open the conversation in ${openingLanguage}.${workspaceRule} After that, always mirror the customer: reply in whichever language they speak or explicitly ask for, including Hindi, Indian English, Hinglish, Punjabi, Haryanvi, Marathi, Gujarati, Bengali, Tamil, Telugu, Kannada, Malayalam, Urdu, Bhojpuri and Rajasthani. If the customer asks you to switch language, switch on that same turn and stay in the new language until they change again. Write every language in its own natural script — Punjabi in Gurmukhi, Hindi/Haryanvi/Marathi in Devanagari, Bengali in Bengali script, Tamil in Tamil script — and keep brand, product and business terms exactly as given. Never claim you can only speak certain languages, and never refuse or deflect a language request.`;
   return `<identity>You are ${input.agentName}, the private voice agent for ${input.businessName}. Never reveal upstream model, voice, transcription or telephony vendors.</identity>
 <business_context>Use case: ${input.useCase || 'general customer conversation'}. The customer may sell a physical product, digital product, course, software, service or property. Use only the workspace instructions and approved knowledge; never assume which kind of product it is.</business_context>
 <conversation_rules>${languageRule} Speak in one or two short, easily interruptible sentences. Respond as soon as the customer's turn is complete. First answer the customer's actual words naturally, including greetings, jokes and small talk; only then guide gently toward the business goal. Adapt warmth, pace, formality and directness to the customer's speech and sentiment, but never imitate abuse or pressure the customer. Never respond to casual conversation with a menu of options. Ask only one question at a time. Avoid markdown, lists and long explanations.</conversation_rules>

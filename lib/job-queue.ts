@@ -438,41 +438,217 @@ async function syncAudience(job: JobRow, payload: Record<string, unknown>) {
 async function evaluateAlerts(job: JobRow) {
   if (!job.organization_id) throw new Error('Organization scope is required.');
   const db = getRawDb();
-  const average = await db
-    .prepare(`SELECT coalesce(avg(latency_ms), 0) AS value FROM call_records
-    WHERE organization_id = ? AND started_at >= datetime('now','-1 day')`)
-    .bind(job.organization_id)
-    .first<{ value: number }>();
+  const organizationId = job.organization_id;
+
   const rules = await db
-    .prepare(`SELECT id, metric, comparator, threshold FROM alert_rules
-    WHERE organization_id = ? AND status = 'active'`)
-    .bind(job.organization_id)
+    .prepare(`SELECT id, name, metric, comparator, threshold, window_minutes, channels_json
+    FROM alert_rules WHERE organization_id = ? AND status = 'active'`)
+    .bind(organizationId)
     .all<{
       id: string;
+      name: string;
       metric: string;
       comparator: string;
       threshold: number;
+      window_minutes: number | null;
+      channels_json: string | null;
     }>();
+
+  // Notification destination: the workspace owner's address.
+  const owner = await db
+    .prepare(`SELECT u.email FROM organization_members m
+      INNER JOIN app_users u ON u.id = m.user_id
+      WHERE m.organization_id = ? ORDER BY m.created_at LIMIT 1`)
+    .bind(organizationId)
+    .first<{ email: string }>();
+
   let triggered = 0;
-  for (const rule of rules.results) {
-    if (
-      rule.metric === 'p95_latency_ms' &&
-      compare(Number(average?.value || 0), rule.comparator, rule.threshold)
-    ) {
+  let resolved = 0;
+  let notified = 0;
+  const skipped: string[] = [];
+
+  for (const rule of rules.results ?? []) {
+    const windowMinutes = Math.min(
+      Math.max(Number(rule.window_minutes ?? 60), 5),
+      10_080,
+    );
+    const measurement = await measureAlertMetric(
+      organizationId,
+      rule.metric,
+      windowMinutes,
+    );
+    if (measurement === null) {
+      // An unknown metric must be visible, not silently ignored.
+      skipped.push(rule.metric);
+      continue;
+    }
+    const breaching = compare(measurement, rule.comparator, rule.threshold);
+    const open = await db
+      .prepare(`SELECT id FROM alert_incidents
+        WHERE organization_id = ? AND rule_id = ? AND status = 'open'
+        ORDER BY triggered_at DESC LIMIT 1`)
+      .bind(organizationId, rule.id)
+      .first<{ id: string }>();
+
+    if (breaching && !open) {
+      const incidentId = `incident_${crypto.randomUUID()}`;
       await db
         .prepare(`INSERT INTO alert_incidents (id, organization_id, rule_id, current_value, status)
         VALUES (?, ?, ?, ?, 'open')`)
-        .bind(
-          `incident_${crypto.randomUUID()}`,
-          job.organization_id,
-          rule.id,
-          Math.round(Number(average?.value || 0)),
-        )
+        .bind(incidentId, organizationId, rule.id, Math.round(measurement))
         .run();
       triggered += 1;
+      notified += await dispatchAlertNotifications({
+        organizationId,
+        rule,
+        value: measurement,
+        windowMinutes,
+        ownerEmail: owner?.email ?? null,
+      });
+    } else if (!breaching && open) {
+      // Incidents used to stay open forever; close them when the metric recovers.
+      await db
+        .prepare(`UPDATE alert_incidents SET status = 'resolved',
+          resolved_at = CURRENT_TIMESTAMP, current_value = ? WHERE id = ?`)
+        .bind(Math.round(measurement), open.id)
+        .run();
+      resolved += 1;
     }
   }
-  return { evaluated: rules.results.length, triggered };
+  return {
+    evaluated: (rules.results ?? []).length,
+    triggered,
+    resolved,
+    notified,
+    skippedMetrics: skipped,
+  };
+}
+
+/**
+ * Returns the measured value for a metric, or null when the metric is unknown.
+ * Every source here is a table that live code actually writes.
+ */
+async function measureAlertMetric(
+  organizationId: string,
+  metric: string,
+  windowMinutes: number,
+): Promise<number | null> {
+  const db = getRawDb();
+  const since = `-${windowMinutes} minutes`;
+
+  if (metric === 'p95_latency_ms') {
+    // True p95 over recorded provider calls (SQLite has no percentile).
+    const rows = await db
+      .prepare(`SELECT latency_ms FROM provider_usage_events
+        WHERE organization_id = ? AND latency_ms IS NOT NULL
+          AND created_at >= datetime('now', ?)
+        ORDER BY latency_ms`)
+      .bind(organizationId, since)
+      .all<{ latency_ms: number }>();
+    const values = (rows.results ?? []).map((row) => Number(row.latency_ms));
+    if (!values.length) return 0;
+    const index = Math.min(
+      values.length - 1,
+      Math.max(0, Math.ceil(0.95 * values.length) - 1),
+    );
+    return values[index];
+  }
+
+  if (metric === 'call_failure_rate') {
+    const row = await db
+      .prepare(`SELECT
+          count(*) AS total,
+          sum(CASE WHEN status IN ('failed','provider_error','no_answer') THEN 1 ELSE 0 END) AS failures
+        FROM call_records
+        WHERE organization_id = ? AND started_at >= datetime('now', ?)`)
+      .bind(organizationId, since)
+      .first<{ total: number; failures: number }>();
+    const total = Number(row?.total ?? 0);
+    if (!total) return 0;
+    return (Number(row?.failures ?? 0) / total) * 100;
+  }
+
+  if (metric === 'qa_not_passed_rate') {
+    const row = await db
+      .prepare(`SELECT
+          count(*) AS total,
+          sum(CASE WHEN status != 'passed' THEN 1 ELSE 0 END) AS not_passed
+        FROM call_quality_reviews
+        WHERE organization_id = ? AND created_at >= datetime('now', ?)`)
+      .bind(organizationId, since)
+      .first<{ total: number; not_passed: number }>();
+    const total = Number(row?.total ?? 0);
+    if (!total) return 0;
+    return (Number(row?.not_passed ?? 0) / total) * 100;
+  }
+
+  if (metric === 'queue_backlog') {
+    const row = await db
+      .prepare(`SELECT count(*) AS queued FROM background_jobs
+        WHERE organization_id = ? AND status = 'queued'`)
+      .bind(organizationId)
+      .first<{ queued: number }>();
+    return Number(row?.queued ?? 0);
+  }
+
+  if (metric === 'provider_error_rate') {
+    const row = await db
+      .prepare(`SELECT
+          count(*) AS total,
+          sum(CASE WHEN status IS NOT NULL AND status NOT IN ('ok','success','succeeded') THEN 1 ELSE 0 END) AS errors
+        FROM provider_usage_events
+        WHERE organization_id = ? AND created_at >= datetime('now', ?)`)
+      .bind(organizationId, since)
+      .first<{ total: number; errors: number }>();
+    const total = Number(row?.total ?? 0);
+    if (!total) return 0;
+    return (Number(row?.errors ?? 0) / total) * 100;
+  }
+
+  return null;
+}
+
+/** Alert channels used to be stored and never delivered. */
+async function dispatchAlertNotifications(input: {
+  organizationId: string;
+  rule: { id: string; name: string; metric: string; threshold: number; channels_json: string | null };
+  value: number;
+  windowMinutes: number;
+  ownerEmail: string | null;
+}) {
+  const db = getRawDb();
+  let channels: string[] = [];
+  try {
+    const parsed = JSON.parse(input.rule.channels_json || '[]') as unknown;
+    channels = Array.isArray(parsed) ? parsed.map((item) => String(item)) : [];
+  } catch {
+    channels = [];
+  }
+  if (!channels.length) channels = ['email'];
+  const body = `Alert "${input.rule.name}" fired: ${input.rule.metric} is ${Math.round(
+    input.value,
+  )} (threshold ${input.rule.threshold}) over the last ${input.windowMinutes} minutes.`;
+
+  let sent = 0;
+  for (const channel of channels) {
+    const destination =
+      channel === 'email' ? input.ownerEmail : `alert_rule:${input.rule.id}`;
+    if (!destination) continue;
+    await db
+      .prepare(`INSERT INTO outbound_messages
+        (id, organization_id, channel, destination, template_name, message_body, status)
+        VALUES (?, ?, ?, ?, 'vaani_alert', ?, 'queued')`)
+      .bind(
+        `msg_${crypto.randomUUID()}`,
+        input.organizationId,
+        channel === 'webhook' ? 'webhook' : 'email',
+        destination,
+        body.slice(0, 900),
+      )
+      .run();
+    sent += 1;
+  }
+  return sent;
 }
 
 function compare(value: number, comparator: string, threshold: number) {

@@ -2,6 +2,7 @@ import { getRawDb } from '@/db/index';
 import { requireCustomer } from '@/lib/api-session';
 import {
   buildVoiceAgentInstructions,
+  workspaceEnabledLanguages,
   createOpenAIRealtimeCall,
   ProviderConfigurationError,
 } from '@/lib/provider-adapters';
@@ -57,6 +58,9 @@ export async function POST(request: Request) {
         useCase: agent.use_case,
         language: agent.primary_language,
         systemPrompt: agent.system_prompt,
+        enabledLanguages: await workspaceEnabledLanguages(
+          auth.session.organizationId!,
+        ),
       }),
       maxOutputTokens: Number(agent.max_tokens || 180),
     });

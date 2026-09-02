@@ -3,6 +3,10 @@
 
 import { useMemo, useState } from 'react';
 import {
+  SUPPORTED_LANGUAGES,
+  SUPPORTED_LANGUAGE_CODES,
+} from '@/lib/languages';
+import {
   Activity,
   AlertTriangle,
   BookOpenText,
@@ -1174,21 +1178,63 @@ function WorkspaceSettings({
   const [recording, setRecording] = useState(
     str(current.recording_policy, 'record_with_consent'),
   );
+  // The stored set drives the agent's allowed languages; it used to be
+  // unreachable from the UI, so Punjabi could only be added straight in the DB.
+  const [enabledLanguages, setEnabledLanguages] = useState<string[]>(() => {
+    try {
+      const parsed = JSON.parse(
+        str(current.enabled_languages_json, '[]'),
+      ) as unknown;
+      const codes = Array.isArray(parsed) ? parsed.map((item) => String(item)) : [];
+      return codes.filter((code) => SUPPORTED_LANGUAGE_CODES.has(code));
+    } catch {
+      return [];
+    }
+  });
+  // Retention, QA sampling and redaction used to be hardcoded in save(), so
+  // changing a language silently reset them. They are editable and preserved.
+  const [recordingDays, setRecordingDays] = useState(
+    str(current.recording_retention_days, '90'),
+  );
+  const [transcriptDays, setTranscriptDays] = useState(
+    str(current.transcript_retention_days, '180'),
+  );
+  const [qaSampleRate, setQaSampleRate] = useState(
+    str(current.qa_sample_rate, '100'),
+  );
+  const [redact, setRedact] = useState(
+    Number(current.redact_sensitive_data ?? 1) !== 0,
+  );
   const [loading, setLoading] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  function toggleLanguage(code: string) {
+    setEnabledLanguages((previous) =>
+      previous.includes(code)
+        ? previous.filter((item) => item !== code)
+        : [...previous, code],
+    );
+  }
   async function save() {
     setLoading(true);
+    setNotice(null);
     try {
       await mutate({
         action: 'update_settings',
         defaultLanguage: language,
+        // The default is always allowed, so the agent cannot be told to speak
+        // a language the workspace has switched off.
+        enabledLanguages: Array.from(new Set([language, ...enabledLanguages])),
         recordingPolicy: recording,
-        timezone: 'Asia/Kolkata',
-        qaSampleRate: 100,
-        recordingRetentionDays: 90,
-        transcriptRetentionDays: 180,
-        redactSensitiveData: true,
+        timezone: str(current.timezone, 'Asia/Kolkata'),
+        qaSampleRate: Number(qaSampleRate),
+        recordingRetentionDays: Number(recordingDays),
+        transcriptRetentionDays: Number(transcriptDays),
+        redactSensitiveData: redact,
       });
       await onChanged();
+      setNotice('Settings saved.');
+    } catch {
+      setNotice('Could not save settings.');
     } finally {
       setLoading(false);
     }
@@ -1213,10 +1259,11 @@ function WorkspaceSettings({
                 value={language}
                 onChange={(event) => setLanguage(event.target.value)}
               >
-                <option value="hinglish">Hinglish</option>
-                <option value="haryanvi">Haryanvi</option>
-                <option value="hi-IN">Hindi</option>
-                <option value="en-IN">Indian English</option>
+                {SUPPORTED_LANGUAGES.map((item) => (
+                  <option key={item.code} value={item.code}>
+                    {item.label}
+                  </option>
+                ))}
               </select>
             </Field>
             <Field label="Recording policy">
@@ -1232,24 +1279,73 @@ function WorkspaceSettings({
               </select>
             </Field>
           </div>
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
-            <Mini
-              label="Recording retention"
-              value={`${str(current.recording_retention_days, '90')} days`}
-            />
-            <Mini
-              label="Transcript retention"
-              value={`${str(current.transcript_retention_days, '180')} days`}
-            />
-            <Mini
-              label="Sensitive data"
-              value={
-                Number(current.redact_sensitive_data ?? 1)
-                  ? 'Redacted'
-                  : 'Visible'
-              }
-            />
+          <div className="mt-5">
+            <p className="text-[11px] font-semibold text-white/70">
+              Languages the agents in this workspace may speak
+            </p>
+            <p className="mt-1 text-[10px] text-white/32">
+              The default language is always included.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {SUPPORTED_LANGUAGES.map((item) => {
+                const isDefault = item.code === language;
+                const active = isDefault || enabledLanguages.includes(item.code);
+                return (
+                  <button
+                    key={item.code}
+                    type="button"
+                    disabled={isDefault}
+                    onClick={() => toggleLanguage(item.code)}
+                    className={`rounded-lg border px-3 py-1.5 text-[11px] transition ${
+                      active
+                        ? 'border-emerald-400/40 bg-emerald-400/12 text-emerald-100'
+                        : 'border-white/10 bg-white/4 text-white/55 hover:text-white/80'
+                    } ${isDefault ? 'cursor-default opacity-80' : ''}`}
+                  >
+                    {item.label}
+                    {isDefault ? ' · default' : ''}
+                  </button>
+                );
+              })}
+            </div>
           </div>
+          <div className="mt-5 grid gap-5 sm:grid-cols-3">
+            <Field label="Recording retention (days)">
+              <input
+                type="number"
+                min={1}
+                max={3650}
+                value={recordingDays}
+                onChange={(event) => setRecordingDays(event.target.value)}
+              />
+            </Field>
+            <Field label="Transcript retention (days)">
+              <input
+                type="number"
+                min={1}
+                max={3650}
+                value={transcriptDays}
+                onChange={(event) => setTranscriptDays(event.target.value)}
+              />
+            </Field>
+            <Field label="QA sample rate (%)">
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={qaSampleRate}
+                onChange={(event) => setQaSampleRate(event.target.value)}
+              />
+            </Field>
+          </div>
+          <label className="mt-4 flex items-center gap-2 text-[11px] text-white/70">
+            <input
+              type="checkbox"
+              checked={redact}
+              onChange={(event) => setRedact(event.target.checked)}
+            />
+            Redact sensitive data in transcripts and analytics
+          </label>
           <Button
             onClick={save}
             disabled={loading}
@@ -1258,6 +1354,9 @@ function WorkspaceSettings({
             {loading ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
             Save settings
           </Button>
+          {notice ? (
+            <p className="mt-3 text-[11px] text-white/55">{notice}</p>
+          ) : null}
         </section>
         <section className="portal-panel p-5">
           <h2 className="text-sm font-semibold">Compliance ledger</h2>

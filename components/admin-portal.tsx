@@ -49,7 +49,9 @@ type AdminPayload = {
   audits?: Record<string, unknown>[];
   integrations?: Record<string, unknown>[];
   commerce?: Record<string, unknown>[];
-  system?: Record<string, string>;
+  system?: Record<string, string | number | null>;
+  providerHealth?: Record<string, unknown>[];
+  liveCalls?: Record<string, unknown>[];
   authProviders?: Record<string, unknown>[];
   platformProviders?: Record<string, unknown>[];
   providerKeys?: Record<string, unknown>[];
@@ -72,7 +74,6 @@ const groups: PortalNavGroup[] = [
         id: 'call_ops',
         label: 'Call operations',
         icon: Radio,
-        badge: '12 live',
       },
       { id: 'voice_engines', label: 'Voice engines', icon: Activity },
     ],
@@ -183,10 +184,10 @@ export function AdminPortal({ session }: { session: AdminSession }) {
           <Customers data={data} />
         ) : null}
         {!loading && !error && active === 'call_ops' ? (
-          <CallOperations />
+          <CallOperations data={data} />
         ) : null}
         {!loading && !error && active === 'voice_engines' ? (
-          <VoiceEngines />
+          <VoiceEngines data={data} />
         ) : null}
         {!loading && !error && active === 'numbers_kyc' ? (
           <NumbersKyc data={data} onChanged={load} />
@@ -370,7 +371,13 @@ function AdminOverview({
           />
           <div className="mt-5 space-y-4">
             {[
-              ['API & database', 'Operational', 100],
+              [
+                'API & database',
+                data.system?.database === 'operational'
+                  ? `Operational${data.system?.databaseProbeMs ? ` · ${num(data.system.databaseProbeMs)} ms` : ''}`
+                  : textValue(data.system?.database, 'Unknown'),
+                data.system?.database === 'operational' ? 100 : 24,
+              ],
               ...readiness
                 .slice(0, 5)
                 .map((item) => [
@@ -406,9 +413,15 @@ function AdminOverview({
               <p className="text-[10px] uppercase tracking-[0.16em] text-white/30">
                 P95 conversation latency
               </p>
-              <p className="mt-2 text-2xl font-semibold">1.2s</p>
-              <p className="mt-1 text-[10px] text-emerald-300">
-                Target &lt; 1.5s · streaming ready
+              <p className="mt-2 text-2xl font-semibold">
+                {typeof data.system?.p95LatencyMs === 'number'
+                  ? `${num(data.system.p95LatencyMs)} ms`
+                  : 'Not measured'}
+              </p>
+              <p className="mt-1 text-[10px] text-white/40">
+                {Number(data.system?.latencySampleSize ?? 0)
+                  ? `Provider calls · last ${num(data.system?.latencySampleSize)} samples`
+                  : 'No provider calls recorded yet'}
               </p>
             </div>
             <ArrowRight className="size-4 text-white/30" />
@@ -489,11 +502,6 @@ function Customers({ data }: { data: AdminPayload }) {
         eyebrow="Tenant management"
         title="Customer accounts"
         description="Plan, wallet, numbers and lead volume stay scoped to each organization."
-        action={
-          <Button className="bg-amber-300 text-[#17120a] hover:bg-amber-200">
-            <UsersRound /> Invite customer
-          </Button>
-        }
       />
       <div className="grid gap-3 sm:grid-cols-3">
         <Stat
@@ -568,190 +576,279 @@ function CustomersTable({ rows }: { rows: Record<string, unknown>[] }) {
   );
 }
 
-function CallOperations() {
-  const live = [
-    [
-      'UrbanNest Realty',
-      'Sara · Sales',
-      '+91 98••• 4210',
-      'Site visit',
-      '03:12',
-      '1.1s',
-    ],
-    [
-      'Northwind Services',
-      'Meera · Support',
-      '+91 99••• 8184',
-      'Price objection',
-      '02:08',
-      '1.3s',
-    ],
-    [
-      'Apex Education',
-      'Arjun · Admissions',
-      '+91 97••• 3309',
-      'Course enquiry',
-      '01:44',
-      '0.9s',
-    ],
-    [
-      'BrightSmile Dental',
-      'Sara · Reception',
-      '+91 88••• 7062',
-      'Human transfer',
-      '04:26',
-      '1.4s',
-    ],
-  ];
+function CallOperations({ data }: { data: AdminPayload }) {
+  const calls = data.liveCalls ?? [];
+  const live = calls.filter((row) => textValue(row.status) === 'in_progress');
+  const system = data.system ?? {};
+  const p95 = system.p95LatencyMs;
+  const sampleSize = Number(system.latencySampleSize ?? 0);
+
   return (
     <div className="space-y-6">
       <SectionHeader
-        eyebrow="Realtime operations"
-        title="Platform call monitor"
-        description="Observe tenant capacity, latency and failure signals without exposing conversation content across tenants."
-        action={
-          <Button className="bg-amber-300 text-[#17120a] hover:bg-amber-200">
-            <Radio /> Open live monitor
-          </Button>
-        }
+        eyebrow="Call operations"
+        title="Platform call activity"
+        description="Every figure here is read from call records and provider telemetry. Nothing on this screen is estimated."
       />
+
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Stat
           label="Live calls"
-          value="12"
-          note="of 120 channels"
+          value={num(data.stats?.live_calls ?? live.length)}
+          note="status = in_progress"
           icon={Radio}
         />
         <Stat
-          label="Queued jobs"
-          value="38"
-          note="p95 wait 4.2s"
-          icon={Clock3}
+          label="Recorded calls"
+          value={num(data.stats?.calls)}
+          note="all workspaces"
+          icon={PhoneCall}
         />
         <Stat
-          label="P95 latency"
-          value="1.2s"
-          note="target < 1.5s"
+          label="Queue depth"
+          value={num(system.queueDepth)}
+          note={
+            Number(system.queueFailed ?? 0) > 0
+              ? `${num(system.queueFailed)} failed`
+              : 'no failed jobs'
+          }
+          icon={Gauge}
+        />
+        <Stat
+          label="Provider p95 latency"
+          value={typeof p95 === 'number' ? `${p95} ms` : 'Not measured'}
+          note={
+            sampleSize
+              ? `last ${sampleSize} provider calls`
+              : 'no provider calls recorded yet'
+          }
           icon={Activity}
         />
-        <Stat
-          label="Success rate"
-          value="98.4%"
-          note="last 24 hours"
-          icon={CheckCircle2}
-        />
       </div>
-      <Panel className="overflow-hidden">
+
+      <Panel>
         <PanelHeader
-          title="Live conversations"
-          description="PII masked at platform level"
+          title="Most recent calls"
+          description="In-progress calls first. Blank cells mean the field was never captured for that call."
         />
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[780px] text-left text-xs">
-            <thead className="border-y border-white/8 text-[9px] uppercase tracking-[0.13em] text-white/28">
-              <tr>
-                {[
-                  'Customer',
-                  'Agent',
-                  'Caller',
-                  'Intent',
-                  'Duration',
-                  'Latency',
-                ].map((item) => (
-                  <th key={item} className="px-3 py-3 font-medium">
-                    {item}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/7">
-              {live.map((row) => (
-                <tr key={row[2]}>
-                  {row.map((cell, index) => (
-                    <td
-                      key={cell}
-                      className={`px-3 py-4 ${index === 0 ? 'font-medium' : 'text-white/55'}`}
-                    >
-                      {index === 4 ? (
-                        <span className="inline-flex items-center gap-2">
-                          <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />
-                          {cell}
-                        </span>
-                      ) : (
-                        cell
-                      )}
-                    </td>
+        {calls.length ? (
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[900px] text-left text-xs">
+              <thead className="border-y border-white/8 text-[9px] uppercase tracking-wider text-white/32">
+                <tr>
+                  {[
+                    'Workspace',
+                    'Agent',
+                    'To',
+                    'Status',
+                    'Outcome',
+                    'Duration',
+                    'Latency',
+                  ].map((heading) => (
+                    <th key={heading} className="px-3 py-3 font-medium">
+                      {heading}
+                    </th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {calls.map((row) => (
+                  <tr key={textValue(row.id)} className="hover:bg-white/[0.025]">
+                    <td className="px-3 py-3">
+                      {textValue(row.organization_name)}
+                    </td>
+                    <td className="px-3 py-3 text-white/60">
+                      {textValue(row.agent_name)}
+                    </td>
+                    <td className="px-3 py-3 font-mono text-[10px] text-white/55">
+                      {textValue(row.to_number)}
+                    </td>
+                    <td className="px-3 py-3">
+                      <Status value={textValue(row.status, 'unknown')} />
+                    </td>
+                    <td className="px-3 py-3 text-white/55">
+                      {textValue(row.outcome)}
+                    </td>
+                    <td className="px-3 py-3 text-white/55">
+                      {row.duration_seconds
+                        ? `${num(row.duration_seconds)}s`
+                        : '—'}
+                    </td>
+                    <td className="px-3 py-3 text-white/55">
+                      {row.latency_ms ? `${num(row.latency_ms)} ms` : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="mt-4 text-xs text-white/40">
+            No calls recorded yet. This screen fills in once calls run.
+          </p>
+        )}
       </Panel>
     </div>
   );
 }
 
-function VoiceEngines() {
-  const engines = [
-    [
-      'Vaani Voice',
-      'Speech generation',
-      'Operational',
-      '12 languages',
-      '183ms',
-    ],
-    [
-      'Vaani Sense',
-      'Understanding & scoring',
-      'Operational',
-      '24 models',
-      '94ms',
-    ],
-    [
-      'Vaani Flow',
-      'Workflow orchestration',
-      'Operational',
-      '38 tenants',
-      '31ms',
-    ],
-    ['Vaani Connect', 'Telephony routing', 'Operational', '6 regions', '82ms'],
-  ];
+function VoiceEngines({ data }: { data: AdminPayload }) {
+  const health = data.providerHealth ?? [];
+  const readiness = data.providerReadiness ?? [];
+  const readinessFor = (providerId: string) =>
+    readiness.find(
+      (entry) => `provider_${textValue(entry.adapter)}` === providerId,
+    );
+
   return (
     <div className="space-y-6">
       <SectionHeader
-        eyebrow="Private engine layer"
-        title="Vaani engine control"
-        description="Provider credentials and vendor names live only in secure backend configuration—not in customer-facing screens."
+        eyebrow="Voice engines"
+        title="Measured provider performance"
+        description="Latency, volume and error rate come from recorded provider calls. Engines with no traffic are shown as unmeasured rather than healthy."
       />
-      <div className="grid gap-4 md:grid-cols-2">
-        {engines.map(([name, purpose, status, capacity, latency]) => (
-          <Panel key={name}>
-            <div className="flex items-start justify-between">
-              <span className="grid size-10 place-items-center rounded-xl bg-amber-300/10">
-                <ServerCog className="size-4 text-amber-200" />
-              </span>
-              <Status value={status} />
-            </div>
-            <h3 className="mt-5 text-base font-semibold">{name}</h3>
-            <p className="mt-1 text-xs text-white/38">{purpose}</p>
-            <div className="mt-6 grid grid-cols-2 gap-3">
-              <div className="rounded-xl bg-white/[0.03] p-3">
-                <p className="text-[9px] uppercase tracking-wider text-white/25">
-                  Capacity
+
+      <Panel>
+        <PanelHeader
+          title="Provider readiness"
+          description="Whether credentials are present, from the live configuration check."
+        />
+        <div className="mt-4 grid gap-2 md:grid-cols-2">
+          {readiness.map((entry) => (
+            <div
+              key={textValue(entry.adapter)}
+              className="flex items-center justify-between rounded-xl border border-white/8 bg-white/[0.02] p-3"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-xs font-medium">
+                  {textValue(entry.publicName)}
                 </p>
-                <p className="mt-2 text-sm">{capacity}</p>
-              </div>
-              <div className="rounded-xl bg-white/[0.03] p-3">
-                <p className="text-[9px] uppercase tracking-wider text-white/25">
-                  P95
+                <p className="mt-1 text-[9px] text-white/32">
+                  {textValue(entry.adapter)} ·{' '}
+                  {entry.configured ? 'credentials present' : 'not configured'}
                 </p>
-                <p className="mt-2 text-sm">{latency}</p>
               </div>
+              <Status value={textValue(entry.mode, 'sandbox')} />
             </div>
-          </Panel>
-        ))}
-      </div>
+          ))}
+          {!readiness.length ? (
+            <p className="text-xs text-white/40">No providers registered.</p>
+          ) : null}
+        </div>
+      </Panel>
+
+      <Panel>
+        <PanelHeader
+          title="Measured latency and volume"
+          description="Sampled from the most recent provider calls."
+        />
+        {health.length ? (
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {health.map((entry) => {
+              const providerId = textValue(entry.providerId);
+              const ready = readinessFor(providerId);
+              const errorRate = Number(entry.errorRate ?? 0);
+              return (
+                <div
+                  key={providerId}
+                  className="rounded-xl border border-white/8 bg-white/[0.02] p-4"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">
+                        {ready
+                          ? textValue(ready.publicName)
+                          : providerId.replace('provider_', '')}
+                      </p>
+                      <p className="mt-1 text-[9px] text-white/32">
+                        {(entry.operations as string[] | undefined)?.join(' · ') ??
+                          '—'}
+                      </p>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={`text-[9px] ${errorRate > 0.05 ? 'border-red-400/25 bg-red-400/10 text-red-200' : 'border-emerald-300/20 bg-emerald-300/8 text-emerald-200'}`}
+                    >
+                      {(errorRate * 100).toFixed(1)}% errors
+                    </Badge>
+                  </div>
+                  <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                    <div>
+                      <p className="text-sm font-semibold">
+                        {num(entry.calls)}
+                      </p>
+                      <p className="mt-1 text-[9px] text-white/32">calls</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">
+                        {num(entry.averageLatencyMs)}
+                        <span className="text-[9px] text-white/40"> ms</span>
+                      </p>
+                      <p className="mt-1 text-[9px] text-white/32">average</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">
+                        {entry.p95LatencyMs
+                          ? `${num(entry.p95LatencyMs)}`
+                          : '—'}
+                        <span className="text-[9px] text-white/40"> ms</span>
+                      </p>
+                      <p className="mt-1 text-[9px] text-white/32">p95</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="mt-4 text-xs text-white/40">
+            No provider calls recorded yet, so there is nothing to measure.
+          </p>
+        )}
+      </Panel>
+
+      {data.providerCosts?.length ? (
+        <Panel>
+          <PanelHeader
+            title="Provider cost and margin"
+            description="Recorded usage events by provider."
+          />
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[700px] text-left text-xs">
+              <thead className="border-y border-white/8 text-[9px] uppercase tracking-wider text-white/32">
+                <tr>
+                  {['Provider', 'Category', 'Events', 'Cost', 'Billed credits'].map(
+                    (heading) => (
+                      <th key={heading} className="px-3 py-3 font-medium">
+                        {heading}
+                      </th>
+                    ),
+                  )}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {data.providerCosts.map((row, index) => (
+                  <tr key={`${textValue(row.provider_id)}-${index}`}>
+                    <td className="px-3 py-3">{textValue(row.provider_id)}</td>
+                    <td className="px-3 py-3 text-white/55">
+                      {textValue(row.category)}
+                    </td>
+                    <td className="px-3 py-3 text-white/55">
+                      {num(row.events ?? row.event_count)}
+                    </td>
+                    <td className="px-3 py-3 text-white/55">
+                      {num(row.provider_cost_micros ?? row.cost_micros)}
+                    </td>
+                    <td className="px-3 py-3 text-white/55">
+                      {num(row.billed_credits)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      ) : null}
     </div>
   );
 }
@@ -2037,20 +2134,23 @@ function SupportDesk({
   onChanged: () => Promise<void> | void;
 }) {
   const [busy, setBusy] = useState('');
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [error, setError] = useState('');
   async function act(
     ticketId: string,
     action: 'ticket_reply' | 'ticket_status',
   ) {
+    const draft = (drafts[ticketId] ?? '').trim();
+    if (action === 'ticket_reply' && !draft) {
+      setError('Write a reply before sending it.');
+      return;
+    }
     setBusy(ticketId);
+    setError('');
     try {
       const payload =
         action === 'ticket_reply'
-          ? {
-              action,
-              ticketId,
-              message:
-                'We have received the issue and are reviewing the workspace logs. We will update this ticket with the next action.',
-            }
+          ? { action, ticketId, message: draft }
           : { action, ticketId, status: 'resolved' };
       const response = await fetch('/api/admin/platform', {
         method: 'PATCH',
@@ -2058,7 +2158,13 @@ function SupportDesk({
         body: JSON.stringify(payload),
       });
       if (!response.ok) throw new Error('Unable to update ticket.');
+      if (action === 'ticket_reply')
+        setDrafts((current) => ({ ...current, [ticketId]: '' }));
       await onChanged();
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : 'Unable to update ticket.',
+      );
     } finally {
       setBusy('');
     }
@@ -2070,6 +2176,11 @@ function SupportDesk({
         title="Support desk"
         description="Customer tickets, platform replies, assignment and resolution status in one admin queue."
       />
+      {error ? (
+        <p className="rounded-lg border border-red-400/20 bg-red-400/5 px-3 py-2 text-[11px] text-red-200">
+          {error}
+        </p>
+      ) : null}
       <div className="grid gap-4 lg:grid-cols-2">
         {(data.tickets ?? []).map((ticket) => {
           const messages = (data.ticketMessages ?? []).filter(
@@ -2103,7 +2214,19 @@ function SupportDesk({
                   </div>
                 ))}
               </div>
-              <div className="mt-4 flex gap-2">
+              <textarea
+                value={drafts[textValue(ticket.id)] ?? ''}
+                onChange={(event) =>
+                  setDrafts((current) => ({
+                    ...current,
+                    [textValue(ticket.id)]: event.target.value,
+                  }))
+                }
+                rows={3}
+                placeholder="Write your reply to this workspace…"
+                className="mt-4 w-full rounded-lg border border-white/10 bg-black/30 p-2.5 text-[11px] text-white/80 outline-none placeholder:text-white/25 focus:border-white/20"
+              />
+              <div className="mt-2 flex gap-2">
                 <Button
                   variant="outline"
                   disabled={busy === textValue(ticket.id)}
@@ -2137,17 +2260,44 @@ function SystemAudit({ data }: { data: AdminPayload }) {
         description="Every sensitive mutation is attributable, tenant-scoped and designed for incident review."
       />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {Object.entries(data.system ?? {})
-          .slice(0, 4)
-          .map(([key, value]) => (
-            <Stat
-              key={key}
-              label={key.replaceAll('_', ' ')}
-              value={value}
-              note="Live platform check"
-              icon={ServerCog}
-            />
-          ))}
+        {[
+          {
+            label: 'API',
+            value: textValue(data.system?.api, 'unknown'),
+            note: 'this request was served',
+          },
+          {
+            label: 'Database',
+            value: textValue(data.system?.database, 'unknown'),
+            note:
+              typeof data.system?.databaseProbeMs === 'number'
+                ? `probe ${num(data.system.databaseProbeMs)} ms`
+                : 'probe failed',
+          },
+          {
+            label: 'Job queue',
+            value: textValue(data.system?.queue, 'unknown'),
+            note: `${num(data.system?.queueDepth)} queued · ${num(data.system?.queueFailed)} failed`,
+          },
+          {
+            label: 'Provider p95',
+            value:
+              typeof data.system?.p95LatencyMs === 'number'
+                ? `${num(data.system.p95LatencyMs)} ms`
+                : 'Not measured',
+            note: Number(data.system?.latencySampleSize ?? 0)
+              ? `${num(data.system?.latencySampleSize)} samples`
+              : 'no provider calls yet',
+          },
+        ].map((entry) => (
+          <Stat
+            key={entry.label}
+            label={entry.label}
+            value={entry.value}
+            note={entry.note}
+            icon={ServerCog}
+          />
+        ))}
       </div>
       <Panel className="overflow-hidden">
         <PanelHeader

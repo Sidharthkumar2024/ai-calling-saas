@@ -141,8 +141,116 @@ export async function GET(request: Request) {
       .first(),
   ]);
 
+  // --- Measured platform health -------------------------------------------
+  // Everything below is derived from real rows or a timed probe. Where a value
+  // genuinely cannot be measured yet it is returned as null so the UI can say
+  // "not measured" instead of printing a comforting number.
+  const probeStarted = Date.now();
+  let databaseStatus = 'operational';
+  let databaseProbeMs: number | null = null;
+  try {
+    await db.prepare('SELECT 1').first();
+    databaseProbeMs = Date.now() - probeStarted;
+    if (databaseProbeMs > 750) databaseStatus = 'degraded';
+  } catch {
+    databaseStatus = 'unreachable';
+  }
+
+  const [jobHealth, latencySample, liveCallRows] = await Promise.all([
+    db
+      .prepare(`SELECT
+          (SELECT count(*) FROM background_jobs WHERE status = 'queued') AS queued,
+          (SELECT count(*) FROM background_jobs WHERE status = 'failed') AS failed,
+          (SELECT count(*) FROM background_jobs WHERE status = 'dead_letter') AS dead_letter,
+          (SELECT count(*) FROM background_jobs WHERE status = 'completed') AS completed`)
+      .first<{
+        queued: number;
+        failed: number;
+        dead_letter: number;
+        completed: number;
+      }>(),
+    // Bounded sample so p95 stays cheap; grouped in JS because SQLite has no
+    // percentile function.
+    db
+      .prepare(`SELECT provider_id, category, operation, latency_ms, status
+        FROM provider_usage_events
+        WHERE latency_ms IS NOT NULL
+        ORDER BY created_at DESC LIMIT 1000`)
+      .all<{
+        provider_id: string;
+        category: string;
+        operation: string;
+        latency_ms: number;
+        status: string | null;
+      }>(),
+    // Real cross-tenant call activity for the call-operations screen.
+    db
+      .prepare(`SELECT c.id, c.status, c.direction, c.to_number, c.customer_name,
+          c.duration_seconds, c.latency_ms, c.outcome, c.started_at,
+          o.name AS organization_name, a.name AS agent_name
+        FROM call_records c
+        INNER JOIN organizations o ON o.id = c.organization_id
+        LEFT JOIN voice_agents a ON a.id = c.agent_id
+        ORDER BY CASE WHEN c.status = 'in_progress' THEN 0 ELSE 1 END,
+          c.started_at DESC
+        LIMIT 25`)
+      .all(),
+  ]);
+
+  const samples = latencySample.results ?? [];
+  const percentile = (values: number[], fraction: number) => {
+    if (!values.length) return null;
+    const sorted = [...values].sort((a, b) => a - b);
+    const index = Math.min(
+      sorted.length - 1,
+      Math.max(0, Math.ceil(fraction * sorted.length) - 1),
+    );
+    return sorted[index];
+  };
+
+  const providerHealthMap = new Map<
+    string,
+    { latencies: number[]; errors: number; calls: number; operations: Set<string> }
+  >();
+  for (const row of samples) {
+    const entry = providerHealthMap.get(row.provider_id) ?? {
+      latencies: [],
+      errors: 0,
+      calls: 0,
+      operations: new Set<string>(),
+    };
+    entry.calls += 1;
+    entry.latencies.push(Number(row.latency_ms));
+    if (row.status && !['ok', 'success', 'succeeded'].includes(row.status))
+      entry.errors += 1;
+    entry.operations.add(`${row.category}:${row.operation}`);
+    providerHealthMap.set(row.provider_id, entry);
+  }
+  const providerHealth = [...providerHealthMap.entries()].map(
+    ([providerId, entry]) => ({
+      providerId,
+      calls: entry.calls,
+      operations: [...entry.operations],
+      averageLatencyMs: Math.round(
+        entry.latencies.reduce((sum, value) => sum + value, 0) /
+          entry.latencies.length,
+      ),
+      p95LatencyMs: percentile(entry.latencies, 0.95),
+      errorRate: entry.calls ? entry.errors / entry.calls : 0,
+    }),
+  );
+
+  const queued = Number(jobHealth?.queued ?? 0);
+  const failed = Number(jobHealth?.failed ?? 0) + Number(jobHealth?.dead_letter ?? 0);
+  const platformP95 = percentile(
+    samples.map((row) => Number(row.latency_ms)),
+    0.95,
+  );
+
   return NextResponse.json({
     admin: { name: auth.session.name, email: auth.session.email },
+    providerHealth,
+    liveCalls: liveCallRows.results ?? [],
     stats,
     revenue,
     customers: customers.results,
@@ -157,13 +265,20 @@ export async function GET(request: Request) {
     providerCosts: providerCosts.results,
     compliance,
     system: {
+      // 'api' is the one thing we can assert simply: this request was served.
       api: 'operational',
-      database: 'operational',
-      queue: 'operational',
+      database: databaseStatus,
+      databaseProbeMs,
+      queue: failed > 0 ? 'failing' : queued > 25 ? 'backlog' : 'operational',
+      queueDepth: queued,
+      queueFailed: failed,
       voiceGateway: process.env.EXOTEL_ACCOUNT_SID
-        ? 'connected'
+        ? 'credentials_present'
         : 'credentials_required',
-      p95Latency: '1.2s',
+      // Real provider p95 over the sampled window, or null when nothing has
+      // been measured yet.
+      p95LatencyMs: platformP95,
+      latencySampleSize: samples.length,
     },
   });
 }

@@ -23,6 +23,18 @@ const MANAGED_PROVIDERS = new Set([
 
 export const dynamic = 'force-dynamic';
 
+// Adapter name -> platform_providers row. Used to write the measured readiness
+// back onto the row so the stored health cannot contradict the live check.
+const PROVIDER_ROW_IDS: Record<string, string> = {
+  sarvam: 'provider_sarvam',
+  elevenlabs: 'provider_elevenlabs',
+  openai: 'provider_openai',
+  anthropic: 'provider_anthropic',
+  razorpay: 'provider_razorpay',
+  whatsapp: 'provider_whatsapp',
+  exotel: 'provider_telephony',
+};
+
 export async function GET(request: Request) {
   const auth = await requireAdmin(request);
   if (auth.response) return auth.response;
@@ -55,11 +67,47 @@ export async function GET(request: Request) {
         .prepare('SELECT * FROM support_ticket_messages ORDER BY created_at')
         .all(),
     ]);
+  const readiness = await providerReadiness();
+  // Persist the measured result. `status` stays operator-controlled (they may
+  // deliberately disable a provider); only `health` is synced, so the portal
+  // never shows a stale "connected" next to a failing check.
+  await Promise.all(
+    readiness
+      .filter((entry) => PROVIDER_ROW_IDS[entry.adapter])
+      .map((entry) =>
+        db
+          .prepare(
+            `UPDATE platform_providers SET health = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+          )
+          .bind(
+            entry.configured ? 'connected' : 'not_connected',
+            PROVIDER_ROW_IDS[entry.adapter],
+          )
+          .run(),
+      ),
+  );
+
+  // The SELECT above ran before that update, so reflect the measured health in
+  // this response too rather than returning a row we just superseded.
+  const measuredHealth = new Map(
+    readiness
+      .filter((entry) => PROVIDER_ROW_IDS[entry.adapter])
+      .map((entry) => [
+        PROVIDER_ROW_IDS[entry.adapter],
+        entry.configured ? 'connected' : 'not_connected',
+      ]),
+  );
+  const platformProviderRows = (platformProviders.results ?? []).map((row) => {
+    const id = (row as { id?: string }).id;
+    const health = id ? measuredHealth.get(id) : undefined;
+    return health ? { ...row, health } : row;
+  });
+
   return NextResponse.json({
     authProviders: authProviders.results,
-    platformProviders: platformProviders.results,
+    platformProviders: platformProviderRows,
     providerKeys: providerKeys.results,
-    providerReadiness: await providerReadiness(),
+    providerReadiness: readiness,
     tickets: tickets.results,
     ticketMessages: messages.results,
   });

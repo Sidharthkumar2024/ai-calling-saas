@@ -122,34 +122,35 @@ export async function POST(request: Request) {
     let pipelineMode: 'connected' | 'fallback' | 'instant' = simulated.fastPath
       ? 'instant'
       : 'fallback';
-    if (!simulated.fastPath) {
-      try {
-        const live = await generateVoiceAgentTurn({
-          organizationId: auth.session.organizationId!,
-          agentName: session.agent_name,
-          businessName: session.business_name,
-          useCase: session.use_case,
-          language: session.primary_language,
-          systemPrompt: session.system_prompt,
-          maxTokens: Number(session.max_tokens || 180),
-          messages: [
-            ...orderedHistory.map((item) => ({
-              role: item.role,
-              content: item.content,
-            })),
-            { role: 'user' as const, content: message },
-          ],
-        });
-        responseText = live.text;
-        latencyMs = live.latencyMs;
-        pipelineMode = 'connected';
-      } catch (error) {
-        if (!(error instanceof ProviderConfigurationError)) {
-          console.error(
-            'Connected playground reasoning failed; using deterministic fallback.',
-            error,
-          );
-        }
+    // Always prefer a connected reasoning provider so real questions get real
+    // answers. The deterministic simulator is only a fallback for when no
+    // provider is configured — it must never pre-empt the model.
+    try {
+      const live = await generateVoiceAgentTurn({
+        organizationId: auth.session.organizationId!,
+        agentName: session.agent_name,
+        businessName: session.business_name,
+        useCase: session.use_case,
+        language: session.primary_language,
+        systemPrompt: session.system_prompt,
+        maxTokens: Number(session.max_tokens || 180),
+        messages: [
+          ...orderedHistory.map((item) => ({
+            role: item.role,
+            content: item.content,
+          })),
+          { role: 'user' as const, content: message },
+        ],
+      });
+      responseText = live.text;
+      latencyMs = live.latencyMs;
+      pipelineMode = 'connected';
+    } catch (error) {
+      if (!(error instanceof ProviderConfigurationError)) {
+        console.error(
+          'Connected playground reasoning failed; using deterministic fallback.',
+          error,
+        );
       }
     }
     const nextBalance = Number(session.balance) - TEST_TURN_COST;

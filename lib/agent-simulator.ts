@@ -146,8 +146,12 @@ export function simulateAgentTurn(input: {
   const wantsWhatsApp = /whatsapp|व्हाट्सऐप|व्हाट्सएप|details|brochure/.test(
     message,
   );
-  const wantsPayment = /payment|pay|पेमेंट|भुगतान|link|लिंक/.test(message);
-  const priorPayment = /payment|pay|पेमेंट|भुगतान|link|लिंक/.test(historyText);
+  // Require an actual "send me a payment link" intent. A bare word like
+  // "payment" (e.g. "down payment") must not hijack the conversation.
+  const paymentLinkIntent =
+    /(payment|pay)\s*(link|url)|(पेमेंट|भुगतान)\s*(लिंक|link)|(लिंक|link)\s*(भेज|send)|send\s+(me\s+)?(a\s+|the\s+)?link/i;
+  const wantsPayment = paymentLinkIntent.test(message);
+  const priorPayment = paymentLinkIntent.test(historyText);
   const awaitingWhatsAppConfirmation =
     /calling number|इसी नंबर|whatsapp.*नंबर|नंबर.*whatsapp|नंबर पर/.test(
       lastAssistant.toLowerCase(),

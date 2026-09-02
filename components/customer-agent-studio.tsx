@@ -885,6 +885,12 @@ function TestConsole({
   const audioCtxRef = useRef<AudioContext | null>(null);
   // 'auto' tries connected Sarvam STT; flips to 'browser' if no engine is set.
   const sttEngineRef = useRef<'auto' | 'connected' | 'browser'>('auto');
+  // Barge-in: watch the mic while the agent speaks, abort in-flight work on interrupt.
+  const llmAbortRef = useRef<AbortController | null>(null);
+  const bargeWatchRef = useRef<{ abort: () => void } | null>(null);
+  const speakingTextRef = useRef('');
+  const interruptedRef = useRef(false);
+  const playResolveRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setCredits(initialCredits), 0);
@@ -905,6 +911,8 @@ function TestConsole({
       voiceActiveRef.current = false;
       if (commitTimerRef.current !== null)
         window.clearTimeout(commitTimerRef.current);
+      bargeWatchRef.current?.abort();
+      llmAbortRef.current?.abort();
       recognitionRef.current?.abort();
       try {
         if (recorderRef.current && recorderRef.current.state !== 'inactive')
@@ -992,6 +1000,8 @@ function TestConsole({
         { id: crypto.randomUUID(), role: 'user', content: message },
       ]);
       setInput('');
+      const turnController = new AbortController();
+      llmAbortRef.current = turnController;
       const response = await fetch('/api/app/agents/test', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -1000,6 +1010,7 @@ function TestConsole({
           sessionId: activeSession,
           message,
         }),
+        signal: turnController.signal,
       });
       const payload = (await response.json()) as {
         message?: string;
@@ -1035,12 +1046,18 @@ function TestConsole({
         );
       await onChanged();
     } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : 'Unable to test agent.',
-      );
-      if (voiceActiveRef.current) setVoiceState('idle');
+      // A barge-in aborts the turn on purpose — that is not an error.
+      const aborted =
+        caught instanceof DOMException && caught.name === 'AbortError';
+      if (!aborted) {
+        setError(
+          caught instanceof Error ? caught.message : 'Unable to test agent.',
+        );
+        if (voiceActiveRef.current) setVoiceState('idle');
+      }
     } finally {
       setLoading(false);
+      llmAbortRef.current = null;
     }
   }
 
@@ -1076,48 +1093,160 @@ function TestConsole({
     }
   }
 
+  function stopSpeaking() {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      try {
+        audioRef.current.currentTime = 0;
+      } catch {
+        /* not seekable */
+      }
+      audioRef.current = null;
+    }
+    // Playback promise resolves via onended; on an interrupt we resolve it here.
+    playResolveRef.current?.();
+    playResolveRef.current = null;
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window)
+      window.speechSynthesis.cancel();
+  }
+
+  function abortInFlight() {
+    llmAbortRef.current?.abort();
+    llmAbortRef.current = null;
+  }
+
+  // The mic hears our own TTS through the speakers. Ignore transcripts that are
+  // mostly words the agent is saying right now.
+  function isEchoOfAgent(text: string) {
+    const spoken = speakingTextRef.current.toLowerCase();
+    if (!spoken) return false;
+    const words = text
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((word) => word.length > 2);
+    if (!words.length) return false;
+    const hits = words.filter((word) => spoken.includes(word)).length;
+    return hits / words.length > 0.5;
+  }
+
+  function stopBargeInWatch() {
+    try {
+      bargeWatchRef.current?.abort();
+    } catch {
+      /* already stopped */
+    }
+    bargeWatchRef.current = null;
+  }
+
+  function startBargeInWatch() {
+    type WatchInstance = {
+      lang: string;
+      interimResults: boolean;
+      continuous: boolean;
+      onresult: (event: {
+        results: ArrayLike<{ 0: { transcript: string }; isFinal?: boolean }>;
+      }) => void;
+      onerror: () => void;
+      onend: () => void;
+      start: () => void;
+      abort: () => void;
+    };
+    const constructor = (
+      window as unknown as {
+        webkitSpeechRecognition?: new () => WatchInstance;
+      }
+    ).webkitSpeechRecognition;
+    if (!constructor) return;
+    stopBargeInWatch();
+    const watch = new constructor();
+    bargeWatchRef.current = watch;
+    watch.lang = agent.primary_language === 'en-IN' ? 'en-IN' : 'hi-IN';
+    watch.interimResults = true;
+    watch.continuous = true;
+    watch.onresult = (event) => {
+      let heard = '';
+      for (let index = 0; index < event.results.length; index += 1)
+        heard += event.results[index]?.[0]?.transcript ?? '';
+      const text = heard.trim();
+      if (text.length < 4 || isEchoOfAgent(text)) return;
+      // Real interruption: stop talking, drop queued audio, cancel the model.
+      interruptedRef.current = true;
+      stopBargeInWatch();
+      stopSpeaking();
+      abortInFlight();
+      setInterimTranscript('');
+      setVoiceState('listening');
+      if (voiceActiveRef.current) startListening(true);
+    };
+    watch.onerror = () => undefined;
+    watch.onend = () => {
+      bargeWatchRef.current = null;
+    };
+    try {
+      watch.start();
+    } catch {
+      /* already running */
+    }
+  }
+
   async function speakAgentMessage(
     text: string,
     continueVoice: boolean,
     preferInstant = false,
   ) {
     setVoiceState('speaking');
-    audioRef.current?.pause();
-    if (preferInstant) {
-      setPipelineMode('instant');
-      await browserSpeak(text, agent.primary_language);
-      if ((continueVoice || voiceActiveRef.current) && voiceActiveRef.current)
-        startListening(true);
-      else setVoiceState('idle');
-      return;
-    }
+    stopSpeaking();
+    speakingTextRef.current = text;
+    interruptedRef.current = false;
+    if (voiceActiveRef.current) startBargeInWatch();
     try {
-      const response = await fetch('/api/app/agents/speech', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ agentId: agent.id, text }),
-      });
-      if (!response.ok) throw new Error('Connected voice is not available.');
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      setPipelineMode('connected');
-      await new Promise<void>((resolve, reject) => {
-        audio.onended = () => {
-          URL.revokeObjectURL(url);
-          resolve();
-        };
-        audio.onerror = () => {
-          URL.revokeObjectURL(url);
-          reject(new Error('Audio playback failed.'));
-        };
-        void audio.play().catch(reject);
-      });
-    } catch {
-      setPipelineMode('fallback');
-      await browserSpeak(text, agent.primary_language);
+      if (preferInstant) {
+        setPipelineMode('instant');
+        await browserSpeak(text, agent.primary_language);
+      } else {
+        try {
+          const controller = new AbortController();
+          llmAbortRef.current = controller;
+          const response = await fetch('/api/app/agents/speech', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ agentId: agent.id, text }),
+            signal: controller.signal,
+          });
+          if (!response.ok) throw new Error('Connected voice is not available.');
+          const blob = await response.blob();
+          if (interruptedRef.current) return;
+          const url = URL.createObjectURL(blob);
+          const audio = new Audio(url);
+          audioRef.current = audio;
+          setPipelineMode('connected');
+          await new Promise<void>((resolve, reject) => {
+            playResolveRef.current = resolve;
+            audio.onended = () => {
+              URL.revokeObjectURL(url);
+              playResolveRef.current = null;
+              resolve();
+            };
+            audio.onerror = () => {
+              URL.revokeObjectURL(url);
+              playResolveRef.current = null;
+              reject(new Error('Audio playback failed.'));
+            };
+            void audio.play().catch(reject);
+          });
+        } catch {
+          if (interruptedRef.current) return;
+          setPipelineMode('fallback');
+          await browserSpeak(text, agent.primary_language);
+        }
+      }
+    } finally {
+      stopBargeInWatch();
+      speakingTextRef.current = '';
+      llmAbortRef.current = null;
     }
+    // If the caller interrupted, the watcher already handed over to listening.
+    if (interruptedRef.current) return;
     if ((continueVoice || voiceActiveRef.current) && voiceActiveRef.current)
       startListening(true);
     else setVoiceState('idle');
@@ -1556,6 +1685,10 @@ function TestConsole({
     setElapsed(0);
     setVoiceState('idle');
     setInterimTranscript('');
+    stopBargeInWatch();
+    abortInFlight();
+    interruptedRef.current = false;
+    speakingTextRef.current = '';
     if (commitTimerRef.current !== null) {
       window.clearTimeout(commitTimerRef.current);
       commitTimerRef.current = null;

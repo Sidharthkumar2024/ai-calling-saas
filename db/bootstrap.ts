@@ -1124,6 +1124,49 @@ async function bootstrap() {
     db.prepare(
       `CREATE UNIQUE INDEX IF NOT EXISTS idx_provider_webhook_event ON provider_webhook_events (provider, event_id)`,
     ),
+    // Bulk calling imports (§10). A rejected row keeps its reason so the
+    // customer can fix the file rather than guessing what went wrong.
+    db.prepare(`CREATE TABLE IF NOT EXISTS import_jobs (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      created_by_user_id TEXT,
+      filename TEXT NOT NULL,
+      format TEXT NOT NULL,
+      status TEXT DEFAULT 'previewed' NOT NULL,
+      campaign_id TEXT REFERENCES campaigns(id) ON DELETE SET NULL,
+      headers_json TEXT DEFAULT '[]' NOT NULL,
+      mapping_json TEXT DEFAULT '{}' NOT NULL,
+      total_rows INTEGER DEFAULT 0 NOT NULL,
+      accepted_rows INTEGER DEFAULT 0 NOT NULL,
+      rejected_rows INTEGER DEFAULT 0 NOT NULL,
+      duplicate_rows INTEGER DEFAULT 0 NOT NULL,
+      suppressed_rows INTEGER DEFAULT 0 NOT NULL,
+      truncated INTEGER DEFAULT 0 NOT NULL,
+      default_country_code TEXT DEFAULT '91' NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      committed_at TEXT
+    )`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_import_jobs_org ON import_jobs (organization_id, created_at)`,
+    ),
+    db.prepare(`CREATE TABLE IF NOT EXISTS import_rows (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      import_job_id TEXT NOT NULL REFERENCES import_jobs(id) ON DELETE CASCADE,
+      row_number INTEGER NOT NULL,
+      phone TEXT,
+      name TEXT,
+      language TEXT,
+      timezone TEXT,
+      company TEXT,
+      notes TEXT,
+      status TEXT DEFAULT 'accepted' NOT NULL,
+      reason TEXT,
+      raw_json TEXT DEFAULT '[]' NOT NULL
+    )`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_import_rows_job ON import_rows (import_job_id, status)`,
+    ),
     // Co-pilot suggestions, cached per transcript length so a polling Agent
     // Desk cannot re-bill the model on every refresh.
     db.prepare(`CREATE TABLE IF NOT EXISTS copilot_suggestions (

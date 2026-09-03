@@ -44,6 +44,7 @@ import {
   DistributionChart,
 } from '@/components/analytics-charts';
 import { CustomerSecurity } from '@/components/customer-security';
+import { CustomerImport } from '@/components/customer-import';
 
 export type OperationsData = {
   campaigns: Record<string, unknown>[];
@@ -316,6 +317,15 @@ function ResourceModule({
         <p className="rounded-xl border border-red-400/15 bg-red-400/5 p-3 text-xs text-red-100">
           {error}
         </p>
+      ) : null}
+      {module === 'campaigns' ? (
+        <CustomerImport
+          campaigns={rows.map((row) => ({
+            id: str(row.id),
+            name: str(row.name, 'Untitled campaign'),
+          }))}
+          onChanged={onChanged}
+        />
       ) : null}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {rows.map((row) => (

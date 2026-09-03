@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { useT } from '@/components/locale-provider';
 
 type Provider = {
   provider: string;
@@ -12,6 +13,7 @@ type Provider = {
 };
 
 export function SocialAuthButtons() {
+  const t = useT();
   const [providers, setProviders] = useState<Provider[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -57,7 +59,7 @@ export function SocialAuthButtons() {
             }}
             title={
               ready
-                ? `Continue with ${provider.display_name}`
+                ? t('login.continueWith', { provider: provider.display_name })
                 : 'Activation is controlled from the admin portal'
             }
             className="flex h-11 w-full items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/[0.035] text-xs font-medium text-white/78 transition-colors enabled:hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:text-white/40"
@@ -65,17 +67,17 @@ export function SocialAuthButtons() {
             <span className="grid size-5 place-items-center rounded-full bg-white text-[11px] font-bold text-[#3157c8]">
               G
             </span>
-            Continue with {provider.display_name}
+            {t('login.continueWith', { provider: provider.display_name })}
             {!ready ? (
               <span className="rounded-full bg-white/8 px-2 py-1 text-[8px] font-normal text-white/55">
-                Admin disabled
+                {t('login.adminDisabled')}
               </span>
             ) : null}
           </button>
         );
       })}
       <div className="flex items-center gap-3 py-2 text-[9px] uppercase tracking-[0.16em] text-white/22">
-        <span className="h-px flex-1 bg-white/8" /> or use email{' '}
+        <span className="h-px flex-1 bg-white/8" /> {t('login.orUseEmail')}{' '}
         <span className="h-px flex-1 bg-white/8" />
       </div>
     </div>

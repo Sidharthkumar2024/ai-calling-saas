@@ -44,6 +44,26 @@ ok(
   })(),
 );
 
+console.log('placeholder substitution:');
+ok(
+  'a placeholder is filled',
+  translate('en', 'login.continueWith', { provider: 'Google' }) ===
+    'Continue with Google',
+);
+ok(
+  'THE POINT: Hindi puts the provider first, so word order lives in the catalog',
+  translate('hi', 'login.continueWith', { provider: 'Google' }) ===
+    'Google से जारी रखें',
+);
+ok(
+  'an unknown placeholder is left visible rather than silently blanked',
+  translate('en', 'login.continueWith', {}) === 'Continue with {provider}',
+);
+ok(
+  'a template with no placeholders is unchanged by values',
+  translate('en', 'nav.settings', { unused: 'x' }) === 'Settings',
+);
+
 console.log('locale validation:');
 ok('a valid code is accepted', isPortalLocale('hi'));
 ok('an unknown code is rejected', !isPortalLocale('fr'));

@@ -55,26 +55,25 @@ Still genuinely missing on this path:
   test against. Accept, reject, transfer-in and wrap-up work today.
 - **Listening to live audio** as a supervisor — same reason.
 
-### 2. [CODE] Localized dashboard — customer portal done
+### 2. [CODE] Localized dashboard — portals and sign-in done
 
 `lib/i18n.ts` + `components/locale-provider.tsx` hold an English source of
 truth, per-person language choice (not per workspace — two people in one
 workspace can want different languages, and the workspace setting already means
-which languages the AI may speak), a header switcher, and **honest coverage
-reporting**: `coverage()` and `missingKeys()` say exactly what is untranslated
-rather than leaking a raw key into the interface.
+which languages the AI may speak), a header switcher, placeholder substitution
+so word order belongs to the translation, and **honest coverage reporting**:
+`coverage()` and `missingKeys()` say exactly what is untranslated rather than
+leaking a raw key.
 
-Hindi is at **199/199 keys**. Translated: every navigation group and all 30
-sections; the shell chrome; shared loading, error and empty states; shared
-actions; every screen's eyebrow, title, description and primary button; all 68
-form-field and stat labels; the accessible names on icon-only buttons; and the
-Org &amp; routing and Settings screens end to end — panel titles, hints,
-placeholders, select options and helper text, with no English left in either.
+Hindi is at **271/271 keys**. Translated: the customer portal (all 30 sections,
+every screen heading, all form and stat labels, accessible names, plus Org &
+routing and Settings end to end), the **admin portal** (3 groups, 11 sections
+and all 10 section headings), and the **sign-in screen** including the social
+buttons and both portal variants.
 
-**Not yet translated:** the admin portal, the landing page and the login screen,
-plus long-form copy in a few less-visited customer panels. Product nouns Indian
-users say in English on the phone — campaign, credits, CRM, SIP, API — are
-deliberately left alone rather than turned into words nobody uses.
+**Not yet translated:** the marketing landing page, and long-form copy in a few
+less-visited customer panels. Product nouns Indian users say in English on the
+phone — campaign, credits, CRM, SIP, API — are deliberately left alone.
 
 ### 3. [CODE][DECIDED] Multi-currency (§14)
 

@@ -27,13 +27,16 @@ const STORAGE_KEY = 'vaani.portal.locale';
 type LocaleContextValue = {
   locale: PortalLocale;
   setLocale: (locale: PortalLocale) => void;
-  t: (key: TranslationKey) => string;
+  t: (
+    key: TranslationKey,
+    values?: Record<string, string | number>,
+  ) => string;
 };
 
 const LocaleContext = createContext<LocaleContextValue>({
   locale: DEFAULT_LOCALE,
   setLocale: () => {},
-  t: (key) => translate(DEFAULT_LOCALE, key),
+  t: (key, values) => translate(DEFAULT_LOCALE, key, values),
 });
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
@@ -80,7 +83,8 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     () => ({
       locale,
       setLocale,
-      t: (key: TranslationKey) => translate(locale, key),
+      t: (key: TranslationKey, values?: Record<string, string | number>) =>
+        translate(locale, key, values),
     }),
     [locale, setLocale],
   );

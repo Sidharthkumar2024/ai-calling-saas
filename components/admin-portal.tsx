@@ -36,6 +36,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { ActivityAreaChart, QueueBars } from '@/components/analytics-charts';
+import { useT } from '@/components/locale-provider';
 
 type AdminSession = { name: string; email: string };
 
@@ -67,41 +68,63 @@ type AdminPayload = {
 const groups: PortalNavGroup[] = [
   {
     label: 'Platform',
+    translationKey: 'adminNav.group.platform',
     items: [
-      { id: 'overview', label: 'Command center', icon: Gauge },
-      { id: 'customers', label: 'Customers', icon: Building2 },
+      { id: 'overview', label: 'Command center', icon: Gauge,
+        translationKey: 'adminNav.overview',
+      },
+      { id: 'customers', label: 'Customers', icon: Building2,
+        translationKey: 'adminNav.customers',
+      },
       {
         id: 'call_ops',
         label: 'Call operations',
         icon: Radio,
+        translationKey: 'adminNav.call_ops',
       },
-      { id: 'voice_engines', label: 'Voice engines', icon: Activity },
+      { id: 'voice_engines', label: 'Voice engines', icon: Activity,
+        translationKey: 'adminNav.voice_engines',
+      },
     ],
   },
   {
     label: 'Commercial',
+    translationKey: 'adminNav.group.commercial',
     items: [
-      { id: 'numbers_kyc', label: 'Numbers & KYC', icon: FileCheck2 },
-      { id: 'plans_billing', label: 'Plans & billing', icon: CreditCard },
+      { id: 'numbers_kyc', label: 'Numbers & KYC', icon: FileCheck2,
+        translationKey: 'adminNav.numbers_kyc',
+      },
+      { id: 'plans_billing', label: 'Plans & billing', icon: CreditCard,
+        translationKey: 'adminNav.plans_billing',
+      },
       {
         id: 'trials_commerce',
         label: 'Trials & commerce',
         icon: CircleDollarSign,
         badge: 'New',
+        translationKey: 'adminNav.trials_commerce',
       },
-      { id: 'integrations', label: 'API & integrations', icon: Network },
+      { id: 'integrations', label: 'API & integrations', icon: Network,
+        translationKey: 'adminNav.integrations',
+      },
       {
         id: 'platform_apis',
         label: 'Provider & auth config',
         icon: SlidersHorizontal,
+        translationKey: 'adminNav.platform_apis',
       },
     ],
   },
   {
     label: 'Governance',
+    translationKey: 'adminNav.group.governance',
     items: [
-      { id: 'system_audit', label: 'System & audit', icon: ShieldCheck },
-      { id: 'support_tickets', label: 'Support tickets', icon: LifeBuoy },
+      { id: 'system_audit', label: 'System & audit', icon: ShieldCheck,
+        translationKey: 'adminNav.system_audit',
+      },
+      { id: 'support_tickets', label: 'Support tickets', icon: LifeBuoy,
+        translationKey: 'adminNav.support_tickets',
+      },
     ],
   },
 ];
@@ -496,12 +519,13 @@ function AdminOverview({
 }
 
 function Customers({ data }: { data: AdminPayload }) {
+  const t = useT();
   return (
     <div className="space-y-6">
       <SectionHeader
-        eyebrow="Tenant management"
-        title="Customer accounts"
-        description="Plan, wallet, numbers and lead volume stay scoped to each organization."
+        eyebrow={t('adminScreen.customers.eyebrow')}
+        title={t('adminScreen.customers.title')}
+        description={t('adminScreen.customers.description')}
       />
       <div className="grid gap-3 sm:grid-cols-3">
         <Stat
@@ -796,6 +820,7 @@ function CustomersTable({ rows }: { rows: Record<string, unknown>[] }) {
 }
 
 function CallOperations({ data }: { data: AdminPayload }) {
+  const t = useT();
   const calls = data.liveCalls ?? [];
   const live = calls.filter((row) => textValue(row.status) === 'in_progress');
   const system = data.system ?? {};
@@ -805,9 +830,9 @@ function CallOperations({ data }: { data: AdminPayload }) {
   return (
     <div className="space-y-6">
       <SectionHeader
-        eyebrow="Call operations"
-        title="Platform call activity"
-        description="Every figure here is read from call records and provider telemetry. Nothing on this screen is estimated."
+        eyebrow={t('adminScreen.call_ops.eyebrow')}
+        title={t('adminScreen.call_ops.title')}
+        description={t('adminScreen.call_ops.description')}
       />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -912,6 +937,7 @@ function CallOperations({ data }: { data: AdminPayload }) {
 }
 
 function VoiceEngines({ data }: { data: AdminPayload }) {
+  const t = useT();
   const health = data.providerHealth ?? [];
   const readiness = data.providerReadiness ?? [];
   const readinessFor = (providerId: string) =>
@@ -922,9 +948,9 @@ function VoiceEngines({ data }: { data: AdminPayload }) {
   return (
     <div className="space-y-6">
       <SectionHeader
-        eyebrow="Voice engines"
-        title="Measured provider performance"
-        description="Latency, volume and error rate come from recorded provider calls. Engines with no traffic are shown as unmeasured rather than healthy."
+        eyebrow={t('adminScreen.voice_engines.eyebrow')}
+        title={t('adminScreen.voice_engines.title')}
+        description={t('adminScreen.voice_engines.description')}
       />
 
       <Panel>
@@ -1079,6 +1105,7 @@ function NumbersKyc({
   data: AdminPayload;
   onChanged: () => Promise<void>;
 }) {
+  const t = useT();
   const [busy, setBusy] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -1117,9 +1144,9 @@ function NumbersKyc({
   return (
     <div className="space-y-6">
       <SectionHeader
-        eyebrow="Telephony governance"
-        title="Number activation and KYC review"
-        description="Review managed numbers, native carrier imports and SIP routes with an auditable ownership-to-activation flow."
+        eyebrow={t('adminScreen.numbers_kyc.eyebrow')}
+        title={t('adminScreen.numbers_kyc.title')}
+        description={t('adminScreen.numbers_kyc.description')}
       />
       {message ? (
         <div className="rounded-xl border border-emerald-300/15 bg-emerald-300/[0.035] p-3 text-xs text-emerald-100">
@@ -1280,6 +1307,7 @@ function PlansBilling({
   data: AdminPayload;
   onChanged: () => Promise<void>;
 }) {
+  const t = useT();
   const [showPackage, setShowPackage] = useState(false);
   const [packageName, setPackageName] = useState('Starter top-up');
   const [packageCredits, setPackageCredits] = useState(5000);
@@ -1323,9 +1351,9 @@ function PlansBilling({
   return (
     <div className="space-y-6">
       <SectionHeader
-        eyebrow="Commercial control"
-        title="Plans, credits and invoices"
-        description="Edit pricing and capacity centrally while every wallet mutation remains traceable in the immutable ledger."
+        eyebrow={t('adminScreen.plans_billing.eyebrow')}
+        title={t('adminScreen.plans_billing.title')}
+        description={t('adminScreen.plans_billing.description')}
         action={
           <Button
             onClick={() => setShowPackage((current) => !current)}
@@ -1651,6 +1679,7 @@ function PlanField({
 }
 
 function TrialsCommerce({ data }: { data: AdminPayload }) {
+  const t = useT();
   const stats = data.stats ?? {};
   const rows = data.commerce ?? [];
   const collected = rows
@@ -1659,9 +1688,9 @@ function TrialsCommerce({ data }: { data: AdminPayload }) {
   return (
     <div className="space-y-6">
       <SectionHeader
-        eyebrow="Activation & assisted revenue"
-        title="Trials, agent tests and AI commerce"
-        description="Monitor free-credit activation, no-call playground usage and payment-link execution across tenants without exposing provider credentials."
+        eyebrow={t('adminScreen.trials_commerce.eyebrow')}
+        title={t('adminScreen.trials_commerce.title')}
+        description={t('adminScreen.trials_commerce.description')}
       />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Stat
@@ -1755,12 +1784,13 @@ function TrialsCommerce({ data }: { data: AdminPayload }) {
 }
 
 function Integrations({ data }: { data: AdminPayload }) {
+  const t = useT();
   return (
     <div className="space-y-6">
       <SectionHeader
-        eyebrow="Integration control plane"
-        title="API, webhooks and provider adapters"
-        description="Customers see Vaani products; raw infrastructure credentials remain encrypted and admin-only."
+        eyebrow={t('adminScreen.integrations.eyebrow')}
+        title={t('adminScreen.integrations.title')}
+        description={t('adminScreen.integrations.description')}
       />
       <div className="grid gap-4 lg:grid-cols-2">
         {(data.integrations ?? []).map((item) => (
@@ -2129,6 +2159,7 @@ function PlatformApis({
   data: AdminPayload;
   onChanged: () => Promise<void> | void;
 }) {
+  const t = useT();
   const [busy, setBusy] = useState('');
   async function patch(payload: Record<string, unknown>, key: string) {
     setBusy(key);
@@ -2149,9 +2180,9 @@ function PlatformApis({
   return (
     <div className="space-y-6">
       <SectionHeader
-        eyebrow="Admin-only configuration"
-        title="Identity, APIs and cloud requirements"
-        description="Customer screens use Vaani product names. Provider credentials, readiness and health remain inside this operator console."
+        eyebrow={t('adminScreen.platform_apis.eyebrow')}
+        title={t('adminScreen.platform_apis.title')}
+        description={t('adminScreen.platform_apis.description')}
       />
       <ProviderKeyPanel data={data} onChanged={onChanged} />
       <Panel>
@@ -2352,6 +2383,7 @@ function SupportDesk({
   data: AdminPayload;
   onChanged: () => Promise<void> | void;
 }) {
+  const t = useT();
   const [busy, setBusy] = useState('');
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
@@ -2391,9 +2423,9 @@ function SupportDesk({
   return (
     <div className="space-y-6">
       <SectionHeader
-        eyebrow="Tenant support"
-        title="Support desk"
-        description="Customer tickets, platform replies, assignment and resolution status in one admin queue."
+        eyebrow={t('adminScreen.support_tickets.eyebrow')}
+        title={t('adminScreen.support_tickets.title')}
+        description={t('adminScreen.support_tickets.description')}
       />
       {error ? (
         <p className="rounded-lg border border-red-400/20 bg-red-400/5 px-3 py-2 text-[11px] text-red-200">
@@ -2471,12 +2503,13 @@ function SupportDesk({
 }
 
 function SystemAudit({ data }: { data: AdminPayload }) {
+  const t = useT();
   return (
     <div className="space-y-6">
       <SectionHeader
-        eyebrow="Security & reliability"
-        title="System health and audit trail"
-        description="Every sensitive mutation is attributable, tenant-scoped and designed for incident review."
+        eyebrow={t('adminScreen.system_audit.eyebrow')}
+        title={t('adminScreen.system_audit.title')}
+        description={t('adminScreen.system_audit.description')}
       />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[

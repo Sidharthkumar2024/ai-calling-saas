@@ -18,6 +18,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SocialAuthButtons } from '@/components/social-auth-buttons';
+import { useT } from '@/components/locale-provider';
+import type { TranslationKey } from '@/lib/i18n';
 
 type PortalLoginProps = {
   portal: 'admin' | 'customer';
@@ -47,7 +49,13 @@ const portalCopy = {
 };
 
 export function PortalLogin({ portal }: PortalLoginProps) {
+  const t = useT();
   const config = portalCopy[portal];
+  const copy = {
+    eyebrow: t(`login.${portal}.eyebrow` as TranslationKey),
+    title: t(`login.${portal}.title` as TranslationKey),
+    description: t(`login.${portal}.description` as TranslationKey),
+  };
   const Icon = config.icon;
   const [email, setEmail] = useState(config.email);
   const [password, setPassword] = useState(config.password);
@@ -171,7 +179,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
             <Link
               href="/"
               className="flex items-center gap-3 text-white"
-              aria-label="Vaani home"
+              aria-label={t('aria.vaaniHome')}
             >
               <span className="grid size-10 place-items-center rounded-xl bg-amber-300 text-[#17120a]">
                 <Activity className="size-5" />
@@ -179,19 +187,19 @@ export function PortalLogin({ portal }: PortalLoginProps) {
               <span>
                 <span className="block text-base font-semibold">Vaani</span>
                 <span className="block text-[10px] uppercase tracking-[0.2em] text-white/45">
-                  Revenue Voice OS
+                  {t('login.tagline')}
                 </span>
               </span>
             </Link>
             <div className="my-auto max-w-md">
               <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] text-white/65">
-                <Sparkles className="size-3 text-amber-300" /> {config.eyebrow}
+                <Sparkles className="size-3 text-amber-300" /> {copy.eyebrow}
               </span>
               <h1 className="mt-6 text-5xl font-semibold leading-[1.02] tracking-[-0.05em]">
-                {config.title}
+                {copy.title}
               </h1>
               <p className="mt-5 text-base leading-7 text-white/55">
-                {config.description}
+                {copy.description}
               </p>
               <div className="mt-8 space-y-3 text-sm text-white/68">
                 {[
@@ -206,7 +214,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
               </div>
             </div>
             <p className="text-xs text-white/35">
-              Local development workspace · Vaani control plane
+              {t('login.localWorkspace')}
             </p>
           </section>
 
@@ -216,27 +224,26 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                 href="/"
                 className="mb-10 inline-flex items-center gap-2 text-xs text-white/45 transition-colors hover:text-white lg:hidden"
               >
-                <ArrowLeft className="size-3.5" /> Back to Vaani
+                <ArrowLeft className="size-3.5" /> {t('login.backToVaani')}
               </Link>
               <span className="grid size-12 place-items-center rounded-2xl border border-white/10 bg-white/5">
                 <Icon className="size-5 text-amber-300" />
               </span>
               <p className="mt-7 text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
-                {config.eyebrow}
+                {copy.eyebrow}
               </p>
               <h2 className="mt-2 text-3xl font-semibold tracking-tight">
-                Sign in
+                {t('login.signIn')}
               </h2>
               <p className="mt-2 text-sm leading-6 text-white/48">
-                Use the dedicated {portal} account. Accounts cannot cross
-                between portals.
+                {t(`login.${portal}.useAccount` as TranslationKey)}
               </p>
 
               <div className="mt-6 rounded-2xl border border-white/9 bg-white/[0.035] p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">
-                      Local demo credentials
+                      {t('login.demoCredentials')}
                     </p>
                     <p className="mt-2 font-mono text-xs text-white/72">
                       {config.email}
@@ -259,7 +266,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                     htmlFor={`${portal}-reset-email`}
                     className="block text-xs font-medium text-white/65"
                   >
-                    Account email
+                    {t('login.accountEmail')}
                     <Input
                       id={`${portal}-reset-email`}
                       value={email}
@@ -281,7 +288,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                     ) : (
                       <KeyRound />
                     )}{' '}
-                    Send secure reset link
+                    {t('login.sendResetLink')}
                   </Button>
                   {resetToken ? (
                     <>
@@ -289,7 +296,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                         htmlFor={`${portal}-reset-token`}
                         className="block text-xs font-medium text-white/65"
                       >
-                        Reset token
+                        {t('login.resetToken')}
                         <Input
                           id={`${portal}-reset-token`}
                           value={resetToken}
@@ -304,7 +311,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                         htmlFor={`${portal}-new-password`}
                         className="block text-xs font-medium text-white/65"
                       >
-                        New password
+                        {t('login.newPassword')}
                         <Input
                           id={`${portal}-new-password`}
                           value={newPassword}
@@ -313,7 +320,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                           }
                           type="password"
                           autoComplete="new-password"
-                          placeholder="10+ characters with letters and numbers"
+                          placeholder={t('login.passwordHint')}
                           className="mt-2 h-11 border-white/10 bg-white/[0.035]"
                         />
                       </label>
@@ -347,7 +354,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                     }}
                     className="text-xs text-white/42 hover:text-white"
                   >
-                    Back to sign in
+                    {t('login.backToSignIn')}
                   </button>
                 </div>
               ) : (
@@ -359,7 +366,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                     htmlFor={`${portal}-email`}
                     className="block text-xs font-medium text-white/65"
                   >
-                    Email
+                    {t('login.email')}
                     <Input
                       id={`${portal}-email`}
                       value={email}
@@ -375,7 +382,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                       htmlFor={`${portal}-otp`}
                       className="block text-xs font-medium text-white/65"
                     >
-                      Authenticator code
+                      {t('login.authenticatorCode')}
                       <Input
                         id={`${portal}-otp`}
                         value={otp}
@@ -386,7 +393,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                         }
                         inputMode="numeric"
                         autoComplete="one-time-code"
-                        placeholder="6-digit code"
+                        placeholder={t('login.codePlaceholder')}
                         className="mt-2 h-11 border-white/10 bg-white/[0.035] font-mono tracking-[0.3em] text-white"
                         required
                       />
@@ -396,7 +403,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                     htmlFor={`${portal}-password`}
                     className="block text-xs font-medium text-white/65"
                   >
-                    Password
+                    {t('login.password')}
                     <Input
                       id={`${portal}-password`}
                       value={password}
@@ -416,7 +423,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                     }}
                     className="text-xs text-white/42 hover:text-white"
                   >
-                    Forgot password?
+                    {t('login.forgotPassword')}
                   </button>
                   {error ? (
                     <div className="rounded-xl border border-red-400/20 bg-red-400/8 px-3 py-2.5 text-xs text-red-200">

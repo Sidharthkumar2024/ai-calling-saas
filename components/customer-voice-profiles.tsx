@@ -13,6 +13,9 @@ type Profile = {
   presentation: string;
   provider: string;
   hasVoiceId: boolean;
+  /** Set when the provider scheduled this voice for removal. */
+  removalNoticeAt: string | null;
+  removalReason: string | null;
   modelId: string | null;
   defaultLanguage: string;
   allowedLanguages: string[];
@@ -343,6 +346,15 @@ export function CustomerVoiceProfiles() {
                 {profile.voiceLock ? 'locked' : 'unlocked'}
               </Badge>
             </div>
+
+            {profile.removalNoticeAt ? (
+              <p className="mt-3 rounded-lg border border-rose-400/25 bg-rose-400/[0.07] px-2.5 py-2 text-[10px] leading-relaxed text-rose-100">
+                <strong>Voice scheduled for removal.</strong> The provider is
+                withdrawing this voice; agents using this profile will stop
+                speaking once it is gone. Pick a replacement voice id.
+                {profile.removalReason ? ` (${profile.removalReason})` : ''}
+              </p>
+            ) : null}
 
             <div className="mt-3 flex flex-wrap gap-1">
               {profile.allowedLanguages.map((code) => (

@@ -86,6 +86,14 @@ driving both the API and the grid; live credential tests for the 13 that
 publish a safe read-only endpoint; the rest stored and marked unverified;
 disconnect; unrecognised stored connections surfaced.
 
+**ElevenLabs webhooks.** `POST /api/webhooks/elevenlabs` verifies the HMAC
+signature over `${timestamp}.${body}` in constant time, rejects replays outside
+30 minutes, and is idempotent on the event id. A **voice removal notice** flags
+every voice profile bound to that voice and emails the owner before the agent
+goes silent; a **transcription completed** event attaches the transcript to a
+call when the request carried `metadata.call_id`. Unsupported events are
+recorded, not dropped.
+
 **This pass.** Real analytics aggregates with per-language breakdown; report
 runs with downloadable CSV; a campaign dialer that runs every gate; delivered
 team invitations; a working "Take over"; sign-in providers beyond Google;

@@ -1,6 +1,8 @@
 import { getRawDb } from '@/db/index';
 
 export type VoiceProfileRow = {
+  removal_notice_at?: string | null;
+  removal_reason?: string | null;
   id: string;
   name: string;
   presentation: string;
@@ -136,6 +138,10 @@ export async function listVoiceProfiles(organizationId: string) {
     presentation: row.presentation,
     provider: row.provider,
     hasVoiceId: Boolean(row.provider_voice_id),
+    // Set when the provider tells us this voice is going away; the agents
+    // bound to it stop speaking once it does.
+    removalNoticeAt: row.removal_notice_at ?? null,
+    removalReason: row.removal_reason ?? null,
     modelId: row.model_id,
     defaultLanguage: row.default_language,
     allowedLanguages: parseLanguages(row.allowed_languages_json),

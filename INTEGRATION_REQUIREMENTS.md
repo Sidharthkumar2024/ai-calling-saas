@@ -41,6 +41,37 @@ This file is the operator checklist for taking the local SaaS from sandbox mode 
 - Storage: use a private bucket, per-object authorization, encryption at rest, short-lived downloads and an explicit retention job.
 - Observability: export structured logs and traces without raw credentials or unrestricted transcript content; alert on latency, call failures, webhook retries and credit anomalies.
 
+## ElevenLabs webhooks
+
+In ElevenLabs → **Webhooks → Add endpoint**, point the endpoint at:
+
+```
+https://<your-host>/api/webhooks/elevenlabs
+```
+
+Then save the shared secret it gives you as `ELEVENLABS_WEBHOOK_SECRET` (or as
+`webhookSecret` in the admin ElevenLabs config). Until it is set the endpoint
+returns 503 rather than accepting unverified payloads.
+
+Tick these two events:
+
+| Event | What Vaani does |
+|---|---|
+| **Voice removal notice** | Flags every voice profile bound to that voice, and emails the workspace owner naming how many agents use it. Without this the first symptom is an agent that cannot speak. |
+| **Transcription completed** | Attaches the transcript to a call when the transcription request carried `metadata.call_id`; otherwise it is stored unlinked and says so. |
+
+*Image & Video generation* is recorded as `ignored_unsupported` — Vaani does not
+use that API, and the event is kept rather than dropped so nothing is silent.
+
+Payloads are verified as HMAC-SHA256 over `${timestamp}.${body}` from the
+`ElevenLabs-Signature` header (`t=…,v0=…`), compared in constant time, with
+timestamps outside 30 minutes rejected as replays. Redelivery of an event id
+already seen is a no-op. `npm test` covers the verification with 11 assertions.
+
+**Note:** Vaani's live speech-to-text is synchronous, so the transcription event
+fires only for transcriptions you dispatch asynchronously with a webhook — long
+recordings or a backfill.
+
 ## Inbound calling
 
 Vaani resolves inbound calls but does not bridge audio. A carrier — or the media

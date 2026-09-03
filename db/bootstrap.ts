@@ -1108,6 +1108,22 @@ async function bootstrap() {
     db.prepare(
       `CREATE INDEX IF NOT EXISTS idx_reports_org_status ON report_definitions (organization_id, status)`,
     ),
+    // Provider webhook receipts. Kept so a redelivery is idempotent and an
+    // unrecognised event is visible rather than silently dropped.
+    db.prepare(`CREATE TABLE IF NOT EXISTS provider_webhook_events (
+      id TEXT PRIMARY KEY NOT NULL,
+      provider TEXT NOT NULL,
+      event_id TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      organization_id TEXT REFERENCES organizations(id) ON DELETE SET NULL,
+      status TEXT DEFAULT 'received' NOT NULL,
+      detail TEXT,
+      payload_json TEXT DEFAULT '{}' NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_provider_webhook_event ON provider_webhook_events (provider, event_id)`,
+    ),
     // Co-pilot suggestions, cached per transcript length so a polling Agent
     // Desk cannot re-bill the model on every refresh.
     db.prepare(`CREATE TABLE IF NOT EXISTS copilot_suggestions (
@@ -1395,6 +1411,11 @@ async function bootstrap() {
       /* column already present */
     }
   }
+
+  // A voice scheduled for removal by the provider: the agents bound to it go
+  // silent when it disappears, so the profile must carry the warning.
+  await ensureColumn(db, 'voice_profiles', 'removal_notice_at', 'TEXT');
+  await ensureColumn(db, 'voice_profiles', 'removal_reason', 'TEXT');
 
   // Platform admin sub-roles, so tenant-destructive actions are deliberate.
   await ensureColumn(db, 'app_users', 'admin_role', 'TEXT');

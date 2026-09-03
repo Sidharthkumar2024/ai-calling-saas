@@ -13,7 +13,7 @@
     "format": "oxfmt",
     "db:generate": "drizzle-kit generate",
     "jobs:tick": "node scripts/run-jobs.mjs",
-    "test": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/test-action-policy.mjs && node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/test-call-state.mjs && node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/test-routing.mjs && node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/test-shifts.mjs && node scripts/check-sql-bindings.mjs"
+    "test": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/test-action-policy.mjs && node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/test-call-state.mjs && node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/test-routing.mjs && node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/test-shifts.mjs && node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/test-elevenlabs-signature.mjs && node scripts/check-sql-bindings.mjs"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",

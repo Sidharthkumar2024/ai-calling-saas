@@ -10,28 +10,26 @@ Legend: **[CODE]** engineering here · **[KEY]** an account or key you supply ·
 
 ## What remains
 
-### 0. What the device/dialer extension still needs
-
-Most of it is built, including the dialer itself. An agent can now talk to an AI
-agent from the dashboard with **no carrier at all** — the tab carries the audio
-to the media gateway using a short-lived per-call token.
+### 0. Device/dialer extension — what is left
 
 Built: audience import, device selection, microphone and speaker tests,
 connection measurement, the readiness gate, support codes, the browser dialer
-with mute, hold and a live transcript.
+with mute and hold, conference rooms, and **supervisor listen / whisper / join**.
+None of that needs a carrier.
 
-Still missing, and all for the same reason — there is no second leg to bridge:
+Left, and each for a concrete reason:
 
-- **Transfer and conference from a live call (§12).** The dialer connects the
-  agent to the AI. Moving that leg to a human, or joining a third party, needs
-  a carrier or a second browser leg plus a bridging control channel.
-- **Real WebRTC statistics (§6).** Codec, bitrate and true packet loss come
-  from an RTCPeerConnection. The dialer streams audio over a WebSocket, and the
-  diagnostics measure HTTP round trips and say so.
-- **Supervisor monitor / whisper / join (§12, §20).** Same bridging problem.
-- **Power and preview dialers (§20).** These load the next approved contact and
-  place a real outbound call, which needs a carrier.
-- **DTMF keypad (§12).** Only meaningful on a carrier leg.
+- **[KEY] Transfer to a human on a *customer* call.** Bridging works — a second
+  browser leg joins the room and the AI steps back — but a real customer is
+  only on the line through a carrier. Agent-to-agent and supervisor bridging
+  work today.
+- **[KEY] Power and preview dialers (§20).** The queue logic exists in the
+  campaign dialer; placing the outbound call needs a carrier.
+- **[KEY] DTMF keypad (§12).** Only meaningful on a carrier leg.
+- **[CODE] Real WebRTC statistics (§6).** Codec, bitrate and true packet loss
+  come from an RTCPeerConnection. The browser leg streams over a WebSocket,
+  which is simpler and works; the diagnostics measure HTTP round trips and say
+  so rather than inventing call-media numbers.
 
 ### 1. [KEY] Live media — built, waiting on a carrier
 
@@ -146,7 +144,9 @@ with a real preview — every row validated, de-duplicated and suppression-check
 before anything is committed to a campaign — device and connection diagnostics
 with a readiness gate that `set_presence` actually enforces, and a **browser
 dialer** that carries call audio from the agent's tab with a short-lived
-per-call token, so no browser ever holds the gateway secret.
+per-call token, so no browser ever holds the gateway secret — plus conference
+rooms with supervisor listen, whisper and join, where role and mode are signed
+into the token so a listening session cannot promote itself.
 
 **This pass.** Real analytics aggregates with per-language breakdown; report
 runs with downloadable CSV; a campaign dialer that runs every gate; delivered

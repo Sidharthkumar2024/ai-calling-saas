@@ -10,28 +10,48 @@ Legend: **[CODE]** engineering here · **[KEY]** an account or key you supply ·
 
 ## What remains
 
-### 1. [BLOCKED] Live media — the one thing everything else waits on
+### 1. [KEY] Live media — built, waiting on a carrier
 
-A bidirectional audio path cannot live in this worker. The generated config has
-`durable_objects.bindings: []`, no queue consumers and no WebSocket anywhere;
-only D1 and R2 are bound. A media socket needs a separate always-on service.
+`services/media-gateway` now holds the audio leg. It terminates the carrier
+WebSocket (Twilio Media Streams, Exotel voicebot), converts G.711, detects turn
+boundaries and barge-in, and streams the reply back in 20 ms frames. Vaani keeps
+speech-to-text, reasoning, tools, synthesis and telemetry behind
+`POST /api/internal/voice-turn`, so the gateway holds one shared secret and no
+customer credentials.
 
-Everything around it is built and gated honestly:
+Verified end to end locally with the bundled carrier simulator — greeting
+streamed, caller speech transcribed, reply synthesised and streamed back, turns
+written to telemetry. Measured: STT 879 ms, reasoning 1418 ms, TTS 306 ms.
 
-| Surface | State |
-|---|---|
-| Inbound calls | `POST /api/webhooks/telephony/inbound` resolves the route, opens the call record, returns `mediaBridged: false`. Needs `INBOUND_WEBHOOK_SECRET` + a carrier. |
-| Outbound calls | `POST /api/app/calls` returns 503 without `VOICE_STREAM_URL`. |
-| Campaign dialling | The dialer runs every gate and records `telephony_unconfigured` instead of claiming a dial. |
-| Agent Desk | Accept, reject, transfer-in and wrap-up work. **Mute, hold and conference** need the gateway. |
-| Live monitoring | Transcript view and "Take over" work. **Listening to live audio** needs the gateway. |
+**What is left is not code:** a carrier account, a public host for the gateway,
+`MEDIA_GATEWAY_SECRET` on both sides, and `VOICE_STREAM_URL` pointing at it.
+See INTEGRATION_REQUIREMENTS.md.
 
-### 2. [CODE][DECIDED] Localized dashboard (§15)
+Still genuinely missing on this path:
 
-The AI speaks 13 languages; the portal UI is English only. This is a real
-project — 25 customer sections plus the admin portal — and a half-translated
-interface is worse than an English one. Worth doing as its own focused piece,
-not squeezed in. Say the word and it goes next.
+- **Mute, hold and conference** (§4). The gateway can carry them, but they need
+  a control channel from the Agent Desk to a live session, and a real call to
+  test against. Accept, reject, transfer-in and wrap-up work today.
+- **Listening to live audio** as a supervisor — same reason.
+
+### 2. [CODE] Localized dashboard — foundation done, section copy pending
+
+`lib/i18n.ts` + `components/locale-provider.tsx` add a translation layer with an
+English source of truth, per-person language choice (not per workspace — two
+people in one workspace can want different languages), a header switcher, and
+**honest coverage reporting**: `coverage()` and `missingKeys()` say exactly what
+is untranslated instead of rendering raw keys.
+
+Translated today (Hindi, 53/53 keys, 100%): the whole navigation — every group
+and every one of the 27 sections — plus the shell chrome, shared loading/error/
+empty states and shared actions. Verified: switching to हिन्दी relabels the
+navigation, sets `lang="hi"`, and survives a reload.
+
+**Not yet translated:** the body copy inside each section — headers,
+descriptions and field labels within the 27 screens. That is a mechanical pass
+of roughly 400 more strings, one screen at a time. It is deliberately not
+half-done: the chrome a user reads on every screen is complete, and everything
+else falls back to English rather than showing a broken mix.
 
 ### 3. [CODE][DECIDED] Multi-currency (§14)
 
@@ -93,6 +113,10 @@ every voice profile bound to that voice and emails the owner before the agent
 goes silent; a **transcription completed** event attaches the transcript to a
 call when the request carried `metadata.call_id`. Unsupported events are
 recorded, not dropped.
+
+**Media gateway.** A standalone service holding the carrier socket the worker
+cannot, with 52 assertions covering codecs, resampling, endpointing, barge-in
+timing and carrier framing.
 
 **This pass.** Real analytics aggregates with per-language breakdown; report
 runs with downloadable CSV; a campaign dialer that runs every gate; delivered

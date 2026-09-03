@@ -17,10 +17,20 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useLocale } from '@/components/locale-provider';
+import { PORTAL_LOCALES, type TranslationKey } from '@/lib/i18n';
 
 export type PortalNavGroup = {
   label: string;
-  items: { id: string; label: string; icon: LucideIcon; badge?: string }[];
+  /** When present, the label is translated; `label` is the English fallback. */
+  translationKey?: TranslationKey;
+  items: {
+    id: string;
+    label: string;
+    icon: LucideIcon;
+    badge?: string;
+    translationKey?: TranslationKey;
+  }[];
 };
 
 type PortalShellProps = {
@@ -46,6 +56,7 @@ export function PortalShell({
   credits,
   children,
 }: PortalShellProps) {
+  const { locale, setLocale, t } = useLocale();
   const activeItem = groups
     .flatMap((group) => group.items)
     .find((item) => item.id === active);
@@ -101,7 +112,7 @@ export function PortalShell({
           {groups.map((group, groupIndex) => (
             <div key={group.label} className={groupIndex ? 'mt-6' : ''}>
               <p className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-white/28">
-                {group.label}
+                {group.translationKey ? t(group.translationKey) : group.label}
               </p>
               <div className="space-y-1">
                 {group.items.map((item) => (
@@ -118,7 +129,11 @@ export function PortalShell({
                     <item.icon
                       className={`size-3.5 ${active === item.id ? 'text-[#afbcff]' : ''}`}
                     />
-                    <span className="flex-1">{item.label}</span>
+                    <span className="flex-1">
+                      {item.translationKey
+                        ? t(item.translationKey)
+                        : item.label}
+                    </span>
                     {item.badge ? (
                       <span className="rounded-md border border-white/10 bg-white/[0.06] px-1.5 py-0.5 font-mono text-[9px] text-white/65">
                         {item.badge}
@@ -234,6 +249,26 @@ export function PortalShell({
               </div>
             ) : null}
           </div>
+          {/* Interface language is per person, not per workspace: two people in
+              one workspace can want different languages, and the workspace
+              setting already means which languages the AI may speak. */}
+          <label className="hidden items-center gap-1.5 sm:flex">
+            <span className="sr-only">{t('shell.language')}</span>
+            <select
+              aria-label={t('shell.language')}
+              value={locale}
+              onChange={(event) =>
+                setLocale(event.target.value as typeof locale)
+              }
+              className="rounded-lg border border-white/10 bg-white/4 px-2 py-1.5 text-[10px] text-white/65 outline-none focus:border-white/25"
+            >
+              {PORTAL_LOCALES.map((option) => (
+                <option key={option.code} value={option.code}>
+                  {option.nativeLabel}
+                </option>
+              ))}
+            </select>
+          </label>
           <Badge
             variant="outline"
             className="hidden border-emerald-400/15 bg-emerald-400/6 text-[9px] text-emerald-300 sm:inline-flex"
@@ -258,7 +293,7 @@ export function PortalShell({
                   }}
                   className={`whitespace-nowrap rounded-lg px-3 py-2 text-[10px] ${active === item.id ? 'bg-white text-black' : 'text-white/48'}`}
                 >
-                  {item.label}
+                  {item.translationKey ? t(item.translationKey) : item.label}
                 </button>
               ))}
           </div>

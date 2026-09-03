@@ -10,6 +10,22 @@ Legend: **[CODE]** engineering here · **[KEY]** an account or key you supply ·
 
 ## What remains
 
+### 0. What the device/dialer extension still needs
+
+The browser-side pieces that do **not** need a carrier are built: audience
+import, device selection, microphone and speaker tests, connection measurement,
+the readiness gate, and support codes. What remains needs a live call leg:
+
+- **Browser dialer (§2, §9).** The keypad, caller-ID selector and click-to-call
+  are meaningless until a call can actually be placed from the tab, which needs
+  WebRTC to the gateway — the gateway speaks carrier protocols today, not
+  browser WebRTC.
+- **Live call screen controls (§12).** Mute, hold, keypad/DTMF, transfer and
+  conference need that same leg plus a control channel.
+- **WebRTC statistics (§6).** Real codec/bitrate/jitter come from a peer
+  connection; today the diagnostics measure HTTP round trips and say so.
+- **Power and preview dialers (§20).** They sit on top of the browser dialer.
+
 ### 1. [KEY] Live media — built, waiting on a carrier
 
 `services/media-gateway` now holds the audio leg. It terminates the carrier
@@ -117,6 +133,11 @@ recorded, not dropped.
 **Media gateway.** A standalone service holding the carrier socket the worker
 cannot, with 52 assertions covering codecs, resampling, endpointing, barge-in
 timing and carrier framing.
+
+**Agent workstation (device/dialer extension).** CSV/TSV/XLSX audience import
+with a real preview — every row validated, de-duplicated and suppression-checked
+before anything is committed to a campaign — plus device and connection
+diagnostics with a readiness gate that `set_presence` actually enforces.
 
 **This pass.** Real analytics aggregates with per-language breakdown; report
 runs with downloadable CSV; a campaign dialer that runs every gate; delivered

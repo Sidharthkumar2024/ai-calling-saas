@@ -13,6 +13,7 @@ import {
   ContactRound,
   CreditCard,
   Database,
+  Activity,
   Building2,
   Gauge,
   Globe2,
@@ -66,6 +67,7 @@ import {
   type CommerceData,
 } from '@/components/customer-commerce';
 import { CustomerAgentDesk } from '@/components/customer-agent-desk';
+import { CustomerDiagnostics } from '@/components/customer-diagnostics';
 import { CustomerOrgStructure } from '@/components/customer-org-structure';
 import { CustomerApprovals } from '@/components/customer-approvals';
 import { CustomerVoiceProfiles } from '@/components/customer-voice-profiles';
@@ -221,6 +223,12 @@ const groups: PortalNavGroup[] = [
       { id: 'team', label: 'Team', icon: UsersRound , translationKey: 'nav.team' },
       { id: 'org_structure', label: 'Org & routing', icon: Building2 , translationKey: 'nav.org_structure' },
       { id: 'agent_desk', label: 'Agent desk', icon: Headphones , translationKey: 'nav.agent_desk' },
+      {
+        id: 'diagnostics',
+        label: 'Device & diagnostics',
+        icon: Activity,
+        translationKey: 'nav.diagnostics',
+      },
       { id: 'wallboard', label: 'Supervisor wallboard', icon: Gauge , translationKey: 'nav.wallboard' },
       { id: 'approvals', label: 'Approvals & handoff', icon: ShieldAlert , translationKey: 'nav.approvals' },
       { id: 'tickets', label: 'Support tickets', icon: LifeBuoy , translationKey: 'nav.tickets' },
@@ -251,6 +259,7 @@ const navPermissions: Record<string, string> = {
   team: 'team.manage',
   org_structure: 'workspace.manage',
   agent_desk: 'calls.monitor',
+  diagnostics: 'calls.monitor',
   wallboard: 'calls.monitor',
   approvals: 'support.manage',
   tickets: 'support.manage',
@@ -516,6 +525,9 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
         ) : null}
         {!loading && !error && active === 'org_structure' ? (
           <CustomerOrgStructure />
+        ) : null}
+        {!loading && !error && active === 'diagnostics' ? (
+          <CustomerDiagnostics />
         ) : null}
         {!loading && !error && active === 'agent_desk' ? (
           <CustomerAgentDesk view="desk" />

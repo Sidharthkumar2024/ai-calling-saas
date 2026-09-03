@@ -450,6 +450,34 @@ export async function POST(request: Request) {
           { status: 403 },
         );
     }
+    // §19: when the workspace requires a device test, going Available needs a
+    // recent passing one. Without this check the policy would be decorative.
+    if (availability === 'online') {
+      const policy = await db
+        .prepare(`SELECT coalesce(require_device_test, 0) AS required,
+            coalesce(device_test_valid_hours, 12) AS hours
+          FROM organization_settings WHERE organization_id = ? LIMIT 1`)
+        .bind(organizationId)
+        .first<{ required: number; hours: number }>();
+      if (Number(policy?.required ?? 0) && target.user_id) {
+        const hours = Number(policy?.hours ?? 12);
+        const recent = await db
+          .prepare(`SELECT support_code, readiness, created_at FROM device_test_runs
+            WHERE organization_id = ? AND user_id = ? AND readiness != 'blocked'
+              AND created_at >= datetime('now', ?)
+            ORDER BY created_at DESC LIMIT 1`)
+          .bind(organizationId, target.user_id, `-${hours} hours`)
+          .first<{ support_code: string }>();
+        if (!recent)
+          return NextResponse.json(
+            {
+              error: `This workspace requires a passing device test within the last ${hours} hours before going available. Run one in Device & diagnostics.`,
+              requiresDeviceTest: true,
+            },
+            { status: 409 },
+          );
+      }
+    }
     await db
       .prepare(`UPDATE support_agents SET availability = ?,
         presence_changed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP

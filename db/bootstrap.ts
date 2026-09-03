@@ -1124,6 +1124,47 @@ async function bootstrap() {
     db.prepare(
       `CREATE UNIQUE INDEX IF NOT EXISTS idx_provider_webhook_event ON provider_webhook_events (provider, event_id)`,
     ),
+    // Agent workstation diagnostics (§17, §23).
+    db.prepare(`CREATE TABLE IF NOT EXISTS agent_device_preferences (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL,
+      input_device_label TEXT,
+      output_device_label TEXT,
+      input_device_id TEXT,
+      output_device_id TEXT,
+      ringtone_volume INTEGER DEFAULT 70 NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_device_prefs_user ON agent_device_preferences (organization_id, user_id)`,
+    ),
+    db.prepare(`CREATE TABLE IF NOT EXISTS device_test_runs (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL,
+      support_code TEXT NOT NULL,
+      readiness TEXT NOT NULL,
+      quality_score INTEGER,
+      quality_band TEXT,
+      rtt_ms INTEGER,
+      jitter_ms INTEGER,
+      loss_percent REAL,
+      mic_level REAL,
+      microphone_permission TEXT,
+      input_device_label TEXT,
+      output_device_label TEXT,
+      browser TEXT,
+      platform TEXT,
+      warnings_json TEXT DEFAULT '[]' NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_device_tests_user ON device_test_runs (organization_id, user_id, created_at)`,
+    ),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_device_tests_support ON device_test_runs (support_code)`,
+    ),
     // Bulk calling imports (§10). A rejected row keeps its reason so the
     // customer can fix the file rather than guessing what went wrong.
     db.prepare(`CREATE TABLE IF NOT EXISTS import_jobs (
@@ -1467,6 +1508,20 @@ async function bootstrap() {
 
   // Place agents in the org structure.
   await ensureColumn(db, 'support_agents', 'branch_id', 'TEXT');
+  // §19: a workspace may require a passing device test before an agent may go
+  // Available. Off by default — it must be opted into, not sprung on people.
+  await ensureColumn(
+    db,
+    'organization_settings',
+    'require_device_test',
+    'INTEGER DEFAULT 0 NOT NULL',
+  );
+  await ensureColumn(
+    db,
+    'organization_settings',
+    'device_test_valid_hours',
+    'INTEGER DEFAULT 12 NOT NULL',
+  );
   await ensureColumn(db, 'support_agents', 'team_id', 'TEXT');
   await ensureColumn(db, 'support_agents', 'department_id', 'TEXT');
 

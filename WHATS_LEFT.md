@@ -26,10 +26,11 @@ Left, and each for a concrete reason:
 - **[KEY] Power and preview dialers (§20).** The queue logic exists in the
   campaign dialer; placing the outbound call needs a carrier.
 - **[KEY] DTMF keypad (§12).** Only meaningful on a carrier leg.
-- **[CODE] Real WebRTC statistics (§6).** Codec, bitrate and true packet loss
-  come from an RTCPeerConnection. The browser leg streams over a WebSocket,
-  which is simpler and works; the diagnostics measure HTTP round trips and say
-  so rather than inventing call-media numbers.
+- **[KEY] True per-call packet loss.** Loss is a property of the network a
+  call crossed. The dialer now measures its own socket for real — frames each
+  way, pacing, dropouts, round trip — and the WebRTC probe reports the codec,
+  bitrate and whether media can leave the network. What still needs a carrier
+  is loss on a *customer's* leg, because there is no such leg without one.
 
 ### 1. [KEY] Live media — built, waiting on a carrier
 
@@ -55,24 +56,33 @@ Still genuinely missing on this path:
   test against. Accept, reject, transfer-in and wrap-up work today.
 - **Listening to live audio** as a supervisor — same reason.
 
-### 2. [CODE] Localized dashboard — app fully localised
+### 2. Localisation — complete
 
 `lib/i18n.ts` + `components/locale-provider.tsx` hold an English source of
 truth, per-person language choice, a header switcher, placeholder substitution
 so word order belongs to the translation, and **honest coverage reporting**:
 `coverage()` and `missingKeys()` name any gap rather than leaking a raw key.
 
-Hindi is at **359/359 keys**. Everything a signed-in user sees is translated:
-the customer portal (all 30 sections, headings, form and stat labels,
-accessible names, Org &amp; routing and Settings end to end), the admin portal
-(groups, sections and headings), the sign-in screen with its social buttons,
-and the import, dialer, diagnostics, agent-desk, co-pilot and supervisor
-panels.
+Hindi is at **604/604 keys — everything**. The customer portal (all 30
+sections, headings, form and stat labels, accessible names, Org &amp; routing
+and Settings end to end), the admin portal, the sign-in screen with its social
+buttons, the import, dialer, diagnostics, agent-desk, co-pilot and supervisor
+panels, **and now the marketing landing page** — hero, revenue loop,
+capabilities, industry tabs, engine family, pricing, security, closing call to
+action and footer — plus a language switcher in the landing header. A visitor
+whose browser asks for Hindi lands in Hindi.
 
-**Not translated:** the marketing landing page only. That is copywriting rather
-than interface text, and you picked its English wording yourself — say the word
-and it gets a Hindi version. Product nouns Indian users say in English on the
-phone (campaign, credits, CRM, SIP, API) are deliberately left alone.
+Two deliberate exceptions. The **demo conversations** stay exactly as written,
+because they are the thing being demonstrated — Vaani speaking Hindi, Hinglish
+and English — not interface copy. And product nouns Indian users say in English
+on the phone (campaign, credits, CRM, SIP, API) are left alone.
+
+Rendering the Hindi page found a typography bug that reading could not:
+`uppercase` and wide letter-spacing, used on labels throughout the interface,
+are wrong in Devanagari. Uppercase does nothing to the script but shouts the
+English nouns embedded in Hindi labels ("LEAD स्कोर"), and letter-spacing pulls
+apart conjuncts and matras that must stay joined. Both are now neutralised
+document-wide when the interface language is Hindi.
 
 ### 3. [CODE][DECIDED] Multi-currency (§14)
 
@@ -154,6 +164,16 @@ team invitations; a working "Take over"; sign-in providers beyond Google;
 tenant create/suspend/reactivate with platform admin sub-roles; an inbound
 entry point; and an AI co-pilot for human agents.
 
+**Audio-path measurement (§6).** The dialer measures the socket its voice
+actually travels on — frames each way, pacing, dropouts and round trip taken
+over that socket rather than over HTTP — stored per leg in
+`call_transport_stats` and shown on the call. A separate WebRTC probe reports
+the negotiated codec, clock rate and encoder bitrate, and, when
+`RTC_ICE_SERVERS` is set, whether media can leave the network directly, only
+through a relay, or not at all; without it that verdict is "not tested" rather
+than a guess. The pre-call HTTP probe still says it is an HTTP probe. 47
+assertions.
+
 ## Defects found and fixed while testing
 
 These were not visible from reading the code — each needed the thing to be run:
@@ -179,3 +199,12 @@ These were not visible from reading the code — each needed the thing to be run
   `email_resend`.
 - **Reconfiguring an integration returned an id that was never inserted.**
 - `lib/job-queue.ts` and `lib/call-telemetry.ts` formed an import cycle.
+- **A thinking pause was recorded as a network dropout.** A 4.3-second gap
+  while the agent reasoned counted as lost audio and dragged a healthy call
+  from 100 to 82. A gap is only a dropout inside a stretch of speech; past a
+  second the far side simply is not talking, and silence is now reported
+  separately from loss.
+- **A new column was added to `CREATE TABLE` only**, so a database created by
+  the previous build silently lacked it and ending a call returned 500.
+- **Devanagari was being uppercased and letter-spaced** — visible only by
+  rendering the Hindi page, never by reading the code.

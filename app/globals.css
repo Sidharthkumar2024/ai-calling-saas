@@ -429,3 +429,27 @@
     animation: none !important;
   }
 }
+
+/*
+ * Devanagari typography.
+ *
+ * Two styles that read well in English are actively wrong in Hindi, and they
+ * are used all over this interface:
+ *
+ *  - `uppercase` does nothing to Devanagari, which has no capital letters —
+ *    but it still shouts the English product nouns embedded in Hindi labels,
+ *    turning "Lead स्कोर" into "LEAD स्कोर".
+ *  - Letter-spacing pulls apart conjuncts and matras that have to stay joined,
+ *    and the negative tracking used on display headings crowds them instead.
+ *
+ * Neutralised for the whole document when the interface language is Hindi,
+ * rather than at hundreds of call sites. Unlayered so it wins over Tailwind's
+ * utility layer.
+ */
+html[lang='hi'] .uppercase {
+  text-transform: none;
+}
+
+html[lang='hi'] [class*='tracking-'] {
+  letter-spacing: normal;
+}

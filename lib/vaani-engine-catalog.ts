@@ -10,8 +10,8 @@ import {
 
 export type VaaniEngine = {
   name: string;
-  role: string;
-  description: string;
+  /** Catalog key prefix; `.role` and `.description` hold the localised copy. */
+  key: string;
   icon: LucideIcon;
 };
 
@@ -20,46 +20,10 @@ export type VaaniEngine = {
  * belong in server-side operations, never in customer-facing bundles or UI.
  */
 export const VAANI_ENGINES: VaaniEngine[] = [
-  {
-    name: 'Vaani Sara',
-    role: 'Conversation intelligence',
-    description:
-      'Natural multilingual conversations that understand intent, context and business goals.',
-    icon: BrainCircuit,
-  },
-  {
-    name: 'Vaani Pulse',
-    role: 'Realtime voice',
-    description:
-      'Low-latency turn taking, interruption handling and live call orchestration.',
-    icon: Radio,
-  },
-  {
-    name: 'Vaani Sense',
-    role: 'Lead intelligence',
-    description:
-      'Intent, sentiment, qualification, summaries and next-best-action scoring.',
-    icon: Gauge,
-  },
-  {
-    name: 'Vaani Flow',
-    role: 'Revenue automation',
-    description:
-      'Campaigns, callbacks, appointments, CRM updates and post-call actions.',
-    icon: Workflow,
-  },
-  {
-    name: 'Vaani Reach',
-    role: 'Audience recovery',
-    description:
-      'Consent-aware Meta and Google retargeting loops built from real call outcomes.',
-    icon: Repeat2,
-  },
-  {
-    name: 'Vaani Connect',
-    role: 'Calling network',
-    description:
-      'Numbers, inbound routing, outbound delivery and network health in one layer.',
-    icon: PhoneCall,
-  },
+  { name: 'Vaani Sara', key: 'engine.sara', icon: BrainCircuit },
+  { name: 'Vaani Pulse', key: 'engine.pulse', icon: Radio },
+  { name: 'Vaani Sense', key: 'engine.sense', icon: Gauge },
+  { name: 'Vaani Flow', key: 'engine.flow', icon: Workflow },
+  { name: 'Vaani Reach', key: 'engine.reach', icon: Repeat2 },
+  { name: 'Vaani Connect', key: 'engine.connect', icon: PhoneCall },
 ];

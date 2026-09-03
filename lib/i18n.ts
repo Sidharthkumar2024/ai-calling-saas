@@ -450,6 +450,292 @@ const en = {
   'action.connect': 'Connect',
   'action.disconnect': 'Disconnect',
   'action.test': 'Test',
+
+  // Marketing landing page. Copywriting rather than interface text, so the
+  // Hindi here is written to be read aloud, not transliterated.
+  'landing.banner.new': 'New',
+  'landing.banner.text':
+    'Meta, Google and website leads now enter one call-to-revenue loop.',
+  'landing.tagline': 'Revenue voice OS',
+  'landing.nav.product': 'Product',
+  'landing.nav.workflow': 'How it works',
+  'landing.nav.demos': 'Live demos',
+  'landing.nav.solutions': 'Solutions',
+  'landing.nav.engines': 'Vaani engines',
+  'landing.nav.pricing': 'Pricing',
+  'landing.nav.security': 'Security',
+  'landing.nav.apiDocs': 'API docs',
+  'landing.nav.aria': 'Landing navigation',
+  'landing.home.aria': 'Vaani home',
+  'landing.openPlatform': 'Open platform',
+
+  'landing.hero.badge': 'AI calling for sales, support and operations',
+  'landing.hero.line1': 'A human-like conversation on every lead.',
+  'landing.hero.line2': 'Every conversation into',
+  'landing.hero.line2Accent': 'bookings and revenue.',
+  'landing.hero.sub':
+    'The moment a lead arrives from Meta Ads, Google Ads, a website form or your CRM, Vaani reads buyer intent, talks in the right language, then finishes the booking, the payment link or the human follow-up.',
+  'landing.hero.cta': 'See Vaani in action',
+  'landing.hero.secondary': 'Explore the workflow',
+  'landing.hero.check1': 'Realtime WebRTC voice',
+  'landing.hero.check2': 'Consent & DNC controls',
+  'landing.hero.check3': 'Admin + customer roles',
+  'landing.hero.stat1': 'industry playbooks',
+  'landing.hero.stat2': 'regional voices',
+  'landing.hero.stat3': 'lead-to-revenue timeline',
+
+  'landing.demo.live': 'Live',
+  'landing.demo.context': 'NCR buyer qualification',
+  'landing.demo.connected': 'Connected',
+  'landing.demo.source': 'Meta Lead Ad · New enquiry',
+  'landing.demo.highIntent': 'High intent',
+  'landing.demo.voiceAria': 'Live voice activity',
+  'landing.demo.leadScore': 'Lead score',
+  'landing.demo.intent': 'Intent',
+  'landing.demo.intentValue': 'Site visit',
+  'landing.demo.budget': 'Budget',
+  'landing.demo.language': 'Language',
+  'landing.demo.sentiment': 'Sentiment',
+  'landing.demo.sentimentValue': 'Positive',
+  'landing.demo.appointmentReady': 'Appointment ready',
+  'landing.demo.appointmentWhen': 'Saturday · 11:30 AM',
+  'landing.demo.crmOwner': 'CRM owner: Neha',
+  'landing.demo.turnTaking': 'Realtime turn-taking',
+  'landing.demo.duplex': 'Full-duplex audio · interruption ready',
+  'landing.demo.codeSwitch': 'Hindi + English code-switching',
+
+  'landing.sources.forms': 'Website forms',
+  'landing.sources.apis': 'API & webhooks',
+
+  'landing.loop.eyebrow': 'From click to close',
+  'landing.loop.title': 'One continuous revenue loop.',
+  'landing.loop.sub':
+    'Vaani does not stop at making a call. It connects acquisition, conversation, CRM action and retargeting so every lead keeps moving.',
+  'landing.loop.1.title': 'Capture every lead',
+  'landing.loop.1.description':
+    'Meta Lead Ads, Google Ads, website forms and CRM events enter one consent-aware lead inbox.',
+  'landing.loop.2.title': 'Understand the buyer',
+  'landing.loop.2.description':
+    'Vaani Sense enriches source, intent, language, product interest, urgency and lead quality.',
+  'landing.loop.3.title': 'Call at the right moment',
+  'landing.loop.3.description':
+    'Vaani Sara speaks naturally, answers questions, handles objections and knows when to transfer.',
+  'landing.loop.4.title': 'Move revenue forward',
+  'landing.loop.4.description':
+    'Book an appointment, update CRM, send WhatsApp and keep non-converters in a retargeting loop.',
+
+  'landing.product.eyebrow': 'Complete operating system',
+  'landing.product.title': 'Everything around the conversation.',
+  'landing.product.sub':
+    'A focused customer workspace and a powerful platform admin — without raw infrastructure leaking into the product.',
+  'landing.cap.studio.title': 'AI agent studio',
+  'landing.cap.studio.description':
+    'Set goals, languages, guardrails, qualification logic and human-transfer rules.',
+  'landing.cap.studio.meta': 'Build',
+  'landing.cap.leads.title': 'Lead command center',
+  'landing.cap.leads.description':
+    'One pipeline for ad leads, forms, CRM records, duplicates, consent and ownership.',
+  'landing.cap.leads.meta': 'Capture',
+  'landing.cap.live.title': 'Live call operations',
+  'landing.cap.live.description':
+    'Monitor conversations, latency, intent, sentiment and transfer readiness in real time.',
+  'landing.cap.live.meta': 'Operate',
+  'landing.cap.campaigns.title': 'Campaign automation',
+  'landing.cap.campaigns.description':
+    'Schedules, pacing, retries, suppression, callbacks and outcome-based follow-ups.',
+  'landing.cap.campaigns.meta': 'Scale',
+  'landing.cap.knowledge.title': 'Knowledge grounding',
+  'landing.cap.knowledge.description':
+    'Give agents approved websites, PDFs, pricing, product data and objection answers.',
+  'landing.cap.knowledge.meta': 'Trust',
+  'landing.cap.crm.title': 'CRM & appointments',
+  'landing.cap.crm.description':
+    'Update stages, create tasks, book slots and hand hot leads to the right salesperson.',
+  'landing.cap.crm.meta': 'Convert',
+  'landing.cap.whatsapp.title': 'WhatsApp follow-through',
+  'landing.cap.whatsapp.description':
+    'Send brochures, confirmations and approved templates from the same customer timeline.',
+  'landing.cap.whatsapp.meta': 'Follow up',
+  'landing.cap.retargeting.title': 'Audience retargeting',
+  'landing.cap.retargeting.description':
+    'Build consent-aware Meta and Google audiences from qualified call outcomes.',
+  'landing.cap.retargeting.meta': 'Recover',
+
+  'landing.solutions.eyebrow': 'Built for outcomes',
+  'landing.solutions.title': 'One platform. Different revenue plays.',
+  'landing.solutions.aria': 'Industry solutions',
+  'landing.solutions.liveOutcome': 'Live outcome',
+  'landing.solutions.step1': 'Lead understood',
+  'landing.solutions.step2': 'Call completed',
+  'landing.solutions.step3': 'CRM updated',
+  'landing.solutions.step4': 'Next action queued',
+  'landing.industry.realEstate': 'Real estate',
+  'landing.industry.realEstate.eyebrow': 'Real estate revenue desk',
+  'landing.industry.realEstate.title':
+    'Qualify enquiries and book site visits while intent is still fresh.',
+  'landing.industry.realEstate.point1':
+    'Ask budget, location, timeline and financing questions',
+  'landing.industry.realEstate.point2':
+    'Share project details and handle common objections',
+  'landing.industry.realEstate.point3':
+    'Book site visits and route high-intent buyers to sales',
+  'landing.industry.realEstate.outcome':
+    '41 site visits from one active campaign',
+  'landing.industry.healthcare': 'Healthcare',
+  'landing.industry.healthcare.eyebrow': 'Patient access',
+  'landing.industry.healthcare.title':
+    'Answer routine questions and fill appointment calendars, 24/7.',
+  'landing.industry.healthcare.point1':
+    'Handle inbound enquiries in the caller’s language',
+  'landing.industry.healthcare.point2':
+    'Confirm availability and create appointment requests',
+  'landing.industry.healthcare.point3':
+    'Escalate urgent or sensitive conversations to staff',
+  'landing.industry.healthcare.outcome':
+    'Faster response without adding front-desk load',
+  'landing.industry.education': 'Education',
+  'landing.industry.education.eyebrow': 'Admissions automation',
+  'landing.industry.education.title':
+    'Follow up with applicants and keep counsellors focused on serious students.',
+  'landing.industry.education.point1':
+    'Explain programmes, eligibility and application steps',
+  'landing.industry.education.point2':
+    'Score intent and schedule counsellor callbacks',
+  'landing.industry.education.point3':
+    'Retarget undecided applicants with the right message',
+  'landing.industry.education.outcome':
+    'One conversation history across call, CRM and WhatsApp',
+  'landing.industry.commerce': 'Commerce',
+  'landing.industry.commerce.eyebrow': 'D2C and services',
+  'landing.industry.commerce.title':
+    'Recover demand, confirm orders and create repeatable sales motions.',
+  'landing.industry.commerce.point1': 'Qualify high-value product enquiries',
+  'landing.industry.commerce.point2':
+    'Recover abandoned or missed opportunities',
+  'landing.industry.commerce.point3':
+    'Trigger offers and retargeting from real customer intent',
+  'landing.industry.commerce.outcome':
+    'Every outcome becomes an automated next action',
+
+  'landing.engines.eyebrow': 'The Vaani engine family',
+  'landing.engines.title': 'One brand across the entire voice stack.',
+  'landing.engines.sub':
+    'Customers work with Vaani’s product capabilities — not a maze of infrastructure vendors, model IDs or provider credentials.',
+
+  'landing.pricing.eyebrow': 'Simple launch plans',
+  'landing.pricing.title': 'Start free. Add capacity when calls grow.',
+  'landing.pricing.sub':
+    'A subscription defines product capacity; credits cover calling and AI usage. Top up anytime and download a tax invoice for every purchase.',
+  'landing.pricing.recommended': 'Recommended',
+  'landing.pricing.perMonth': '/ month',
+  'landing.pricing.startFree': 'Start free',
+  'landing.pricing.choose': 'Choose {plan}',
+  'landing.plan.free': 'Free',
+  'landing.plan.free.note': 'Validate your first workflow',
+  'landing.plan.free.f1': '100 trial credits',
+  'landing.plan.free.f2': '1 AI agent',
+  'landing.plan.free.f3': 'CRM lite',
+  'landing.plan.free.f4': 'API sandbox',
+  'landing.plan.growth': 'Growth',
+  'landing.plan.growth.note': 'For active sales and support teams',
+  'landing.plan.growth.f1': '10,000 monthly credits',
+  'landing.plan.growth.f2': '5 AI agents',
+  'landing.plan.growth.f3': 'Advanced CRM',
+  'landing.plan.growth.f4': 'API, webhooks & retargeting',
+  'landing.plan.scale': 'Scale',
+  'landing.plan.scale.note': 'For multi-team call operations',
+  'landing.plan.scale.f1': '50,000 monthly credits',
+  'landing.plan.scale.f2': '20 AI agents',
+  'landing.plan.scale.f3': 'Priority routing',
+  'landing.plan.scale.f4': 'SLA and advanced controls',
+
+  'landing.security.badge': 'Built for responsible calling',
+  'landing.security.title': 'Strong controls for teams that call at scale.',
+  'landing.security.sub':
+    'Tenant isolation, role-based access, consent evidence, DNC suppression, audit trails and human escalation are part of the operating model — not afterthoughts.',
+  'landing.security.isolation.title': 'Tenant isolation',
+  'landing.security.isolation.description':
+    'Every company’s leads, knowledge and calls stay separated.',
+  'landing.security.roles.title': 'Role-based access',
+  'landing.security.roles.description':
+    'Customer, agent and platform-admin permissions stay distinct.',
+  'landing.security.consent.title': 'Consent evidence',
+  'landing.security.consent.description':
+    'Source, timestamp and calling permission travel with each lead.',
+  'landing.security.audit.title': 'Auditable automation',
+  'landing.security.audit.description':
+    'Every workflow run and external delivery has a traceable status.',
+
+  'landing.cta.eyebrow': 'Your next lead is already waiting',
+  'landing.cta.title': 'Give every enquiry a real conversation.',
+  'landing.cta.sub':
+    'Open the product workspace to explore customer and admin panels, CRM, lead capture, calling and retargeting.',
+  'landing.cta.button': 'Open Vaani platform',
+
+  'landing.footer.tagline': 'AI calling operations',
+  'landing.footer.createAccount': 'Create free account',
+  'landing.footer.customerLogin': 'Customer login',
+  'landing.footer.adminLogin': 'Admin login',
+  'landing.footer.indiaReady': 'India-ready',
+  'landing.footer.multilingual': 'Multilingual',
+  'landing.footer.mobile': 'Phase 2: Android & iOS',
+
+  'engine.sara.role': 'Conversation intelligence',
+  'engine.sara.description':
+    'Natural multilingual conversations that understand intent, context and business goals.',
+  'engine.pulse.role': 'Realtime voice',
+  'engine.pulse.description':
+    'Low-latency turn taking, interruption handling and live call orchestration.',
+  'engine.sense.role': 'Lead intelligence',
+  'engine.sense.description':
+    'Intent, sentiment, qualification, summaries and next-best-action scoring.',
+  'engine.flow.role': 'Revenue automation',
+  'engine.flow.description':
+    'Campaigns, callbacks, appointments, CRM updates and post-call actions.',
+  'engine.reach.role': 'Audience recovery',
+  'engine.reach.description':
+    'Consent-aware Meta and Google retargeting loops built from real call outcomes.',
+  'engine.connect.role': 'Calling network',
+  'engine.connect.description':
+    'Numbers, inbound routing, outbound delivery and network health in one layer.',
+  'showcase.sandboxLive': 'Sandbox live',
+  'showcase.voiceAria': 'Agent voice activity',
+  'showcase.playground': 'browser playground',
+  'showcase.noCall': 'No phone call',
+  'showcase.creditsPerTurn': '10 credits / turn',
+  'showcase.actionsPreviewed': 'Actions previewed',
+  'showcase.previewEyebrow': 'Live response preview',
+  'showcase.previewTitle': 'Hear how Vaani understands, responds and acts.',
+  'showcase.customer': 'Customer',
+  'showcase.response': 'Vaani response',
+  'showcase.preview': 'preview',
+  'showcase.testMode':
+    'Real payments stay in test mode until you connect Razorpay',
+  'showcase.tryYourOwn': 'Try your own agent',
+  'showcase.eyebrow': 'Agents that finish the job',
+  'showcase.title': 'Test the conversation before calling anyone.',
+  'showcase.sub':
+    'New accounts receive 100 trial credits. Use text or browser voice to check tone, language, interruptions and tool decisions — without placing a phone call.',
+  'showcase.tab.sales': 'Product sales',
+  'showcase.tab.qualification': 'Lead qualification',
+  'showcase.tab.reception': 'Receptionist',
+  'showcase.tab.appointments': 'Appointments',
+  'showcase.tab.support': 'Support',
+  'showcase.sales.action1': 'Product details approved',
+  'showcase.sales.action2': 'WhatsApp confirmation required',
+  'showcase.sales.action3': 'Payment action waits for consent',
+  'showcase.qualification.action1': 'Lead score 92/100',
+  'showcase.qualification.action2': '2 matching products',
+  'showcase.qualification.action3': 'Site-visit tool ready',
+  'showcase.reception.action1': 'Department detected',
+  'showcase.reception.action2': 'Callback task created',
+  'showcase.reception.action3': 'Confirmation preview ready',
+  'showcase.appointments.action1': 'Calendar checked',
+  'showcase.appointments.action2': '2 available slots',
+  'showcase.appointments.action3': 'Awaiting confirmation',
+  'showcase.support.action1': 'Order lookup preview',
+  'showcase.support.action2': 'Delay detected',
+  'showcase.support.action3': 'Escalation rule ready',
 } as const;
 
 export type TranslationKey = keyof typeof en;
@@ -875,6 +1161,292 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'action.connect': 'कनेक्ट करें',
   'action.disconnect': 'डिस्कनेक्ट करें',
   'action.test': 'जाँचें',
+
+  // Landing page. Written to be read aloud, not transliterated.
+  'landing.banner.new': 'नया',
+  'landing.banner.text':
+    'Meta, Google और वेबसाइट के leads अब एक ही call-to-revenue loop में आते हैं।',
+  'landing.tagline': 'Revenue voice OS',
+  'landing.nav.product': 'प्रोडक्ट',
+  'landing.nav.workflow': 'कैसे काम करता है',
+  'landing.nav.demos': 'लाइव डेमो',
+  'landing.nav.solutions': 'समाधान',
+  'landing.nav.engines': 'Vaani इंजन',
+  'landing.nav.pricing': 'कीमत',
+  'landing.nav.security': 'सुरक्षा',
+  'landing.nav.apiDocs': 'API डॉक्स',
+  'landing.nav.aria': 'लैंडिंग नेविगेशन',
+  'landing.home.aria': 'Vaani होम',
+  'landing.openPlatform': 'प्लेटफ़ॉर्म खोलें',
+
+  'landing.hero.badge': 'सेल्स, सपोर्ट और ऑपरेशन्स के लिए AI कॉलिंग',
+  'landing.hero.line1': 'हर Lead पर इंसान जैसी बातचीत.',
+  'landing.hero.line2': 'हर बातचीत से',
+  'landing.hero.line2Accent': 'booking और revenue.',
+  'landing.hero.sub':
+    'Meta Ads, Google Ads, वेबसाइट फ़ॉर्म और CRM से lead आते ही Vaani buyer intent समझता है, सही भाषा में बात करता है, फिर booking, payment link या human follow-up पूरा करता है।',
+  'landing.hero.cta': 'Vaani को चलते देखिए',
+  'landing.hero.secondary': 'पूरा तरीक़ा देखिए',
+  'landing.hero.check1': 'रियलटाइम WebRTC आवाज़',
+  'landing.hero.check2': 'सहमति और DNC नियंत्रण',
+  'landing.hero.check3': 'एडमिन + ग्राहक भूमिकाएँ',
+  'landing.hero.stat1': 'इंडस्ट्री प्लेबुक',
+  'landing.hero.stat2': 'क्षेत्रीय आवाज़ें',
+  'landing.hero.stat3': 'lead से revenue तक एक टाइमलाइन',
+
+  'landing.demo.live': 'लाइव',
+  'landing.demo.context': 'NCR ख़रीदार की जाँच',
+  'landing.demo.connected': 'जुड़ा हुआ',
+  'landing.demo.source': 'Meta Lead Ad · नई पूछताछ',
+  'landing.demo.highIntent': 'तेज़ इरादा',
+  'landing.demo.voiceAria': 'लाइव आवाज़ की हलचल',
+  'landing.demo.leadScore': 'Lead स्कोर',
+  'landing.demo.intent': 'इरादा',
+  'landing.demo.intentValue': 'साइट विज़िट',
+  'landing.demo.budget': 'बजट',
+  'landing.demo.language': 'भाषा',
+  'landing.demo.sentiment': 'भाव',
+  'landing.demo.sentimentValue': 'सकारात्मक',
+  'landing.demo.appointmentReady': 'अपॉइंटमेंट तैयार',
+  'landing.demo.appointmentWhen': 'शनिवार · 11:30 AM',
+  'landing.demo.crmOwner': 'CRM ओनर: नेहा',
+  'landing.demo.turnTaking': 'रियलटाइम बारी-बदली',
+  'landing.demo.duplex': 'फ़ुल-डुप्लेक्स ऑडियो · बीच में टोकना मुमकिन',
+  'landing.demo.codeSwitch': 'हिन्दी + English एक ही बातचीत में',
+
+  'landing.sources.forms': 'वेबसाइट फ़ॉर्म',
+  'landing.sources.apis': 'API और webhooks',
+
+  'landing.loop.eyebrow': 'क्लिक से क्लोज़ तक',
+  'landing.loop.title': 'एक ही न रुकने वाला revenue loop.',
+  'landing.loop.sub':
+    'Vaani कॉल करके रुक नहीं जाता। यह विज्ञापन, बातचीत, CRM की कार्रवाई और retargeting को जोड़ता है, ताकि कोई lead बीच में न अटके।',
+  'landing.loop.1.title': 'हर lead पकड़िए',
+  'landing.loop.1.description':
+    'Meta Lead Ads, Google Ads, वेबसाइट फ़ॉर्म और CRM की घटनाएँ — सब एक ही सहमति-सजग lead inbox में।',
+  'landing.loop.2.title': 'ख़रीदार को समझिए',
+  'landing.loop.2.description':
+    'Vaani Sense स्रोत, इरादा, भाषा, किस चीज़ में दिलचस्पी, जल्दी कितनी है और lead की क्वालिटी जोड़ देता है।',
+  'landing.loop.3.title': 'सही वक़्त पर कॉल',
+  'landing.loop.3.description':
+    'Vaani Sara सहज बात करती है, सवालों के जवाब देती है, आपत्तियाँ सँभालती है और जानती है कब इंसान को देना है।',
+  'landing.loop.4.title': 'Revenue आगे बढ़ाइए',
+  'landing.loop.4.description':
+    'अपॉइंटमेंट बुक कीजिए, CRM अपडेट कीजिए, WhatsApp भेजिए, और जो न बदले उन्हें retargeting loop में रखिए।',
+
+  'landing.product.eyebrow': 'पूरा ऑपरेटिंग सिस्टम',
+  'landing.product.title': 'बातचीत के आसपास का सब कुछ.',
+  'landing.product.sub':
+    'ग्राहक के लिए एक साफ़ वर्कस्पेस और प्लेटफ़ॉर्म एडमिन के लिए पूरी ताक़त — बिना कच्चे इंफ़्रास्ट्रक्चर को प्रोडक्ट में घुसाए।',
+  'landing.cap.studio.title': 'AI एजेंट स्टूडियो',
+  'landing.cap.studio.description':
+    'लक्ष्य, भाषाएँ, guardrails, qualification का तर्क और इंसान को ट्रांसफ़र करने के नियम तय कीजिए।',
+  'landing.cap.studio.meta': 'बनाइए',
+  'landing.cap.leads.title': 'Lead कमांड सेंटर',
+  'landing.cap.leads.description':
+    'विज्ञापन के leads, फ़ॉर्म, CRM रिकॉर्ड, डुप्लिकेट, सहमति और मालिकाना — सब एक pipeline में।',
+  'landing.cap.leads.meta': 'पकड़िए',
+  'landing.cap.live.title': 'लाइव कॉल ऑपरेशन्स',
+  'landing.cap.live.description':
+    'बातचीत, latency, इरादा, भाव और ट्रांसफ़र की तैयारी — सब रियल टाइम में देखिए।',
+  'landing.cap.live.meta': 'चलाइए',
+  'landing.cap.campaigns.title': 'Campaign ऑटोमेशन',
+  'landing.cap.campaigns.description':
+    'शेड्यूल, रफ़्तार, दोबारा कोशिश, suppression, callback और नतीजे के हिसाब से follow-up।',
+  'landing.cap.campaigns.meta': 'बढ़ाइए',
+  'landing.cap.knowledge.title': 'जानकारी की बुनियाद',
+  'landing.cap.knowledge.description':
+    'एजेंट को मंज़ूर वेबसाइट, PDF, कीमत, प्रोडक्ट डेटा और आपत्तियों के जवाब दीजिए।',
+  'landing.cap.knowledge.meta': 'भरोसा',
+  'landing.cap.crm.title': 'CRM और अपॉइंटमेंट',
+  'landing.cap.crm.description':
+    'स्टेज बदलिए, टास्क बनाइए, स्लॉट बुक कीजिए और गरम leads सही सेल्सपर्सन को दीजिए।',
+  'landing.cap.crm.meta': 'बदलिए',
+  'landing.cap.whatsapp.title': 'WhatsApp पर आगे की बात',
+  'landing.cap.whatsapp.description':
+    'ब्रोशर, पुष्टि और मंज़ूर टेम्पलेट उसी ग्राहक की टाइमलाइन से भेजिए।',
+  'landing.cap.whatsapp.meta': 'फ़ॉलो-अप',
+  'landing.cap.retargeting.title': 'ऑडियंस retargeting',
+  'landing.cap.retargeting.description':
+    'कॉल के नतीजों से सहमति-सजग Meta और Google ऑडियंस बनाइए।',
+  'landing.cap.retargeting.meta': 'वापस लाइए',
+
+  'landing.solutions.eyebrow': 'नतीजों के लिए बना',
+  'landing.solutions.title': 'एक प्लेटफ़ॉर्म. अलग-अलग revenue खेल.',
+  'landing.solutions.aria': 'इंडस्ट्री समाधान',
+  'landing.solutions.liveOutcome': 'लाइव नतीजा',
+  'landing.solutions.step1': 'Lead समझ लिया',
+  'landing.solutions.step2': 'कॉल पूरी हुई',
+  'landing.solutions.step3': 'CRM अपडेट हुआ',
+  'landing.solutions.step4': 'अगला कदम क़तार में',
+  'landing.industry.realEstate': 'रियल एस्टेट',
+  'landing.industry.realEstate.eyebrow': 'रियल एस्टेट revenue डेस्क',
+  'landing.industry.realEstate.title':
+    'पूछताछ की जाँच कीजिए और साइट विज़िट तब बुक कीजिए जब दिलचस्पी ताज़ी है।',
+  'landing.industry.realEstate.point1':
+    'बजट, इलाक़ा, कब तक चाहिए और फ़ाइनेंसिंग के सवाल पूछिए',
+  'landing.industry.realEstate.point2':
+    'प्रोजेक्ट की जानकारी दीजिए और आम आपत्तियाँ सँभालिए',
+  'landing.industry.realEstate.point3':
+    'साइट विज़िट बुक कीजिए और गंभीर ख़रीदारों को सेल्स तक भेजिए',
+  'landing.industry.realEstate.outcome':
+    'एक चालू campaign से 41 साइट विज़िट',
+  'landing.industry.healthcare': 'स्वास्थ्य सेवा',
+  'landing.industry.healthcare.eyebrow': 'मरीज़ की पहुँच',
+  'landing.industry.healthcare.title':
+    'रोज़मर्रा के सवालों के जवाब दीजिए और अपॉइंटमेंट कैलेंडर भरिए — चौबीसों घंटे।',
+  'landing.industry.healthcare.point1':
+    'आने वाली पूछताछ कॉल करने वाले की भाषा में सँभालिए',
+  'landing.industry.healthcare.point2':
+    'उपलब्धता की पुष्टि कीजिए और अपॉइंटमेंट का अनुरोध बनाइए',
+  'landing.industry.healthcare.point3':
+    'ज़रूरी या नाज़ुक बातचीत स्टाफ़ को सौंपिए',
+  'landing.industry.healthcare.outcome':
+    'फ़्रंट डेस्क का बोझ बढ़ाए बिना तेज़ जवाब',
+  'landing.industry.education': 'शिक्षा',
+  'landing.industry.education.eyebrow': 'दाख़िले का ऑटोमेशन',
+  'landing.industry.education.title':
+    'आवेदकों से फ़ॉलो-अप कीजिए और काउंसलर का वक़्त गंभीर छात्रों पर लगाइए।',
+  'landing.industry.education.point1':
+    'कोर्स, योग्यता और आवेदन के कदम समझाइए',
+  'landing.industry.education.point2':
+    'इरादा आँकिए और काउंसलर का callback तय कीजिए',
+  'landing.industry.education.point3':
+    'जो तय नहीं कर पाए, उन्हें सही संदेश के साथ फिर छेड़िए',
+  'landing.industry.education.outcome':
+    'कॉल, CRM और WhatsApp — बातचीत का एक ही इतिहास',
+  'landing.industry.commerce': 'कॉमर्स',
+  'landing.industry.commerce.eyebrow': 'D2C और सेवाएँ',
+  'landing.industry.commerce.title':
+    'छूटी मांग वापस लाइए, ऑर्डर पक्के कीजिए और दोहराने लायक़ सेल्स तरीक़ा बनाइए।',
+  'landing.industry.commerce.point1':
+    'बड़ी कीमत वाले प्रोडक्ट की पूछताछ जाँचिए',
+  'landing.industry.commerce.point2':
+    'अधूरे छोड़े या छूट गए मौक़े वापस लाइए',
+  'landing.industry.commerce.point3':
+    'ग्राहक के असली इरादे से ऑफ़र और retargeting चलाइए',
+  'landing.industry.commerce.outcome':
+    'हर नतीजा अपने आप अगला कदम बन जाता है',
+
+  'landing.engines.eyebrow': 'Vaani इंजन परिवार',
+  'landing.engines.title': 'पूरे voice stack पर एक ही ब्रांड.',
+  'landing.engines.sub':
+    'ग्राहक Vaani की प्रोडक्ट क्षमताओं के साथ काम करते हैं — इंफ़्रास्ट्रक्चर वेंडर, मॉडल ID और provider credentials की भूलभुलैया के साथ नहीं।',
+
+  'landing.pricing.eyebrow': 'आसान शुरुआती प्लान',
+  'landing.pricing.title': 'मुफ़्त शुरू कीजिए. कॉल बढ़ें तो क्षमता बढ़ाइए.',
+  'landing.pricing.sub':
+    'सब्सक्रिप्शन प्रोडक्ट की क्षमता तय करता है; credits कॉलिंग और AI के इस्तेमाल के लिए हैं। जब चाहें टॉप-अप कीजिए और हर ख़रीद का टैक्स इनवॉइस डाउनलोड कीजिए।',
+  'landing.pricing.recommended': 'सुझाया गया',
+  'landing.pricing.perMonth': '/ महीना',
+  'landing.pricing.startFree': 'मुफ़्त शुरू कीजिए',
+  'landing.pricing.choose': '{plan} चुनिए',
+  'landing.plan.free': 'फ़्री',
+  'landing.plan.free.note': 'अपना पहला workflow जाँचिए',
+  'landing.plan.free.f1': '100 ट्रायल credits',
+  'landing.plan.free.f2': '1 AI एजेंट',
+  'landing.plan.free.f3': 'CRM लाइट',
+  'landing.plan.free.f4': 'API सैंडबॉक्स',
+  'landing.plan.growth': 'ग्रोथ',
+  'landing.plan.growth.note': 'चालू सेल्स और सपोर्ट टीमों के लिए',
+  'landing.plan.growth.f1': 'हर महीने 10,000 credits',
+  'landing.plan.growth.f2': '5 AI एजेंट',
+  'landing.plan.growth.f3': 'एडवांस्ड CRM',
+  'landing.plan.growth.f4': 'API, webhooks और retargeting',
+  'landing.plan.scale': 'स्केल',
+  'landing.plan.scale.note': 'कई टीमों के कॉल ऑपरेशन के लिए',
+  'landing.plan.scale.f1': 'हर महीने 50,000 credits',
+  'landing.plan.scale.f2': '20 AI एजेंट',
+  'landing.plan.scale.f3': 'प्राथमिकता वाली routing',
+  'landing.plan.scale.f4': 'SLA और एडवांस्ड नियंत्रण',
+
+  'landing.security.badge': 'ज़िम्मेदार कॉलिंग के लिए बना',
+  'landing.security.title': 'बड़े पैमाने पर कॉल करने वाली टीमों के लिए मज़बूत नियंत्रण.',
+  'landing.security.sub':
+    'टेनेंट अलगाव, भूमिका के हिसाब से पहुँच, सहमति का सबूत, DNC suppression, ऑडिट ट्रेल और इंसान तक escalation — ये ऑपरेटिंग मॉडल का हिस्सा हैं, बाद में जोड़ी गई चीज़ें नहीं।',
+  'landing.security.isolation.title': 'टेनेंट अलगाव',
+  'landing.security.isolation.description':
+    'हर कंपनी के leads, जानकारी और कॉल अलग-अलग रहते हैं।',
+  'landing.security.roles.title': 'भूमिका के हिसाब से पहुँच',
+  'landing.security.roles.description':
+    'ग्राहक, एजेंट और प्लेटफ़ॉर्म-एडमिन की अनुमतियाँ अलग रहती हैं।',
+  'landing.security.consent.title': 'सहमति का सबूत',
+  'landing.security.consent.description':
+    'स्रोत, समय और कॉल करने की अनुमति हर lead के साथ चलती है।',
+  'landing.security.audit.title': 'जाँचने लायक़ ऑटोमेशन',
+  'landing.security.audit.description':
+    'हर workflow रन और बाहर भेजी गई चीज़ की स्थिति ट्रैक की जा सकती है।',
+
+  'landing.cta.eyebrow': 'आपका अगला lead पहले से इंतज़ार में है',
+  'landing.cta.title': 'हर पूछताछ को एक असली बातचीत दीजिए.',
+  'landing.cta.sub':
+    'प्रोडक्ट वर्कस्पेस खोलिए और ग्राहक व एडमिन पैनल, CRM, lead capture, कॉलिंग और retargeting देखिए।',
+  'landing.cta.button': 'Vaani प्लेटफ़ॉर्म खोलें',
+
+  'landing.footer.tagline': 'AI कॉलिंग ऑपरेशन्स',
+  'landing.footer.createAccount': 'मुफ़्त खाता बनाइए',
+  'landing.footer.customerLogin': 'ग्राहक लॉगिन',
+  'landing.footer.adminLogin': 'एडमिन लॉगिन',
+  'landing.footer.indiaReady': 'भारत के लिए तैयार',
+  'landing.footer.multilingual': 'बहुभाषी',
+  'landing.footer.mobile': 'फ़ेज़ 2: Android और iOS',
+
+  'engine.sara.role': 'बातचीत की समझ',
+  'engine.sara.description':
+    'सहज बहुभाषी बातचीत, जो इरादा, संदर्भ और कारोबारी लक्ष्य समझती है।',
+  'engine.pulse.role': 'रियलटाइम आवाज़',
+  'engine.pulse.description':
+    'कम latency में बारी बदलना, बीच में टोकना सँभालना और लाइव कॉल चलाना।',
+  'engine.sense.role': 'Lead की समझ',
+  'engine.sense.description':
+    'इरादा, भाव, qualification, सारांश और अगला सबसे अच्छा कदम आँकना।',
+  'engine.flow.role': 'Revenue ऑटोमेशन',
+  'engine.flow.description':
+    'Campaign, callback, अपॉइंटमेंट, CRM अपडेट और कॉल के बाद की कार्रवाई।',
+  'engine.reach.role': 'ऑडियंस वापसी',
+  'engine.reach.description':
+    'असली कॉल नतीजों से बने सहमति-सजग Meta और Google retargeting loops।',
+  'engine.connect.role': 'कॉलिंग नेटवर्क',
+  'engine.connect.description':
+    'नंबर, आने वाली routing, बाहर जाने वाली डिलीवरी और नेटवर्क की सेहत — एक ही परत में।',
+  'showcase.sandboxLive': 'सैंडबॉक्स लाइव',
+  'showcase.voiceAria': 'एजेंट की आवाज़ की हलचल',
+  'showcase.playground': 'ब्राउज़र प्लेग्राउंड',
+  'showcase.noCall': 'कोई फ़ोन कॉल नहीं',
+  'showcase.creditsPerTurn': 'हर बारी 10 credits',
+  'showcase.actionsPreviewed': 'कार्रवाई पहले दिखती है',
+  'showcase.previewEyebrow': 'लाइव जवाब का प्रीव्यू',
+  'showcase.previewTitle': 'सुनिए कि Vaani कैसे समझता, जवाब देता और काम करता है.',
+  'showcase.customer': 'ग्राहक',
+  'showcase.response': 'Vaani का जवाब',
+  'showcase.preview': 'प्रीव्यू',
+  'showcase.testMode':
+    'Razorpay जोड़ने तक असली भुगतान टेस्ट मोड में ही रहते हैं',
+  'showcase.tryYourOwn': 'अपना एजेंट बनाइए',
+  'showcase.eyebrow': 'एजेंट जो काम पूरा करते हैं',
+  'showcase.title': 'किसी को कॉल करने से पहले बातचीत जाँच लीजिए.',
+  'showcase.sub':
+    'नए खातों को 100 ट्रायल credits मिलते हैं। टेक्स्ट या ब्राउज़र की आवाज़ से लहज़ा, भाषा, बीच में टोकना और टूल के फ़ैसले जाँचिए — बिना कोई फ़ोन कॉल किए।',
+  'showcase.tab.sales': 'प्रोडक्ट सेल्स',
+  'showcase.tab.qualification': 'Lead की जाँच',
+  'showcase.tab.reception': 'रिसेप्शनिस्ट',
+  'showcase.tab.appointments': 'अपॉइंटमेंट',
+  'showcase.tab.support': 'सपोर्ट',
+  'showcase.sales.action1': 'प्रोडक्ट की जानकारी मंज़ूर',
+  'showcase.sales.action2': 'WhatsApp की पुष्टि ज़रूरी',
+  'showcase.sales.action3': 'भुगतान सहमति का इंतज़ार करता है',
+  'showcase.qualification.action1': 'Lead स्कोर 92/100',
+  'showcase.qualification.action2': '2 मिलते-जुलते प्रोडक्ट',
+  'showcase.qualification.action3': 'साइट-विज़िट टूल तैयार',
+  'showcase.reception.action1': 'विभाग पहचाना',
+  'showcase.reception.action2': 'Callback टास्क बना',
+  'showcase.reception.action3': 'पुष्टि का प्रीव्यू तैयार',
+  'showcase.appointments.action1': 'कैलेंडर देखा',
+  'showcase.appointments.action2': '2 स्लॉट उपलब्ध',
+  'showcase.appointments.action3': 'पुष्टि का इंतज़ार',
+  'showcase.support.action1': 'ऑर्डर लुकअप प्रीव्यू',
+  'showcase.support.action2': 'देरी पकड़ी गई',
+  'showcase.support.action3': 'Escalation नियम तैयार',
 };
 
 const CATALOGS: Record<PortalLocale, Partial<Record<TranslationKey, string>>> = {

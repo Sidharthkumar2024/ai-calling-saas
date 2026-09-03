@@ -36,164 +36,58 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { VAANI_ENGINES } from '@/lib/vaani-engine-catalog';
 import { LandingAgentShowcase } from '@/components/landing-agent-showcase';
+import { useLocale } from '@/components/locale-provider';
+import { PORTAL_LOCALES, type TranslationKey } from '@/lib/i18n';
 
 type LandingPageProps = {
   onEnterWorkspace: () => void;
 };
 
+/**
+ * Copy lives in the translation catalog, not here, so word order belongs to
+ * each language rather than to the JSX.
+ */
 const revenueLoop = [
-  {
-    step: '01',
-    title: 'Capture every lead',
-    description:
-      'Meta Lead Ads, Google Ads, website forms and CRM events enter one consent-aware lead inbox.',
-    icon: Megaphone,
-  },
-  {
-    step: '02',
-    title: 'Understand the buyer',
-    description:
-      'Vaani Sense enriches source, intent, language, product interest, urgency and lead quality.',
-    icon: Target,
-  },
-  {
-    step: '03',
-    title: 'Call at the right moment',
-    description:
-      'Vaani Sara speaks naturally, answers questions, handles objections and knows when to transfer.',
-    icon: PhoneCall,
-  },
-  {
-    step: '04',
-    title: 'Move revenue forward',
-    description:
-      'Book an appointment, update CRM, send WhatsApp and keep non-converters in a retargeting loop.',
-    icon: CalendarCheck2,
-  },
-];
+  { step: '01', key: 'landing.loop.1', icon: Megaphone },
+  { step: '02', key: 'landing.loop.2', icon: Target },
+  { step: '03', key: 'landing.loop.3', icon: PhoneCall },
+  { step: '04', key: 'landing.loop.4', icon: CalendarCheck2 },
+] as const;
 
 const capabilities = [
-  {
-    title: 'AI agent studio',
-    description:
-      'Set goals, languages, guardrails, qualification logic and human-transfer rules.',
-    icon: Bot,
-    meta: 'Build',
-  },
-  {
-    title: 'Lead command center',
-    description:
-      'One pipeline for ad leads, forms, CRM records, duplicates, consent and ownership.',
-    icon: Database,
-    meta: 'Capture',
-  },
-  {
-    title: 'Live call operations',
-    description:
-      'Monitor conversations, latency, intent, sentiment and transfer readiness in real time.',
-    icon: Radio,
-    meta: 'Operate',
-  },
-  {
-    title: 'Campaign automation',
-    description:
-      'Schedules, pacing, retries, suppression, callbacks and outcome-based follow-ups.',
-    icon: Route,
-    meta: 'Scale',
-  },
-  {
-    title: 'Knowledge grounding',
-    description:
-      'Give agents approved websites, PDFs, pricing, product data and objection answers.',
-    icon: FileText,
-    meta: 'Trust',
-  },
-  {
-    title: 'CRM & appointments',
-    description:
-      'Update stages, create tasks, book slots and hand hot leads to the right salesperson.',
-    icon: CalendarCheck2,
-    meta: 'Convert',
-  },
-  {
-    title: 'WhatsApp follow-through',
-    description:
-      'Send brochures, confirmations and approved templates from the same customer timeline.',
-    icon: MessageCircleMore,
-    meta: 'Follow up',
-  },
-  {
-    title: 'Audience retargeting',
-    description:
-      'Build consent-aware Meta and Google audiences from qualified call outcomes.',
-    icon: Target,
-    meta: 'Recover',
-  },
-];
+  { key: 'landing.cap.studio', icon: Bot },
+  { key: 'landing.cap.leads', icon: Database },
+  { key: 'landing.cap.live', icon: Radio },
+  { key: 'landing.cap.campaigns', icon: Route },
+  { key: 'landing.cap.knowledge', icon: FileText },
+  { key: 'landing.cap.crm', icon: CalendarCheck2 },
+  { key: 'landing.cap.whatsapp', icon: MessageCircleMore },
+  { key: 'landing.cap.retargeting', icon: Target },
+] as const;
 
-const industryStories = {
-  'Real estate': {
-    icon: Home,
-    eyebrow: 'Real estate revenue desk',
-    title:
-      'Qualify enquiries and book site visits while intent is still fresh.',
-    points: [
-      'Ask budget, location, timeline and financing questions',
-      'Share project details and handle common objections',
-      'Book site visits and route high-intent buyers to sales',
-    ],
-    outcome: '41 site visits from one active campaign',
-  },
-  Healthcare: {
-    icon: HeartPulse,
-    eyebrow: 'Patient access',
-    title: 'Answer routine questions and fill appointment calendars, 24/7.',
-    points: [
-      'Handle inbound enquiries in the caller’s language',
-      'Confirm availability and create appointment requests',
-      'Escalate urgent or sensitive conversations to staff',
-    ],
-    outcome: 'Faster response without adding front-desk load',
-  },
-  Education: {
-    icon: GraduationCap,
-    eyebrow: 'Admissions automation',
-    title:
-      'Follow up with applicants and keep counsellors focused on serious students.',
-    points: [
-      'Explain programmes, eligibility and application steps',
-      'Score intent and schedule counsellor callbacks',
-      'Retarget undecided applicants with the right message',
-    ],
-    outcome: 'One conversation history across call, CRM and WhatsApp',
-  },
-  Commerce: {
-    icon: ShoppingBag,
-    eyebrow: 'D2C and services',
-    title:
-      'Recover demand, confirm orders and create repeatable sales motions.',
-    points: [
-      'Qualify high-value product enquiries',
-      'Recover abandoned or missed opportunities',
-      'Trigger offers and retargeting from real customer intent',
-    ],
-    outcome: 'Every outcome becomes an automated next action',
-  },
-} as const;
+const industryStories = [
+  { key: 'landing.industry.realEstate', icon: Home },
+  { key: 'landing.industry.healthcare', icon: HeartPulse },
+  { key: 'landing.industry.education', icon: GraduationCap },
+  { key: 'landing.industry.commerce', icon: ShoppingBag },
+] as const;
 
 export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
-  const [activeUseCase, setActiveUseCase] =
-    useState<keyof typeof industryStories>('Real estate');
+  const { locale, setLocale, t } = useLocale();
+  const [activeUseCase, setActiveUseCase] = useState(0);
   const currentStory = industryStories[activeUseCase];
   const CurrentStoryIcon = currentStory.icon;
+  /** Builds a sub-key of one catalog entry, e.g. `…realEstate.point2`. */
+  const sub = (base: string, leaf: string) =>
+    t(`${base}.${leaf}` as TranslationKey);
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#090b11] text-white">
       <div className="border-b border-white/8 bg-[#0d1018] px-4 py-2 text-center text-[11px] text-white/65 sm:text-xs">
         <span className="mr-2 inline-flex items-center gap-1.5 font-medium text-amber-300">
-          <Sparkles className="size-3" /> New
+          <Sparkles className="size-3" /> {t('landing.banner.new')}
         </span>
-        Meta, Google and website leads now enter one call-to-revenue loop.
+        {t('landing.banner.text')}
       </div>
 
       <header className="sticky top-0 z-50 border-b border-white/8 bg-[#090b11]/88 backdrop-blur-xl">
@@ -201,7 +95,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
           <a
             href="#top"
             className="flex items-center gap-3"
-            aria-label="Vaani home"
+            aria-label={t('landing.home.aria')}
           >
             <span className="grid size-9 place-items-center rounded-xl bg-amber-300 text-[#17120a] shadow-[0_10px_35px_-12px_#fcd34d]">
               <Activity className="size-5" strokeWidth={2.4} />
@@ -211,50 +105,67 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                 Vaani
               </span>
               <span className="block text-[9px] font-semibold uppercase tracking-[0.2em] text-white/40">
-                Revenue voice OS
+                {t('landing.tagline')}
               </span>
             </span>
           </a>
 
           <nav
             className="hidden items-center gap-7 text-xs text-white/60 lg:flex"
-            aria-label="Landing navigation"
+            aria-label={t('landing.nav.aria')}
           >
-            <a className="transition-colors hover:text-white" href="#product">
-              Product
-            </a>
-            <a className="transition-colors hover:text-white" href="#workflow">
-              How it works
-            </a>
-            <a
-              className="transition-colors hover:text-white"
-              href="#agent-demos"
-            >
-              Live demos
-            </a>
-            <a className="transition-colors hover:text-white" href="#solutions">
-              Solutions
-            </a>
-            <a className="transition-colors hover:text-white" href="#engines">
-              Vaani engines
-            </a>
-            <a className="transition-colors hover:text-white" href="#pricing">
-              Pricing
-            </a>
-            <a className="transition-colors hover:text-white" href="#security">
-              Security
-            </a>
+            {(
+              [
+                ['#product', 'landing.nav.product'],
+                ['#workflow', 'landing.nav.workflow'],
+                ['#agent-demos', 'landing.nav.demos'],
+                ['#solutions', 'landing.nav.solutions'],
+                ['#engines', 'landing.nav.engines'],
+                ['#pricing', 'landing.nav.pricing'],
+                ['#security', 'landing.nav.security'],
+              ] as Array<[string, TranslationKey]>
+            ).map(([href, key]) => (
+              <a
+                key={href}
+                className="transition-colors hover:text-white"
+                href={href}
+              >
+                {t(key)}
+              </a>
+            ))}
             <Link className="transition-colors hover:text-white" href="/docs">
-              API docs
+              {t('landing.nav.apiDocs')}
             </Link>
           </nav>
 
-          <Button
-            onClick={onEnterWorkspace}
-            className="h-9 rounded-full bg-white px-4 text-xs text-black hover:bg-white/90"
-          >
-            Open platform <ArrowRight className="size-3.5" />
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* A visitor whose browser is set to Hindi already lands in Hindi;
+                this is for everyone else, and for changing your mind. */}
+            <label>
+              <span className="sr-only">{t('shell.language')}</span>
+              <select
+                aria-label={t('shell.language')}
+                value={locale}
+                onChange={(event) =>
+                  setLocale(event.target.value as typeof locale)
+                }
+                className="rounded-full border border-white/12 bg-white/5 px-2.5 py-1.5 text-[11px] text-white/70 outline-none focus:border-white/30"
+              >
+                {PORTAL_LOCALES.map((option) => (
+                  <option key={option.code} value={option.code}>
+                    {option.nativeLabel}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <Button
+              onClick={onEnterWorkspace}
+              className="h-9 rounded-full bg-white px-4 text-xs text-black hover:bg-white/90"
+            >
+              {t('landing.openPlatform')}{' '}
+              <ArrowRight className="size-3.5" />
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -267,27 +178,22 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
               className="mb-6 gap-2 rounded-full border-white/12 bg-white/5 px-3 py-1.5 text-[11px] text-white/75"
             >
               <span className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_12px_#34d399]" />
-              AI calling for sales, support and operations
+              {t('landing.hero.badge')}
             </Badge>
-            <h1
-              lang="hi"
-              className="max-w-3xl overflow-visible pb-2 text-[43px] font-semibold leading-[1.2] tracking-[-0.02em] sm:text-[58px] sm:leading-[1.18] lg:text-[64px]"
-            >
+            <h1 className="max-w-3xl overflow-visible pb-2 text-[43px] font-semibold leading-[1.2] tracking-[-0.02em] sm:text-[58px] sm:leading-[1.18] lg:text-[64px]">
               <span className="block pb-[0.08em]">
-                हर Lead पर इंसान जैसी बातचीत.
+                {t('landing.hero.line1')}
               </span>
               <span className="mt-2 block pb-[0.12em]">
-                हर बातचीत से{' '}
+                {t('landing.hero.line2')}{' '}
                 <span className="bg-[linear-gradient(96deg,#fcd34d_0%,#fb9ec8_50%,#a78bfa_100%)] bg-clip-text text-transparent">
-                  booking और revenue.
+                  {t('landing.hero.line2Accent')}
                 </span>
               </span>
               {/* Value-forward slogan: human-like AI conversation → revenue */}
             </h1>
             <p className="mt-7 max-w-xl text-base leading-7 text-white/58 sm:text-lg">
-              Meta Ads, Google Ads, website forms और CRM से lead आते ही Vaani
-              buyer intent समझता है, सही भाषा में बात करता है, फिर booking, payment
-              link या human follow-up पूरा करता है।
+              {t('landing.hero.sub')}
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Button
@@ -295,41 +201,45 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                 size="lg"
                 className="h-12 rounded-full bg-amber-300 px-6 text-[#17120a] shadow-[0_14px_40px_-14px_#fcd34d] hover:bg-amber-200"
               >
-                See Vaani in action <ArrowRight />
+                {t('landing.hero.cta')} <ArrowRight />
               </Button>
               <a
                 href="#workflow"
                 className="inline-flex h-12 items-center justify-center rounded-full border border-white/14 bg-white/4 px-6 text-sm font-medium text-white transition-colors hover:bg-white/8"
               >
-                Explore the workflow
+                {t('landing.hero.secondary')}
               </a>
             </div>
             <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-[11px] text-white/45">
-              {[
-                'Realtime WebRTC voice',
-                'Consent & DNC controls',
-                'Admin + customer roles',
-              ].map((item) => (
-                <span key={item} className="flex items-center gap-1.5">
-                  <Check className="size-3 text-emerald-400" /> {item}
+              {(
+                [
+                  'landing.hero.check1',
+                  'landing.hero.check2',
+                  'landing.hero.check3',
+                ] as TranslationKey[]
+              ).map((key) => (
+                <span key={key} className="flex items-center gap-1.5">
+                  <Check className="size-3 text-emerald-400" /> {t(key)}
                 </span>
               ))}
             </div>
             <div className="mt-7 grid max-w-xl grid-cols-3 gap-2">
-              {[
-                ['8', 'industry playbooks'],
-                ['10+', 'regional voices'],
-                ['1', 'lead-to-revenue timeline'],
-              ].map(([value, label]) => (
+              {(
+                [
+                  ['8', 'landing.hero.stat1'],
+                  ['10+', 'landing.hero.stat2'],
+                  ['1', 'landing.hero.stat3'],
+                ] as Array<[string, TranslationKey]>
+              ).map(([value, key]) => (
                 <div
-                  key={label}
+                  key={key}
                   className="rounded-2xl border border-white/8 bg-white/[0.025] p-3 backdrop-blur-xl"
                 >
                   <p className="text-lg font-semibold tracking-tight text-white">
                     {value}
                   </p>
                   <p className="mt-1 text-[9px] leading-4 text-white/34">
-                    {label}
+                    {t(key)}
                   </p>
                 </div>
               ))}
@@ -345,9 +255,11 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                     <Sparkles className="size-3.5" />
                   </span>
                   <div>
-                    <p className="text-xs font-medium">Vaani Sara · Live</p>
+                    <p className="text-xs font-medium">
+                      Vaani Sara · {t('landing.demo.live')}
+                    </p>
                     <p className="text-[9px] text-white/38">
-                      NCR buyer qualification
+                      {t('landing.demo.context')}
                     </p>
                   </div>
                 </div>
@@ -356,7 +268,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                     <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-50" />
                     <span className="relative inline-flex size-2 rounded-full bg-emerald-400" />
                   </span>
-                  Connected · 02:18
+                  {t('landing.demo.connected')} · 02:18
                 </div>
               </div>
 
@@ -371,11 +283,11 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                         Aditi Mehra
                       </p>
                       <p className="truncate text-[10px] text-white/38">
-                        Meta Lead Ad · New enquiry
+                        {t('landing.demo.source')}
                       </p>
                     </div>
                     <Badge className="border-0 bg-emerald-400/10 text-[9px] text-emerald-300">
-                      High intent
+                      {t('landing.demo.highIntent')}
                     </Badge>
                   </div>
 
@@ -397,7 +309,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
 
                   <div
                     className="mt-6 flex h-9 items-end gap-1 rounded-xl border border-white/8 bg-black/20 px-3 py-2"
-                    aria-label="Live voice activity"
+                    aria-label={t('landing.demo.voiceAria')}
                   >
                     {[
                       8, 13, 7, 18, 11, 22, 15, 10, 19, 8, 14, 6, 11, 17, 9, 5,
@@ -415,7 +327,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                 <div className="space-y-4 p-4">
                   <div>
                     <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/35">
-                      Lead score
+                      {t('landing.demo.leadScore')}
                     </p>
                     <div className="mt-2 flex items-end gap-2">
                       <span className="font-mono text-3xl font-semibold text-emerald-300">
@@ -429,12 +341,20 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                   <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
                     <div className="h-full w-[92%] rounded-full bg-[linear-gradient(90deg,#34d399,#fde68a)]" />
                   </div>
-                  {[
-                    ['Intent', 'Site visit'],
-                    ['Budget', '₹2 crore'],
-                    ['Language', 'Hinglish'],
-                    ['Sentiment', 'Positive'],
-                  ].map(([label, value]) => (
+                  {(
+                    [
+                      [
+                        t('landing.demo.intent'),
+                        t('landing.demo.intentValue'),
+                      ],
+                      [t('landing.demo.budget'), '₹2 crore'],
+                      [t('landing.demo.language'), 'Hinglish'],
+                      [
+                        t('landing.demo.sentiment'),
+                        t('landing.demo.sentimentValue'),
+                      ],
+                    ] as Array<[string, string]>
+                  ).map(([label, value]) => (
                     <div
                       key={label}
                       className="flex items-center justify-between border-b border-white/7 pb-2 text-[10px]"
@@ -445,22 +365,24 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                   ))}
                   <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/8 p-3">
                     <p className="flex items-center gap-1.5 text-[10px] font-medium text-emerald-300">
-                      <CheckCircle2 className="size-3" /> Appointment ready
+                      <CheckCircle2 className="size-3" />{' '}
+                      {t('landing.demo.appointmentReady')}
                     </p>
                     <p className="mt-1 text-[9px] leading-4 text-white/40">
-                      Saturday · 11:30 AM
+                      {t('landing.demo.appointmentWhen')}
                       <br />
-                      CRM owner: Neha
+                      {t('landing.demo.crmOwner')}
                     </p>
                   </div>
                   <div className="rounded-xl border border-violet-300/15 bg-violet-300/[0.055] p-3">
                     <p className="flex items-center gap-1.5 text-[10px] font-medium text-violet-200">
-                      <Zap className="size-3" /> Realtime turn-taking
+                      <Zap className="size-3" />{' '}
+                      {t('landing.demo.turnTaking')}
                     </p>
                     <p className="mt-1 text-[9px] leading-4 text-white/40">
-                      Full-duplex audio · interruption ready
+                      {t('landing.demo.duplex')}
                       <br />
-                      Hindi + English code-switching
+                      {t('landing.demo.codeSwitch')}
                     </p>
                   </div>
                 </div>
@@ -477,10 +399,10 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
           {[
             'Meta Lead Ads',
             'Google Ads',
-            'Website forms',
+            t('landing.sources.forms'),
             'CRM',
             'WhatsApp',
-            'API & webhooks',
+            t('landing.sources.apis'),
             'Google Sheets',
           ].map((source) => (
             <div
@@ -502,16 +424,14 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
           <div className="grid gap-8 lg:grid-cols-[0.75fr_1.25fr] lg:items-end">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">
-                From click to close
+                {t('landing.loop.eyebrow')}
               </p>
               <h2 className="mt-4 max-w-lg text-4xl font-semibold leading-[1.05] tracking-[-0.045em] sm:text-5xl">
-                One continuous revenue loop.
+                {t('landing.loop.title')}
               </h2>
             </div>
             <p className="max-w-2xl text-sm leading-6 text-white/48 lg:justify-self-end lg:text-base">
-              Vaani does not stop at making a call. It connects acquisition,
-              conversation, CRM action and retargeting so every lead keeps
-              moving.
+              {t('landing.loop.sub')}
             </p>
           </div>
 
@@ -530,9 +450,11 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                   </span>
                   <item.icon className="size-4 text-amber-300" />
                 </div>
-                <h3 className="mt-8 text-base font-medium">{item.title}</h3>
+                <h3 className="mt-8 text-base font-medium">
+                  {sub(item.key, 'title')}
+                </h3>
                 <p className="mt-3 text-xs leading-5 text-white/42">
-                  {item.description}
+                  {sub(item.key, 'description')}
                 </p>
               </div>
             ))}
@@ -547,21 +469,20 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
         <div className="mx-auto max-w-[1240px] px-4 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">
-              Complete operating system
+              {t('landing.product.eyebrow')}
             </p>
             <h2 className="mt-4 text-4xl font-semibold tracking-[-0.045em] sm:text-5xl">
-              Everything around the conversation.
+              {t('landing.product.title')}
             </h2>
             <p className="mt-5 text-sm leading-6 text-white/48">
-              A focused customer workspace and a powerful platform admin—without
-              raw infrastructure leaking into the product.
+              {t('landing.product.sub')}
             </p>
           </div>
 
           <div className="mt-14 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {capabilities.map((item, index) => (
               <article
-                key={item.title}
+                key={item.key}
                 className={`group min-h-[230px] rounded-2xl border border-white/9 bg-[#10131b] p-5 transition-colors hover:border-white/18 hover:bg-[#131722] ${index === 0 || index === 7 ? 'sm:col-span-2' : ''}`}
               >
                 <div className="flex items-start justify-between">
@@ -569,14 +490,14 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                     <item.icon className="size-4.5" />
                   </span>
                   <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-white/28">
-                    {item.meta}
+                    {sub(item.key, 'meta')}
                   </span>
                 </div>
                 <h3 className="mt-10 text-lg font-medium tracking-tight">
-                  {item.title}
+                  {sub(item.key, 'title')}
                 </h3>
                 <p className="mt-3 max-w-md text-xs leading-5 text-white/42">
-                  {item.description}
+                  {sub(item.key, 'description')}
                 </p>
               </article>
             ))}
@@ -592,32 +513,26 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
           <div className="grid gap-10 lg:grid-cols-[310px_1fr]">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">
-                Built for outcomes
+                {t('landing.solutions.eyebrow')}
               </p>
               <h2 className="mt-4 text-4xl font-semibold tracking-[-0.045em]">
-                One platform.
-                <br />
-                Different revenue plays.
+                {t('landing.solutions.title')}
               </h2>
               <div
                 className="mt-8 space-y-2"
                 role="tablist"
-                aria-label="Industry solutions"
+                aria-label={t('landing.solutions.aria')}
               >
-                {(
-                  Object.keys(industryStories) as Array<
-                    keyof typeof industryStories
-                  >
-                ).map((name) => (
+                {industryStories.map((story, index) => (
                   <button
-                    key={name}
+                    key={story.key}
                     type="button"
                     role="tab"
-                    aria-selected={activeUseCase === name}
-                    onClick={() => setActiveUseCase(name)}
-                    className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm transition-colors ${activeUseCase === name ? 'bg-white text-black' : 'text-white/48 hover:bg-white/5 hover:text-white'}`}
+                    aria-selected={activeUseCase === index}
+                    onClick={() => setActiveUseCase(index)}
+                    className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm transition-colors ${activeUseCase === index ? 'bg-white text-black' : 'text-white/48 hover:bg-white/5 hover:text-white'}`}
                   >
-                    {name}
+                    {t(story.key)}
                     <ArrowRight className="size-3.5" />
                   </button>
                 ))}
@@ -631,45 +546,47 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                     <CurrentStoryIcon className="size-5" />
                   </div>
                   <p className="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300">
-                    {currentStory.eyebrow}
+                    {sub(currentStory.key, 'eyebrow')}
                   </p>
                   <h3 className="mt-3 text-2xl font-medium leading-tight tracking-[-0.03em] sm:text-3xl">
-                    {currentStory.title}
+                    {sub(currentStory.key, 'title')}
                   </h3>
                   <ul className="mt-7 space-y-3">
-                    {currentStory.points.map((point) => (
+                    {['point1', 'point2', 'point3'].map((leaf) => (
                       <li
-                        key={point}
+                        key={leaf}
                         className="flex gap-3 text-sm leading-6 text-white/52"
                       >
                         <CheckCircle2 className="mt-1 size-4 shrink-0 text-emerald-300" />
-                        {point}
+                        {sub(currentStory.key, leaf)}
                       </li>
                     ))}
                   </ul>
                 </div>
                 <div className="w-full max-w-[255px] rounded-2xl border border-white/9 bg-black/25 p-5">
                   <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/30">
-                    Live outcome
+                    {t('landing.solutions.liveOutcome')}
                   </p>
                   <p className="mt-5 text-lg font-medium leading-7">
-                    {currentStory.outcome}
+                    {sub(currentStory.key, 'outcome')}
                   </p>
                   <div className="mt-6 space-y-3">
-                    {[
-                      'Lead understood',
-                      'Call completed',
-                      'CRM updated',
-                      'Next action queued',
-                    ].map((label, index) => (
+                    {(
+                      [
+                        'landing.solutions.step1',
+                        'landing.solutions.step2',
+                        'landing.solutions.step3',
+                        'landing.solutions.step4',
+                      ] as TranslationKey[]
+                    ).map((key, index) => (
                       <div
-                        key={label}
+                        key={key}
                         className="flex items-center gap-2 text-[10px] text-white/45"
                       >
                         <span
                           className={`size-1.5 rounded-full ${index < 3 ? 'bg-emerald-400' : 'bg-amber-300'}`}
                         />
-                        {label}
+                        {t(key)}
                       </div>
                     ))}
                   </div>
@@ -688,15 +605,14 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
           <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-end">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
-                The Vaani engine family
+                {t('landing.engines.eyebrow')}
               </p>
               <h2 className="mt-4 text-4xl font-semibold leading-[1.05] tracking-[-0.045em] sm:text-5xl">
-                One brand across the entire voice stack.
+                {t('landing.engines.title')}
               </h2>
             </div>
             <p className="max-w-xl text-sm leading-6 text-white/48 lg:justify-self-end">
-              Customers work with Vaani’s product capabilities—not a maze of
-              infrastructure vendors, model IDs or provider credentials.
+              {t('landing.engines.sub')}
             </p>
           </div>
           <div className="mt-14 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
@@ -712,12 +628,12 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                   <div>
                     <h3 className="text-sm font-medium">{engine.name}</h3>
                     <p className="mt-0.5 text-[9px] uppercase tracking-[0.14em] text-white/28">
-                      {engine.role}
+                      {sub(engine.key, 'role')}
                     </p>
                   </div>
                 </div>
                 <p className="mt-6 text-xs leading-5 text-white/42">
-                  {engine.description}
+                  {sub(engine.key, 'description')}
                 </p>
               </article>
             ))}
@@ -732,94 +648,83 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
         <div className="mx-auto max-w-[1240px] px-4 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">
-              Simple launch plans
+              {t('landing.pricing.eyebrow')}
             </p>
             <h2 className="mt-4 text-4xl font-semibold tracking-[-0.045em] sm:text-5xl">
-              Start free. Add capacity when calls grow.
+              {t('landing.pricing.title')}
             </h2>
             <p className="mt-5 text-sm leading-6 text-white/48">
-              A subscription defines product capacity; credits cover calling and
-              AI usage. Top up anytime and download a tax invoice for every
-              purchase.
+              {t('landing.pricing.sub')}
             </p>
           </div>
           <div className="mt-14 grid gap-4 lg:grid-cols-3">
-            {[
-              {
-                name: 'Free',
-                price: '₹0',
-                note: 'Validate your first workflow',
-                features: [
-                  '100 trial credits',
-                  '1 AI agent',
-                  'CRM lite',
-                  'API sandbox',
-                ],
-              },
-              {
-                name: 'Growth',
-                price: '₹7,999',
-                note: 'For active sales and support teams',
-                features: [
-                  '10,000 monthly credits',
-                  '5 AI agents',
-                  'Advanced CRM',
-                  'API, webhooks & retargeting',
-                ],
-                featured: true,
-              },
-              {
-                name: 'Scale',
-                price: '₹24,999',
-                note: 'For multi-team call operations',
-                features: [
-                  '50,000 monthly credits',
-                  '20 AI agents',
-                  'Priority routing',
-                  'SLA and advanced controls',
-                ],
-              },
-            ].map((plan) => (
+            {(
+              [
+                {
+                  key: 'landing.plan.free',
+                  price: '₹0',
+                  slug: 'free',
+                  featured: false,
+                },
+                {
+                  key: 'landing.plan.growth',
+                  price: '₹7,999',
+                  slug: 'growth',
+                  featured: true,
+                },
+                {
+                  key: 'landing.plan.scale',
+                  price: '₹24,999',
+                  slug: 'scale',
+                  featured: false,
+                },
+              ] as const
+            ).map((plan) => (
               <article
-                key={plan.name}
+                key={plan.key}
                 className={`relative rounded-2xl border p-6 ${plan.featured ? 'border-amber-300/30 bg-amber-300/[0.045]' : 'border-white/9 bg-white/[0.022]'}`}
               >
                 {plan.featured ? (
                   <span className="absolute -top-3 left-6 rounded-full bg-amber-300 px-3 py-1 text-[9px] font-semibold uppercase tracking-wider text-[#17120a]">
-                    Recommended
+                    {t('landing.pricing.recommended')}
                   </span>
                 ) : null}
-                <h3 className="text-lg font-medium">{plan.name}</h3>
-                <p className="mt-2 text-xs text-white/38">{plan.note}</p>
+                <h3 className="text-lg font-medium">{t(plan.key)}</h3>
+                <p className="mt-2 text-xs text-white/38">
+                  {sub(plan.key, 'note')}
+                </p>
                 <p className="mt-7 text-4xl font-semibold tracking-tight">
                   {plan.price}
                   <span className="text-xs font-normal text-white/32">
                     {' '}
-                    / month
+                    {t('landing.pricing.perMonth')}
                   </span>
                 </p>
                 <div className="mt-7 space-y-3">
-                  {plan.features.map((feature) => (
+                  {['f1', 'f2', 'f3', 'f4'].map((leaf) => (
                     <div
-                      key={feature}
+                      key={leaf}
                       className="flex items-center gap-2 text-xs text-white/52"
                     >
-                      <Check className="size-3.5 text-emerald-300" /> {feature}
+                      <Check className="size-3.5 text-emerald-300" />{' '}
+                      {sub(plan.key, leaf)}
                     </div>
                   ))}
                 </div>
-                {plan.name === 'Free' ? (
+                {plan.slug === 'free' ? (
                   <Link
                     href="/signup"
                     className="mt-8 inline-flex h-8 w-full items-center justify-center rounded-lg bg-white px-2.5 text-sm font-medium text-black transition-colors hover:bg-white/90"
                   >
-                    Start free
+                    {t('landing.pricing.startFree')}
                   </Link>
                 ) : (
                   <Button
                     onClick={onEnterWorkspace}
                     className={`mt-8 w-full ${plan.featured ? 'bg-amber-300 text-[#17120a] hover:bg-amber-200' : 'bg-white text-black hover:bg-white/90'}`}
-                  >{`Choose ${plan.name}`}</Button>
+                  >
+                    {t('landing.pricing.choose', { plan: t(plan.key) })}
+                  </Button>
                 )}
               </article>
             ))}
@@ -837,56 +742,38 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
               variant="outline"
               className="gap-2 rounded-full border-emerald-400/18 bg-emerald-400/7 text-emerald-300"
             >
-              <ShieldCheck className="size-3.5" /> Built for responsible calling
+              <ShieldCheck className="size-3.5" />{' '}
+              {t('landing.security.badge')}
             </Badge>
             <h2 className="mt-6 text-4xl font-semibold tracking-[-0.045em]">
-              Strong controls for teams that call at scale.
+              {t('landing.security.title')}
             </h2>
             <p className="mt-5 max-w-xl text-sm leading-6 text-white/48">
-              Tenant isolation, role-based access, consent evidence, DNC
-              suppression, audit trails and human escalation are part of the
-              operating model—not afterthoughts.
+              {t('landing.security.sub')}
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            {[
+            {(
               [
-                LockKeyhole,
-                'Tenant isolation',
-                'Every company’s leads, knowledge and calls stay separated.',
-              ],
-              [
-                UsersRound,
-                'Role-based access',
-                'Customer, agent and platform-admin permissions stay distinct.',
-              ],
-              [
-                BadgeCheck,
-                'Consent evidence',
-                'Source, timestamp and calling permission travel with each lead.',
-              ],
-              [
-                Webhook,
-                'Auditable automation',
-                'Every workflow run and external delivery has a traceable status.',
-              ],
-            ].map(([Icon, title, description]) => {
-              const SecurityIcon = Icon as typeof LockKeyhole;
-              return (
-                <div
-                  key={title as string}
-                  className="rounded-2xl border border-white/8 bg-white/[0.02] p-5"
-                >
-                  <SecurityIcon className="size-4 text-emerald-300" />
-                  <h3 className="mt-6 text-sm font-medium">
-                    {title as string}
-                  </h3>
-                  <p className="mt-2 text-xs leading-5 text-white/38">
-                    {description as string}
-                  </p>
-                </div>
-              );
-            })}
+                [LockKeyhole, 'landing.security.isolation'],
+                [UsersRound, 'landing.security.roles'],
+                [BadgeCheck, 'landing.security.consent'],
+                [Webhook, 'landing.security.audit'],
+              ] as Array<[typeof LockKeyhole, string]>
+            ).map(([SecurityIcon, key]) => (
+              <div
+                key={key}
+                className="rounded-2xl border border-white/8 bg-white/[0.02] p-5"
+              >
+                <SecurityIcon className="size-4 text-emerald-300" />
+                <h3 className="mt-6 text-sm font-medium">
+                  {sub(key, 'title')}
+                </h3>
+                <p className="mt-2 text-xs leading-5 text-white/38">
+                  {sub(key, 'description')}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -896,14 +783,13 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
           <div className="overflow-hidden rounded-[28px] border border-white/10 bg-[radial-gradient(circle_at_85%_10%,rgba(167,139,250,0.19),transparent_28%),radial-gradient(circle_at_10%_90%,rgba(252,211,77,0.14),transparent_30%),#12151e] px-6 py-12 sm:px-10 lg:flex lg:items-end lg:justify-between lg:px-14 lg:py-16">
             <div className="max-w-2xl">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">
-                Your next lead is already waiting
+                {t('landing.cta.eyebrow')}
               </p>
               <h2 className="mt-5 text-4xl font-semibold leading-tight tracking-[-0.045em] sm:text-5xl">
-                Give every enquiry a real conversation.
+                {t('landing.cta.title')}
               </h2>
               <p className="mt-5 text-sm leading-6 text-white/48">
-                Open the product workspace to explore customer and admin panels,
-                CRM, lead capture, calling and retargeting.
+                {t('landing.cta.sub')}
               </p>
             </div>
             <Button
@@ -911,7 +797,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
               size="lg"
               className="mt-8 h-12 rounded-full bg-white px-6 text-black hover:bg-white/90 lg:mt-0"
             >
-              Open Vaani platform <ArrowRight />
+              {t('landing.cta.button')} <ArrowRight />
             </Button>
           </div>
         </div>
@@ -922,29 +808,30 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
           <div className="flex items-center gap-2 text-white/62">
             <Activity className="size-4 text-amber-300" />
             <span className="font-medium">Vaani</span>
-            <span>AI calling operations</span>
+            <span>{t('landing.footer.tagline')}</span>
           </div>
           <div className="flex flex-wrap gap-5">
             <Link href="/signup" className="hover:text-white">
-              Create free account
+              {t('landing.footer.createAccount')}
             </Link>
             <Link href="/login" className="hover:text-white">
-              Customer login
+              {t('landing.footer.customerLogin')}
             </Link>
             <Link href="/admin/login" className="hover:text-white">
-              Admin login
+              {t('landing.footer.adminLogin')}
             </Link>
             <Link href="/docs" className="hover:text-white">
-              API docs
+              {t('landing.nav.apiDocs')}
             </Link>
             <span className="flex items-center gap-1.5">
-              <Globe2 className="size-3" /> India-ready
+              <Globe2 className="size-3" /> {t('landing.footer.indiaReady')}
             </span>
             <span className="flex items-center gap-1.5">
-              <Languages className="size-3" /> Multilingual
+              <Languages className="size-3" />{' '}
+              {t('landing.footer.multilingual')}
             </span>
             <span className="flex items-center gap-1.5">
-              <Zap className="size-3" /> Phase 2: Android & iOS
+              <Zap className="size-3" /> {t('landing.footer.mobile')}
             </span>
           </div>
         </div>

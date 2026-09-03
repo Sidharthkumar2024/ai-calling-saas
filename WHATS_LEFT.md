@@ -12,19 +12,26 @@ Legend: **[CODE]** engineering here · **[KEY]** an account or key you supply ·
 
 ### 0. What the device/dialer extension still needs
 
-The browser-side pieces that do **not** need a carrier are built: audience
-import, device selection, microphone and speaker tests, connection measurement,
-the readiness gate, and support codes. What remains needs a live call leg:
+Most of it is built, including the dialer itself. An agent can now talk to an AI
+agent from the dashboard with **no carrier at all** — the tab carries the audio
+to the media gateway using a short-lived per-call token.
 
-- **Browser dialer (§2, §9).** The keypad, caller-ID selector and click-to-call
-  are meaningless until a call can actually be placed from the tab, which needs
-  WebRTC to the gateway — the gateway speaks carrier protocols today, not
-  browser WebRTC.
-- **Live call screen controls (§12).** Mute, hold, keypad/DTMF, transfer and
-  conference need that same leg plus a control channel.
-- **WebRTC statistics (§6).** Real codec/bitrate/jitter come from a peer
-  connection; today the diagnostics measure HTTP round trips and say so.
-- **Power and preview dialers (§20).** They sit on top of the browser dialer.
+Built: audience import, device selection, microphone and speaker tests,
+connection measurement, the readiness gate, support codes, the browser dialer
+with mute, hold and a live transcript.
+
+Still missing, and all for the same reason — there is no second leg to bridge:
+
+- **Transfer and conference from a live call (§12).** The dialer connects the
+  agent to the AI. Moving that leg to a human, or joining a third party, needs
+  a carrier or a second browser leg plus a bridging control channel.
+- **Real WebRTC statistics (§6).** Codec, bitrate and true packet loss come
+  from an RTCPeerConnection. The dialer streams audio over a WebSocket, and the
+  diagnostics measure HTTP round trips and say so.
+- **Supervisor monitor / whisper / join (§12, §20).** Same bridging problem.
+- **Power and preview dialers (§20).** These load the next approved contact and
+  place a real outbound call, which needs a carrier.
+- **DTMF keypad (§12).** Only meaningful on a carrier leg.
 
 ### 1. [KEY] Live media — built, waiting on a carrier
 
@@ -136,8 +143,10 @@ timing and carrier framing.
 
 **Agent workstation (device/dialer extension).** CSV/TSV/XLSX audience import
 with a real preview — every row validated, de-duplicated and suppression-checked
-before anything is committed to a campaign — plus device and connection
-diagnostics with a readiness gate that `set_presence` actually enforces.
+before anything is committed to a campaign — device and connection diagnostics
+with a readiness gate that `set_presence` actually enforces, and a **browser
+dialer** that carries call audio from the agent's tab with a short-lived
+per-call token, so no browser ever holds the gateway secret.
 
 **This pass.** Real analytics aggregates with per-language breakdown; report
 runs with downloadable CSV; a campaign dialer that runs every gate; delivered

@@ -55,25 +55,26 @@ Still genuinely missing on this path:
   test against. Accept, reject, transfer-in and wrap-up work today.
 - **Listening to live audio** as a supervisor — same reason.
 
-### 2. [CODE] Localized dashboard — chrome and headings done
+### 2. [CODE] Localized dashboard — customer portal done
 
 `lib/i18n.ts` + `components/locale-provider.tsx` hold an English source of
 truth, per-person language choice (not per workspace — two people in one
 workspace can want different languages, and the workspace setting already means
 which languages the AI may speak), a header switcher, and **honest coverage
 reporting**: `coverage()` and `missingKeys()` say exactly what is untranslated
-instead of rendering raw keys.
+rather than leaking a raw key into the interface.
 
-Translated today (Hindi, 113/113 keys, 100%): every navigation group and all 30
-sections, the shell chrome, shared loading/error/empty states, shared actions,
-and **every screen's eyebrow, title, description and primary button** across
-the operations screens, dialer, diagnostics, agent desk, wallboard and org
-routing.
+Hindi is at **199/199 keys**. Translated: every navigation group and all 30
+sections; the shell chrome; shared loading, error and empty states; shared
+actions; every screen's eyebrow, title, description and primary button; all 68
+form-field and stat labels; the accessible names on icon-only buttons; and the
+Org &amp; routing and Settings screens end to end — panel titles, hints,
+placeholders, select options and helper text, with no English left in either.
 
-**Not yet translated:** field labels and helper text inside forms, and the
-long-form copy in less-visited panels. Everything falls back to English rather
-than showing a broken mix, and a missing key is reported by `missingKeys()`
-rather than leaking as a raw identifier.
+**Not yet translated:** the admin portal, the landing page and the login screen,
+plus long-form copy in a few less-visited customer panels. Product nouns Indian
+users say in English on the phone — campaign, credits, CRM, SIP, API — are
+deliberately left alone rather than turned into words nobody uses.
 
 ### 3. [CODE][DECIDED] Multi-currency (§14)
 

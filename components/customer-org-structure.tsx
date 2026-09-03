@@ -198,25 +198,26 @@ function BranchesAndTeams({
   run: RunFn;
   busy: boolean;
 }) {
+  const t = useT();
   const [branch, setBranch] = useState({ name: '', city: '' });
   const [team, setTeam] = useState({ name: '', branchId: '' });
   return (
     <Panel
-      title="Branches and teams"
-      hint="Group agents by office and function so routing and reporting can follow the real organisation."
+      title={t('panel.branches.title')}
+      hint={t('panel.branches.hint')}
     >
       <div className="grid gap-4 xl:grid-cols-2">
         <div>
           <div className="flex flex-wrap gap-2">
             <Input
-              placeholder="Branch name"
+              placeholder={t('panel.branches.namePlaceholder')}
               value={branch.name}
               onChange={(event) =>
                 setBranch({ ...branch, name: event.target.value })
               }
             />
             <Input
-              placeholder="City"
+              placeholder={t('panel.branches.cityPlaceholder')}
               value={branch.city}
               onChange={(event) =>
                 setBranch({ ...branch, city: event.target.value })
@@ -252,7 +253,7 @@ function BranchesAndTeams({
                 </span>
                 <button
                   type="button"
-                  aria-label="Delete branch"
+                  aria-label={t('aria.deleteBranch')}
                   disabled={busy}
                   onClick={() =>
                     void run(
@@ -272,7 +273,7 @@ function BranchesAndTeams({
         <div>
           <div className="flex flex-wrap gap-2">
             <Input
-              placeholder="Team name"
+              placeholder={t('panel.branches.teamPlaceholder')}
               value={team.name}
               onChange={(event) =>
                 setTeam({ ...team, name: event.target.value })
@@ -341,6 +342,7 @@ function Shifts({
   run: RunFn;
   busy: boolean;
 }) {
+  const t = useT();
   const [form, setForm] = useState({
     supportAgentId: '',
     start: '09:00',
@@ -358,8 +360,8 @@ function Shifts({
     });
   return (
     <Panel
-      title="Working hours"
-      hint="Routing skips an agent outside their shift or on a break, even if they left themselves marked online."
+      title={t('panel.shifts.title')}
+      hint={t('panel.shifts.hint')}
     >
       <div className="flex flex-wrap items-end gap-2">
         <select
@@ -387,7 +389,7 @@ function Shifts({
         />
         <Input
           type="time"
-          placeholder="Break start"
+          placeholder={t('panel.shifts.breakStart')}
           value={form.breakStart}
           onChange={(event) =>
             setForm({ ...form, breakStart: event.target.value })
@@ -395,7 +397,7 @@ function Shifts({
         />
         <Input
           type="time"
-          placeholder="Break end"
+          placeholder={t('panel.shifts.breakEnd')}
           value={form.breakEnd}
           onChange={(event) =>
             setForm({ ...form, breakEnd: event.target.value })
@@ -467,7 +469,7 @@ function Shifts({
               </span>
               <button
                 type="button"
-                aria-label="Delete shift"
+                aria-label={t('aria.deleteShift')}
                 disabled={busy}
                 onClick={() =>
                   void run(
@@ -500,6 +502,7 @@ function NumberRoutes({
   run: RunFn;
   busy: boolean;
 }) {
+  const t = useT();
   const [form, setForm] = useState({
     numberId: '',
     routeType: 'reception',
@@ -516,8 +519,8 @@ function NumberRoutes({
   };
   return (
     <Panel
-      title="Number routing"
-      hint="Each number can reach a different voice agent or queue. Without a route, a number is only a free-text label."
+      title={t('panel.numberRoutes.title')}
+      hint={t('panel.numberRoutes.hint')}
     >
       <div className="flex flex-wrap items-end gap-2">
         <select
@@ -550,14 +553,14 @@ function NumberRoutes({
           onChange={(event) => setForm({ ...form, target: event.target.value })}
         >
           <option value="">Route to…</option>
-          <optgroup label="Queues">
+          <optgroup label={t('field.queues')}>
             {queues.map((row) => (
               <option key={str(row.id)} value={`queue:${str(row.id)}`}>
                 {str(row.name)}
               </option>
             ))}
           </optgroup>
-          <optgroup label="Voice agents">
+          <optgroup label={t('field.voiceAgents')}>
             {voiceAgents.map((row) => (
               <option key={str(row.id)} value={`agent:${str(row.id)}`}>
                 {str(row.name)}
@@ -627,7 +630,7 @@ function NumberRoutes({
             </span>
             <button
               type="button"
-              aria-label="Delete route"
+              aria-label={t('aria.deleteRoute')}
               disabled={busy}
               onClick={() =>
                 void run(
@@ -655,6 +658,7 @@ function Contacts({
   run: RunFn;
   busy: boolean;
 }) {
+  const t = useT();
   const [form, setForm] = useState({
     fullName: '',
     phone: '',
@@ -662,12 +666,12 @@ function Contacts({
   });
   return (
     <Panel
-      title="Contacts"
-      hint="A person can exist here without being a sales lead — support callers, past customers, anyone you may call back."
+      title={t('panel.contacts.title')}
+      hint={t('panel.contacts.hint')}
     >
       <div className="flex flex-wrap items-end gap-2">
         <Input
-          placeholder="Full name"
+          placeholder={t('panel.contacts.namePlaceholder')}
           value={form.fullName}
           onChange={(event) =>
             setForm({ ...form, fullName: event.target.value })
@@ -684,7 +688,7 @@ function Contacts({
             setForm({ ...form, preferredLanguage: event.target.value })
           }
         >
-          <option value="">Preferred language…</option>
+          <option value="">{t('panel.contacts.languagePlaceholder')}</option>
           {SUPPORTED_LANGUAGES.map((item) => (
             <option key={item.code} value={item.code}>
               {item.label}

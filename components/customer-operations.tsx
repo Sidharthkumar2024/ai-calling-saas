@@ -411,6 +411,7 @@ function OperationsCreator({
   loading: boolean;
   submit: (payload: Record<string, unknown>) => Promise<void>;
 }) {
+  const t = useT();
   const agents = data.options?.agents ?? [];
   const numbers = data.options?.phoneNumbers ?? [];
   const workflows = data.options?.workflows ?? [];
@@ -508,7 +509,7 @@ function OperationsCreator({
 
         {module === 'campaigns' ? (
           <div className="grid gap-5 p-6 sm:grid-cols-2">
-            <CreatorField label="Campaign name">
+            <CreatorField label={t('field.campaignName')}>
               <Input
                 value={campaign.name}
                 onChange={(event) =>
@@ -517,7 +518,7 @@ function OperationsCreator({
                 placeholder="September COD confirmations"
               />
             </CreatorField>
-            <CreatorField label="Objective">
+            <CreatorField label={t('field.objective')}>
               <select
                 value={campaign.objective}
                 onChange={(event) =>
@@ -531,7 +532,7 @@ function OperationsCreator({
                 <option value="customer_support">Customer support</option>
               </select>
             </CreatorField>
-            <CreatorField label="AI agent">
+            <CreatorField label={t('field.aiAgent')}>
               <select
                 value={campaign.agentId}
                 onChange={(event) =>
@@ -546,7 +547,7 @@ function OperationsCreator({
                 ))}
               </select>
             </CreatorField>
-            <CreatorField label="Workflow + published version">
+            <CreatorField label={t('field.workflowPublished')}>
               <div className="grid grid-cols-[1fr_88px] gap-2">
                 <select
                   value={campaign.workflowId}
@@ -571,11 +572,11 @@ function OperationsCreator({
                       workflowVersion: event.target.value,
                     })
                   }
-                  aria-label="Workflow version"
+                  aria-label={t('field.workflowVersion')}
                 />
               </div>
             </CreatorField>
-            <CreatorField label="Calling number">
+            <CreatorField label={t('field.callingNumber')}>
               <select
                 value={campaign.fromNumberId}
                 onChange={(event) =>
@@ -590,7 +591,7 @@ function OperationsCreator({
                 ))}
               </select>
             </CreatorField>
-            <CreatorField label="Concurrency">
+            <CreatorField label={t('field.concurrency')}>
               <Input
                 type="number"
                 min="1"
@@ -601,7 +602,7 @@ function OperationsCreator({
                 }
               />
             </CreatorField>
-            <CreatorField label="Maximum attempts">
+            <CreatorField label={t('field.maxAttempts')}>
               <Input
                 type="number"
                 min="1"
@@ -612,7 +613,7 @@ function OperationsCreator({
                 }
               />
             </CreatorField>
-            <CreatorField label="Retry after minutes">
+            <CreatorField label={t('field.retryAfter')}>
               <Input
                 value={campaign.retryMinutes}
                 onChange={(event) =>
@@ -621,7 +622,7 @@ function OperationsCreator({
                 placeholder="120, 1440"
               />
             </CreatorField>
-            <CreatorField label="Legal calling window">
+            <CreatorField label={t('field.callingWindow')}>
               <div className="grid grid-cols-2 gap-2">
                 <Input
                   type="time"
@@ -642,7 +643,7 @@ function OperationsCreator({
                 />
               </div>
             </CreatorField>
-            <CreatorField label="Timezone">
+            <CreatorField label={t('field.timezone')}>
               <Input
                 value={campaign.timezone}
                 onChange={(event) =>
@@ -651,7 +652,7 @@ function OperationsCreator({
               />
             </CreatorField>
             <div className="sm:col-span-2">
-              <CreatorField label="Contacts · one E.164 number per line">
+              <CreatorField label={t('field.contacts')}>
                 <Textarea
                   value={campaign.contacts}
                   onChange={(event) =>
@@ -672,7 +673,7 @@ function OperationsCreator({
 
         {module === 'sip_trunks' ? (
           <div className="grid gap-5 p-6 sm:grid-cols-2">
-            <CreatorField label="Trunk name">
+            <CreatorField label={t('field.trunkName')}>
               <Input
                 value={trunk.name}
                 onChange={(event) =>
@@ -681,7 +682,7 @@ function OperationsCreator({
                 placeholder="Mumbai primary trunk"
               />
             </CreatorField>
-            <CreatorField label="Provider">
+            <CreatorField label={t('field.provider')}>
               <Input
                 value={trunk.provider}
                 onChange={(event) =>
@@ -691,7 +692,7 @@ function OperationsCreator({
               />
             </CreatorField>
             <div className="sm:col-span-2">
-              <CreatorField label="Gateway URI">
+              <CreatorField label={t('field.gatewayUri')}>
                 <Input
                   value={trunk.gatewayUri}
                   onChange={(event) =>
@@ -701,7 +702,7 @@ function OperationsCreator({
                 />
               </CreatorField>
             </div>
-            <CreatorField label="Authentication">
+            <CreatorField label={t('field.authentication')}>
               <select
                 value={trunk.authType}
                 onChange={(event) =>
@@ -712,7 +713,7 @@ function OperationsCreator({
                 <option value="ip">IP allowlist</option>
               </select>
             </CreatorField>
-            <CreatorField label="Transport">
+            <CreatorField label={t('field.transport')}>
               <select
                 value={trunk.transport}
                 onChange={(event) =>
@@ -726,7 +727,7 @@ function OperationsCreator({
             </CreatorField>
             {trunk.authType === 'userpass' ? (
               <>
-                <CreatorField label="Username">
+                <CreatorField label={t('field.username')}>
                   <Input
                     value={trunk.username}
                     onChange={(event) =>
@@ -735,7 +736,7 @@ function OperationsCreator({
                     autoComplete="off"
                   />
                 </CreatorField>
-                <CreatorField label="Password">
+                <CreatorField label={t('field.password')}>
                   <Input
                     type="password"
                     value={trunk.password}
@@ -747,7 +748,7 @@ function OperationsCreator({
                 </CreatorField>
               </>
             ) : null}
-            <CreatorField label="Media encryption">
+            <CreatorField label={t('field.mediaEncryption')}>
               <select
                 value={trunk.mediaEncryption}
                 onChange={(event) =>
@@ -759,7 +760,7 @@ function OperationsCreator({
                 <option value="none">None (not recommended)</option>
               </select>
             </CreatorField>
-            <CreatorField label="Codecs">
+            <CreatorField label={t('field.codecs')}>
               <Input
                 value={trunk.codecs}
                 onChange={(event) =>
@@ -772,7 +773,7 @@ function OperationsCreator({
 
         {module === 'workflows' ? (
           <div className="grid gap-5 p-6">
-            <CreatorField label="Workflow name">
+            <CreatorField label={t('field.workflowName')}>
               <Input
                 value={workflow.name}
                 onChange={(event) =>
@@ -781,7 +782,7 @@ function OperationsCreator({
                 placeholder="Payment-link follow-up"
               />
             </CreatorField>
-            <CreatorField label="Trigger">
+            <CreatorField label={t('field.trigger')}>
               <select
                 value={workflow.triggerType}
                 onChange={(event) =>
@@ -797,7 +798,7 @@ function OperationsCreator({
                 <option value="credit.low">Credit balance low</option>
               </select>
             </CreatorField>
-            <CreatorField label="Ordered steps">
+            <CreatorField label={t('field.orderedSteps')}>
               <Input
                 value={workflow.steps}
                 onChange={(event) =>
@@ -996,6 +997,7 @@ function CallDetail({
   callId: string;
   onClose: () => void;
 }) {
+  const t = useT();
   const [detail, setDetail] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -1042,7 +1044,7 @@ function CallDetail({
     <div className="fixed inset-0 z-50 flex justify-end bg-black/55 p-0 sm:p-4">
       <button
         type="button"
-        aria-label="Close call detail"
+        aria-label={t('aria.closeCallDetail')}
         onClick={onClose}
         className="absolute inset-0 cursor-default"
       />
@@ -1082,13 +1084,13 @@ function CallDetail({
                       {str(summary.summary)}
                     </p>
                     <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                      <Mini label="Intent" value={str(summary.intent, '—')} />
+                      <Mini label={t('field.intent')} value={str(summary.intent, '—')} />
                       <Mini
-                        label="Sentiment"
+                        label={t('field.sentiment')}
                         value={str(summary.sentiment, '—')}
                       />
                       <Mini
-                        label="Outcome"
+                        label={t('field.outcome')}
                         value={str(summary.outcome, '—').replaceAll('_', ' ')}
                       />
                     </div>
@@ -1130,20 +1132,20 @@ function CallDetail({
                     <Status value={str(review.status)} />
                   </div>
                   <div className="mt-3 grid gap-3 sm:grid-cols-5">
-                    <Mini label="Overall" value={str(review.overall_score)} />
+                    <Mini label={t('field.overall')} value={str(review.overall_score)} />
                     <Mini
-                      label="Resolution"
+                      label={t('field.resolution')}
                       value={str(review.resolution_score)}
                     />
                     <Mini
-                      label="Knowledge"
+                      label={t('field.knowledge')}
                       value={str(review.knowledge_score)}
                     />
                     <Mini
-                      label="Natural"
+                      label={t('field.natural')}
                       value={str(review.naturalness_score)}
                     />
-                    <Mini label="Policy" value={str(review.policy_score)} />
+                    <Mini label={t('field.policy')} value={str(review.policy_score)} />
                   </div>
                 </div>
               ) : null}
@@ -1287,9 +1289,9 @@ function LiveMonitor({ data }: { data: OperationsData }) {
               {str(call.summary)}
             </p>
             <div className="mt-5 grid grid-cols-3 gap-2">
-              <Mini label="Agent" value={str(call.agent_name)} />
-              <Mini label="Latency" value={`${str(call.latency_ms)}ms`} />
-              <Mini label="Sentiment" value={str(call.sentiment)} />
+              <Mini label={t('field.agent')} value={str(call.agent_name)} />
+              <Mini label={t('field.latency')} value={`${str(call.latency_ms)}ms`} />
+              <Mini label={t('field.sentiment')} value={str(call.sentiment)} />
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button
@@ -1337,7 +1339,7 @@ function LiveMonitor({ data }: { data: OperationsData }) {
           </section>
         ))}
         {!live.length ? (
-          <Empty icon={Radio} label="No calls are active right now." />
+          <Empty icon={Radio} label={t('state.noLiveCalls')} />
         ) : null}
       </div>
       {openCallId ? (
@@ -1458,13 +1460,13 @@ function Analytics() {
 
       {totals ? (
         <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-6">
-          <Mini label="Calls" value={String(totals.calls)} />
-          <Mini label="Leads created" value={String(totals.leads)} />
-          <Mini label="Talk minutes" value={String(totals.totalMinutes)} />
-          <Mini label="Resolution" value={`${totals.resolutionRate}%`} />
-          <Mini label="Transferred" value={`${totals.transferRate}%`} />
+          <Mini label={t('field.calls')} value={String(totals.calls)} />
+          <Mini label={t('field.leadsCreated')} value={String(totals.leads)} />
+          <Mini label={t('field.talkMinutes')} value={String(totals.totalMinutes)} />
+          <Mini label={t('field.resolution')} value={`${totals.resolutionRate}%`} />
+          <Mini label={t('field.transferred')} value={`${totals.transferRate}%`} />
           <Mini
-            label="Avg latency"
+            label={t('field.avgLatency')}
             value={
               totals.avgLatencyMs ? `${totals.avgLatencyMs}ms` : 'not measured'
             }
@@ -1582,17 +1584,17 @@ function Quality({ data }: { data: OperationsData }) {
       />
       <div className="grid gap-3 sm:grid-cols-3">
         <Metric
-          label="Average QA"
+          label={t('field.averageQa')}
           value={`${average}/100`}
           icon={ShieldCheck}
         />
         <Metric
-          label="Reviewed calls"
+          label={t('field.reviewedCalls')}
           value={String(data.qualityReviews.length)}
           icon={Headphones}
         />
         <Metric
-          label="Open findings"
+          label={t('field.openFindings')}
           value={String(
             data.qualityReviews.filter((item) => item.status !== 'passed')
               .length,
@@ -1620,10 +1622,10 @@ function Quality({ data }: { data: OperationsData }) {
               </span>
             </div>
             <div className="mt-5 grid grid-cols-4 gap-2">
-              <Mini label="Resolution" value={str(review.resolution_score)} />
-              <Mini label="Knowledge" value={str(review.knowledge_score)} />
-              <Mini label="Natural" value={str(review.naturalness_score)} />
-              <Mini label="Policy" value={str(review.policy_score)} />
+              <Mini label={t('field.resolution')} value={str(review.resolution_score)} />
+              <Mini label={t('field.knowledge')} value={str(review.knowledge_score)} />
+              <Mini label={t('field.natural')} value={str(review.naturalness_score)} />
+              <Mini label={t('field.policy')} value={str(review.policy_score)} />
             </div>
             <div className="mt-4 flex gap-2 text-[9px] text-white/35">
               <span className="rounded-lg bg-white/4 px-2 py-1">
@@ -1732,7 +1734,7 @@ function WorkspaceSettings({
       <div className="grid gap-4 xl:grid-cols-[1fr_0.72fr]">
         <section className="portal-panel p-5">
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field label="Default conversation language">
+            <Field label={t('field.defaultLanguage')}>
               <select
                 value={language}
                 onChange={(event) => setLanguage(event.target.value)}
@@ -1744,25 +1746,27 @@ function WorkspaceSettings({
                 ))}
               </select>
             </Field>
-            <Field label="Recording policy">
+            <Field label={t('field.recordingPolicy')}>
               <select
                 value={recording}
                 onChange={(event) => setRecording(event.target.value)}
               >
-                <option value="record_with_consent">Record with consent</option>
-                <option value="disabled">Do not record</option>
+                <option value="record_with_consent">
+                  {t('settings.recording.consent')}
+                </option>
+                <option value="disabled">{t('settings.recording.disabled')}</option>
                 <option value="always_record">
-                  Always record where lawful
+                  {t('settings.recording.always')}
                 </option>
               </select>
             </Field>
           </div>
           <div className="mt-5">
             <p className="text-[11px] font-semibold text-white/70">
-              Languages the agents in this workspace may speak
+              {t('settings.languages.title')}
             </p>
             <p className="mt-1 text-[10px] text-white/32">
-              The default language is always included.
+              {t('settings.languages.hint')}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               {SUPPORTED_LANGUAGES.map((item) => {
@@ -1781,14 +1785,16 @@ function WorkspaceSettings({
                     } ${isDefault ? 'cursor-default opacity-80' : ''}`}
                   >
                     {item.label}
-                    {isDefault ? ' · default' : ''}
+                    {isDefault
+                      ? ` · ${t('settings.languages.defaultSuffix')}`
+                      : ''}
                   </button>
                 );
               })}
             </div>
           </div>
           <div className="mt-5 grid gap-5 sm:grid-cols-3">
-            <Field label="Recording retention (days)">
+            <Field label={t('field.recordingRetention')}>
               <input
                 type="number"
                 min={1}
@@ -1797,7 +1803,7 @@ function WorkspaceSettings({
                 onChange={(event) => setRecordingDays(event.target.value)}
               />
             </Field>
-            <Field label="Transcript retention (days)">
+            <Field label={t('field.transcriptRetention')}>
               <input
                 type="number"
                 min={1}
@@ -1806,7 +1812,7 @@ function WorkspaceSettings({
                 onChange={(event) => setTranscriptDays(event.target.value)}
               />
             </Field>
-            <Field label="QA sample rate (%)">
+            <Field label={t('field.qaSampleRate')}>
               <input
                 type="number"
                 min={0}
@@ -1822,7 +1828,7 @@ function WorkspaceSettings({
               checked={redact}
               onChange={(event) => setRedact(event.target.checked)}
             />
-            Redact sensitive data in transcripts and analytics
+            {t('settings.redact')}
           </label>
           <Button
             onClick={save}
@@ -1830,31 +1836,33 @@ function WorkspaceSettings({
             className="portal-primary mt-5"
           >
             {loading ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
-            Save settings
+            {t('settings.saveButton')}
           </Button>
           {notice ? (
             <p className="mt-3 text-[11px] text-white/55">{notice}</p>
           ) : null}
         </section>
         <section className="portal-panel p-5">
-          <h2 className="text-sm font-semibold">Compliance ledger</h2>
+          <h2 className="text-sm font-semibold">
+            {t('settings.compliance.title')}
+          </h2>
           <p className="mt-1 text-[10px] text-white/32">
-            Tenant-scoped evidence used by the call gate
+            {t('settings.compliance.hint')}
           </p>
           <div className="mt-5 grid gap-3">
             <Mini
-              label="Active consent records"
+              label={t('field.activeConsent')}
               value={String(
                 compliance.consents.filter((item) => item.status === 'granted')
                   .length,
               )}
             />
             <Mini
-              label="Suppressed contacts"
+              label={t('field.suppressedContacts')}
               value={String(compliance.suppressions.length)}
             />
             <Mini
-              label="KYC documents"
+              label={t('field.kycDocuments')}
               value={String(compliance.kycDocuments.length)}
             />
           </div>
@@ -1870,27 +1878,28 @@ function WorkspaceSettings({
 }
 
 function Stats({ data }: { data: OperationsData }) {
+  const t = useT();
   const stats = data.stats ?? {};
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
       <Metric
-        label="Total calls"
+        label={t('field.totalCalls')}
         value={str(stats.total_calls, '0')}
         icon={PhoneCall}
       />
-      <Metric label="Live" value={str(stats.live_calls, '0')} icon={Radio} />
+      <Metric label={t('field.live')} value={str(stats.live_calls, '0')} icon={Radio} />
       <Metric
-        label="Avg duration"
+        label={t('field.avgDuration')}
         value={duration(stats.average_duration)}
         icon={Activity}
       />
       <Metric
-        label="Avg latency"
+        label={t('field.avgLatency')}
         value={`${str(stats.average_latency, '0')}ms`}
         icon={Network}
       />
       <Metric
-        label="Recordings"
+        label={t('field.recordings')}
         value={str(stats.recordings, '0')}
         icon={FileAudio}
       />

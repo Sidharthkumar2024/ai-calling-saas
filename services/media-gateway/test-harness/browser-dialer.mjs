@@ -67,7 +67,8 @@ const socket = new WebSocket(`${gatewayUrl}/?carrier=browser&token=${encodeURICo
 socket.on('open', () => {
   socket.send(JSON.stringify({ event: 'start', encoding: 'mulaw', sampleRate: 8000 }));
   metrics.openedAt = Date.now();
-  socket.send(JSON.stringify({ event: 'ping', at: Date.now() }));
+  // Deliberately no ping here: see the dialer's own note — at open the gateway
+  // is still verifying the token, so that sample measures setup, not network.
 });
 const pinger = setInterval(() => {
   if (socket.readyState === WebSocket.OPEN)

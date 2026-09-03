@@ -208,3 +208,10 @@ These were not visible from reading the code — each needed the thing to be run
   the previous build silently lacked it and ending a call returned 500.
 - **Devanagari was being uppercased and letter-spaced** — visible only by
   rendering the Hindi page, never by reading the code.
+- **The socket round trip was measuring the gateway, not the network.** Pings
+  queued behind the media chain, so each one waited for the turn in flight —
+  speech-to-text, reasoning, synthesis — and reported 307 ms of jitter on a
+  connection whose median round trip was 1 ms. A probe needs no ordering with
+  audio, so it is now answered ahead of the queue: jitter fell to 2 ms.
+- **Measurements were being title-cased** by a helper built for enum values,
+  rendering "15.5 kbps" as "15.5 Kbps".

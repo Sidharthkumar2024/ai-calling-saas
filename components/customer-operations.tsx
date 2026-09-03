@@ -1180,18 +1180,22 @@ function CallDetail({
                         </p>
                         <div className="mt-2 grid gap-3 sm:grid-cols-4">
                           <Mini
+                            raw
                             label={t('dialer.upstream')}
                             value={`${str(leg.send_kbps, '—')} kbps`}
                           />
                           <Mini
+                            raw
                             label={t('dialer.downstream')}
                             value={`${str(leg.receive_kbps, '—')} kbps`}
                           />
                           <Mini
+                            raw
                             label={t('dialer.pacing')}
                             value={`${str(leg.pacing_jitter_ms, '—')} ms`}
                           />
                           <Mini
+                            raw
                             label={t('dialer.socketRtt')}
                             value={
                               leg.socket_rtt_ms
@@ -1200,22 +1204,27 @@ function CallDetail({
                             }
                           />
                           <Mini
+                            raw
                             label={t('dialer.dropouts')}
                             value={str(leg.underruns, '0')}
                           />
                           <Mini
+                            raw
                             label={t('dialer.worstGap')}
                             value={`${str(leg.worst_gap_ms, '0')} ms`}
                           />
                           <Mini
+                            raw
                             label={t('dialer.framesSent')}
                             value={str(leg.frames_sent, '0')}
                           />
                           <Mini
+                            raw
                             label={t('dialer.framesReceived')}
                             value={str(leg.frames_received, '0')}
                           />
                           <Mini
+                            raw
                             label={t('dialer.longestSilence')}
                             value={`${str(leg.longest_silence_ms, '0')} ms`}
                           />
@@ -2056,13 +2065,28 @@ function Status({ value }: { value: string }) {
     </span>
   );
 }
-function Mini({ label, value }: { label: string; value: string }) {
+/**
+ * `capitalize` is right for the enum-ish values this was built for
+ * ("site_visit" → "Site visit") and wrong for measurements, where it turns
+ * "15.5 kbps" into "15.5 Kbps". `raw` opts out.
+ */
+function Mini({
+  label,
+  value,
+  raw = false,
+}: {
+  label: string;
+  value: string;
+  raw?: boolean;
+}) {
   return (
     <div className="rounded-xl border border-white/7 bg-white/[0.025] p-3">
       <p className="text-[8px] uppercase tracking-wider text-white/25">
         {label}
       </p>
-      <p className="mt-1 truncate text-[10px] font-medium capitalize text-white/65">
+      <p
+        className={`mt-1 truncate text-[10px] font-medium text-white/65 ${raw ? '' : 'capitalize'}`}
+      >
         {value}
       </p>
     </div>

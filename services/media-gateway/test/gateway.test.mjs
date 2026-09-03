@@ -9,7 +9,13 @@ import {
   wavToPcm,
 } from '../src/audio.js';
 import { TurnDetector, frameDurationMs } from '../src/turn-detector.js';
-import { buildClear, buildMedia, buildPong, parseInbound } from '../src/protocol.js';
+import {
+  buildClear,
+  buildMedia,
+  buildPong,
+  isProbeFrame,
+  parseInbound,
+} from '../src/protocol.js';
 
 let pass = 0,
   fail = 0;
@@ -306,6 +312,25 @@ ok(
 ok(
   'a ping on a carrier stream is ignored, not answered',
   parseInbound('twilio', '{"event":"ping","at":1}').kind === 'ignore',
+);
+ok(
+  'a ping is recognised as a probe, so it can skip the media queue',
+  isProbeFrame('browser', '{"event":"ping","at":1}') === true,
+);
+ok(
+  'THE MEASUREMENT BUG: media frames are not probes, so audio keeps its order',
+  isProbeFrame(
+    'browser',
+    '{"event":"media","media":{"payload":"f39/f39/f39/fw=="}}',
+  ) === false,
+);
+ok(
+  'a carrier frame is never treated as a probe',
+  isProbeFrame('twilio', '{"event":"ping","at":1}') === false,
+);
+ok(
+  'the probe check does not parse JSON to say no',
+  isProbeFrame('browser', 'not json at all') === false,
 );
 
 console.log(`\n${pass} passed, ${fail} failed`);

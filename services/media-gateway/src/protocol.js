@@ -142,3 +142,12 @@ export function buildPong(carrier, { at }) {
   if (carrier !== 'browser') return null;
   return JSON.stringify({ event: 'pong', at });
 }
+
+/**
+ * Whether a frame is a transport probe that may be answered ahead of the media
+ * queue. Cheap on purpose: media frames arrive fifty times a second, so this
+ * must not parse JSON to say "no".
+ */
+export function isProbeFrame(carrier, raw) {
+  return carrier === 'browser' && typeof raw === 'string' && raw.includes('"ping"');
+}

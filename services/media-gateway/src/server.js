@@ -5,7 +5,12 @@ import { WebSocketServer } from 'ws';
 
 import { CallSession } from './session.js';
 import { VaaniClient } from './vaani-client.js';
-import { CARRIERS } from './protocol.js';
+import {
+  CARRIERS,
+  buildPong,
+  isProbeFrame,
+  parseInbound,
+} from './protocol.js';
 import { RoomRegistry } from './mixer.js';
 import { verifyDialerToken } from './dialer-token.js';
 
@@ -119,6 +124,19 @@ wss.on('connection', (socket, request) => {
   // two frames racing through the detector.
   let queue = Promise.resolve();
   deliver = (frame) => {
+    // A ping is a transport probe and needs no ordering with audio, so it is
+    // answered ahead of the queue. Behind it, a ping waits for the whole turn
+    // in flight — speech-to-text, reasoning and synthesis — and would report
+    // the gateway's own processing as network round trip. That was measured:
+    // 307 ms of "jitter" on a connection whose median round trip was 1 ms.
+    if (isProbeFrame(carrier, frame)) {
+      const probe = parseInbound(carrier, frame);
+      if (probe.kind === 'ping') {
+        const pong = buildPong(carrier, { at: probe.at });
+        if (pong && socket.readyState === socket.OPEN) socket.send(pong);
+        return;
+      }
+    }
     queue = queue.then(() =>
       session.handle(frame).catch((error) => {
         log('frame_failed', { error: String(error?.message ?? error) });

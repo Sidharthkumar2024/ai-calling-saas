@@ -198,7 +198,10 @@ export function CustomerDialer() {
       if (socket?.readyState === WebSocket.OPEN)
         socket.send(JSON.stringify({ event: 'ping', at: Date.now() }));
     };
-    ping();
+    // Not immediately: at socket open the gateway is still verifying the call
+    // token and building the session, so a ping sent now measures setup rather
+    // than the network — one 5-second outlier that made socket jitter read as
+    // 473 ms on a connection whose median round trip was 2 ms.
     const pinger = window.setInterval(ping, 2000);
     const sampler = window.setInterval(
       () => setTransport(readTransport()),

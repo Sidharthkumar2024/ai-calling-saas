@@ -9,7 +9,7 @@ import {
   wavToPcm,
 } from '../src/audio.js';
 import { TurnDetector, frameDurationMs } from '../src/turn-detector.js';
-import { buildClear, buildMedia, parseInbound } from '../src/protocol.js';
+import { buildClear, buildMedia, buildPong, parseInbound } from '../src/protocol.js';
 
 let pass = 0,
   fail = 0;
@@ -288,6 +288,24 @@ ok(
   'clear frames are built for both carriers',
   JSON.parse(buildClear('twilio', { streamSid: 'S' })).event === 'clear' &&
     JSON.parse(buildClear('exotel', { streamSid: 'S' })).event === 'clear',
+);
+ok(
+  'a dialer ping is parsed with its own clock value',
+  parseInbound('browser', '{"event":"ping","at":1737000000123}').at ===
+    1737000000123,
+);
+ok(
+  'the pong echoes the tab\'s clock untouched, so the tab does the arithmetic',
+  JSON.parse(buildPong('browser', { at: 42 })).at === 42,
+);
+ok(
+  'carriers get no pong — they offer no application round trip on the stream',
+  buildPong('twilio', { at: 42 }) === null &&
+    buildPong('exotel', { at: 42 }) === null,
+);
+ok(
+  'a ping on a carrier stream is ignored, not answered',
+  parseInbound('twilio', '{"event":"ping","at":1}').kind === 'ignore',
 );
 
 console.log(`\n${pass} passed, ${fail} failed`);

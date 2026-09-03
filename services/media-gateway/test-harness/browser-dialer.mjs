@@ -11,6 +11,7 @@
 import WebSocket from 'ws';
 
 import { encodeG711, resample, wavToPcm } from '../src/audio.js';
+import { summariseTransport } from '../../../lib/rtc-diagnostics.ts';
 
 const BASE = process.env.VAANI_BASE_URL ?? 'http://localhost:3000';
 const COOKIE = process.env.COOKIE ?? '';
@@ -58,16 +59,27 @@ async function speech() {
 }
 
 const received = { media: 0, bytes: 0, transcripts: [] };
+// Mirrors what the real tab measures: arrival times, frames sent, and round
+// trip over the audio socket itself.
+const metrics = { framesSent: 0, arrivals: [], rtts: [], openedAt: 0 };
 const socket = new WebSocket(`${gatewayUrl}/?carrier=browser&token=${encodeURIComponent(token)}`);
 
 socket.on('open', () => {
   socket.send(JSON.stringify({ event: 'start', encoding: 'mulaw', sampleRate: 8000 }));
+  metrics.openedAt = Date.now();
+  socket.send(JSON.stringify({ event: 'ping', at: Date.now() }));
 });
+const pinger = setInterval(() => {
+  if (socket.readyState === WebSocket.OPEN)
+    socket.send(JSON.stringify({ event: 'ping', at: Date.now() }));
+}, 2000);
 socket.on('message', (data) => {
   const frame = JSON.parse(data.toString());
+  if (frame.event === 'pong') metrics.rtts.push(Date.now() - frame.at);
   if (frame.event === 'media') {
     received.media += 1;
     received.bytes += Buffer.from(frame.media.payload, 'base64').length;
+    metrics.arrivals.push(performance.now());
   }
   if (frame.event === 'transcript') received.transcripts.push(frame);
 });
@@ -88,11 +100,13 @@ else {
 }
 for (let offset = 0; offset < mulaw.length; offset += 160) {
   socket.send(JSON.stringify({ event: 'media', media: { payload: mulaw.subarray(offset, offset + 160).toString('base64') } }));
+  metrics.framesSent += 1;
   await sleep(5);
 }
 const silence = encodeG711(new Int16Array(160), 'mulaw').toString('base64');
 for (let i = 0; i < 45; i += 1) {
   socket.send(JSON.stringify({ event: 'media', media: { payload: silence } }));
+  metrics.framesSent += 1;
   await sleep(5);
 }
 const before = received.media;
@@ -103,8 +117,29 @@ console.log(JSON.stringify({
   transcripts: received.transcripts.map((t) => ({ heard: t.heard?.slice(0, 40), reply: t.reply?.slice(0, 40), latency: t.latency })),
 }));
 
+clearInterval(pinger);
+const transport = summariseTransport({
+  frameMs: 20,
+  frameBytes: 160,
+  framesSent: metrics.framesSent,
+  arrivalsMs: metrics.arrivals,
+  socketRttsMs: metrics.rtts,
+  durationMs: Date.now() - metrics.openedAt,
+});
+console.log(JSON.stringify({
+  step: 'audio_path',
+  socketRtts: metrics.rtts.length,
+  socketRttMs: transport.socketRttMs,
+  band: transport.band,
+  score: transport.score,
+  sendKbps: transport.sendKbps,
+  receiveKbps: transport.receiveKbps,
+  pacingJitterMs: transport.pacingJitterMs,
+  underruns: transport.underruns,
+}));
+
 socket.send(JSON.stringify({ event: 'stop' }));
 socket.close();
-const ended = await api('/api/app/dialer', { action: 'end', callId });
+const ended = await api('/api/app/dialer', { action: 'end', callId, transport });
 console.log(JSON.stringify({ step: 'ended', status: ended.status, ...ended.body }));
 process.exit(0);

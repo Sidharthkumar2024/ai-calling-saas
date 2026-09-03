@@ -69,6 +69,11 @@ export function parseInbound(carrier, raw) {
         payload: message.media?.payload ?? '',
         track: 'inbound',
       };
+    // The dialer measures round trip over the audio socket itself rather than
+    // over HTTP, because that is the path the call's voice actually takes. The
+    // gateway echoes the tab's own clock back untouched; it never interprets it.
+    if (event === 'ping')
+      return { kind: 'ping', at: Number(message.at) || 0 };
     if (event === 'stop') return { kind: 'stop' };
     return { kind: 'ignore', reason: event ?? 'unknown_event' };
   }
@@ -127,4 +132,13 @@ export function buildClear(carrier, { streamSid }) {
   if (carrier === 'twilio')
     return JSON.stringify({ event: 'clear', streamSid });
   return JSON.stringify({ event: 'clear', stream_sid: streamSid });
+}
+
+/**
+ * Echoes a dialer ping. Only the browser carrier has one — carriers do not
+ * offer an application-level round trip on the media stream.
+ */
+export function buildPong(carrier, { at }) {
+  if (carrier !== 'browser') return null;
+  return JSON.stringify({ event: 'pong', at });
 }

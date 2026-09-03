@@ -1030,6 +1030,9 @@ function CallDetail({
     unknown
   > | null;
   const turns = (detail?.turns ?? []) as Array<Record<string, unknown>>;
+  const transport = (detail?.transport ?? []) as Array<
+    Record<string, unknown>
+  >;
   const objections = (() => {
     try {
       const parsed = JSON.parse(str(summary?.objections_json, '[]')) as unknown;
@@ -1147,6 +1150,91 @@ function CallDetail({
                     />
                     <Mini label={t('field.policy')} value={str(review.policy_score)} />
                   </div>
+                </div>
+              ) : null}
+
+              {transport.length ? (
+                <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4">
+                  <p className="text-[9px] uppercase tracking-wider text-white/28">
+                    {t('field.audioPath')}
+                  </p>
+                  <p className="mt-1 text-[10px] text-white/32">
+                    {t('field.audioPathNote')}
+                  </p>
+                  {transport.map((leg, legIndex) => {
+                    let warnings: Array<{ code?: string; message?: string }> = [];
+                    try {
+                      const parsed = JSON.parse(
+                        str(leg.warnings_json, '[]'),
+                      ) as unknown;
+                      warnings = Array.isArray(parsed) ? parsed : [];
+                    } catch {
+                      warnings = [];
+                    }
+                    return (
+                      <div key={legIndex} className="mt-3">
+                        <p className="text-[10px] text-white/45">
+                          {str(leg.leg_role, 'agent')} ·{' '}
+                          {str(leg.transport, 'websocket')} ·{' '}
+                          {str(leg.band, '—')} {str(leg.score)}/100
+                        </p>
+                        <div className="mt-2 grid gap-3 sm:grid-cols-4">
+                          <Mini
+                            label={t('dialer.upstream')}
+                            value={`${str(leg.send_kbps, '—')} kbps`}
+                          />
+                          <Mini
+                            label={t('dialer.downstream')}
+                            value={`${str(leg.receive_kbps, '—')} kbps`}
+                          />
+                          <Mini
+                            label={t('dialer.pacing')}
+                            value={`${str(leg.pacing_jitter_ms, '—')} ms`}
+                          />
+                          <Mini
+                            label={t('dialer.socketRtt')}
+                            value={
+                              leg.socket_rtt_ms
+                                ? `${str(leg.socket_rtt_ms)} ms`
+                                : '—'
+                            }
+                          />
+                          <Mini
+                            label={t('dialer.dropouts')}
+                            value={str(leg.underruns, '0')}
+                          />
+                          <Mini
+                            label={t('dialer.worstGap')}
+                            value={`${str(leg.worst_gap_ms, '0')} ms`}
+                          />
+                          <Mini
+                            label={t('dialer.framesSent')}
+                            value={str(leg.frames_sent, '0')}
+                          />
+                          <Mini
+                            label={t('dialer.framesReceived')}
+                            value={str(leg.frames_received, '0')}
+                          />
+                          <Mini
+                            label={t('dialer.longestSilence')}
+                            value={`${str(leg.longest_silence_ms, '0')} ms`}
+                          />
+                        </div>
+                        {warnings.length ? (
+                          <ul className="mt-2 space-y-1">
+                            {warnings.map((warning, index) => (
+                              <li
+                                key={`${legIndex}-${index}`}
+                                className="text-[10px] text-amber-200/80"
+                              >
+                                {str(warning.message)}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </div>
+                    );
+                  })}
                 </div>
               ) : null}
 

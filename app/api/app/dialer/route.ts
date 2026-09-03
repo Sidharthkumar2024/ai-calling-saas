@@ -66,6 +66,7 @@ export async function POST(request: Request) {
     countryCode?: string;
     fromNumberId?: string;
     mode?: string;
+    transport?: unknown;
   };
   const secret = process.env.MEDIA_GATEWAY_SECRET;
   const gatewayUrl = process.env.MEDIA_GATEWAY_WS_URL;
@@ -88,6 +89,41 @@ export async function POST(request: Request) {
       outcome: 'completed',
       disconnectReason: 'ended_by_agent',
     });
+    // §6: the tab reports what its own socket carried. Every field is bounded
+    // here rather than trusted — these numbers end up in support reports, and
+    // a tab can send anything.
+    const stats = recordTransport(body.transport);
+    if (stats) {
+      await db
+        .prepare(
+          `INSERT INTO call_transport_stats (
+            id, organization_id, call_id, leg_role, transport, band, score,
+            frames_sent, frames_received, send_kbps, receive_kbps,
+            pacing_jitter_ms, worst_gap_ms, underruns, longest_silence_ms,
+            socket_rtt_ms, socket_jitter_ms, primary_issue, warnings_json
+          ) VALUES (?, ?, ?, 'agent', 'websocket', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .bind(
+          crypto.randomUUID(),
+          organizationId,
+          callId,
+          stats.band,
+          stats.score,
+          stats.framesSent,
+          stats.framesReceived,
+          stats.sendKbps,
+          stats.receiveKbps,
+          stats.pacingJitterMs,
+          stats.worstGapMs,
+          stats.underruns,
+          stats.longestSilenceMs,
+          stats.socketRttMs,
+          stats.socketJitterMs,
+          stats.primaryIssue,
+          JSON.stringify(stats.warnings),
+        )
+        .run();
+    }
     return NextResponse.json({ ended: true, ...result });
   }
 
@@ -262,4 +298,59 @@ export async function POST(request: Request) {
       ? 'Your microphone is connected to the AI agent. Bridging the customer leg needs a carrier.'
       : 'Your microphone is connected to the AI agent.',
   });
+}
+
+const BANDS = ['excellent', 'good', 'fair', 'poor'];
+
+/**
+ * Clamps a browser-reported transport summary into storable numbers. Returns
+ * null when the payload carries nothing measurable, so a call without stats
+ * stores no row rather than a row of zeros that reads like a silent call.
+ */
+function recordTransport(input: unknown) {
+  if (!input || typeof input !== 'object') return null;
+  const raw = input as Record<string, unknown>;
+  // Only real strings are accepted: `String(someObject)` would store
+  // "[object Object]" in a field support reads.
+  const str = (value: unknown, max: number) =>
+    typeof value === 'string' ? value.slice(0, max) : '';
+  const int = (value: unknown, max: number) => {
+    const number = Math.trunc(Number(value));
+    return Number.isFinite(number) ? Math.max(0, Math.min(max, number)) : 0;
+  };
+  const real = (value: unknown, max: number) => {
+    const number = Number(value);
+    return Number.isFinite(number)
+      ? Math.round(Math.max(0, Math.min(max, number)) * 10) / 10
+      : 0;
+  };
+  const framesSent = int(raw.framesSent, 5_000_000);
+  const framesReceived = int(raw.framesReceived, 5_000_000);
+  if (!framesSent && !framesReceived) return null;
+  const warnings = Array.isArray(raw.warnings)
+    ? raw.warnings
+        .filter((entry): entry is Record<string, unknown> => !!entry && typeof entry === 'object')
+        .slice(0, 8)
+        .map((entry) => ({
+          code: str(entry.code, 40),
+          message: str(entry.message, 240),
+        }))
+        .filter((entry) => entry.code || entry.message)
+    : [];
+  return {
+    band: BANDS.includes(str(raw.band, 20)) ? str(raw.band, 20) : null,
+    score: int(raw.score, 100),
+    framesSent,
+    framesReceived,
+    sendKbps: real(raw.sendKbps, 100_000),
+    receiveKbps: real(raw.receiveKbps, 100_000),
+    pacingJitterMs: real(raw.pacingJitterMs, 600_000),
+    worstGapMs: int(raw.worstGapMs, 600_000),
+    underruns: int(raw.underruns, 100_000),
+    longestSilenceMs: int(raw.longestSilenceMs, 86_400_000),
+    socketRttMs: int(raw.socketRttMs, 600_000),
+    socketJitterMs: int(raw.socketJitterMs, 600_000),
+    primaryIssue: str(raw.primaryIssue, 40) || null,
+    warnings,
+  };
 }

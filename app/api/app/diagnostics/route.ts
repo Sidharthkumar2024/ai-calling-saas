@@ -9,6 +9,7 @@ import {
   supportCode,
   type QualityVerdict,
 } from '@/lib/call-quality';
+import { normaliseIceServers } from '@/lib/rtc-diagnostics';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +30,7 @@ export async function GET(request: Request) {
     db
       .prepare(`SELECT id, support_code, readiness, quality_score, quality_band,
           rtt_ms, jitter_ms, loss_percent, mic_level, input_device_label,
-          output_device_label, browser, warnings_json, created_at
+          output_device_label, browser, warnings_json, webrtc_json, created_at
         FROM device_test_runs
         WHERE organization_id = ? AND user_id = ?
         ORDER BY created_at DESC LIMIT 10`)
@@ -60,9 +61,15 @@ export async function GET(request: Request) {
         validHours * 3600_000,
   );
 
+  // STUN/TURN is infrastructure, like the gateway URL — one platform setting,
+  // not a per-tenant one. Validated before it reaches a browser so a typo in
+  // the env var cannot point a tab at an arbitrary host.
+  const iceServers = normaliseIceServers(parseJson(process.env.RTC_ICE_SERVERS));
+
   return NextResponse.json({
     preferences: preferences ?? null,
     runs: runs.results ?? [],
+    iceServers,
     policy: {
       requireDeviceTest: Boolean(settings?.require_device_test),
       validHours,
@@ -98,6 +105,7 @@ export async function POST(request: Request) {
     ringtoneVolume?: unknown;
     browser?: string;
     platform?: string;
+    webrtc?: unknown;
   };
   const db = getRawDb();
   const organizationId = auth.session.organizationId!;
@@ -182,8 +190,8 @@ export async function POST(request: Request) {
       (id, organization_id, user_id, support_code, readiness, quality_score,
        quality_band, rtt_ms, jitter_ms, loss_percent, mic_level,
        microphone_permission, input_device_label, output_device_label,
-       browser, platform, warnings_json)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+       browser, platform, warnings_json, webrtc_json)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .bind(
       id,
       organizationId,
@@ -202,6 +210,7 @@ export async function POST(request: Request) {
       text(body.browser, 200),
       text(body.platform, 80),
       JSON.stringify([...quality.warnings, ...readiness.reasons.map((r) => ({ code: 'readiness', message: r }))]),
+      webrtcProbe(body.webrtc),
     )
     .run();
 
@@ -239,5 +248,60 @@ export async function PATCH(request: Request) {
   return NextResponse.json({
     requireDeviceTest: Boolean(body.requireDeviceTest),
     validHours: hours,
+  });
+}
+
+function parseJson(value: string | undefined) {
+  if (!value) return null;
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+const ICE_VERDICTS = ['direct', 'relay_required', 'blocked', 'untested'];
+
+/**
+ * Stores only the fields the probe is allowed to report, so a tab cannot write
+ * arbitrary JSON into a support record. Anything unrecognised is dropped
+ * rather than coerced — a missing measurement must stay missing.
+ */
+function webrtcProbe(input: unknown) {
+  if (!input || typeof input !== 'object') return null;
+  const raw = input as Record<string, unknown>;
+  const ice = (raw.ice ?? {}) as Record<string, unknown>;
+  const stats = (raw.stats ?? {}) as Record<string, unknown>;
+  const str = (value: unknown, max: number) =>
+    typeof value === 'string' ? value.slice(0, max) : null;
+  const real = (value: unknown) =>
+    typeof value === 'number' && Number.isFinite(value) ? value : null;
+  const list = (value: unknown) =>
+    Array.isArray(value)
+      ? value.filter((entry): entry is string => typeof entry === 'string').slice(0, 8)
+      : [];
+  const verdict = str(ice.verdict, 20);
+  return JSON.stringify({
+    supported: raw.supported === true,
+    error: str(raw.error, 200),
+    ice: {
+      verdict: verdict && ICE_VERDICTS.includes(verdict) ? verdict : null,
+      reason: str(ice.reason, 300),
+      candidateTypes: list(ice.candidateTypes),
+      protocols: list(ice.protocols),
+      udpEgress: typeof ice.udpEgress === 'boolean' ? ice.udpEgress : null,
+    },
+    stats: {
+      codec: str(stats.codec, 40),
+      clockRateHz: real(stats.clockRateHz),
+      channels: real(stats.channels),
+      sendBitrateKbps: real(stats.sendBitrateKbps),
+      packetsSent: real(stats.packetsSent),
+      packetsReceived: real(stats.packetsReceived),
+      lossPercent: real(stats.lossPercent),
+      jitterMs: real(stats.jitterMs),
+      roundTripMs: real(stats.roundTripMs),
+      scope: str(stats.scope, 20),
+    },
   });
 }

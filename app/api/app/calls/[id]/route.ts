@@ -33,7 +33,7 @@ export async function GET(
   if (!call)
     return NextResponse.json({ error: 'Call not found.' }, { status: 404 });
 
-  const [turns, transcript, summary, participants, review, recording] =
+  const [turns, transcript, summary, participants, review, recording, transport] =
     await Promise.all([
       db
         .prepare(`SELECT turn_index, role, content, language, latency_ms, model,
@@ -69,6 +69,14 @@ export async function GET(
         )
         .bind(id)
         .first(),
+      db
+        .prepare(`SELECT leg_role, transport, band, score, frames_sent,
+          frames_received, send_kbps, receive_kbps, pacing_jitter_ms,
+          worst_gap_ms, underruns, longest_silence_ms, socket_rtt_ms, socket_jitter_ms,
+          primary_issue, warnings_json
+          FROM call_transport_stats WHERE call_id = ? ORDER BY created_at`)
+        .bind(id)
+        .all(),
     ]);
 
   return NextResponse.json({
@@ -79,5 +87,6 @@ export async function GET(
     participants: participants.results ?? [],
     qualityReview: review ?? null,
     recording: recording ?? null,
+    transport: transport.results ?? [],
   });
 }

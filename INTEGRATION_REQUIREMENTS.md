@@ -115,6 +115,24 @@ MEDIA_GATEWAY_SECRET=...            # the same value the gateway holds
 MEDIA_GATEWAY_WS_URL=wss://your-gateway-host
 ```
 
+### Optional: STUN/TURN for the WebRTC capability probe
+
+The diagnostics panel builds a throwaway peer connection to report the codec
+and bitrate WebRTC negotiates here, and — if it has something to reflect off —
+whether media can leave the network at all. Without this variable that second
+question is reported as **not tested**, never guessed:
+
+```
+RTC_ICE_SERVERS=[{"urls":"stun:stun.example.net:3478"},{"urls":"turn:turn.example.net:443?transport=tcp","username":"u","credential":"p"}]
+```
+
+It is platform infrastructure, like the gateway URL, not a per-tenant setting.
+Entries are validated before a browser is handed them: anything that is not a
+`stun:`/`stuns:`/`turn:`/`turns:` URL is dropped, so a typo cannot point a tab
+at an arbitrary host. The probe carries no call audio — real per-call figures
+come off the dialer's own socket while a call is live, and are stored in
+`call_transport_stats` and shown on the call.
+
 **The tab never receives the gateway secret.** `POST /api/app/dialer` mints a
 token bound to one call id and valid for two minutes; the gateway verifies it
 with the secret it already holds. Verified: the gateway secret presented

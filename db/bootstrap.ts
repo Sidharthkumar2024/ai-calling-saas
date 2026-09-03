@@ -1034,6 +1034,34 @@ async function bootstrap() {
     db.prepare(
       `CREATE INDEX IF NOT EXISTS idx_call_participants_call ON call_participants (call_id)`,
     ),
+    // §6: what the audio path actually did, per leg. Recorded from the leg's
+    // own socket at the end of a call, so support can answer "why did that
+    // call sound bad" with measurements instead of guesses.
+    db.prepare(`CREATE TABLE IF NOT EXISTS call_transport_stats (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      call_id TEXT NOT NULL REFERENCES call_records(id) ON DELETE CASCADE,
+      leg_role TEXT DEFAULT 'agent' NOT NULL,
+      transport TEXT DEFAULT 'websocket' NOT NULL,
+      band TEXT,
+      score INTEGER,
+      frames_sent INTEGER DEFAULT 0 NOT NULL,
+      frames_received INTEGER DEFAULT 0 NOT NULL,
+      send_kbps REAL,
+      receive_kbps REAL,
+      pacing_jitter_ms REAL,
+      worst_gap_ms INTEGER,
+      underruns INTEGER DEFAULT 0 NOT NULL,
+      longest_silence_ms INTEGER,
+      socket_rtt_ms INTEGER,
+      socket_jitter_ms INTEGER,
+      primary_issue TEXT,
+      warnings_json TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_call_transport_call ON call_transport_stats (call_id)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS recordings (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -1551,6 +1579,13 @@ async function bootstrap() {
   await ensureColumn(db, 'call_records', 'intelligence_status', 'TEXT');
   // Carrier's own call id, used to make an inbound webhook retry idempotent.
   await ensureColumn(db, 'call_records', 'provider_reference', 'TEXT');
+  // The WebRTC capability probe's findings (§6), stored beside the HTTP
+  // measurements rather than mixed into them: they answer different questions.
+  await ensureColumn(db, 'device_test_runs', 'webrtc_json', 'TEXT');
+  // Added after the table shipped: a database created by the earlier build has
+  // call_transport_stats without this column, and CREATE TABLE IF NOT EXISTS
+  // will not add it.
+  await ensureColumn(db, 'call_transport_stats', 'longest_silence_ms', 'INTEGER');
 
   // Bind an agent to a voice profile. Added separately because the column may
   // already exist on databases created before voice profiles shipped.

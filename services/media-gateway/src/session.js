@@ -7,7 +7,7 @@ import {
   wavToPcm,
 } from './audio.js';
 import { TurnDetector, frameDurationMs } from './turn-detector.js';
-import { buildClear, buildMedia, parseInbound } from './protocol.js';
+import { buildClear, buildMedia, buildPong, parseInbound } from './protocol.js';
 import { audibleTo } from './mixer.js';
 
 /** Providers transcribe better at 16 kHz than at the telephony 8 kHz. */
@@ -64,6 +64,11 @@ export class CallSession {
     if (frame.kind === 'start') return this.onStart(frame);
     if (frame.kind === 'media') return this.onMedia(frame);
     if (frame.kind === 'stop') return this.onStop();
+    if (frame.kind === 'ping') {
+      const pong = buildPong(this.carrier, { at: frame.at });
+      if (pong) this.send(pong);
+      return null;
+    }
     return null;
   }
 

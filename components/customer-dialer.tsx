@@ -5,6 +5,10 @@ import { Loader2, MicOff, Pause, PhoneCall, PhoneOff, Play } from 'lucide-react'
 
 import { Button } from '@/components/ui/button';
 import { useT } from '@/components/locale-provider';
+import {
+  summariseTransport,
+  type TransportSummary,
+} from '@/lib/rtc-diagnostics';
 
 /**
  * Browser dialer (§2, §9, §12).
@@ -51,6 +55,13 @@ class VaaniDownsampler extends AudioWorkletProcessor {
 }
 registerProcessor('vaani-downsampler', VaaniDownsampler);
 `;
+
+const bandTone: Record<string, string> = {
+  excellent: 'text-emerald-200',
+  good: 'text-emerald-200',
+  fair: 'text-amber-200',
+  poor: 'text-rose-200',
+};
 
 type Agent = { id: string; name: string; primary_language: string };
 type NumberRow = { id: string; phone_number: string; status: string };
@@ -107,6 +118,7 @@ export function CustomerDialer() {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [seconds, setSeconds] = useState(0);
+  const [transport, setTransport] = useState<TransportSummary | null>(null);
 
   const socketRef = useRef<WebSocket | null>(null);
   const callIdRef = useRef<string | null>(null);
@@ -117,6 +129,17 @@ export function CustomerDialer() {
   const playAtRef = useRef(0);
   const mutedRef = useRef(false);
   const heldRef = useRef(false);
+  /**
+   * Live statistics for the path the voice actually takes (§6). Arrival times
+   * are kept bounded: a long call would otherwise grow this array forever, and
+   * the last minute is what tells an agent whether audio is healthy *now*.
+   */
+  const metricsRef = useRef({
+    framesSent: 0,
+    arrivals: [] as number[],
+    rtts: [] as number[],
+    openedAt: 0,
+  });
 
   const load = useCallback(async () => {
     try {
@@ -143,11 +166,49 @@ export function CustomerDialer() {
     return () => window.clearTimeout(timer);
   }, [load]);
 
+  /** Scores the live socket from what it has actually carried so far. */
+  const readTransport = useCallback(
+    () =>
+      summariseTransport({
+        frameMs: (FRAME_SAMPLES / TARGET_RATE) * 1000,
+        frameBytes: FRAME_SAMPLES,
+        framesSent: metricsRef.current.framesSent,
+        arrivalsMs: metricsRef.current.arrivals,
+        socketRttsMs: metricsRef.current.rtts,
+        durationMs: metricsRef.current.openedAt
+          ? Date.now() - metricsRef.current.openedAt
+          : 0,
+      }),
+    [],
+  );
+
   useEffect(() => {
     if (state !== 'live') return;
     const timer = window.setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => window.clearInterval(timer);
   }, [state]);
+
+  // Round trip is measured over the call socket, not over HTTP, because that
+  // is the connection the voice travels on. The gateway echoes our own clock
+  // back, so no clock skew between machines enters the number.
+  useEffect(() => {
+    if (state !== 'live') return;
+    const ping = () => {
+      const socket = socketRef.current;
+      if (socket?.readyState === WebSocket.OPEN)
+        socket.send(JSON.stringify({ event: 'ping', at: Date.now() }));
+    };
+    ping();
+    const pinger = window.setInterval(ping, 2000);
+    const sampler = window.setInterval(
+      () => setTransport(readTransport()),
+      1000,
+    );
+    return () => {
+      window.clearInterval(pinger);
+      window.clearInterval(sampler);
+    };
+  }, [state, readTransport]);
 
   const teardown = useCallback(() => {
     socketRef.current?.close();
@@ -195,6 +256,8 @@ export function CustomerDialer() {
     setNotice(null);
     setTurns([]);
     setSeconds(0);
+    setTransport(null);
+    metricsRef.current = { framesSent: 0, arrivals: [], rtts: [], openedAt: 0 };
     setState('connecting');
     try {
       const response = await fetch('/api/app/dialer', {
@@ -243,6 +306,7 @@ export function CustomerDialer() {
             sampleRate: TARGET_RATE,
           }),
         );
+        metricsRef.current.openedAt = Date.now();
         setState('live');
       };
       socket.onmessage = (message) => {
@@ -251,10 +315,23 @@ export function CustomerDialer() {
           media?: { payload: string };
           heard?: string;
           reply?: string;
+          at?: number;
           latency?: Record<string, number>;
         };
-        if (frame.event === 'media' && frame.media?.payload)
+        if (frame.event === 'pong' && typeof frame.at === 'number') {
+          const metrics = metricsRef.current;
+          metrics.rtts.push(Date.now() - frame.at);
+          if (metrics.rtts.length > 60) metrics.rtts.shift();
+          return;
+        }
+        if (frame.event === 'media' && frame.media?.payload) {
+          const metrics = metricsRef.current;
+          metrics.arrivals.push(performance.now());
+          // One minute of history: enough to judge audio health now, bounded
+          // so an hour-long call does not grow this without limit.
+          if (metrics.arrivals.length > 3000) metrics.arrivals.shift();
           playFrame(frame.media.payload);
+        }
         if (frame.event === 'clear') {
           // Barge-in: drop anything scheduled but not yet heard.
           playAtRef.current = 0;
@@ -307,6 +384,7 @@ export function CustomerDialer() {
         socket.send(
           JSON.stringify({ event: 'media', media: { payload: btoa(binary) } }),
         );
+        metricsRef.current.framesSent += 1;
       };
       capture.createMediaStreamSource(stream).connect(node);
     } catch (error) {
@@ -323,6 +401,11 @@ export function CustomerDialer() {
 
   async function endCall() {
     setState('ending');
+    // Read the socket's statistics before tearing it down — afterwards there
+    // is nothing left to measure, and these are the numbers support needs when
+    // an agent reports that a call sounded bad.
+    const measured = readTransport();
+    setTransport(measured);
     socketRef.current?.send(JSON.stringify({ event: 'stop' }));
     teardown();
     const callId = callIdRef.current;
@@ -332,7 +415,7 @@ export function CustomerDialer() {
         await fetch('/api/app/dialer', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ action: 'end', callId }),
+          body: JSON.stringify({ action: 'end', callId, transport: measured }),
         });
       } catch {
         /* the gateway also closes the call when the socket drops */
@@ -482,6 +565,64 @@ export function CustomerDialer() {
           </p>
         ) : null}
       </section>
+
+      {transport && (live || ending || transport.framesReceived > 0) ? (
+        <section className="portal-panel p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-sm font-semibold">{t('dialer.audioPath')}</h2>
+            <span className={`text-[11px] ${bandTone[transport.band]}`}>
+              {transport.band} · {transport.score}/100
+            </span>
+          </div>
+          <p className="mt-1 text-[10px] leading-relaxed text-white/32">
+            {t('dialer.audioPathNote')}
+          </p>
+          <dl className="mt-3 grid gap-2 sm:grid-cols-3">
+            {(
+              [
+                [t('dialer.upstream'), `${transport.sendKbps} kbps`],
+                [t('dialer.downstream'), `${transport.receiveKbps} kbps`],
+                [t('dialer.pacing'), `${transport.pacingJitterMs} ms`],
+                [
+                  t('dialer.socketRtt'),
+                  transport.socketRttMs ? `${transport.socketRttMs} ms` : '—',
+                ],
+                [t('dialer.framesSent'), String(transport.framesSent)],
+                [t('dialer.framesReceived'), String(transport.framesReceived)],
+                [t('dialer.dropouts'), String(transport.underruns)],
+                [t('dialer.worstGap'), `${transport.worstGapMs} ms`],
+                [
+                  t('dialer.longestSilence'),
+                  `${transport.longestSilenceMs} ms`,
+                ],
+              ] as Array<[string, string]>
+            ).map(([label, value]) => (
+              <div
+                key={label}
+                className="rounded-lg border border-white/8 bg-white/[0.02] px-2.5 py-2"
+              >
+                <dt className="text-[9px] uppercase tracking-wider text-white/28">
+                  {label}
+                </dt>
+                <dd className="mt-0.5 text-[12px] text-white/80">{value}</dd>
+              </div>
+            ))}
+          </dl>
+          {transport.warnings.length ? (
+            <ul className="mt-3 space-y-1">
+              {transport.warnings.map((warning) => (
+                <li key={warning.code} className="text-[10px] text-amber-200/80">
+                  {warning.message}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-3 text-[10px] text-emerald-200/70">
+              {t('dialer.audioHealthy')}
+            </p>
+          )}
+        </section>
+      ) : null}
 
       {turns.length ? (
         <section className="portal-panel p-5">

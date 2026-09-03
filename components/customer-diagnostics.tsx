@@ -5,6 +5,12 @@ import { Loader2, Mic, Volume2, Wifi } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { useT } from '@/components/locale-provider';
+import {
+  classifyIceCandidates,
+  summariseRtcStats,
+  type IceSummary,
+  type RtcProbeSummary,
+} from '@/lib/rtc-diagnostics';
 
 /**
  * Agent workstation diagnostics (§3, §5, §6, §8, §21).
@@ -13,9 +19,17 @@ import { useT } from '@/components/locale-provider';
  * server scores and decides readiness, so the thresholds live in one place and
  * are testable.
  *
- * Honest about what is being measured: there is no WebRTC peer connection yet
- * (the media gateway serves the carrier, not this tab), so "network" here is
- * HTTP round-trip to Vaani, and the UI says exactly that.
+ * Honest about what is being measured. Three separate things, never mixed:
+ *
+ *  - "Connection" is HTTP round trip to Vaani. Call audio does not take this
+ *    path, and the UI says so.
+ *  - The **WebRTC probe** builds a throwaway peer connection to ask the
+ *    questions only WebRTC can answer: which codec gets negotiated, what
+ *    bitrate the encoder produces, and — when a STUN or TURN server is
+ *    configured — whether media can leave this network at all. It carries no
+ *    call audio.
+ *  - Real call statistics come from the dialer while a call is live, off the
+ *    socket that is actually carrying the voice.
  */
 
 type DeviceOption = { deviceId: string; label: string };
@@ -27,6 +41,12 @@ type Verdict = {
   lossPercent: number;
   warnings: Array<{ code: string; message: string }>;
   primaryIssue: string | null;
+};
+type WebRtcProbe = {
+  supported: boolean;
+  error?: string | null;
+  ice?: IceSummary | null;
+  stats?: RtcProbeSummary | null;
 };
 type TestResult = {
   supportCode: string;
@@ -45,6 +65,124 @@ const stateTone: Record<string, string> = {
   warn: 'border-amber-400/30 bg-amber-400/10 text-amber-100',
   blocked: 'border-rose-400/35 bg-rose-400/10 text-rose-100',
 };
+
+
+/**
+ * Asks the browser and the network what they can actually do, using a
+ * throwaway loopback peer connection. Two answers come out of it:
+ *
+ *  - What WebRTC negotiates and produces here — codec, clock rate, bitrate.
+ *    Real numbers, but they never left this machine, so `scope` says
+ *    `loopback` and the UI does not present the jitter as call quality.
+ *  - Whether media can leave this network. That needs something to reflect
+ *    off, so without a configured STUN or TURN server the verdict is
+ *    `untested` rather than a guess.
+ *
+ * Cleans up both connections and its own audio on every path, including
+ * failure — a leaked peer connection keeps the microphone light on.
+ */
+async function probeWebRtc(
+  iceServers: RTCIceServer[],
+  stream: MediaStream | null,
+): Promise<WebRtcProbe> {
+  if (typeof RTCPeerConnection === 'undefined')
+    return {
+      supported: false,
+      error: 'This browser does not support WebRTC.',
+    };
+  const local = new RTCPeerConnection({ iceServers });
+  const remote = new RTCPeerConnection({ iceServers });
+  let context: AudioContext | null = null;
+  const candidates: string[] = [];
+  try {
+    local.onicecandidate = (event) => {
+      if (!event.candidate) return;
+      candidates.push(event.candidate.candidate);
+      void remote.addIceCandidate(event.candidate).catch(() => {});
+    };
+    remote.onicecandidate = (event) => {
+      if (event.candidate)
+        void local.addIceCandidate(event.candidate).catch(() => {});
+    };
+
+    // Prefer the real microphone so the codec sees real speech; fall back to a
+    // generated tone when permission was refused, because the codec and
+    // reachability answers do not need the agent's voice.
+    let track = stream?.getAudioTracks()[0] ?? null;
+    if (!track) {
+      context = new AudioContext();
+      const oscillator = context.createOscillator();
+      const destination = context.createMediaStreamDestination();
+      oscillator.frequency.value = 440;
+      oscillator.connect(destination);
+      oscillator.start();
+      track = destination.stream.getAudioTracks()[0];
+    }
+    if (track) local.addTrack(track);
+    remote.addTransceiver('audio', { direction: 'recvonly' });
+
+    const offer = await local.createOffer();
+    await local.setLocalDescription(offer);
+    await remote.setRemoteDescription(offer);
+    const answer = await remote.createAnswer();
+    await remote.setLocalDescription(answer);
+    await local.setRemoteDescription(answer);
+
+    const startedAt = performance.now();
+    await new Promise<void>((resolve) => {
+      // Bounded wait: some networks never finish gathering, and a diagnostic
+      // that hangs is worse than one that reports what it has.
+      const deadline = window.setTimeout(resolve, 3500);
+      const check = () => {
+        if (
+          local.iceGatheringState === 'complete' &&
+          local.connectionState === 'connected'
+        ) {
+          window.clearTimeout(deadline);
+          resolve();
+        }
+      };
+      local.onicegatheringstatechange = check;
+      local.onconnectionstatechange = check;
+      check();
+    });
+    // A moment of real media so the byte and packet counters are non-zero.
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+
+    const reports: Array<Record<string, unknown>> = [];
+    (await local.getStats()).forEach((report) =>
+      reports.push(report as unknown as Record<string, unknown>),
+    );
+    (await remote.getStats()).forEach((report) =>
+      reports.push(report as unknown as Record<string, unknown>),
+    );
+    return {
+      supported: true,
+      ice: classifyIceCandidates(candidates, {
+        stunConfigured: iceServers.length > 0,
+      }),
+      stats: summariseRtcStats(reports, {
+        elapsedMs: performance.now() - startedAt,
+        scope: 'loopback',
+      }),
+    };
+  } catch (error) {
+    return {
+      supported: true,
+      error:
+        error instanceof Error
+          ? error.message.slice(0, 200)
+          : 'The WebRTC probe failed.',
+      ice: classifyIceCandidates(candidates, {
+        stunConfigured: iceServers.length > 0,
+      }),
+    };
+  } finally {
+    local.close();
+    remote.close();
+    if (context) void context.close();
+  }
+}
 
 export function CustomerDiagnostics() {
   const t = useT();
@@ -66,6 +204,8 @@ export function CustomerDiagnostics() {
     validHours: number;
   } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [iceServers, setIceServers] = useState<RTCIceServer[]>([]);
+  const [webrtc, setWebrtc] = useState<WebRtcProbe | null>(null);
 
   const streamRef = useRef<MediaStream | null>(null);
   const audioRef = useRef<AudioContext | null>(null);
@@ -94,9 +234,11 @@ export function CustomerDiagnostics() {
         preferences?: Record<string, unknown> | null;
         runs?: Record<string, unknown>[];
         policy?: { requireDeviceTest: boolean; validHours: number };
+        iceServers?: RTCIceServer[];
       };
       setRuns(body.runs ?? []);
       setPolicy(body.policy ?? null);
+      setIceServers(body.iceServers ?? []);
     } catch {
       /* the panel still works without history */
     }
@@ -257,11 +399,14 @@ export function CustomerDiagnostics() {
   async function runFullTest() {
     setBusy('test');
     setNotice(null);
+    setWebrtc(null);
     try {
       if (!listening) await startListening();
       // Give the meter a moment so the level is real, not the opening zero.
       await new Promise((resolve) => setTimeout(resolve, 1200));
       const network = await measureNetwork();
+      const rtc = await probeWebRtc(iceServers, streamRef.current);
+      setWebrtc(rtc);
       const response = await fetch('/api/app/diagnostics', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -282,6 +427,7 @@ export function CustomerDiagnostics() {
           outputDeviceId: outputId,
           browser: navigator.userAgent,
           platform: navigator.platform,
+          webrtc: rtc,
         }),
       });
       const body = (await response.json()) as TestResult & { error?: string };
@@ -494,6 +640,77 @@ export function CustomerDiagnostics() {
                 </div>
               ))}
             </div>
+            {webrtc ? (
+              <div className="rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5">
+                <p className="text-[9px] uppercase tracking-wider text-white/28">
+                  {t('diag.webrtcTitle')}
+                </p>
+                {!webrtc.supported ? (
+                  <p className="mt-1.5 text-[11px] text-rose-200">
+                    {webrtc.error}
+                  </p>
+                ) : (
+                  <>
+                    <div className="mt-2 grid gap-2 sm:grid-cols-4">
+                      {(
+                        [
+                          [
+                            t('diag.codec'),
+                            webrtc.stats?.codec
+                              ? `${webrtc.stats.codec}${
+                                  webrtc.stats.clockRateHz
+                                    ? ` ${Math.round(webrtc.stats.clockRateHz / 1000)}kHz`
+                                    : ''
+                                }`
+                              : t('diag.notMeasured'),
+                          ],
+                          [
+                            t('diag.encoderBitrate'),
+                            webrtc.stats?.sendBitrateKbps !== null &&
+                            webrtc.stats?.sendBitrateKbps !== undefined
+                              ? `${webrtc.stats.sendBitrateKbps} kbps`
+                              : t('diag.notMeasured'),
+                          ],
+                          [
+                            t('diag.packets'),
+                            webrtc.stats?.packetsSent !== null &&
+                            webrtc.stats?.packetsSent !== undefined
+                              ? `${webrtc.stats.packetsSent} / ${webrtc.stats.packetsReceived ?? 0}`
+                              : t('diag.notMeasured'),
+                          ],
+                          [
+                            t('diag.mediaReach'),
+                            t(`diag.ice.${webrtc.ice?.verdict ?? 'untested'}`),
+                          ],
+                        ] as Array<[string, string]>
+                      ).map(([label, value]) => (
+                        <div key={label}>
+                          <p className="text-[9px] uppercase tracking-wider text-white/28">
+                            {label}
+                          </p>
+                          <p className="mt-0.5 text-[12px] text-white/75">
+                            {value}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    {webrtc.ice?.reason ? (
+                      <p className="mt-2 text-[10px] leading-relaxed text-white/40">
+                        {webrtc.ice.reason}
+                      </p>
+                    ) : null}
+                    <p className="mt-2 text-[10px] leading-relaxed text-white/32">
+                      {t('diag.webrtcScope')}
+                    </p>
+                    {webrtc.error ? (
+                      <p className="mt-1.5 text-[10px] text-amber-200/80">
+                        {webrtc.error}
+                      </p>
+                    ) : null}
+                  </>
+                )}
+              </div>
+            ) : null}
             <p className="text-[10px] text-white/35">
               Support code{' '}
               <span className="font-mono text-white/70">

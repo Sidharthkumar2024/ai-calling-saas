@@ -45,6 +45,7 @@ import {
 } from '@/components/analytics-charts';
 import { CustomerSecurity } from '@/components/customer-security';
 import { CustomerImport } from '@/components/customer-import';
+import { SupervisorMonitor } from '@/components/supervisor-monitor';
 
 export type OperationsData = {
   campaigns: Record<string, unknown>[];
@@ -1229,10 +1230,10 @@ function CallDetail({
 
 function LiveMonitor({ data }: { data: OperationsData }) {
   const live = data.calls.filter((call) => call.status === 'in_progress');
-  // "Listen" is deliberately absent: live audio monitoring needs a media
-  // gateway this runtime cannot host. Reading the transcript and escalating to
-  // a human are both real, so those are what the buttons do.
   const [openCallId, setOpenCallId] = useState<string | null>(null);
+  // Live audio monitoring works now that the media gateway carries browser
+  // legs, so a supervisor can listen, whisper or join for real.
+  const [monitorCallId, setMonitorCallId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   async function takeOver(callId: string) {
@@ -1308,7 +1309,7 @@ function LiveMonitor({ data }: { data: OperationsData }) {
               <Mini label="Latency" value={`${str(call.latency_ms)}ms`} />
               <Mini label="Sentiment" value={str(call.sentiment)} />
             </div>
-            <div className="mt-4 flex gap-2">
+            <div className="mt-4 flex flex-wrap gap-2">
               <Button
                 size="sm"
                 variant="outline"
@@ -1316,6 +1317,19 @@ function LiveMonitor({ data }: { data: OperationsData }) {
                 onClick={() => setOpenCallId(str(call.id))}
               >
                 <Headphones /> Transcript
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-white/10 bg-transparent text-[9px]"
+                onClick={() =>
+                  setMonitorCallId(
+                    monitorCallId === str(call.id) ? null : str(call.id),
+                  )
+                }
+              >
+                <Radio />
+                {monitorCallId === str(call.id) ? 'Hide audio' : 'Audio'}
               </Button>
               <Button
                 size="sm"
@@ -1332,6 +1346,12 @@ function LiveMonitor({ data }: { data: OperationsData }) {
                 Take over
               </Button>
             </div>
+            {monitorCallId === str(call.id) ? (
+              <SupervisorMonitor
+                callId={str(call.id)}
+                onClose={() => setMonitorCallId(null)}
+              />
+            ) : null}
           </section>
         ))}
         {!live.length ? (

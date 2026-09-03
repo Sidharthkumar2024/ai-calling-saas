@@ -6,6 +6,7 @@ import { WebSocketServer } from 'ws';
 import { CallSession } from './session.js';
 import { VaaniClient } from './vaani-client.js';
 import { CARRIERS } from './protocol.js';
+import { RoomRegistry } from './mixer.js';
 import { verifyDialerToken } from './dialer-token.js';
 
 /**
@@ -35,7 +36,12 @@ const httpServer = createServer((request, response) => {
   if (request.url === '/health') {
     response.writeHead(200, { 'content-type': 'application/json' });
     response.end(
-      JSON.stringify({ ok: true, carriers: CARRIERS, sessions: sessions.size }),
+      JSON.stringify({
+        ok: true,
+        carriers: CARRIERS,
+        sessions: sessions.size,
+        rooms: rooms.size,
+      }),
     );
     return;
   }
@@ -45,6 +51,7 @@ const httpServer = createServer((request, response) => {
 
 const wss = new WebSocketServer({ server: httpServer, path: undefined });
 const sessions = new Set();
+const rooms = new RoomRegistry();
 
 wss.on('connection', (socket, request) => {
   // Attach the message listener before any async work. A browser sends its
@@ -64,6 +71,8 @@ wss.on('connection', (socket, request) => {
   }
   const presented = url.searchParams.get('token') ?? '';
   let preauthorizedCallId = null;
+  let legRole = 'agent';
+  let legMode = 'duplex';
   if (carrier === 'browser') {
     // A browser tab must never hold the gateway secret. It presents a
     // short-lived token Vaani minted for exactly one call.
@@ -77,6 +86,9 @@ wss.on('connection', (socket, request) => {
       return;
     }
     preauthorizedCallId = verdict.callId;
+    // Role and mode come from inside the signature, never from the URL.
+    legRole = verdict.role;
+    legMode = verdict.mode;
   } else if (presented !== process.env.MEDIA_GATEWAY_SECRET) {
     // Carriers cannot set arbitrary WebSocket headers, so the shared secret
     // travels as a query parameter on a wss:// URL.
@@ -85,10 +97,15 @@ wss.on('connection', (socket, request) => {
     return;
   }
 
+  // Legs for the same call share a room, so a supervisor can join one.
+  const room = preauthorizedCallId ? rooms.open(preauthorizedCallId) : null;
   const session = new CallSession({
     carrier,
     client,
     callId: preauthorizedCallId,
+    role: legRole,
+    mode: legMode,
+    room,
     send: (frame) => {
       if (socket.readyState === socket.OPEN) socket.send(frame);
     },
@@ -114,7 +131,8 @@ wss.on('connection', (socket, request) => {
   socket.on('close', () => {
     session.onStop();
     sessions.delete(session);
-    log('socket_close', { sessions: sessions.size });
+    if (preauthorizedCallId) rooms.leave(preauthorizedCallId, session.legId);
+    log('socket_close', { sessions: sessions.size, rooms: rooms.size });
   });
   socket.on('error', (error) => {
     log('socket_error', { error: String(error?.message ?? error) });

@@ -69,11 +69,103 @@ ok(
   })(),
 );
 
+console.log('role and mode:');
+ok(
+  'a v1 token still verifies as a full-duplex agent leg',
+  await (async () => {
+    // Hand-built v1, as one already in flight during a deploy would be.
+    const expiry = Math.floor(now / 1000) + 60;
+    const payload = `v1.call_legacy.${expiry}`;
+    const { subtle } = crypto;
+    const key = await subtle.importKey(
+      'raw',
+      new TextEncoder().encode(SECRET),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign'],
+    );
+    const digest = await subtle.sign(
+      'HMAC',
+      key,
+      new TextEncoder().encode(payload),
+    );
+    const hex = Array.from(new Uint8Array(digest), (b) =>
+      b.toString(16).padStart(2, '0'),
+    ).join('');
+    const v = await verifyDialerToken(`${payload}.${hex}`, SECRET, now);
+    return v.ok && v.role === 'agent' && v.mode === 'duplex';
+  })(),
+);
+ok(
+  'a supervisor listen token round-trips its role and mode',
+  await (async () => {
+    const t = await mintDialerToken({
+      callId: 'call_sup',
+      secret: SECRET,
+      role: 'supervisor',
+      mode: 'listen',
+      now,
+    });
+    const v = await verifyDialerToken(t, SECRET, now);
+    return v.ok && v.role === 'supervisor' && v.mode === 'listen';
+  })(),
+);
+ok(
+  'THE IMPORTANT ONE: editing listen to duplex in the URL breaks the signature',
+  await (async () => {
+    const t = await mintDialerToken({
+      callId: 'call_sup',
+      secret: SECRET,
+      role: 'supervisor',
+      mode: 'listen',
+      now,
+    });
+    const escalated = t.replace('.listen.', '.duplex.');
+    const v = await verifyDialerToken(escalated, SECRET, now);
+    return v.ok === false && v.reason === 'signature_mismatch';
+  })(),
+);
+ok(
+  'promoting the role in the URL also breaks the signature',
+  await (async () => {
+    const t = await mintDialerToken({
+      callId: 'call_sup',
+      secret: SECRET,
+      role: 'supervisor',
+      mode: 'listen',
+      now,
+    });
+    const v = await verifyDialerToken(
+      t.replace('.supervisor.', '.agent.'),
+      SECRET,
+      now,
+    );
+    return v.ok === false;
+  })(),
+);
+ok(
+  'an unknown role is refused at mint time',
+  await (async () => {
+    try {
+      await mintDialerToken({ callId: 'c', secret: SECRET, role: 'boss' });
+      return false;
+    } catch {
+      return true;
+    }
+  })(),
+);
+ok(
+  'an unknown mode in a presented token is rejected',
+  (await verifyDialerToken('v2.call_a.agent.shout.999.aa', SECRET, now))
+    .reason === 'unknown_mode',
+);
+
 console.log('malformed input:');
 for (const [label, value] of [
   ['an empty string', ''],
   ['random text', 'hello'],
   ['too few parts', 'v1.call_abc.123'],
+  ['a v2 token missing fields', 'v2.call_abc.agent.123'],
   ['an unknown version', 'v2.call_abc.123.abcd'],
   ['a non-numeric expiry', 'v1.call_abc.soon.abcd'],
 ]) {

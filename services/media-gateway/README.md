@@ -68,6 +68,31 @@ CALL_ID=call_xxx node test-harness/carrier.mjs
 parsing, turn detection, barge-in timing, protocol framing, and a full session
 against a fake carrier and a fake Vaani.
 
+## Rooms, transfer and supervision
+
+Every leg of a call joins a room keyed by the call id, so several legs can be
+bridged. Each leg carries a role (`agent`, `ai`, `customer`, `supervisor`) and a
+mode, and the mode decides who hears whom:
+
+| mode | hears | is heard by |
+|---|---|---|
+| `duplex` | everyone else | everyone |
+| `listen` | everyone | **nobody** |
+| `whisper` | everyone | only its `whisperTo` target |
+
+**Role and mode are signed into the token**, never read from the URL, so a
+supervisor cannot promote a listening session into a speaking one by editing a
+query parameter.
+
+Transfer falls out of this: once a human agent is in the room as a `duplex`
+leg, `Room.aiShouldRespond()` returns false and the AI stops answering rather
+than talking over them.
+
+`src/mixer.js` holds the routing and mixing as pure functions, because the rule
+that a whisper must never reach the customer is not a nice-to-have — it is
+tested directly, and mixing accumulates in 32-bit before clamping so two loud
+speakers produce a clamped peak rather than a wrapped click.
+
 ## What it deliberately does not do
 
 - **It does not hold credentials.** Provider keys stay in Vaani.

@@ -128,7 +128,9 @@ tokens the app does not mint, or rejects ones it does.
 
 What the dialer does today: microphone in, agent voice out, mute, hold, live
 transcript with per-turn latency, and call telemetry written like any other
-conversation. **A customer number is recorded but not dialled** — bridging a
+conversation. A supervisor can also **listen, whisper or join** a live call from
+Live monitoring — the mode is signed into the token, and the UI always states
+who can hear them. **A customer number is recorded but not dialled** — bridging a
 real customer onto this leg needs a carrier, and the UI says so rather than
 implying someone is on the line.
 

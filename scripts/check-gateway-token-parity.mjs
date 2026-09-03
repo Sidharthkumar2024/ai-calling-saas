@@ -23,21 +23,34 @@ ok(
   app.DIALER_TOKEN_TTL_SECONDS === gateway.DIALER_TOKEN_TTL_SECONDS,
 );
 
-for (const callId of ['call_abc', 'call_test_9f2', 'call_' + 'x'.repeat(40)]) {
-  const fromApp = await app.mintDialerToken({ callId, secret: SECRET, now });
+ok(
+  'both expose the same roles and modes',
+  app.LEG_ROLES.join() === gateway.LEG_ROLES.join() &&
+    app.LEG_MODES.join() === gateway.LEG_MODES.join(),
+);
+
+const shapes = [
+  { callId: 'call_abc' },
+  { callId: 'call_test_9f2', role: 'supervisor', mode: 'listen' },
+  { callId: 'call_' + 'x'.repeat(40), role: 'supervisor', mode: 'whisper' },
+];
+for (const shape of shapes) {
+  const callId = shape.callId;
+  const fromApp = await app.mintDialerToken({ ...shape, secret: SECRET, now });
   const fromGateway = await gateway.mintDialerToken({
-    callId,
+    ...shape,
     secret: SECRET,
     now,
   });
   ok(`identical token bytes for ${callId.slice(0, 18)}`, fromApp === fromGateway);
+  const viaGateway = await gateway.verifyDialerToken(fromApp, SECRET, now);
+  const viaApp = await app.verifyDialerToken(fromGateway, SECRET, now);
   ok(
-    `the gateway accepts what the app mints (${callId.slice(0, 12)})`,
-    (await gateway.verifyDialerToken(fromApp, SECRET, now)).callId === callId,
-  );
-  ok(
-    `the app accepts what the gateway mints (${callId.slice(0, 12)})`,
-    (await app.verifyDialerToken(fromGateway, SECRET, now)).callId === callId,
+    `both agree on call id, role and mode (${callId.slice(0, 12)})`,
+    viaGateway.callId === callId &&
+      viaApp.callId === callId &&
+      viaGateway.role === (shape.role ?? 'agent') &&
+      viaApp.mode === (shape.mode ?? 'duplex'),
   );
 }
 

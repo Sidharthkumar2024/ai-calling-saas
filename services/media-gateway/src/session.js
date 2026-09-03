@@ -8,6 +8,7 @@ import {
 } from './audio.js';
 import { TurnDetector, frameDurationMs } from './turn-detector.js';
 import { buildClear, buildMedia, parseInbound } from './protocol.js';
+import { audibleTo } from './mixer.js';
 
 /** Providers transcribe better at 16 kHz than at the telephony 8 kHz. */
 const STT_RATE = 16_000;
@@ -20,8 +21,24 @@ const OUT_FRAME_SAMPLES = 160;
  * `send` and `close`, so it can be driven by a real socket or by a test.
  */
 export class CallSession {
-  constructor({ carrier, client, send, close, log = () => {}, callId = null }) {
+  constructor({
+    carrier,
+    client,
+    send,
+    close,
+    log = () => {},
+    callId = null,
+    role = 'agent',
+    mode = 'duplex',
+    room = null,
+  }) {
     this.carrier = carrier;
+    // One leg of a room. A supervisor leg listens or whispers and must never
+    // drive the AI; only a participant leg does.
+    this.legId = `leg_${Math.random().toString(36).slice(2, 10)}`;
+    this.role = role;
+    this.mode = mode;
+    this.room = room;
     this.client = client;
     this.send = send;
     this.close = close;
@@ -65,7 +82,28 @@ export class CallSession {
       return null;
     }
     this.started = true;
+    if (this.room) {
+      this.room.add({
+        id: this.legId,
+        role: this.role,
+        mode: this.mode,
+        whisperTo: null,
+        session: this,
+      });
+      this.log('leg_joined', {
+        callId: this.callId,
+        legId: this.legId,
+        role: this.role,
+        mode: this.mode,
+        legs: this.room.size,
+      });
+    }
     this.log('call_started', { callId: this.callId, ...this.format });
+    if (this.role === 'supervisor') {
+      // A monitor joins an existing conversation; it must not make the agent
+      // greet again, and it has no turn of its own.
+      return null;
+    }
     try {
       const greeting = await this.client.greeting(this.callId);
       await this.play(greeting);
@@ -100,10 +138,26 @@ export class CallSession {
       return null;
     }
 
+    // Send this leg's audio to whoever is allowed to hear it.
+    this.forwardToRoom(samples);
+
     // Only buffer while the agent is not speaking; the rest is echo.
     if (!this.detector.agentSpeaking) {
       this.buffer.push(samples);
       this.bufferedSamples += samples.length;
+    }
+
+    // A supervisor never triggers an AI turn, and once a human has joined as a
+    // participant the AI stops answering — that is what transfer means here.
+    const aiOwnsTurn =
+      this.role !== 'supervisor' &&
+      (!this.room || this.room.aiShouldRespond());
+    if (!aiOwnsTurn) {
+      if (event === 'turn_end' || event === 'turn_max') {
+        this.drainBuffer();
+        this.detector.reset();
+      }
+      return null;
     }
 
     if (event === 'turn_end' || event === 'turn_max') {
@@ -112,6 +166,28 @@ export class CallSession {
       if (audio) void this.runTurn(audio, event);
     }
     return null;
+  }
+
+  /** Passes this leg's audio to every leg permitted to hear it. */
+  forwardToRoom(samples) {
+    if (!this.room || this.room.size < 2) return;
+    const me = this.room.find(this.legId);
+    if (!me) return;
+    const payload = encodeG711(samples, this.format.encoding).toString(
+      'base64',
+    );
+    for (const other of this.room.list()) {
+      if (other.id === this.legId) continue;
+      // Ask from the receiver's point of view, so listen and whisper rules
+      // are applied exactly once, in one place.
+      if (!audibleTo(other, [me]).length) continue;
+      other.session?.send(
+        buildMedia(other.session.carrier, {
+          streamSid: other.session.streamSid,
+          payload,
+        }),
+      );
+    }
   }
 
   resetBuffer() {
@@ -252,6 +328,14 @@ export class CallSession {
   onStop() {
     this.ended = true;
     this.stopPlayback();
+    if (this.room) {
+      this.room.remove(this.legId);
+      this.log('leg_left', {
+        callId: this.callId,
+        legId: this.legId,
+        legs: this.room.size,
+      });
+    }
     this.log('call_stopped', { callId: this.callId, stats: this.stats });
     return null;
   }

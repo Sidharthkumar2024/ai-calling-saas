@@ -65,6 +65,7 @@ export async function POST(request: Request) {
     destination?: string;
     countryCode?: string;
     fromNumberId?: string;
+    mode?: string;
   };
   const secret = process.env.MEDIA_GATEWAY_SECRET;
   const gatewayUrl = process.env.MEDIA_GATEWAY_WS_URL;
@@ -88,6 +89,68 @@ export async function POST(request: Request) {
       disconnectReason: 'ended_by_agent',
     });
     return NextResponse.json({ ended: true, ...result });
+  }
+
+  if (body.action === 'monitor') {
+    // §12: a supervisor joins a live call to listen, whisper to the agent, or
+    // join outright. The mode is signed into the token, so the browser cannot
+    // promote itself from listening to speaking.
+    const elevated = await requireCustomerPermission(request, 'calls.monitor');
+    if (elevated.response) return elevated.response;
+    if (!secret || !gatewayUrl)
+      return NextResponse.json(
+        {
+          error:
+            'Monitoring needs a media gateway. Set MEDIA_GATEWAY_SECRET and MEDIA_GATEWAY_WS_URL.',
+        },
+        { status: 503 },
+      );
+    const mode = ['listen', 'whisper', 'duplex'].includes(String(body.mode))
+      ? (body.mode as 'listen' | 'whisper' | 'duplex')
+      : 'listen';
+    const callId = (body.callId ?? '').trim();
+    const call = await db
+      .prepare(`SELECT id, status, channel FROM call_records
+        WHERE id = ? AND organization_id = ? LIMIT 1`)
+      .bind(callId, organizationId)
+      .first<{ id: string; status: string; channel: string }>();
+    if (!call)
+      return NextResponse.json({ error: 'Call not found.' }, { status: 404 });
+    if (call.status !== 'in_progress')
+      return NextResponse.json(
+        {
+          error: 'That call is not live, so there is nothing to listen to.',
+          status: call.status,
+        },
+        { status: 409 },
+      );
+    const token = await mintDialerToken({
+      callId,
+      secret,
+      role: 'supervisor',
+      mode,
+    });
+    // Monitoring another person's conversation is always audited.
+    await recordAudit(
+      auth.session,
+      `call.supervisor_${mode}`,
+      'call_record',
+      callId,
+      { mode },
+    );
+    return NextResponse.json({
+      callId,
+      token,
+      gatewayUrl,
+      mode,
+      expiresInSeconds: DIALER_TOKEN_TTL_SECONDS,
+      note:
+        mode === 'listen'
+          ? 'You are silent on this call; nobody can hear you.'
+          : mode === 'whisper'
+            ? 'Only the agent hears you. The customer does not.'
+            : 'Everyone on the call can hear you.',
+    });
   }
 
   if (body.action !== 'start')

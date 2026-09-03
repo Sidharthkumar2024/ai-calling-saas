@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, PhoneIncoming, RefreshCw } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { useT } from '@/components/locale-provider';
 
 /**
  * Agent Desk and Supervisor wallboard (§8-9).
@@ -52,6 +53,7 @@ async function act(payload: Record<string, unknown>) {
 }
 
 export function CustomerAgentDesk({ view }: { view: 'desk' | 'wallboard' }) {
+  const t = useT();
   const [data, setData] = useState<QueueData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -112,15 +114,19 @@ export function CustomerAgentDesk({ view }: { view: 'desk' | 'wallboard' }) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-[9px] uppercase tracking-wider text-white/28">
-            {view === 'desk' ? 'Human handoff' : 'Operations'}
+            {view === 'desk'
+              ? t('screen.agent_desk.eyebrow')
+              : t('screen.wallboard.eyebrow')}
           </p>
           <h1 className="mt-1 text-lg font-semibold">
-            {view === 'desk' ? 'Agent desk' : 'Supervisor wallboard'}
+            {view === 'desk'
+              ? t('screen.agent_desk.title')
+              : t('screen.wallboard.title')}
           </h1>
           <p className="mt-1 text-[11px] text-white/40">
             {view === 'desk'
-              ? 'Conversations the AI escalated to a human, with the AI summary attached.'
-              : 'Queues, staffing and SLA pressure across the workspace.'}
+              ? t('screen.agent_desk.description')
+              : t('screen.wallboard.description')}
           </p>
         </div>
         <div className="flex items-center gap-2 text-[10px] text-white/32">

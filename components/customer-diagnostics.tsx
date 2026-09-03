@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, Mic, Volume2, Wifi } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { useT } from '@/components/locale-provider';
 
 /**
  * Agent workstation diagnostics (§3, §5, §6, §8, §21).
@@ -46,6 +47,7 @@ const stateTone: Record<string, string> = {
 };
 
 export function CustomerDiagnostics() {
+  const t = useT();
   const [inputs, setInputs] = useState<DeviceOption[]>([]);
   const [outputs, setOutputs] = useState<DeviceOption[]>([]);
   const [inputId, setInputId] = useState('');
@@ -320,11 +322,13 @@ export function CustomerDiagnostics() {
     <div className="space-y-6">
       <div>
         <p className="text-[9px] uppercase tracking-wider text-white/28">
-          Agent workstation
+          {t('screen.diagnostics.eyebrow')}
         </p>
-        <h1 className="mt-1 text-lg font-semibold">Device &amp; diagnostics</h1>
+        <h1 className="mt-1 text-lg font-semibold">
+          {t('screen.diagnostics.title')}
+        </h1>
         <p className="mt-1 text-[11px] text-white/40">
-          Check the microphone, speaker and connection before taking calls.
+          {t('screen.diagnostics.description')}
           {policy?.requireDeviceTest
             ? ` This workspace requires a passing test within ${policy.validHours} hours before an agent can go available.`
             : ''}

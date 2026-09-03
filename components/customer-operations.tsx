@@ -46,6 +46,8 @@ import {
 import { CustomerSecurity } from '@/components/customer-security';
 import { CustomerImport } from '@/components/customer-import';
 import { SupervisorMonitor } from '@/components/supervisor-monitor';
+import { useT } from '@/components/locale-provider';
+import type { TranslationKey } from '@/lib/i18n';
 
 export type OperationsData = {
   campaigns: Record<string, unknown>[];
@@ -106,73 +108,45 @@ export function CustomerOperations({
 
 const resourceMap = {
   campaigns: {
-    eyebrow: 'Outbound execution',
-    title: 'Campaigns',
-    description:
-      'Audience, consent, retry policy, calling windows and conversion outcomes.',
+    i18n: 'campaigns',
     key: 'campaigns',
     action: 'create_campaign',
-    button: 'New campaign',
     icon: Radio,
   },
   sip_trunks: {
-    eyebrow: 'Custom telephony',
-    title: 'SIP trunks',
-    description:
-      'Bring your own telephony with TLS, media encryption, codec checks and test-gated activation.',
+    i18n: 'sip_trunks',
     key: 'sipTrunks',
     action: 'create_sip_trunk',
-    button: 'Register trunk',
     icon: Cable,
   },
   knowledge: {
-    eyebrow: 'Grounded answers',
-    title: 'Knowledge bases',
-    description:
-      'Product facts, FAQs and objection handling used during conversations and QA.',
+    i18n: 'knowledge',
     key: 'knowledgeBases',
     action: 'create_knowledge_base',
-    button: 'New knowledge base',
     icon: BookOpenText,
   },
   workflows: {
-    eyebrow: 'Durable automation',
-    title: 'Workflows',
-    description:
-      'Trigger approved CRM, WhatsApp, payment, calendar and retargeting actions from call outcomes.',
+    i18n: 'workflows',
     key: 'workflows',
     action: 'create_workflow',
-    button: 'New workflow',
     icon: Workflow,
   },
   graph_agents: {
-    eyebrow: 'Conversation orchestration',
-    title: 'Graph agents',
-    description:
-      'Branching conversation nodes, tool execution, guardrails and warm transfer routes.',
+    i18n: 'graph_agents',
     key: 'graphAgents',
     action: 'create_graph_agent',
-    button: 'New graph',
     icon: GitBranch,
   },
   alerts: {
-    eyebrow: 'Operational guardrails',
-    title: 'Alerts',
-    description:
-      'Watch failure rate, latency, QA score and balance thresholds through email and signed webhooks.',
+    i18n: 'alerts',
     key: 'alertRules',
     action: 'create_alert',
-    button: 'New alert',
     icon: AlertTriangle,
   },
   reports: {
-    eyebrow: 'Scheduled intelligence',
-    title: 'Reports',
-    description:
-      'Reusable call, campaign, QA and revenue reports with saved filters and schedules.',
+    i18n: 'reports',
     key: 'reports',
     action: 'create_report',
-    button: 'New report',
     icon: FileBarChart2,
   },
 } as const;
@@ -189,6 +163,7 @@ function ResourceModule({
   data: OperationsData;
   onChanged: () => Promise<void> | void;
 }) {
+  const t = useT();
   const config = resourceMap[module];
   const Icon = config.icon;
   const rows = data[config.key] as Record<string, unknown>[];
@@ -205,7 +180,7 @@ function ResourceModule({
     });
     const payload: Record<string, unknown> = payloadOverride ?? {
       action: config.action,
-      name: `${config.title.replace(/s$/, '')} ${timestamp}`,
+      name: `${t(`screen.${config.i18n}.title` as TranslationKey).replace(/s$/, '')} ${timestamp}`,
     };
     if (!payloadOverride) {
       if (module === 'sip_trunks')
@@ -284,9 +259,9 @@ function ResourceModule({
   return (
     <div className="space-y-6">
       <Header
-        eyebrow={config.eyebrow}
-        title={config.title}
-        description={config.description}
+        eyebrow={t(`screen.${config.i18n}.eyebrow` as TranslationKey)}
+        title={t(`screen.${config.i18n}.title` as TranslationKey)}
+        description={t(`screen.${config.i18n}.description` as TranslationKey)}
         action={
           <Button
             onClick={() =>
@@ -300,7 +275,7 @@ function ResourceModule({
             ) : (
               <Plus />
             )}
-            {config.button}
+            {t(`screen.${config.i18n}.button` as TranslationKey)}
           </Button>
         }
       />
@@ -391,7 +366,12 @@ function ResourceModule({
         ))}
       </div>
       {!rows.length ? (
-        <Empty icon={Icon} label={`No ${config.title.toLowerCase()} yet.`} />
+        <Empty
+          icon={Icon}
+          label={`${t('state.empty')} ${t(
+            `screen.${config.i18n}.title` as TranslationKey,
+          )}`}
+        />
       ) : null}
       {module === 'alerts' && data.incidents.length ? (
         <section className="rounded-2xl border border-white/8 bg-[#0c1422] p-5">
@@ -887,13 +867,14 @@ function CreatorField({
 }
 
 function CallHistory({ data }: { data: OperationsData }) {
+  const t = useT();
   const [openCallId, setOpenCallId] = useState<string | null>(null);
   return (
     <div className="space-y-6">
       <Header
-        eyebrow="Conversation system of record"
-        title="Call history & recordings"
-        description="Tenant-scoped recordings, transcripts, summaries, costs, outcomes and disconnect reasons."
+        eyebrow={t('screen.call_history.eyebrow')}
+        title={t('screen.call_history.title')}
+        description={t('screen.call_history.description')}
       />
       <Stats data={data} />
       <section className="overflow-hidden rounded-2xl border border-white/8 bg-[#0c1422]">
@@ -1229,6 +1210,7 @@ function CallDetail({
 }
 
 function LiveMonitor({ data }: { data: OperationsData }) {
+  const t = useT();
   const live = data.calls.filter((call) => call.status === 'in_progress');
   const [openCallId, setOpenCallId] = useState<string | null>(null);
   // Live audio monitoring works now that the media gateway carries browser
@@ -1267,9 +1249,9 @@ function LiveMonitor({ data }: { data: OperationsData }) {
   return (
     <div className="space-y-6">
       <Header
-        eyebrow="Realtime operations"
-        title="Live monitoring"
-        description="Observe active calls, latency, sentiment and escalation signals without exposing other tenants."
+        eyebrow={t('screen.live_monitor.eyebrow')}
+        title={t('screen.live_monitor.title')}
+        description={t('screen.live_monitor.description')}
         action={
           <Button variant="outline" className="border-white/10 bg-transparent">
             <Radio className="text-emerald-300" />
@@ -1408,6 +1390,7 @@ type AnalyticsPayload = {
  * `leads: 0` because it had no lead data at all.
  */
 function Analytics() {
+  const t = useT();
   const [days, setDays] = useState(30);
   const [payload, setPayload] = useState<AnalyticsPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -1443,9 +1426,9 @@ function Analytics() {
   return (
     <div className="space-y-6">
       <Header
-        eyebrow="Performance intelligence"
-        title="Analytics"
-        description="Call, outcome, latency, language and conversion metrics aggregated across the whole window."
+        eyebrow={t('screen.analytics.eyebrow')}
+        title={t('screen.analytics.title')}
+        description={t('screen.analytics.description')}
       />
       <div className="flex flex-wrap items-center gap-2">
         {[7, 30, 90].map((option) => (
@@ -1581,6 +1564,7 @@ function Analytics() {
 }
 
 function Quality({ data }: { data: OperationsData }) {
+  const t = useT();
   const average = data.qualityReviews.length
     ? Math.round(
         data.qualityReviews.reduce(
@@ -1592,9 +1576,9 @@ function Quality({ data }: { data: OperationsData }) {
   return (
     <div className="space-y-6">
       <Header
-        eyebrow="AI quality assurance"
-        title="QA scorecards"
-        description="Resolution, knowledge accuracy, naturalness, policy compliance, hallucination and overlap checks."
+        eyebrow={t('screen.quality.eyebrow')}
+        title={t('screen.quality.title')}
+        description={t('screen.quality.description')}
       />
       <div className="grid gap-3 sm:grid-cols-3">
         <Metric
@@ -1664,6 +1648,7 @@ function WorkspaceSettings({
   data: OperationsData;
   onChanged: () => Promise<void> | void;
 }) {
+  const t = useT();
   const current = data.settings ?? {};
   const [language, setLanguage] = useState(
     str(current.default_language, 'hinglish'),
@@ -1740,9 +1725,9 @@ function WorkspaceSettings({
   return (
     <div className="space-y-6">
       <Header
-        eyebrow="Workspace controls"
-        title="Settings & compliance"
-        description="Languages, consent evidence, recording retention, suppression and sensitive-data redaction."
+        eyebrow={t('screen.settings.eyebrow')}
+        title={t('screen.settings.title')}
+        description={t('screen.settings.description')}
       />
       <div className="grid gap-4 xl:grid-cols-[1fr_0.72fr]">
         <section className="portal-panel p-5">

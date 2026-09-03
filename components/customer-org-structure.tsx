@@ -5,6 +5,7 @@ import { Loader2, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { SUPPORTED_LANGUAGES } from '@/lib/languages';
+import { useT } from '@/components/locale-provider';
 
 /**
  * Branches, teams, shifts, per-number routing and contacts (§5-6).
@@ -40,6 +41,7 @@ function str(value: unknown, fallback = '') {
 }
 
 export function CustomerOrgStructure() {
+  const t = useT();
   const [data, setData] = useState<OrgData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -126,12 +128,13 @@ export function CustomerOrgStructure() {
     <div className="space-y-6">
       <div>
         <p className="text-[9px] uppercase tracking-wider text-white/28">
-          Workspace structure
+          {t('screen.org_structure.eyebrow')}
         </p>
-        <h1 className="mt-1 text-lg font-semibold">Org &amp; number routing</h1>
+        <h1 className="mt-1 text-lg font-semibold">
+          {t('screen.org_structure.title')}
+        </h1>
         <p className="mt-1 text-[11px] text-white/40">
-          Branches, teams, working hours and which agent or queue each number
-          reaches.
+          {t('screen.org_structure.description')}
         </p>
       </div>
       {notice ? (

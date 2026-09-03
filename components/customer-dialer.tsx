@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, MicOff, Pause, PhoneCall, PhoneOff, Play } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { useT } from '@/components/locale-provider';
 
 /**
  * Browser dialer (§2, §9, §12).
@@ -90,6 +91,7 @@ function mulawToPcm(byte: number) {
 }
 
 export function CustomerDialer() {
+  const t = useT();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [numbers, setNumbers] = useState<NumberRow[]>([]);
   const [recent, setRecent] = useState<Record<string, unknown>[]>([]);
@@ -348,11 +350,11 @@ export function CustomerDialer() {
     <div className="space-y-6">
       <div>
         <p className="text-[9px] uppercase tracking-wider text-white/28">
-          Agent workstation
+          {t('screen.dialer.eyebrow')}
         </p>
-        <h1 className="mt-1 text-lg font-semibold">Dialer</h1>
+        <h1 className="mt-1 text-lg font-semibold">{t('screen.dialer.title')}</h1>
         <p className="mt-1 text-[11px] text-white/40">
-          Talk to your AI agent from this tab. Your microphone is the call audio.
+          {t('screen.dialer.description')}
         </p>
       </div>
 

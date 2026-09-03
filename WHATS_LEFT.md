@@ -55,24 +55,25 @@ Still genuinely missing on this path:
   test against. Accept, reject, transfer-in and wrap-up work today.
 - **Listening to live audio** as a supervisor — same reason.
 
-### 2. [CODE] Localized dashboard — foundation done, section copy pending
+### 2. [CODE] Localized dashboard — chrome and headings done
 
-`lib/i18n.ts` + `components/locale-provider.tsx` add a translation layer with an
-English source of truth, per-person language choice (not per workspace — two
-people in one workspace can want different languages), a header switcher, and
-**honest coverage reporting**: `coverage()` and `missingKeys()` say exactly what
-is untranslated instead of rendering raw keys.
+`lib/i18n.ts` + `components/locale-provider.tsx` hold an English source of
+truth, per-person language choice (not per workspace — two people in one
+workspace can want different languages, and the workspace setting already means
+which languages the AI may speak), a header switcher, and **honest coverage
+reporting**: `coverage()` and `missingKeys()` say exactly what is untranslated
+instead of rendering raw keys.
 
-Translated today (Hindi, 53/53 keys, 100%): the whole navigation — every group
-and every one of the 27 sections — plus the shell chrome, shared loading/error/
-empty states and shared actions. Verified: switching to हिन्दी relabels the
-navigation, sets `lang="hi"`, and survives a reload.
+Translated today (Hindi, 113/113 keys, 100%): every navigation group and all 30
+sections, the shell chrome, shared loading/error/empty states, shared actions,
+and **every screen's eyebrow, title, description and primary button** across
+the operations screens, dialer, diagnostics, agent desk, wallboard and org
+routing.
 
-**Not yet translated:** the body copy inside each section — headers,
-descriptions and field labels within the 27 screens. That is a mechanical pass
-of roughly 400 more strings, one screen at a time. It is deliberately not
-half-done: the chrome a user reads on every screen is complete, and everything
-else falls back to English rather than showing a broken mix.
+**Not yet translated:** field labels and helper text inside forms, and the
+long-form copy in less-visited panels. Everything falls back to English rather
+than showing a broken mix, and a missing key is reported by `missingKeys()`
+rather than leaking as a raw identifier.
 
 ### 3. [CODE][DECIDED] Multi-currency (§14)
 

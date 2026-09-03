@@ -72,6 +72,39 @@ already seen is a no-op. `npm test` covers the verification with 11 assertions.
 fires only for transcriptions you dispatch asynchronously with a webhook — long
 recordings or a backfill.
 
+## Media gateway (live audio)
+
+Live audio needs a service outside this app. The worker has no WebSocket,
+Durable Object or queue-consumer binding, so a media socket cannot live in it.
+`services/media-gateway` is that service — see its README for details.
+
+1. Run it, with the same `MEDIA_GATEWAY_SECRET` set on both it and this app:
+
+```
+cd services/media-gateway && npm install
+VAANI_BASE_URL=https://your-vaani-host MEDIA_GATEWAY_SECRET=... npm start
+```
+
+2. Point Vaani's outbound leg at it:
+
+```
+VOICE_STREAM_URL=wss://your-gateway-host/?carrier=exotel&token=<same secret>
+```
+
+The split: the gateway owns codecs, turn detection and barge-in; Vaani owns
+speech-to-text, reasoning, tools, synthesis and telemetry, behind
+`POST /api/internal/voice-turn`. **The gateway holds one shared secret and no
+customer credentials.**
+
+Vaani asks the voice provider for **8 kHz mulaw**, which is exactly what
+carriers stream, so no transcoding happens on the audio path. (Requesting MP3 —
+the previous default — produced audio the gateway could not play at all.)
+
+Verified locally end to end with the bundled carrier simulator: greeting
+streamed as 20 ms frames, caller speech transcribed, reply synthesised and
+streamed back, and the turns written to call telemetry. Measured on that run:
+speech-to-text 879 ms, reasoning 1418 ms, synthesis 306 ms.
+
 ## Inbound calling
 
 Vaani resolves inbound calls but does not bridge audio. A carrier — or the media

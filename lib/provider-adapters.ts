@@ -146,6 +146,11 @@ export async function synthesizeSpeech(input: {
     modelId?: string | null;
     speakingRate?: string;
   } | null;
+  /**
+   * 'ulaw_8000' for a telephony leg, 'pcm_16000' for raw PCM, otherwise MP3.
+   * The media gateway asks for mulaw so no decoding is needed on the wire.
+   */
+  outputFormat?: 'mp3' | 'ulaw_8000' | 'pcm_16000';
 }) {
   const [credentials, globalVoice, sarvamPlatform, elevenPlatform] =
     await Promise.all([
@@ -934,6 +939,29 @@ async function probe(url: string, headers: HeadersInit) {
   };
 }
 
+/**
+ * Telephony wants 8 kHz mulaw, which is exactly what carriers stream. Asking
+ * ElevenLabs for it directly avoids an MP3 decode in the media gateway — and
+ * MP3 is what this returned before, which the gateway cannot play at all.
+ */
+const ELEVENLABS_OUTPUT: Record<string, { format: string; accept: string; contentType: string }> = {
+  mp3: {
+    format: 'mp3_44100_128',
+    accept: 'audio/mpeg',
+    contentType: 'audio/mpeg',
+  },
+  ulaw_8000: {
+    format: 'ulaw_8000',
+    accept: 'audio/basic',
+    contentType: 'audio/basic',
+  },
+  pcm_16000: {
+    format: 'pcm_16000',
+    accept: 'audio/pcm',
+    contentType: 'audio/pcm;rate=16000',
+  },
+};
+
 async function synthesizeGlobalSpeech(input: {
   organizationId: string;
   text: string;
@@ -941,21 +969,28 @@ async function synthesizeGlobalSpeech(input: {
   apiKey: string;
   voiceId: string;
   modelId?: string;
+  outputFormat?: string;
 }) {
+  const output =
+    ELEVENLABS_OUTPUT[input.outputFormat ?? 'mp3'] ?? ELEVENLABS_OUTPUT.mp3;
   const started = Date.now();
+  // output_format is a query parameter on this endpoint; sending it in the
+  // body is silently ignored and the API falls back to MP3.
   const response = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(input.voiceId)}`,
+    `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(
+      input.voiceId,
+    )}?output_format=${encodeURIComponent(output.format)}`,
     {
       method: 'POST',
       headers: {
         'xi-api-key': input.apiKey,
-        accept: 'audio/mpeg',
+        accept: output.accept,
         'content-type': 'application/json',
       },
       body: JSON.stringify({
         text: input.text.slice(0, 2500),
         model_id: input.modelId || 'eleven_multilingual_v2',
-        output_format: 'mp3_44100_128',
+        output_format: output.format,
         voice_settings: {
           stability: 0.48,
           similarity_boost: 0.72,

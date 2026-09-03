@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Ear, Loader2, MessageSquare, PhoneForwarded } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { useT } from '@/components/locale-provider';
+import type { TranslationKey } from '@/lib/i18n';
 
 /**
  * Supervisor monitoring (§12).
@@ -73,10 +75,10 @@ registerProcessor('vaani-supervisor-tap', VaaniSupervisorTap);
 
 type Mode = 'listen' | 'whisper' | 'duplex';
 
-const AUDIENCE: Record<Mode, string> = {
-  listen: 'Nobody can hear you.',
-  whisper: 'Only the agent hears you — the customer does not.',
-  duplex: 'Everyone on the call hears you, including the customer.',
+const AUDIENCE: Record<Mode, TranslationKey> = {
+  listen: 'sup.nobodyHears',
+  whisper: 'sup.onlyAgentHears',
+  duplex: 'sup.everyoneHears',
 };
 
 export function SupervisorMonitor({
@@ -86,6 +88,7 @@ export function SupervisorMonitor({
   callId: string;
   onClose: () => void;
 }) {
+  const t = useT();
   const [mode, setMode] = useState<Mode | null>(null);
   const [connecting, setConnecting] = useState<Mode | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -234,15 +237,15 @@ export function SupervisorMonitor({
     <div className="mt-4 rounded-xl border border-sky-400/20 bg-sky-400/[0.05] p-3.5">
       <div className="flex flex-wrap items-center gap-2">
         <p className="mr-auto text-[9px] uppercase tracking-wider text-sky-200/70">
-          Supervisor
+          {t('sup.title')}
           {mode ? ` · ${mode === 'duplex' ? 'joined' : mode}` : ''}
           {mode ? ` · ${frames} frames` : ''}
         </p>
         {(
           [
-            ['listen', 'Listen', Ear],
-            ['whisper', 'Whisper', MessageSquare],
-            ['duplex', 'Join', PhoneForwarded],
+            ['listen', t('sup.listen'), Ear],
+            ['whisper', t('sup.whisper'), MessageSquare],
+            ['duplex', t('sup.join'), PhoneForwarded],
           ] as const
         ).map(([value, label, Icon]) => (
           <Button
@@ -266,7 +269,7 @@ export function SupervisorMonitor({
               onClose();
             }}
           >
-            Stop
+            {t('sup.stop')}
           </Button>
         ) : null}
       </div>
@@ -277,7 +280,7 @@ export function SupervisorMonitor({
           mode === 'duplex' ? 'text-amber-200' : 'text-white/45'
         }`}
       >
-        {mode ? AUDIENCE[mode] : 'Choose how you want to join this call.'}
+        {mode ? t(AUDIENCE[mode]) : t('sup.choose')}
       </p>
       {notice ? (
         <p className="mt-1.5 text-[10px] text-white/60">{notice}</p>

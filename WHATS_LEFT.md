@@ -55,25 +55,24 @@ Still genuinely missing on this path:
   test against. Accept, reject, transfer-in and wrap-up work today.
 - **Listening to live audio** as a supervisor — same reason.
 
-### 2. [CODE] Localized dashboard — portals and sign-in done
+### 2. [CODE] Localized dashboard — app fully localised
 
 `lib/i18n.ts` + `components/locale-provider.tsx` hold an English source of
-truth, per-person language choice (not per workspace — two people in one
-workspace can want different languages, and the workspace setting already means
-which languages the AI may speak), a header switcher, placeholder substitution
+truth, per-person language choice, a header switcher, placeholder substitution
 so word order belongs to the translation, and **honest coverage reporting**:
-`coverage()` and `missingKeys()` say exactly what is untranslated rather than
-leaking a raw key.
+`coverage()` and `missingKeys()` name any gap rather than leaking a raw key.
 
-Hindi is at **271/271 keys**. Translated: the customer portal (all 30 sections,
-every screen heading, all form and stat labels, accessible names, plus Org &
-routing and Settings end to end), the **admin portal** (3 groups, 11 sections
-and all 10 section headings), and the **sign-in screen** including the social
-buttons and both portal variants.
+Hindi is at **359/359 keys**. Everything a signed-in user sees is translated:
+the customer portal (all 30 sections, headings, form and stat labels,
+accessible names, Org &amp; routing and Settings end to end), the admin portal
+(groups, sections and headings), the sign-in screen with its social buttons,
+and the import, dialer, diagnostics, agent-desk, co-pilot and supervisor
+panels.
 
-**Not yet translated:** the marketing landing page, and long-form copy in a few
-less-visited customer panels. Product nouns Indian users say in English on the
-phone — campaign, credits, CRM, SIP, API — are deliberately left alone.
+**Not translated:** the marketing landing page only. That is copywriting rather
+than interface text, and you picked its English wording yourself — say the word
+and it gets a Hindi version. Product nouns Indian users say in English on the
+phone (campaign, credits, CRM, SIP, API) are deliberately left alone.
 
 ### 3. [CODE][DECIDED] Multi-currency (§14)
 

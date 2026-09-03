@@ -100,14 +100,19 @@ export class Room {
   }
 
   /**
-   * Whether the AI should keep answering. Once a human is a full participant
-   * the AI must stop talking over them — that is what "transfer" means here.
+   * Whether the AI should keep answering.
+   *
+   * The AI steps back only when a human has taken over *a customer's* call —
+   * a human agent and a customer both present. A lone human agent is the
+   * browser dialer talking to the AI on purpose, and silencing the AI there
+   * makes the dialer useless.
    */
   aiShouldRespond() {
-    const humans = this.list().filter(
+    const humanAgents = this.list().filter(
       (leg) => leg.role === 'agent' && leg.mode === 'duplex',
     );
-    return humans.length === 0;
+    const customers = this.list().filter((leg) => leg.role === 'customer');
+    return !(humanAgents.length > 0 && customers.length > 0);
   }
 
   /** A supervisor may only whisper to a leg that is actually in the room. */

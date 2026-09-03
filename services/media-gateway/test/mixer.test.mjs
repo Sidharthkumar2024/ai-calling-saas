@@ -228,13 +228,41 @@ ok(
   })(),
 );
 ok(
-  'the AI stops once a human joins as a participant',
+  'the AI stops once a human takes over a customer call',
   (() => {
     const room = new Room('c');
     room.add(leg('C1', 'customer'));
     room.add(leg('AI', 'ai'));
     room.add(leg('L1', 'agent', 'duplex'));
     return room.aiShouldRespond() === false;
+  })(),
+);
+ok(
+  'THE REGRESSION: a lone agent leg is the dialer, so the AI still answers',
+  (() => {
+    // The browser dialer is exactly this shape: one human agent, no customer.
+    // Treating it as a takeover silenced the AI and made the dialer useless.
+    const room = new Room('c');
+    room.add(leg('L1', 'agent', 'duplex'));
+    return room.aiShouldRespond() === true;
+  })(),
+);
+ok(
+  'two agents with no customer still leaves the AI answering',
+  (() => {
+    const room = new Room('c');
+    room.add(leg('L1', 'agent', 'duplex'));
+    room.add(leg('L2', 'agent', 'duplex'));
+    return room.aiShouldRespond() === true;
+  })(),
+);
+ok(
+  'a customer alone with the AI keeps the AI answering',
+  (() => {
+    const room = new Room('c');
+    room.add(leg('C1', 'customer'));
+    room.add(leg('AI', 'ai'));
+    return room.aiShouldRespond() === true;
   })(),
 );
 ok(

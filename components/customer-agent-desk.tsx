@@ -131,7 +131,7 @@ export function CustomerAgentDesk({ view }: { view: 'desk' | 'wallboard' }) {
         </div>
         <div className="flex items-center gap-2 text-[10px] text-white/32">
           <RefreshCw className="h-3 w-3" />
-          Refreshes every {POLL_MS / 1000}s
+          {t('desk.refreshInterval', { seconds: POLL_MS / 1000 })}
         </div>
       </div>
       {notice ? (
@@ -169,6 +169,7 @@ function AgentDeskView({
   run: (label: string, payload: Record<string, unknown>) => Promise<void>;
   busy: string | null;
 }) {
+  const t = useT();
   const me = data.me;
   const myId = str(me?.id);
   const [wrapUp, setWrapUp] = useState<{
@@ -180,12 +181,9 @@ function AgentDeskView({
   if (!me)
     return (
       <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-6">
-        <p className="text-sm font-medium">You are not on the support bench</p>
+        <p className="text-sm font-medium">{t('desk.notOnBench')}</p>
         <p className="mt-2 text-[11px] leading-relaxed text-white/45">
-          The Agent Desk shows conversations assigned to you. Your workspace
-          account is not linked to a support agent record yet, so there is
-          nothing to take. A workspace admin can add you to the bench and to a
-          queue.
+          {t('desk.notOnBenchHint')}
         </p>
       </div>
     );
@@ -202,7 +200,7 @@ function AgentDeskView({
           <p className="text-[11px] font-medium">{str(me.name)}</p>
           <p className="mt-0.5 text-[10px] text-white/40">
             {str(me.active_calls, '0')} of {str(me.max_concurrent_calls, '1')}{' '}
-            slots in use
+            {t('desk.slotsInUse')}
           </p>
         </div>
         {(['online', 'break', 'offline'] as const).map((state) => (
@@ -234,7 +232,7 @@ function AgentDeskView({
         </h2>
         <div className="mt-3 space-y-2.5">
           {data.waiting.length === 0 ? (
-            <p className="text-[11px] text-white/35">Nothing is waiting.</p>
+            <p className="text-[11px] text-white/35">{t('desk.nothingWaiting')}</p>
           ) : null}
           {data.waiting.map((row) => {
             const waited = Number(row.waiting_seconds ?? 0);
@@ -264,7 +262,7 @@ function AgentDeskView({
                   </p>
                 ) : (
                   <p className="mt-2 text-[11px] text-white/35">
-                    No AI summary was attached to this handoff.
+                    {t('desk.noSummary')}
                   </p>
                 )}
                 <div className="mt-3 flex gap-2">
@@ -282,11 +280,11 @@ function AgentDeskView({
                       })
                     }
                   >
-                    Accept
+                    {t('desk.accept')}
                   </Button>
                   {availability !== 'online' ? (
                     <span className="self-center text-[10px] text-white/32">
-                      Go online to accept
+                      {t('desk.goOnlineToAccept')}
                     </span>
                   ) : null}
                 </div>
@@ -303,7 +301,7 @@ function AgentDeskView({
         <div className="mt-3 space-y-2.5">
           {mine.length === 0 ? (
             <p className="text-[11px] text-white/35">
-              You have no active conversations.
+              {t('desk.noActive')}
             </p>
           ) : null}
           {mine.map((row) => (
@@ -329,7 +327,7 @@ function AgentDeskView({
                       setWrapUp({ ...wrapUp, disposition: event.target.value })
                     }
                   >
-                    <option value="">Choose a disposition…</option>
+                    <option value="">{t('desk.chooseDisposition')}</option>
                     {data.dispositions.map((item) => (
                       <option key={item} value={item}>
                         {item.replaceAll('_', ' ')}
@@ -339,7 +337,7 @@ function AgentDeskView({
                   <textarea
                     rows={3}
                     value={wrapUp.notes}
-                    placeholder="What happened, and what did you promise the customer?"
+                    placeholder={t('desk.notesPlaceholder')}
                     onChange={(event) =>
                       setWrapUp({ ...wrapUp, notes: event.target.value })
                     }
@@ -361,7 +359,7 @@ function AgentDeskView({
                         setWrapUp(null);
                       }}
                     >
-                      Save wrap-up
+                      {t('desk.saveWrapUp')}
                     </Button>
                     <Button onClick={() => setWrapUp(null)}>Cancel</Button>
                   </div>
@@ -377,7 +375,7 @@ function AgentDeskView({
                       })
                     }
                   >
-                    Wrap up
+                    {t('desk.wrapUp')}
                   </Button>
                   <Button
                     disabled={busy === `reject-${str(row.id)}`}
@@ -388,7 +386,7 @@ function AgentDeskView({
                       })
                     }
                   >
-                    Return to queue
+                    {t('desk.returnToQueue')}
                   </Button>
                 </div>
               )}
@@ -409,6 +407,7 @@ function WallboardView({
   run: (label: string, payload: Record<string, unknown>) => Promise<void>;
   busy: string | null;
 }) {
+  const t = useT();
   const board = data.wallboard ?? {};
   return (
     <div className="space-y-6">
@@ -489,12 +488,12 @@ function WallboardView({
       <div className="grid gap-4 xl:grid-cols-2">
         <section className="rounded-2xl border border-white/8 bg-white/[0.02] p-5">
           <h2 className="text-[11px] font-semibold text-white/70">
-            Support bench
+            {t('desk.supportBench')}
           </h2>
           <div className="mt-3 space-y-2">
             {data.agents.length === 0 ? (
               <p className="text-[11px] text-white/35">
-                No support agents exist yet, so every escalation will queue.
+                {t('desk.noSupportAgents')}
               </p>
             ) : null}
             {data.agents.map((agent) => (
@@ -538,10 +537,10 @@ function WallboardView({
 
         <section className="rounded-2xl border border-white/8 bg-white/[0.02] p-5">
           <h2 className="text-[11px] font-semibold text-white/70">
-            Routing rules
+            {t('desk.routingRules')}
           </h2>
           <p className="mt-1 text-[10px] text-white/32">
-            First match by priority decides the queue.
+            {t('desk.routingRulesHint')}
           </p>
           <div className="mt-3 space-y-2">
             {data.rules.length === 0 ? (
@@ -572,12 +571,12 @@ function WallboardView({
 
       <section className="rounded-2xl border border-white/8 bg-white/[0.02] p-5">
         <h2 className="text-[11px] font-semibold text-white/70">
-          Recently wrapped up
+          {t('desk.recentlyWrapped')}
         </h2>
         <div className="mt-3 space-y-2">
           {data.recentHandoffs.length === 0 ? (
             <p className="text-[11px] text-white/35">
-              No conversations have been wrapped up yet.
+              {t('desk.noneWrapped')}
             </p>
           ) : null}
           {data.recentHandoffs.map((row) => (
@@ -624,6 +623,7 @@ type CopilotPayload = {
  * refresh button costs a model call only when the conversation has moved on.
  */
 function CopilotCard({ handoffId }: { handoffId: string }) {
+  const t = useT();
   const [data, setData] = useState<CopilotPayload | null>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState<number | null>(null);
@@ -654,8 +654,8 @@ function CopilotCard({ handoffId }: { handoffId: string }) {
     <div className="mt-3 rounded-xl border border-sky-400/18 bg-sky-400/[0.05] p-3.5">
       <div className="flex items-center justify-between gap-2">
         <p className="text-[9px] uppercase tracking-wider text-sky-200/70">
-          AI co-pilot
-          {data?.turnCount ? ` · ${data.turnCount} turns read` : ''}
+          {t('desk.copilot')}
+          {data?.turnCount ? ` · ${data.turnCount}` : ''}
         </p>
         <button
           type="button"
@@ -663,12 +663,12 @@ function CopilotCard({ handoffId }: { handoffId: string }) {
           onClick={() => void fetchCopilot()}
           className="rounded-md border border-white/12 px-2 py-1 text-[9px] text-white/60 transition hover:text-white/90"
         >
-          {loading ? 'Reading…' : 'Refresh'}
+          {loading ? t('import.reading') : t('desk.refresh')}
         </button>
       </div>
 
       {!data && loading ? (
-        <p className="mt-2 text-[11px] text-white/40">Reading the conversation…</p>
+        <p className="mt-2 text-[11px] text-white/40">{t('desk.copilotReading')}</p>
       ) : null}
 
       {data && !data.available ? (
@@ -687,7 +687,7 @@ function CopilotCard({ handoffId }: { handoffId: string }) {
         <div className="mt-2.5 space-y-2.5">
           {data.goal ? (
             <p className="text-[11px] leading-relaxed text-white/75">
-              <span className="text-white/40">What they want: </span>
+              <span className="text-white/40">{t('desk.copilotGoal')} </span>
               {data.goal}
             </p>
           ) : null}
@@ -725,13 +725,13 @@ function CopilotCard({ handoffId }: { handoffId: string }) {
           ) : null}
           {data.facts.length ? (
             <p className="text-[10px] leading-relaxed text-white/45">
-              <span className="text-white/30">Given so far: </span>
+              <span className="text-white/30">{t('desk.copilotFacts')} </span>
               {data.facts.join(' · ')}
             </p>
           ) : null}
           {data.nextAction ? (
             <p className="text-[10px] leading-relaxed text-white/45">
-              <span className="text-white/30">Recommended: </span>
+              <span className="text-white/30">{t('desk.copilotNext')} </span>
               {data.nextAction}
             </p>
           ) : null}

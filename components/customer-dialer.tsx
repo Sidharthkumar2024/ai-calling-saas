@@ -360,7 +360,7 @@ export function CustomerDialer() {
 
       {gatewayReady === false ? (
         <p className="rounded-xl border border-amber-400/25 bg-amber-400/[0.07] px-3 py-2.5 text-[11px] leading-relaxed text-amber-100">
-          The media gateway is not configured, so no call can be placed. Set
+          {t('dialer.gatewayMissing')}
           <span className="font-mono"> MEDIA_GATEWAY_SECRET </span> and
           <span className="font-mono"> MEDIA_GATEWAY_WS_URL</span>, and run
           <span className="font-mono"> services/media-gateway</span>.
@@ -392,7 +392,7 @@ export function CustomerDialer() {
           </label>
           <label className="block">
             <span className="text-[10px] text-white/45">
-              Caller ID (optional)
+              {t('dialer.callerId')}
             </span>
             <select
               value={fromNumberId}
@@ -410,7 +410,7 @@ export function CustomerDialer() {
           </label>
           <label className="block">
             <span className="text-[10px] text-white/45">
-              Customer number (optional)
+              {t('dialer.customerNumber')}
             </span>
             <input
               value={destination}
@@ -422,9 +422,7 @@ export function CustomerDialer() {
           </label>
         </div>
         <p className="mt-2 text-[10px] leading-relaxed text-white/32">
-          A customer number is recorded on the call but not dialled: bridging a
-          real customer onto this leg needs a carrier. Leaving it blank is a
-          straight conversation with the AI.
+          {t('dialer.carrierNote')}
         </p>
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -441,7 +439,7 @@ export function CustomerDialer() {
               ) : (
                 <PhoneCall />
               )}
-              Start call
+              {t('dialer.startCall')}
             </Button>
           ) : (
             <>
@@ -457,7 +455,7 @@ export function CustomerDialer() {
                 }}
               >
                 <MicOff />
-                {muted ? 'Unmute' : 'Mute'}
+                {muted ? t('dialer.unmute') : t('dialer.mute')}
               </Button>
               <Button
                 onClick={() => {
@@ -467,39 +465,39 @@ export function CustomerDialer() {
                 }}
               >
                 {held ? <Play /> : <Pause />}
-                {held ? 'Resume' : 'Hold'}
+                {held ? t('dialer.resume') : t('dialer.hold')}
               </Button>
               <Button disabled={ending} onClick={() => void endCall()}>
                 <PhoneOff />
-                End
+                {t('dialer.end')}
               </Button>
             </>
           )}
         </div>
         {muted || held ? (
           <p className="mt-2 text-[10px] text-amber-200/80">
-            {muted ? 'Your microphone is muted. ' : ''}
-            {held ? 'The call is on hold; silence is being sent. ' : ''}
-            The agent hears nothing until you resume.
+            {muted ? `${t('dialer.mutedNotice')} ` : ''}
+            {held ? `${t('dialer.heldNotice')} ` : ''}
+            {t('dialer.resumeHint')}
           </p>
         ) : null}
       </section>
 
       {turns.length ? (
         <section className="portal-panel p-5">
-          <h2 className="text-sm font-semibold">Live transcript</h2>
+          <h2 className="text-sm font-semibold">{t('dialer.liveTranscript')}</h2>
           <div className="mt-3 space-y-2">
             {turns.map((turn, index) => (
               <div key={index} className="space-y-1">
                 <p className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-2 text-[12px] text-white/80">
                   <span className="text-[9px] uppercase tracking-wider text-white/28">
-                    you{' '}
+                    {t('dialer.you')}{' '}
                   </span>
                   {turn.heard || '—'}
                 </p>
                 <p className="rounded-xl border border-emerald-400/15 bg-emerald-400/[0.05] px-3 py-2 text-[12px] text-white/80">
                   <span className="text-[9px] uppercase tracking-wider text-emerald-200/60">
-                    agent{' '}
+                    {t('dialer.agentLabel')}{' '}
                   </span>
                   {turn.reply || '—'}
                   {turn.latency ? (
@@ -517,7 +515,7 @@ export function CustomerDialer() {
 
       {recent.length ? (
         <section className="portal-panel p-5">
-          <h2 className="text-sm font-semibold">Recent dialer calls</h2>
+          <h2 className="text-sm font-semibold">{t('dialer.recentCalls')}</h2>
           <div className="mt-3 space-y-1">
             {recent.slice(0, 6).map((call) => (
               <div

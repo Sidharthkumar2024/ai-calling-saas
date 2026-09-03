@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { FileSpreadsheet, Loader2, Upload } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { useT } from '@/components/locale-provider';
 
 /**
  * Bulk calling import (§10-11).
@@ -72,6 +73,7 @@ export function CustomerImport({
   campaigns: Array<{ id: string; name: string }>;
   onChanged: () => Promise<void> | void;
 }) {
+  const t = useT();
   const [preview, setPreview] = useState<Preview | null>(null);
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [rejected, setRejected] = useState<JobRow[]>([]);
@@ -188,15 +190,14 @@ export function CustomerImport({
         <div>
           <h2 className="flex items-center gap-2 text-sm font-semibold">
             <FileSpreadsheet className="size-4 text-[#afbcff]" />
-            Import an audience
+            {t('import.title')}
           </h2>
           <p className="mt-1 text-[10px] leading-relaxed text-white/32">
-            CSV, TSV or XLSX. Rows are validated, de-duplicated and checked
-            against your suppression list before anything is added.
+            {t('import.hint')}
           </p>
         </div>
         <label className="flex items-center gap-2 text-[10px] text-white/45">
-          Default country code
+          {t('import.countryCode')}
           <input
             value={countryCode}
             onChange={(event) =>
@@ -220,7 +221,7 @@ export function CustomerImport({
         />
         {busy ? (
           <span className="flex items-center gap-1.5 text-[10px] text-white/45">
-            <Loader2 className="size-3 animate-spin" /> Reading…
+            <Loader2 className="size-3 animate-spin" /> {t('import.reading')}
           </span>
         ) : null}
       </div>
@@ -235,11 +236,11 @@ export function CustomerImport({
         <div className="mt-5 space-y-4">
           <div className="grid gap-2 sm:grid-cols-5">
             {[
-              ['Rows', preview.totals.rows, 'text-white'],
-              ['Accepted', preview.totals.accepted, 'text-emerald-200'],
-              ['Rejected', preview.totals.rejected, 'text-rose-200'],
-              ['Duplicates', preview.totals.duplicates, 'text-amber-200'],
-              ['Suppressed', preview.totals.suppressed, 'text-sky-200'],
+              [t('import.rows'), preview.totals.rows, 'text-white'],
+              [t('import.accepted'), preview.totals.accepted, 'text-emerald-200'],
+              [t('import.rejected'), preview.totals.rejected, 'text-rose-200'],
+              [t('import.duplicates'), preview.totals.duplicates, 'text-amber-200'],
+              [t('import.suppressed'), preview.totals.suppressed, 'text-sky-200'],
             ].map(([label, value, colour]) => (
               <div
                 key={String(label)}
@@ -256,14 +257,13 @@ export function CustomerImport({
           </div>
           {preview.totals.truncated ? (
             <p className="rounded-lg border border-amber-400/25 bg-amber-400/[0.07] px-3 py-2 text-[11px] text-amber-100">
-              The file was longer than the row limit, so only the first rows were
-              read. Split it and import the rest separately.
+              {t('import.truncated')}
             </p>
           ) : null}
 
           <div>
             <p className="text-[10px] uppercase tracking-wider text-white/28">
-              Column mapping · {preview.format.toUpperCase()}
+              {t('import.mapping')} · {preview.format.toUpperCase()}
             </p>
             <div className="mt-2 grid gap-2 sm:grid-cols-3">
               {FIELD_LABELS.map((field) => (
@@ -291,7 +291,7 @@ export function CustomerImport({
 
           <div>
             <p className="text-[10px] uppercase tracking-wider text-white/28">
-              First rows
+              {t('import.firstRows')}
             </p>
             <div className="mt-2 space-y-1">
               {preview.sample.map((row) => (
@@ -346,7 +346,7 @@ export function CustomerImport({
               onChange={(event) => setCampaignId(event.target.value)}
               className="rounded-lg border border-white/10 bg-white/4 px-3 py-2 text-[11px]"
             >
-              <option value="">Add to campaign…</option>
+              <option value="">{t('import.addToCampaign')}</option>
               {campaigns.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.name}
@@ -363,7 +363,7 @@ export function CustomerImport({
             </Button>
             {!preview.totals.accepted ? (
               <span className="text-[10px] text-white/35">
-                Nothing to add — fix the file and upload again.
+                {t('import.nothingToAdd')}
               </span>
             ) : null}
           </div>
@@ -373,7 +373,7 @@ export function CustomerImport({
       {jobs.length ? (
         <div className="mt-6">
           <p className="text-[10px] uppercase tracking-wider text-white/28">
-            Recent imports
+            {t('import.recent')}
           </p>
           <div className="mt-2 space-y-1">
             {jobs.slice(0, 6).map((job) => (

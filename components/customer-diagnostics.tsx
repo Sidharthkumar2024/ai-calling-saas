@@ -343,14 +343,13 @@ export function CustomerDiagnostics() {
 
       {!supported ? (
         <p className="rounded-xl border border-rose-400/25 bg-rose-400/[0.07] px-3 py-2.5 text-[11px] text-rose-100">
-          This browser does not expose audio devices. Use a current Chrome,
-          Edge, Firefox or Safari.
+          {t('diag.unsupportedBrowser')}
         </p>
       ) : null}
 
       <section className="portal-panel p-5">
         <h2 className="flex items-center gap-2 text-sm font-semibold">
-          <Mic className="size-4 text-[#afbcff]" /> Microphone
+          <Mic className="size-4 text-[#afbcff]" /> {t('diag.microphone')}
         </h2>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <select
@@ -358,7 +357,7 @@ export function CustomerDiagnostics() {
             onChange={(event) => setInputId(event.target.value)}
             className="rounded-lg border border-white/10 bg-white/4 px-3 py-2 text-[11px]"
           >
-            <option value="">System default</option>
+            <option value="">{t('diag.systemDefault')}</option>
             {inputs.map((device) => (
               <option key={device.deviceId} value={device.deviceId}>
                 {device.label}
@@ -366,11 +365,11 @@ export function CustomerDiagnostics() {
             ))}
           </select>
           <Button onClick={() => (listening ? stopListening() : void startListening())}>
-            {listening ? 'Stop' : 'Test microphone'}
+            {listening ? t('diag.stop') : t('diag.testMic')}
           </Button>
           {permission === 'granted' && !inputs[0]?.label ? (
             <span className="text-[10px] text-white/35">
-              Device names appear after permission is granted.
+              {t('diag.namesAfterPermission')}
             </span>
           ) : null}
         </div>
@@ -389,19 +388,19 @@ export function CustomerDiagnostics() {
           </div>
           <p className="mt-1.5 text-[10px] text-white/35">
             {!listening
-              ? 'Not listening. The microphone is only opened during a test.'
+              ? t('diag.notListening')
               : meter < 6
-                ? 'No sound is reaching the microphone — say something.'
+                ? t('diag.noSound')
                 : meter > 92
-                  ? 'Clipping: lower the input level or move further away.'
-                  : 'Input level looks healthy.'}
+                  ? t('diag.clipping')
+                  : t('diag.healthy')}
           </p>
         </div>
       </section>
 
       <section className="portal-panel p-5">
         <h2 className="flex items-center gap-2 text-sm font-semibold">
-          <Volume2 className="size-4 text-[#afbcff]" /> Speaker &amp; headset
+          <Volume2 className="size-4 text-[#afbcff]" /> {t('diag.speaker')}
         </h2>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <select
@@ -409,7 +408,7 @@ export function CustomerDiagnostics() {
             onChange={(event) => setOutputId(event.target.value)}
             className="rounded-lg border border-white/10 bg-white/4 px-3 py-2 text-[11px]"
           >
-            <option value="">System default</option>
+            <option value="">{t('diag.systemDefault')}</option>
             {outputs.map((device) => (
               <option key={device.deviceId} value={device.deviceId}>
                 {device.label}
@@ -429,19 +428,18 @@ export function CustomerDiagnostics() {
             </Button>
           ))}
           <Button disabled={busy === 'save'} onClick={() => void saveDevices()}>
-            Remember devices
+            {t('diag.rememberDevices')}
           </Button>
         </div>
         <p className="mt-2 text-[10px] text-white/32">
-          A phone call itself is mono; the left/right test only checks your own
-          headset wiring.
+          {t('diag.monoNote')}
         </p>
       </section>
 
       <section className="portal-panel p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <Wifi className="size-4 text-[#afbcff]" /> Readiness check
+            <Wifi className="size-4 text-[#afbcff]" /> {t('diag.readiness')}
           </h2>
           <Button
             className="portal-primary"
@@ -449,13 +447,11 @@ export function CustomerDiagnostics() {
             onClick={() => void runFullTest()}
           >
             {busy === 'test' ? <Loader2 className="animate-spin" /> : null}
-            Run full test
+            {t('diag.runFullTest')}
           </Button>
         </div>
         <p className="mt-2 text-[10px] text-white/32">
-          Measures microphone level and HTTP round-trip time to Vaani. There is
-          no WebRTC peer connection in this tab, so these are network round
-          trips, not call media statistics.
+          {t('diag.measuresNote')}
         </p>
 
         {result ? (
@@ -465,10 +461,10 @@ export function CustomerDiagnostics() {
             >
               <p className="font-semibold uppercase tracking-wide">
                 {result.readiness.state === 'ready'
-                  ? 'Ready to take calls'
+                  ? t('diag.readyToTake')
                   : result.readiness.state === 'warn'
-                    ? 'Usable, with problems'
-                    : 'Not ready'}
+                    ? t('diag.usableWithProblems')
+                    : t('diag.notReady')}
               </p>
               {result.readiness.reasons.length ? (
                 <ul className="mt-1.5 space-y-1">
@@ -503,7 +499,7 @@ export function CustomerDiagnostics() {
               <span className="font-mono text-white/70">
                 {result.supportCode}
               </span>{' '}
-              — quote this in a ticket and support can find this exact run.
+              — {t('diag.supportCodeNote')}
             </p>
           </div>
         ) : null}
@@ -511,7 +507,7 @@ export function CustomerDiagnostics() {
         {runs.length ? (
           <div className="mt-5">
             <p className="text-[10px] uppercase tracking-wider text-white/28">
-              Recent tests
+              {t('diag.recentTests')}
             </p>
             <div className="mt-2 space-y-1">
               {runs.slice(0, 5).map((run) => (

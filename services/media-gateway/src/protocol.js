@@ -6,7 +6,12 @@
  * translation pure means a new carrier is one function, not a rewrite.
  */
 
-export const CARRIERS = ['twilio', 'exotel'];
+/**
+ * 'browser' is the dashboard dialer: the same envelope, but the audio comes
+ * from an agent's tab rather than a carrier. It authenticates with a
+ * short-lived per-call token, never the gateway secret.
+ */
+export const CARRIERS = ['twilio', 'exotel', 'browser'];
 
 /**
  * Normalises an inbound carrier frame.
@@ -45,6 +50,29 @@ export function parseInbound(carrier, raw) {
     return { kind: 'ignore', reason: event ?? 'unknown_event' };
   }
 
+  if (carrier === 'browser') {
+    const event = message.event;
+    if (event === 'start')
+      return {
+        kind: 'start',
+        streamSid: message.streamSid ?? 'browser',
+        callSid: null,
+        // The call id is not taken from the frame: it comes from the verified
+        // token, so a tab cannot claim someone else's call.
+        callId: null,
+        encoding: message.encoding ?? 'mulaw',
+        sampleRate: Number(message.sampleRate ?? 8000),
+      };
+    if (event === 'media')
+      return {
+        kind: 'media',
+        payload: message.media?.payload ?? '',
+        track: 'inbound',
+      };
+    if (event === 'stop') return { kind: 'stop' };
+    return { kind: 'ignore', reason: event ?? 'unknown_event' };
+  }
+
   if (carrier === 'exotel') {
     const event = message.event;
     if (event === 'start') {
@@ -74,6 +102,8 @@ export function parseInbound(carrier, raw) {
 
 /** Builds an outbound media frame carrying agent audio. */
 export function buildMedia(carrier, { streamSid, payload }) {
+  if (carrier === 'browser')
+    return JSON.stringify({ event: 'media', media: { payload } });
   if (carrier === 'twilio')
     return JSON.stringify({
       event: 'media',
@@ -93,6 +123,7 @@ export function buildMedia(carrier, { streamSid, payload }) {
  * agent's buffered speech after interrupting.
  */
 export function buildClear(carrier, { streamSid }) {
+  if (carrier === 'browser') return JSON.stringify({ event: 'clear' });
   if (carrier === 'twilio')
     return JSON.stringify({ event: 'clear', streamSid });
   return JSON.stringify({ event: 'clear', stream_sid: streamSid });

@@ -20,7 +20,7 @@ const OUT_FRAME_SAMPLES = 160;
  * `send` and `close`, so it can be driven by a real socket or by a test.
  */
 export class CallSession {
-  constructor({ carrier, client, send, close, log = () => {} }) {
+  constructor({ carrier, client, send, close, log = () => {}, callId = null }) {
     this.carrier = carrier;
     this.client = client;
     this.send = send;
@@ -31,7 +31,10 @@ export class CallSession {
     this.bufferedSamples = 0;
     this.format = { encoding: 'mulaw', sampleRate: 8000 };
     this.streamSid = null;
-    this.callId = null;
+    // A browser leg arrives already authenticated for one call, so the id is
+    // set here rather than read from a frame the tab controls.
+    this.callId = callId;
+    this.preauthorized = Boolean(callId);
     this.started = false;
     this.busy = false;
     this.ended = false;
@@ -49,7 +52,7 @@ export class CallSession {
 
   async onStart(frame) {
     this.streamSid = frame.streamSid;
-    this.callId = frame.callId;
+    if (!this.preauthorized) this.callId = frame.callId;
     this.format = {
       encoding: /alaw|pcma/i.test(frame.encoding) ? 'alaw' : 'mulaw',
       sampleRate: Number(frame.sampleRate) || 8000,
@@ -140,6 +143,16 @@ export class CallSession {
         return;
       }
       this.stats.turns += 1;
+      if (this.carrier === 'browser')
+        this.send(
+          JSON.stringify({
+            event: 'transcript',
+            heard: result?.transcript ?? '',
+            reply: result?.replyText ?? '',
+            toolCalls: result?.toolCalls ?? [],
+            latency: result?.latency ?? null,
+          }),
+        );
       this.log('turn', {
         callId: this.callId,
         reason,

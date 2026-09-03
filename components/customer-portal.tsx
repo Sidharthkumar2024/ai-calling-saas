@@ -14,6 +14,7 @@ import {
   CreditCard,
   Database,
   Activity,
+  PhoneOutgoing,
   Building2,
   Gauge,
   Globe2,
@@ -67,6 +68,7 @@ import {
   type CommerceData,
 } from '@/components/customer-commerce';
 import { CustomerAgentDesk } from '@/components/customer-agent-desk';
+import { CustomerDialer } from '@/components/customer-dialer';
 import { CustomerDiagnostics } from '@/components/customer-diagnostics';
 import { CustomerOrgStructure } from '@/components/customer-org-structure';
 import { CustomerApprovals } from '@/components/customer-approvals';
@@ -224,6 +226,12 @@ const groups: PortalNavGroup[] = [
       { id: 'org_structure', label: 'Org & routing', icon: Building2 , translationKey: 'nav.org_structure' },
       { id: 'agent_desk', label: 'Agent desk', icon: Headphones , translationKey: 'nav.agent_desk' },
       {
+        id: 'dialer',
+        label: 'Dialer',
+        icon: PhoneOutgoing,
+        translationKey: 'nav.dialer',
+      },
+      {
         id: 'diagnostics',
         label: 'Device & diagnostics',
         icon: Activity,
@@ -259,6 +267,7 @@ const navPermissions: Record<string, string> = {
   team: 'team.manage',
   org_structure: 'workspace.manage',
   agent_desk: 'calls.monitor',
+  dialer: 'calls.monitor',
   diagnostics: 'calls.monitor',
   wallboard: 'calls.monitor',
   approvals: 'support.manage',
@@ -526,6 +535,7 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
         {!loading && !error && active === 'org_structure' ? (
           <CustomerOrgStructure />
         ) : null}
+        {!loading && !error && active === 'dialer' ? <CustomerDialer /> : null}
         {!loading && !error && active === 'diagnostics' ? (
           <CustomerDiagnostics />
         ) : null}

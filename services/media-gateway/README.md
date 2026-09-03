@@ -39,8 +39,14 @@ The carrier connects to:
 wss://<gateway-host>/?carrier=twilio&token=<MEDIA_GATEWAY_SECRET>
 ```
 
-`carrier` is `twilio` or `exotel`. The token is a query parameter because
-carriers cannot set arbitrary WebSocket headers.
+`carrier` is `twilio`, `exotel` or `browser`. The token is a query parameter
+because carriers cannot set arbitrary WebSocket headers.
+
+**The `browser` carrier is the dashboard dialer** and authenticates differently:
+it presents a short-lived token Vaani minted for one call id, not the gateway
+secret, because a browser tab must never hold that secret. The call id comes
+from the verified token rather than from a frame the tab controls, so a tab
+cannot claim someone else's call.
 
 **The start frame must carry the Vaani call id.** Twilio sends it as a custom
 parameter, Exotel as `customfield` — which is what `startOutboundCall` already

@@ -105,6 +105,33 @@ streamed as 20 ms frames, caller speech transcribed, reply synthesised and
 streamed back, and the turns written to call telemetry. Measured on that run:
 speech-to-text 879 ms, reasoning 1418 ms, synthesis 306 ms.
 
+## Browser dialer
+
+An agent can talk to an AI agent from the dashboard, with no carrier involved.
+Set both of these on the app:
+
+```
+MEDIA_GATEWAY_SECRET=...            # the same value the gateway holds
+MEDIA_GATEWAY_WS_URL=wss://your-gateway-host
+```
+
+**The tab never receives the gateway secret.** `POST /api/app/dialer` mints a
+token bound to one call id and valid for two minutes; the gateway verifies it
+with the secret it already holds. Verified: the gateway secret presented
+directly as a browser token, random text, an expired token and a token signed
+with a different secret are all refused with `1008` and a named reason.
+
+`scripts/check-gateway-token-parity.mjs` proves the app's `lib/dialer-token.ts`
+and the gateway's mirrored copy mint byte-identical tokens and reject the same
+inputs for the same reasons — a drift there would mean the gateway accepts
+tokens the app does not mint, or rejects ones it does.
+
+What the dialer does today: microphone in, agent voice out, mute, hold, live
+transcript with per-turn latency, and call telemetry written like any other
+conversation. **A customer number is recorded but not dialled** — bridging a
+real customer onto this leg needs a carrier, and the UI says so rather than
+implying someone is on the line.
+
 ## Inbound calling
 
 Vaani resolves inbound calls but does not bridge audio. A carrier — or the media

@@ -1,7 +1,7 @@
 'use client';
 /* oxlint-disable jsx-a11y/media-has-caption -- call transcripts and QA summaries are available beside authenticated recordings */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { SUPPORTED_LANGUAGES, SUPPORTED_LANGUAGE_CODES } from '@/lib/languages';
 import {
   Activity,
@@ -1673,9 +1673,185 @@ function Analytics() {
               </div>
             </section>
           </div>
+          <ObjectionLibrary />
         </>
       ) : null}
     </div>
+  );
+}
+
+type ObjectionEntry = {
+  id: string;
+  objection: string;
+  count: number;
+  rebuttal: string | null;
+  status: string;
+  firstHeardAt: string;
+  lastHeardAt: string;
+};
+
+/**
+ * The objection library (§10).
+ *
+ * Every call has always extracted the objections the caller raised, and every
+ * one of them went into a JSON column nothing read. This is the screen that
+ * reads them — and, more to the point, the screen where a workspace writes back
+ * the answer it wants used, which is what then reaches a live call.
+ */
+function ObjectionLibrary() {
+  const [entries, setEntries] = useState<ObjectionEntry[]>([]);
+  const [briefed, setBriefed] = useState(0);
+  const [loaded, setLoaded] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [draft, setDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const response = await fetch('/api/app/objections');
+      const body = (await response.json()) as {
+        objections?: ObjectionEntry[];
+        briefed?: number;
+      };
+      setEntries(body.objections ?? []);
+      setBriefed(Number(body.briefed ?? 0));
+    } catch {
+      setEntries([]);
+    } finally {
+      setLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Deferred a tick for the same reason as Analytics above: setting state
+    // synchronously in an effect body cascades renders.
+    const timer = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
+
+  const send = async (body: Record<string, unknown>) => {
+    setSaving(true);
+    try {
+      await fetch('/api/app/objections', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      setEditing(null);
+      await load();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!loaded) return null;
+
+  return (
+    <section className="portal-panel p-5">
+      <div className="flex flex-wrap items-baseline gap-2">
+        <h2 className="text-sm font-semibold">Objection library</h2>
+        <span className="text-[10px] text-ink-muted">
+          {entries.length
+            ? `${briefed} of ${entries.length} briefed to your agents`
+            : 'Built from what callers actually said'}
+        </span>
+      </div>
+      <p className="mt-1 text-[10px] text-ink-muted">
+        An objection reaches your agents once it has been heard more than once,
+        or as soon as you write an approved answer for it. Agents are never
+        given an answer you did not write.
+      </p>
+      {entries.length === 0 ? (
+        <p className="mt-4 text-[11px] text-ink-muted">
+          Nothing recorded yet. Objections are collected automatically after
+          each analysed call.
+        </p>
+      ) : null}
+      <div className="mt-4 space-y-2">
+        {entries.map((entry) => (
+          <div
+            key={entry.id}
+            className="rounded-xl border border-hairline bg-surface-muted px-3 py-2.5 text-[11px]"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-medium">{entry.objection}</span>
+              <span className="text-ink-muted">
+                heard {entry.count}
+                {entry.count === 1 ? ' time' : ' times'}
+              </span>
+              {entry.rebuttal ? (
+                <span className="text-[9px] text-success-text">
+                  approved answer in use
+                </span>
+              ) : entry.count > 1 ? (
+                <span className="text-[9px] text-warning-text">
+                  no approved answer
+                </span>
+              ) : null}
+              <span className="ml-auto flex gap-2">
+                <button
+                  type="button"
+                  className="text-[10px] text-ink-body underline-offset-2 hover:underline"
+                  onClick={() => {
+                    setEditing(entry.id);
+                    setDraft(entry.rebuttal ?? '');
+                  }}
+                >
+                  {entry.rebuttal ? 'Edit answer' : 'Write answer'}
+                </button>
+                <button
+                  type="button"
+                  className="text-[10px] text-ink-muted underline-offset-2 hover:underline"
+                  onClick={() =>
+                    void send({ action: 'dismiss', objectionId: entry.id })
+                  }
+                >
+                  Dismiss
+                </button>
+              </span>
+            </div>
+            {entry.rebuttal && editing !== entry.id ? (
+              <p className="mt-2 text-[10px] text-ink-body">{entry.rebuttal}</p>
+            ) : null}
+            {editing === entry.id ? (
+              <div className="mt-2 space-y-2">
+                <textarea
+                  value={draft}
+                  onChange={(event) => setDraft(event.target.value)}
+                  rows={3}
+                  maxLength={1200}
+                  placeholder="What should the agent say back? Your agents will use this wording."
+                  className="w-full rounded-lg border border-hairline bg-surface px-3 py-2 text-[11px]"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={saving}
+                    className="portal-primary rounded-lg px-3 py-1.5 text-[10px] disabled:opacity-60"
+                    onClick={() =>
+                      void send({
+                        action: 'set_rebuttal',
+                        objectionId: entry.id,
+                        rebuttal: draft,
+                      })
+                    }
+                  >
+                    Save answer
+                  </button>
+                  <button
+                    type="button"
+                    className="text-[10px] text-ink-muted"
+                    onClick={() => setEditing(null)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

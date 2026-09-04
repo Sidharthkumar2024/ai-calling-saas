@@ -1022,6 +1022,27 @@ async function bootstrap() {
       model TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
+    // §10's objection library. Objections have always been extracted per call
+    // into summaries.objections_json and never read back; this is where they
+    // accumulate into something a workspace can see and answer.
+    db.prepare(`CREATE TABLE IF NOT EXISTS objection_library (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      objection_key TEXT NOT NULL,
+      label TEXT NOT NULL,
+      occurrences INTEGER DEFAULT 0 NOT NULL,
+      rebuttal TEXT,
+      rebuttal_updated_by TEXT REFERENCES app_users(id) ON DELETE SET NULL,
+      rebuttal_updated_at TEXT,
+      status TEXT DEFAULT 'open' NOT NULL,
+      last_call_id TEXT,
+      first_heard_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      last_heard_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_objection_library_key
+      ON objection_library (organization_id, objection_key)`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_objection_library_rank
+      ON objection_library (organization_id, occurrences)`),
     db.prepare(`CREATE TABLE IF NOT EXISTS call_participants (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -1876,19 +1897,39 @@ async function bootstrap() {
   await ensureColumn(db, 'device_test_runs', 'webrtc_json', 'TEXT');
   // §26: the platform's base currency and each workspace's own.
   await ensureColumn(db, 'organizations', 'currency', "TEXT DEFAULT 'INR'");
-  await ensureColumn(db, 'organization_settings', 'fx_markup_percent', 'REAL DEFAULT 0');
-  await ensureColumn(db, 'organization_settings', 'price_rounding', "TEXT DEFAULT 'none'");
+  await ensureColumn(
+    db,
+    'organization_settings',
+    'fx_markup_percent',
+    'REAL DEFAULT 0',
+  );
+  await ensureColumn(
+    db,
+    'organization_settings',
+    'price_rounding',
+    "TEXT DEFAULT 'none'",
+  );
   // §27-28: what a usage event actually consumed and cost. `units` existed and
   // was hardcoded to 1; the rest is what makes a margin figure possible.
   await ensureColumn(db, 'provider_usage_events', 'model', 'TEXT');
   await ensureColumn(db, 'provider_usage_events', 'unit', 'TEXT');
   await ensureColumn(db, 'provider_usage_events', 'rate_card_id', 'TEXT');
   await ensureColumn(db, 'provider_usage_events', 'cost_currency', 'TEXT');
-  await ensureColumn(db, 'provider_usage_events', 'base_cost_micros', 'INTEGER');
+  await ensureColumn(
+    db,
+    'provider_usage_events',
+    'base_cost_micros',
+    'INTEGER',
+  );
   await ensureColumn(db, 'provider_usage_events', 'fx_rate', 'REAL');
   // Distinguishes "this was free" from "we could not price it" — the old
   // metering could only produce the second, and reported it as the first.
-  await ensureColumn(db, 'provider_usage_events', 'unpriced', 'INTEGER DEFAULT 0');
+  await ensureColumn(
+    db,
+    'provider_usage_events',
+    'unpriced',
+    'INTEGER DEFAULT 0',
+  );
   // Rows written before metering existed have no `unit` — the old code
   // hardcoded units = 1 and cost = 0 for every provider call. They are unpriced
   // by definition, and leaving them at the column default of 0 would report a
@@ -1924,11 +1965,21 @@ async function bootstrap() {
   // obligations, so the profile has to say which it is.
   await ensureColumn(db, 'voice_profiles', 'kind', "TEXT DEFAULT 'prebuilt'");
   // The Super Admin kill switch.
-  await ensureColumn(db, 'voice_profiles', 'platform_blocked', 'INTEGER DEFAULT 0');
+  await ensureColumn(
+    db,
+    'voice_profiles',
+    'platform_blocked',
+    'INTEGER DEFAULT 0',
+  );
   await ensureColumn(db, 'voice_profiles', 'platform_block_reason', 'TEXT');
   await ensureColumn(db, 'organization_settings', 'legal_name', 'TEXT');
   await ensureColumn(db, 'organization_settings', 'billing_state', 'TEXT');
-  await ensureColumn(db, 'organization_settings', 'billing_country', "TEXT DEFAULT 'IN'");
+  await ensureColumn(
+    db,
+    'organization_settings',
+    'billing_country',
+    "TEXT DEFAULT 'IN'",
+  );
   // Sequence numbers must be unbroken *within a series*, not globally.
   await db
     .prepare(

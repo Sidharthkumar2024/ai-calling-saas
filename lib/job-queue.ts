@@ -1,5 +1,9 @@
 import { getRawDb } from '@/db/index';
 import { isCallOutcome } from '@/lib/call-outcomes';
+import {
+  applyCallToLead,
+  recordObjections,
+} from '@/lib/sales-intelligence-service';
 import { enqueueJob } from '@/lib/job-enqueue';
 import { reasonWithTools } from '@/lib/provider-adapters';
 import { closeIdlePlaygroundCalls } from '@/lib/call-telemetry';
@@ -774,7 +778,7 @@ async function analyseCall(job: JobRow, payload: Record<string, unknown>) {
   const system = `You review one customer conversation for a business.
 Return ONLY minified JSON with these keys and nothing else:
 {"summary":string,"intent":string,"sentiment":"positive"|"neutral"|"negative","outcome":"resolved"|"information_provided"|"appointment_booked"|"payment_link_sent"|"callback_scheduled"|"transferred_to_human"|"not_interested"|"incomplete","objections":string[],"next_action":string,"customer_name":string|null,"quality":{"overall":0-100,"resolution":0-100,"knowledge":0-100,"naturalness":0-100,"policy":0-100,"hallucinations":number,"findings":string[]}}
-Rules: base every field only on the transcript. The outcome field must be exactly one of the listed values - it is grouped in analytics, so free text is not accepted; put the detail in next_action instead. Use null for a customer name that was never given. Keep summary under 40 words and write it in English. Score policy low if the agent claimed an action succeeded without confirmation, requested an OTP/CVV/PIN, or promised a refund outright.`;
+Rules: base every field only on the transcript. The outcome field must be exactly one of the listed values - it is grouped in analytics, so free text is not accepted; put the detail in next_action instead. List each objection as a short phrase in the caller’s own words - "the price is above our budget", not an identifier like price_too_high - because the workspace reads these and answers them. Use null for a customer name that was never given. Keep summary under 40 words and write it in English. Score policy low if the agent claimed an action succeeded without confirmation, requested an OTP/CVV/PIN, or promised a refund outright.`;
 
   let parsed: Record<string, unknown> | null = null;
   let usedModel: string | null = null;
@@ -936,11 +940,48 @@ Rules: base every field only on the transcript. The outcome field must be exactl
     qaReviewed = true;
   }
 
+  // The return path (§10). Until now every field above was written to a row
+  // nothing acted on: the lead's score stayed at whatever its enquiry form
+  // implied, and the objections were filed and never read.
+  let rescored: Awaited<ReturnType<typeof applyCallToLead>> = null;
+  let objectionsFiled = 0;
+  try {
+    const [lead, filed] = await Promise.all([
+      applyCallToLead({
+        organizationId,
+        callId,
+        signals: {
+          outcome: callOutcome,
+          sentiment,
+          intent: text('intent') || null,
+          objections,
+        },
+      }),
+      recordObjections({ organizationId, callId, objections }),
+    ]);
+    rescored = lead;
+    objectionsFiled = filed.filed;
+  } catch (error) {
+    // The analysis itself is already saved. Failing to propagate it must not
+    // roll that back or fail the job into a retry that re-bills the model.
+    console.error('sales intelligence write-back failed', error);
+  }
+
   return {
     callId,
     analysed: true,
     sentiment,
     objections: objections.length,
+    objectionsFiled,
+    leadRescored: rescored
+      ? {
+          leadId: rescored.leadId,
+          previous: rescored.previous,
+          score: rescored.score,
+          delta: rescored.delta,
+          status: rescored.status,
+        }
+      : null,
     qaReviewed,
     qaSampleRate: sampleRate,
     model: usedModel,

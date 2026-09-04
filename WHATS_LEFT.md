@@ -114,6 +114,24 @@ and billing everywhere. Revisit once the core product has real usage.
 
 ## Landed
 
+**Sales intelligence loop (§10).** Every call has always produced an outcome,
+a sentiment and a list of objections, and all three went into rows nothing read
+back. `leads.score` stayed at whatever the enquiry form implied for the life of
+the lead. Now `analyseCall` rescores the lead from what was actually said —
+outcomes dominate, sentiment adjusts, an objection costs little because arguing
+is engagement, and a refusal is the one signal allowed past the per-call bound —
+and writes a `lead_events` row carrying every contribution, so a score that
+moved can say why. Objections accumulate into an `objection_library` the
+workspace can answer; an approved answer, and only an approved answer, is then
+briefed to live calls.
+
+*Known limit:* objections merge on wording, not meaning. "The price is too
+expensive" and "too expensive for us" become one row; "price too high" and "too
+expensive" do not, because they share no words. Same trade-off as knowledge
+retrieval, and the same fix if it matters later — embeddings behind
+`findMergeTarget`.
+
+
 **Track 0 — truth and safety.** RBAC holes closed and failing closed; admin
 health panel reports measured values instead of literals; alerts fire on real
 telemetry with auto-resolve and delivered channels; scheduler documented and

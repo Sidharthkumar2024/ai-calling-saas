@@ -80,6 +80,7 @@ import {
   CreditWatch,
   NotificationCenter,
 } from '@/components/notification-center';
+import { CustomerSecurity } from '@/components/customer-security';
 import {
   CustomerOperations,
   type OperationsData,
@@ -455,6 +456,7 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
   const [data, setData] = useState<CustomerData>(emptyData);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [mfaRequired, setMfaRequired] = useState('');
   const visibleGroups = useMemo(
     () =>
       groups
@@ -472,6 +474,18 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
   async function getJson<T>(url: string) {
     const response = await fetch(url, { cache: 'no-store' });
     if (response.status === 401 || response.status === 403) {
+      const body = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        code?: string;
+      };
+      // §14 restricts a privileged account that has no second factor. Bouncing
+      // it to /login would loop for ever — the credentials are correct, so the
+      // login succeeds and the next request is refused again. The person needs
+      // the enrolment screen, not the sign-in screen.
+      if (body.code === 'mfa_required') {
+        setMfaRequired(body.error ?? '');
+        throw new Error(body.error ?? 'Two-factor authentication is required.');
+      }
       window.location.assign('/login');
       throw new Error('Session expired.');
     }
@@ -580,6 +594,29 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
   const credits = Number(
     data.overview.stats?.credits ?? data.billing.wallet?.balance ?? 0,
   );
+  if (mfaRequired)
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-surface-muted px-6 py-10">
+        <section className="portal-panel max-w-md p-6 text-center">
+          <h1 className="text-sm font-semibold">
+            Two-factor authentication required
+          </h1>
+          <p className="mt-2 text-[11px] text-ink-body">{mfaRequired}</p>
+          <p className="mt-3 text-[10px] text-ink-muted">
+            Your password was accepted. This is the one step left before the
+            workspace opens.
+          </p>
+        </section>
+        {/* The security panel is rendered here rather than linked to. It is a
+            section of the portal, not a page, and the portal cannot load —
+            every one of its requests is refused. `/api/auth/security` is on
+            §14's allow-list precisely so this still works. */}
+        <div className="w-full max-w-2xl">
+          <CustomerSecurity />
+        </div>
+      </div>
+    );
+
   return (
     <NotificationCenter section={active}>
       <CreditWatch credits={credits} />

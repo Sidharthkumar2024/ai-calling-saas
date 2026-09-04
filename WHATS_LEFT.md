@@ -117,6 +117,43 @@ work.
 
 ## Landed
 
+**Two-factor authentication is enforced for privileged roles (Blueprint §14).**
+Enrolment had existed since the security screen was written — `mfa_begin`,
+`mfa_confirm`, a TOTP secret, and a login that demands a code from anybody who
+enrolled. What was missing was the word *enforce*: nobody had to. A platform
+administrator holding every capability in the product could work with a
+password alone, which made the feature reassurance rather than protection.
+
+**Who:** every platform admin, whatever their sub-role — even `analyst` reads
+across every tenant, which is exactly the access worth stealing — plus
+`customer_owner`, and any workspace `owner` or `admin`, since both carry every
+permission in `lib/customer-rbac.ts`. Deliberately *not* agents, support
+agents, analysts or sales managers: requiring an authenticator app of every
+telecaller on a shift is enforcement theatre paid for by the people least able
+to absorb it, and none of them can move money or change who has access.
+
+**How, without locking anyone out.** Refusing to sign in an unenrolled admin
+would be a door with no key, because enrolling requires being signed in. So the
+session is created and restricted to a three-path allow-list — the security
+endpoint, the session read, and logout. Not a prefix match on `/api/auth`: that
+would leave `team-invite` open, and a restricted admin must not be able to
+invite themselves a second account instead of enrolling.
+
+The gate lives inside `requireCustomer` and `requireAdmin` rather than at each
+route, because enforcement that has to be remembered per endpoint is
+enforcement that will be missing from the endpoint added next week.
+
+*Found while verifying, and worse than the missing enforcement:* the portal's
+loader redirected to `/login` on **any** 403. A restricted account would have
+looped — sign in, get refused, bounce back to sign in — with nothing on screen
+explaining why, since the credentials were correct. The refusal now carries an
+`mfa_required` code, and the portal renders the enrolment panel instead of
+redirecting.
+
+**Note for the demo accounts:** all three are privileged, so the first sign-in
+will ask for enrolment. That is the intended §14 behaviour, not a fault.
+
+
 **CRM views, filters, saved views, bulk actions and deduplication (Blueprint
 §3.5).** The CRM had one view — a Kanban — a search box and a source dropdown.
 

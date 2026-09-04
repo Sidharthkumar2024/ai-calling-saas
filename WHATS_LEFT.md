@@ -208,9 +208,36 @@ unpriced, and the panel says: *"312 usage events in this window had no rate
 card, so the cost above is a floor rather than a total and the margin is
 optimistic."* It would have read 100% margin without that line.
 
-Still to come on this track: per-workspace currency and price books end to end
-(the plumbing is in, the checkout and invoices still assume INR), invoice
-numbering and GST, and margin-floor alerts.
+**Invoices that an accountant would accept (§27).** The tax was
+`Math.round(amount * 0.18)` — a flat rate with no split, no GSTIN on either
+party, no HSN/SAC and no place of supply. The number was
+`VAI-${year}-${Date.now().slice(-8)}`: neither sequential nor per-tenant, and
+two purchases in the same millisecond collided on a UNIQUE index.
+
+Whether GST splits into CGST+SGST or lands as IGST depends on **where the supply
+happens**, not on the amount — a flat 18% is right in exactly one of three cases
+and silently wrong in the other two. Verified end to end: a Maharashtra GSTIN
+produced `VAI/2026-27/00001` with CGST ₹89.91 + SGST ₹89.91, and switching to a
+Karnataka GSTIN produced `VAI/2026-27/00002` with IGST ₹179.82 and the note
+*"Inter-state supply (Maharashtra → Karnataka); IGST at 18%."* Sequence numbers
+are claimed atomically, because a read-then-write would hand two simultaneous
+purchases the same number.
+
+The invoice document also stopped ignoring its own data: it had always printed
+one hardcoded row reading "Vaani subscription / credit services", whatever had
+actually been bought, and now prints the stored line items with HSN/SAC, both
+parties' GSTINs, the place of supply and the correct tax split.
+
+**Margin-floor alerts (§28)** run on the existing alert machinery as
+`gross_margin_percent`. It returns null — rather than firing — when a workspace
+billed nothing in the window, and *also* when any usage event in the window
+could not be priced: a floor alert that cannot fire because half the cost is
+missing is worse than no alert. Unknown metrics and not-yet-measurable ones are
+now reported separately, since one is a mistake to fix and the other is routine.
+
+Still to come on this track: per-workspace currency end to end (the plumbing and
+the FX table are in, and invoices carry their currency, but the Stripe checkout
+still requests INR), and country price books.
 
 **Track C — Universal Object Engine (§7-9), first pass.** A workspace defines
 its own objects and the agent reads real records. Before this there was no

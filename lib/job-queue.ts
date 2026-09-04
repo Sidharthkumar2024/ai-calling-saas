@@ -978,6 +978,7 @@ async function evaluateAlerts(job: JobRow) {
   let resolved = 0;
   let notified = 0;
   const skipped: string[] = [];
+  const notMeasurable: string[] = [];
 
   for (const rule of rules.results ?? []) {
     const windowMinutes = Math.min(
@@ -990,8 +991,12 @@ async function evaluateAlerts(job: JobRow) {
       windowMinutes,
     );
     if (measurement === null) {
-      // An unknown metric must be visible, not silently ignored.
-      skipped.push(rule.metric);
+      // Two different reasons produce null, and conflating them hides a real
+      // configuration error behind a routine one. A metric nobody implements is
+      // a mistake to fix; a margin with no revenue behind it is simply not
+      // measurable this window.
+      if (KNOWN_ALERT_METRICS.has(rule.metric)) notMeasurable.push(rule.metric);
+      else skipped.push(rule.metric);
       continue;
     }
     const breaching = compare(measurement, rule.comparator, rule.threshold);
@@ -1033,11 +1038,25 @@ async function evaluateAlerts(job: JobRow) {
     resolved,
     notified,
     skippedMetrics: skipped,
+    notMeasurable,
   };
 }
 
 /**
- * Returns the measured value for a metric, or null when the metric is unknown.
+ * Every metric this worker can measure. Used to tell a metric nobody
+ * implements apart from one that simply has no data this window.
+ */
+const KNOWN_ALERT_METRICS = new Set([
+  'p95_latency_ms',
+  'call_failure_rate',
+  'qa_not_passed_rate',
+  'queue_backlog',
+  'provider_error_rate',
+  'gross_margin_percent',
+]);
+
+/**
+ * Returns the measured value for a metric, or null when the metric is unknown
  * Every source here is a table that live code actually writes.
  */
 async function measureAlertMetric(
@@ -1115,6 +1134,35 @@ async function measureAlertMetric(
     const total = Number(row?.total ?? 0);
     if (!total) return 0;
     return (Number(row?.errors ?? 0) / total) * 100;
+  }
+
+  // §28: margin-floor alerting. Returns the gross margin as a percentage so a
+  // rule can be written as "warn below 40". Deliberately null rather than 0
+  // when there is no revenue in the window — a workspace that billed nothing
+  // has no margin, and firing a floor breach at it would be noise.
+  if (metric === 'gross_margin_percent') {
+    const [revenueRow, costRow] = await Promise.all([
+      db
+        .prepare(`SELECT coalesce(sum(total), 0) AS revenue FROM invoices
+          WHERE organization_id = ? AND status = 'paid' AND paid_at >= datetime('now', ?)`)
+        .bind(organizationId, since)
+        .first<{ revenue: number }>(),
+      db
+        .prepare(`SELECT coalesce(sum(coalesce(base_cost_micros, 0)), 0) AS cost,
+            sum(CASE WHEN unpriced = 1 THEN 1 ELSE 0 END) AS unpriced
+          FROM provider_usage_events
+          WHERE organization_id = ? AND created_at >= datetime('now', ?)`)
+        .bind(organizationId, since)
+        .first<{ cost: number; unpriced: number }>(),
+    ]);
+    const revenue = Number(revenueRow?.revenue ?? 0);
+    if (revenue <= 0) return null;
+    // An incomplete cost base makes the margin look better than it is, and a
+    // floor alert that cannot fire because half the cost is missing is worse
+    // than no alert at all.
+    if (Number(costRow?.unpriced ?? 0) > 0) return null;
+    const costMinor = Math.round(Number(costRow?.cost ?? 0) / 10_000);
+    return ((revenue - costMinor) / revenue) * 100;
   }
 
   return null;

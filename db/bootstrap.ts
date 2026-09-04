@@ -1809,6 +1809,33 @@ async function bootstrap() {
   await ensureColumn(db, 'invoices', 'fx_rate', 'REAL');
   await ensureColumn(db, 'invoices', 'base_currency', 'TEXT');
   await ensureColumn(db, 'invoices', 'base_total', 'INTEGER');
+  // §27: what an invoice has to carry to be an invoice.
+  await ensureColumn(db, 'invoices', 'sequence_number', 'INTEGER');
+  await ensureColumn(db, 'invoices', 'financial_year', 'TEXT');
+  await ensureColumn(db, 'invoices', 'tax_kind', 'TEXT');
+  await ensureColumn(db, 'invoices', 'cgst', 'INTEGER DEFAULT 0');
+  await ensureColumn(db, 'invoices', 'sgst', 'INTEGER DEFAULT 0');
+  await ensureColumn(db, 'invoices', 'igst', 'INTEGER DEFAULT 0');
+  await ensureColumn(db, 'invoices', 'tax_note', 'TEXT');
+  await ensureColumn(db, 'invoices', 'supplier_gstin', 'TEXT');
+  await ensureColumn(db, 'invoices', 'customer_gstin', 'TEXT');
+  await ensureColumn(db, 'invoices', 'place_of_supply', 'TEXT');
+  // Billing identity of the workspace being invoiced.
+  await ensureColumn(db, 'organization_settings', 'gstin', 'TEXT');
+  await ensureColumn(db, 'organization_settings', 'legal_name', 'TEXT');
+  await ensureColumn(db, 'organization_settings', 'billing_state', 'TEXT');
+  await ensureColumn(db, 'organization_settings', 'billing_country', "TEXT DEFAULT 'IN'");
+  // Sequence numbers must be unbroken *within a series*, not globally.
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS invoice_sequences (
+        series TEXT NOT NULL,
+        financial_year TEXT NOT NULL,
+        next_value INTEGER DEFAULT 1 NOT NULL,
+        PRIMARY KEY (series, financial_year)
+      )`,
+    )
+    .run();
 
   // §13: seed the reference rate cards once, so the cost engine has somewhere
   // to start. They are versioned rows an operator edits, not constants —

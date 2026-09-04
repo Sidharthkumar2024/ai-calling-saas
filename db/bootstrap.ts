@@ -1022,6 +1022,31 @@ async function bootstrap() {
       model TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
+    // §6's chat and its history. One thread per conversation, messages inside.
+    db.prepare(`CREATE TABLE IF NOT EXISTS growth_chats (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      user_id TEXT REFERENCES app_users(id) ON DELETE SET NULL,
+      title TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_growth_chats_org
+      ON growth_chats (organization_id, updated_at)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS growth_messages (
+      id TEXT PRIMARY KEY NOT NULL,
+      chat_id TEXT NOT NULL REFERENCES growth_chats(id) ON DELETE CASCADE,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      role TEXT NOT NULL,
+      content TEXT NOT NULL,
+      -- What the answer was allowed to draw on, kept so a reply can be audited
+      -- later rather than taken on trust.
+      grounded_on_json TEXT DEFAULT '{}' NOT NULL,
+      model TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_growth_messages_chat
+      ON growth_messages (chat_id, created_at)`),
     // §6 growth runs. Each run keeps its own trace, so a report can show what
     // was actually fetched and how long each step took rather than asking to be
     // believed. The run id is printed on the report for the same reason.

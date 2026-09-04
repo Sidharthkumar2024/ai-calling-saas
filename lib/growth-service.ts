@@ -379,3 +379,197 @@ export async function getRun(organizationId: string, runId: string) {
     findings: parse(row.findings),
   };
 }
+
+/**
+ * Answers a question in the growth chat (§6).
+ *
+ * Assembles the workspace's measured facts, hands them to the model as the only
+ * figures it may quote, and stores both turns along with what the answer was
+ * grounded on — so a reply can be audited later instead of taken on trust.
+ */
+export async function askGrowthManager(input: {
+  organizationId: string;
+  userId: string;
+  chatId?: string | null;
+  question: string;
+}) {
+  const db = getRawDb();
+  const { buildChatContext, CHAT_SYSTEM_PROMPT, recentTurns } =
+    await import('@/lib/growth-chat');
+  const { reasonWithTools } = await import('@/lib/provider-adapters');
+
+  const board = await growthBoard(input.organizationId);
+  const latest = await db
+    .prepare(
+      `SELECT id, host, pages_json AS pages, findings_json AS findings
+       FROM growth_runs
+       WHERE organization_id = ? AND status = 'complete'
+       ORDER BY created_at DESC LIMIT 1`,
+    )
+    .bind(input.organizationId)
+    .first<{ id: string; host: string; pages: string; findings: string }>();
+  const objections = await db
+    .prepare(
+      `SELECT label, occurrences FROM objection_library
+       WHERE organization_id = ? AND status != 'dismissed'
+       ORDER BY occurrences DESC LIMIT 5`,
+    )
+    .bind(input.organizationId)
+    .all<{ label: string; occurrences: number }>();
+
+  const parse = (value: unknown) => {
+    if (typeof value !== 'string') return [];
+    try {
+      return JSON.parse(value) as never[];
+    } catch {
+      return [];
+    }
+  };
+
+  const context = buildChatContext({
+    answers: board.discovery.answers,
+    observations: board.observations,
+    scan: latest
+      ? {
+          host: latest.host,
+          runId: latest.id,
+          pages: parse(latest.pages),
+          findings: parse(latest.findings),
+        }
+      : null,
+    objections: objections.results ?? [],
+    missingSources: board.sources.pending.map((source) => source.label),
+  });
+
+  // A thread is created on the first question so history has something to list.
+  const chatId = input.chatId || `chat_${crypto.randomUUID().slice(0, 8)}`;
+  if (!input.chatId)
+    await db
+      .prepare(
+        `INSERT INTO growth_chats (id, organization_id, user_id, title)
+         VALUES (?, ?, ?, ?)`,
+      )
+      .bind(
+        chatId,
+        input.organizationId,
+        input.userId,
+        input.question.slice(0, 80),
+      )
+      .run();
+
+  const history = await db
+    .prepare(
+      `SELECT role, content FROM growth_messages
+       WHERE chat_id = ? AND organization_id = ?
+       ORDER BY created_at LIMIT 20`,
+    )
+    .bind(chatId, input.organizationId)
+    .all<{ role: 'user' | 'assistant'; content: string }>();
+
+  let answer =
+    'The growth manager is not reachable right now. Nothing was lost — ask again in a moment.';
+  let model: string | null = null;
+  try {
+    const response = await reasonWithTools({
+      organizationId: input.organizationId,
+      system: `${CHAT_SYSTEM_PROMPT}\n\n${context}`,
+      maxTokens: 700,
+      messages: [
+        ...recentTurns(history.results ?? []),
+        { role: 'user' as const, content: input.question },
+      ],
+    });
+    const meta = response as unknown as { model?: unknown };
+    model = typeof meta.model === 'string' ? meta.model : null;
+    const text = ((response as { content?: unknown[] }).content ?? [])
+      .filter(
+        (block): block is { type: string; text: string } =>
+          typeof block === 'object' &&
+          block !== null &&
+          (block as { type?: unknown }).type === 'text' &&
+          typeof (block as { text?: unknown }).text === 'string',
+      )
+      .map((block) => block.text)
+      .join('')
+      .trim();
+    if (text) answer = text;
+  } catch (error) {
+    // A provider outage must not lose the question or fabricate an answer.
+    console.error('growth chat failed', error);
+  }
+
+  await db.batch([
+    db
+      .prepare(
+        `INSERT INTO growth_messages (id, chat_id, organization_id, role, content)
+         VALUES (?, ?, ?, 'user', ?)`,
+      )
+      .bind(
+        `msg_${crypto.randomUUID()}`,
+        chatId,
+        input.organizationId,
+        input.question.slice(0, 4000),
+      ),
+    db
+      .prepare(
+        `INSERT INTO growth_messages
+           (id, chat_id, organization_id, role, content, grounded_on_json, model)
+         VALUES (?, ?, ?, 'assistant', ?, ?, ?)`,
+      )
+      .bind(
+        `msg_${crypto.randomUUID()}`,
+        chatId,
+        input.organizationId,
+        answer,
+        JSON.stringify({
+          observations: board.observations.map((item) => item.id),
+          scanRun: latest?.id ?? null,
+          missingSources: board.sources.pending.map((source) => source.id),
+        }),
+        model,
+      ),
+    db
+      .prepare(
+        `UPDATE growth_chats SET updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      )
+      .bind(chatId),
+  ]);
+
+  return {
+    chatId,
+    answer,
+    model,
+    groundedOn: {
+      observations: board.observations.length,
+      scanRun: latest?.id ?? null,
+      missingSources: board.sources.pending.map((source) => source.label),
+    },
+  };
+}
+
+export async function listChats(organizationId: string, limit = 20) {
+  const rows = await getRawDb()
+    .prepare(
+      `SELECT c.id, c.title, c.updated_at AS updatedAt,
+              (SELECT count(*) FROM growth_messages m WHERE m.chat_id = c.id) AS messages
+       FROM growth_chats c
+       WHERE c.organization_id = ?
+       ORDER BY c.updated_at DESC LIMIT ?`,
+    )
+    .bind(organizationId, Math.max(1, Math.min(50, limit)))
+    .all();
+  return rows.results ?? [];
+}
+
+export async function getChat(organizationId: string, chatId: string) {
+  const rows = await getRawDb()
+    .prepare(
+      `SELECT role, content, created_at AS createdAt
+       FROM growth_messages
+       WHERE chat_id = ? AND organization_id = ?
+       ORDER BY created_at LIMIT 100`,
+    )
+    .bind(chatId, organizationId)
+    .all();
+  return rows.results ?? [];
+}

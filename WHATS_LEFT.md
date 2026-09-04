@@ -117,6 +117,48 @@ work.
 
 ## Landed
 
+**The growth manager's chat and history (§6).** §6 asks for "ask the manager
+questions about business data" and a history of previous chats. The tempting
+version is a language model behind a text box, which answers *what is my
+conversion rate?* with a confident invented number.
+
+So the model is handed the workspace's measured facts — the evidence board's
+figures with their sample sizes, the latest website scan with its findings, the
+objection library, and the discovery answers — and told those are the only
+figures it may quote. What it was grounded on is stored with every reply and
+shown under it, so an answer that declines to guess reads as correct rather
+than as broken.
+
+The entry is composed rather than empty: the workspace chips become the opening
+request, so nobody retypes their own business each time.
+
+*Two things found by using it rather than testing it:*
+
+- **Correct numbers, wrong conclusion.** Asked how calls were converting, it
+  read "9.3% of calls were handed to a person" as "90% of your callers never
+  reached anybody" and told the business its call routing was broken. Every
+  figure was right; the reasoning was not, because the context gave numbers
+  without the frame to read them — this is an AI agent that handles calls end
+  to end, and a transfer is an escalation rather than the success path. That is
+  more dangerous than a wrong number, because the figures check out. The
+  context now carries how to read them, and the same question produces a
+  correct answer.
+- **Cross-source reasoning appeared on its own** once the facts were in one
+  place: it connected the discovery answers to the scan findings — search terms
+  a Gurgaon apartment buyer would use against two pages that render in the
+  browser — which is the "cross-source intelligence" the reference product
+  advertises, happening for real.
+
+*Verified against a question nothing connected can answer.* Asked for last
+month's organic traffic and an industry benchmark, it refused both, said which
+connection would answer the first, explicitly refused to invent the second —
+"a made-up benchmark would be worse than no number at all" — and then pivoted
+to the finding it did have.
+
+Still open in §6: the Google Analytics, Search Console and HubSpot connectors,
+scheduled reports, and turning a recommendation into a campaign.
+
+
 **Website scan for the AI Business Manager (§6).** §6 asks for "authorized
 website scraping/indexing to understand offers and pages", and it was the
 largest thing the growth board did not have. It now fetches the workspace's own

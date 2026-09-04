@@ -53,8 +53,18 @@ type ScanRun = {
   createdAt: string;
 };
 
+type ChatThread = {
+  id: string;
+  title: string;
+  updatedAt: string;
+  messages: number;
+};
+
 type Board = {
   runs?: ScanRun[];
+  chats?: ChatThread[];
+  chips?: Array<{ id: string; label: string; value: string }>;
+  suggestedGoal?: string;
   discovery: {
     answers: Record<string, string>;
     progress: number;
@@ -202,6 +212,13 @@ export function CustomerGrowth() {
           {saving ? 'Saving…' : 'Save'}
         </button>
       </section>
+
+      <GrowthChat
+        chips={board.chips ?? []}
+        suggestedGoal={board.suggestedGoal ?? ''}
+        chats={board.chats ?? []}
+        onDone={load}
+      />
 
       <SiteScan runs={board.runs ?? []} onDone={load} />
 
@@ -518,6 +535,224 @@ function SiteScan({
                 <span className="ml-auto font-mono text-[9px] text-ink-muted">
                   {run.id}
                 </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+/**
+ * The growth manager's chat (§6) — the front door.
+ *
+ * Opens with the request already composed from what the workspace has told us,
+ * rather than an empty box: a person should not retype their own business
+ * every time they want a plan.
+ *
+ * The answer is grounded in the workspace's measured facts, and what it was
+ * grounded on is shown under the reply. That line is the difference between a
+ * business manager and a chatbot with a nice header — it says which numbers
+ * were available and which sources were not connected, so an answer that
+ * declines to guess reads as correct rather than as broken.
+ */
+function GrowthChat({
+  chips,
+  suggestedGoal,
+  chats,
+  onDone,
+}: {
+  chips: Array<{ id: string; label: string; value: string }>;
+  suggestedGoal: string;
+  chats: ChatThread[];
+  onDone: () => Promise<void>;
+}) {
+  const [question, setQuestion] = useState('');
+  const [chatId, setChatId] = useState<string | null>(null);
+  const [turns, setTurns] = useState<
+    Array<{ role: string; content: string; grounded?: string[] }>
+  >([]);
+  const [busy, setBusy] = useState(false);
+
+  async function ask(text: string) {
+    const asked = text.trim();
+    if (!asked) return;
+    setBusy(true);
+    setQuestion('');
+    setTurns((current) => [...current, { role: 'user', content: asked }]);
+    try {
+      const response = await fetch('/api/app/growth', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'ask', question: asked, chatId }),
+      });
+      const body = (await response.json()) as {
+        chatId?: string;
+        answer?: string;
+        error?: string;
+        groundedOn?: {
+          observations: number;
+          scanRun: string | null;
+          missingSources: string[];
+        };
+      };
+      if (!response.ok) {
+        setTurns((current) => [
+          ...current,
+          {
+            role: 'assistant',
+            content: body.error ?? 'That did not go through.',
+          },
+        ]);
+        return;
+      }
+      if (body.chatId) setChatId(body.chatId);
+      const grounded: string[] = [];
+      if (body.groundedOn?.observations)
+        grounded.push(`${body.groundedOn.observations} measured figures`);
+      if (body.groundedOn?.scanRun)
+        grounded.push(`website scan ${body.groundedOn.scanRun}`);
+      if (body.groundedOn?.missingSources.length)
+        grounded.push(
+          `not connected: ${body.groundedOn.missingSources.join(', ')}`,
+        );
+      setTurns((current) => [
+        ...current,
+        { role: 'assistant', content: body.answer ?? '', grounded },
+      ]);
+      await onDone();
+    } catch {
+      setTurns((current) => [
+        ...current,
+        { role: 'assistant', content: 'That did not go through.' },
+      ]);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function openChat(id: string) {
+    const response = await fetch(
+      `/api/app/growth?chat=${encodeURIComponent(id)}`,
+      {
+        cache: 'no-store',
+      },
+    );
+    const body = (await response.json()) as {
+      messages?: Array<{ role: string; content: string }>;
+    };
+    setChatId(id);
+    setTurns(body.messages ?? []);
+  }
+
+  return (
+    <section className="portal-panel p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-sm font-semibold">What should I grow today?</h2>
+        {turns.length ? (
+          <button
+            type="button"
+            onClick={() => {
+              setChatId(null);
+              setTurns([]);
+            }}
+            className="text-[10px] text-ink-body underline-offset-2 hover:underline"
+          >
+            New chat
+          </button>
+        ) : null}
+      </div>
+
+      {chips.length ? (
+        <>
+          <p className="mt-3 text-[9px] font-semibold uppercase tracking-wide text-ink-muted">
+            Your workspace
+          </p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {chips.map((chip) => (
+              <span
+                key={chip.id}
+                className="rounded-full border border-hairline bg-surface-muted px-2.5 py-1 text-[10px]"
+              >
+                <span className="text-ink-muted">{chip.label} </span>
+                <span className="font-medium">{chip.value}</span>
+              </span>
+            ))}
+          </div>
+          <p className="mt-1.5 text-[9px] text-ink-muted">
+            I use this to direct every run — no need to repeat it.
+          </p>
+        </>
+      ) : (
+        <p className="mt-3 text-[10px] text-ink-muted">
+          Answer the discovery questions below and I will use them to direct
+          every answer.
+        </p>
+      )}
+
+      <div className="mt-4 space-y-2">
+        {turns.map((turn, index) => (
+          <div
+            key={`${turn.role}-${index}`}
+            className={
+              turn.role === 'user'
+                ? 'ml-auto max-w-[80%] rounded-xl bg-primary px-3 py-2 text-[11px] text-primary-foreground'
+                : 'max-w-[90%] rounded-xl border border-hairline bg-surface-muted px-3 py-2 text-[11px]'
+            }
+          >
+            <p className="whitespace-pre-wrap">{turn.content}</p>
+            {turn.grounded?.length ? (
+              <p className="mt-1.5 text-[9px] text-ink-muted">
+                ↳ answered from {turn.grounded.join(' · ')}
+              </p>
+            ) : null}
+          </div>
+        ))}
+        {busy ? <p className="text-[10px] text-ink-muted">Thinking…</p> : null}
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <input
+          value={question}
+          onChange={(event) => setQuestion(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && !event.shiftKey) void ask(question);
+          }}
+          placeholder={
+            suggestedGoal || 'Ask about your calls, leads or website'
+          }
+          aria-label="Ask the growth manager"
+          className="h-9 flex-1 min-w-56 rounded-lg border border-hairline bg-surface px-3 text-[11px]"
+        />
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void ask(question || suggestedGoal)}
+          className="portal-primary rounded-lg px-4 py-2 text-[11px] disabled:opacity-60"
+        >
+          Ask
+        </button>
+      </div>
+
+      {chats.length ? (
+        <div className="mt-4">
+          <p className="text-[9px] font-semibold uppercase tracking-wide text-ink-muted">
+            History
+          </p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {chats.slice(0, 8).map((chat) => (
+              <button
+                key={chat.id}
+                type="button"
+                onClick={() => void openChat(chat.id)}
+                className={`max-w-64 truncate rounded-lg border px-2.5 py-1 text-[10px] ${
+                  chat.id === chatId
+                    ? 'border-hairline bg-surface-strong'
+                    : 'border-hairline bg-surface hover:bg-surface-strong'
+                }`}
+              >
+                {chat.title}
               </button>
             ))}
           </div>

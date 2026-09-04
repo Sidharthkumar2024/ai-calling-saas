@@ -31,6 +31,7 @@ export class CallSession {
     role = 'agent',
     mode = 'duplex',
     room = null,
+    openRoom = null,
   }) {
     this.carrier = carrier;
     // One leg of a room. A supervisor leg listens or whispers and must never
@@ -39,6 +40,18 @@ export class CallSession {
     this.role = role;
     this.mode = mode;
     this.room = room;
+    /**
+     * Opens (or finds) the room for a call id learned from a start frame.
+     *
+     * A browser leg is authenticated for one call before the socket opens, so
+     * its room is handed in. A *carrier* leg only learns which Vaani call it
+     * is on when the carrier's start frame arrives — and the room used to be
+     * decided before that, which meant a real customer call was never in a
+     * room at all. Nothing could join it and nothing could be controlled: no
+     * supervisor monitoring, no mute, no hold on the one kind of call that
+     * matters most.
+     */
+    this.openRoom = openRoom;
     this.client = client;
     this.send = send;
     this.close = close;
@@ -56,6 +69,16 @@ export class CallSession {
     this.busy = false;
     this.ended = false;
     this.playbackTimer = null;
+    /** Settles the promise `play()` awaits, so stopping playback unblocks it. */
+    this.playbackDone = null;
+    /** This leg's microphone is off: it contributes no audio and drives no turn. */
+    this.muted = false;
+    /**
+     * The call is parked. Distinct from muted: hold suspends the AI as well, and
+     * discards inbound audio rather than buffering it, so a caller talking to a
+     * held line is not transcribed and answered later out of context.
+     */
+    this.held = false;
     this.stats = { turns: 0, bargeIns: 0, errors: 0 };
   }
 
@@ -87,6 +110,9 @@ export class CallSession {
       return null;
     }
     this.started = true;
+    // A carrier leg's call id arrives here, not at connection time, so this is
+    // the earliest point at which its room can exist.
+    if (!this.room && this.openRoom) this.room = this.openRoom(this.callId);
     if (this.room) {
       this.room.add({
         id: this.legId,
@@ -143,11 +169,20 @@ export class CallSession {
       return null;
     }
 
-    // Send this leg's audio to whoever is allowed to hear it.
-    this.forwardToRoom(samples);
+    // A held call is parked: nothing this leg says is carried, and nothing it
+    // says is kept. Buffering it would mean the caller's words are transcribed
+    // and answered whenever hold ends, several sentences out of context.
+    if (this.held) {
+      this.resetBuffer();
+      this.detector.reset();
+      return null;
+    }
+
+    // Send this leg's audio to whoever is allowed to hear it, unless muted.
+    if (!this.muted) this.forwardToRoom(samples);
 
     // Only buffer while the agent is not speaking; the rest is echo.
-    if (!this.detector.agentSpeaking) {
+    if (!this.detector.agentSpeaking && !this.muted) {
       this.buffer.push(samples);
       this.bufferedSamples += samples.length;
     }
@@ -156,6 +191,8 @@ export class CallSession {
     // participant the AI stops answering — that is what transfer means here.
     const aiOwnsTurn =
       this.role !== 'supervisor' &&
+      !this.muted &&
+      !this.held &&
       (!this.room || this.room.aiShouldRespond());
     if (!aiOwnsTurn) {
       if (event === 'turn_end' || event === 'turn_max') {
@@ -301,11 +338,23 @@ export class CallSession {
     this.detector.setAgentSpeaking(true);
     await new Promise((resolve) => {
       let offset = 0;
+      // Held so `stopPlayback` can settle this promise. Without it, clearing
+      // the timer left `play()` pending for ever — and because the server
+      // feeds frames through one serialised queue, `onStart`'s
+      // `await this.play(greeting)` then blocked every later frame on that
+      // call. The session stayed open and went deaf. It survived because the
+      // tests use a 200 ms greeting that always finishes on its own, while a
+      // real greeting runs several seconds and anything interrupting it —
+      // barge-in, and now hold — stopped the call dead.
+      this.playbackDone = () => {
+        this.playbackDone = null;
+        this.playbackTimer = null;
+        this.detector.setAgentSpeaking(false);
+        resolve();
+      };
       const tick = () => {
         if (this.ended || offset >= samples.length) {
-          this.playbackTimer = null;
-          this.detector.setAgentSpeaking(false);
-          resolve();
+          this.playbackDone?.();
           return;
         }
         const slice = samples.subarray(offset, offset + OUT_FRAME_SAMPLES);
@@ -327,7 +376,81 @@ export class CallSession {
       clearTimeout(this.playbackTimer);
       this.playbackTimer = null;
     }
+    // Settle the pending `play()` as well as stopping the timer, or whoever
+    // awaited it waits for ever.
+    this.playbackDone?.();
     this.detector.setAgentSpeaking(false);
+  }
+
+  /**
+   * Applies a control command to this leg (§4).
+   *
+   * The gateway could always *carry* mute, hold and monitoring — the mixer has
+   * had listen and whisper from the start — but nothing could reach a live
+   * session to ask for them. This is the missing half: one entry point, one
+   * allow-list, and a state snapshot back so the caller learns what actually
+   * happened rather than assuming the command landed.
+   */
+  applyControl({ action, mode, whisperTo } = {}) {
+    if (this.ended) return { ok: false, reason: 'call_ended' };
+    switch (action) {
+      case 'mute':
+      case 'unmute':
+        this.muted = action === 'mute';
+        // Whatever was captured before a mute is not carried afterwards.
+        if (this.muted) {
+          this.resetBuffer();
+          this.detector.reset();
+        }
+        break;
+      case 'hold':
+      case 'resume':
+        this.held = action === 'hold';
+        if (this.held) {
+          // Stop the reply that is mid-playback: continuing to talk to a caller
+          // who has just been parked is worse than silence.
+          this.stopPlayback();
+          this.resetBuffer();
+          this.detector.reset();
+        }
+        break;
+      case 'set_mode': {
+        if (!this.room) return { ok: false, reason: 'not_in_a_room' };
+        // Delegated so listen and whisper stay decided in one place, including
+        // the rule that a supervisor cannot whisper to a leg that has left.
+        const result = this.room.setMode(this.legId, mode, whisperTo ?? null);
+        if (!result.ok) return result;
+        this.mode = result.mode;
+        break;
+      }
+      case 'hangup':
+        this.onStop();
+        this.close(1000, 'Ended by the workspace');
+        break;
+      default:
+        return { ok: false, reason: 'unknown_action' };
+    }
+    this.log('control_applied', {
+      callId: this.callId,
+      legId: this.legId,
+      action,
+      muted: this.muted,
+      held: this.held,
+      mode: this.mode,
+    });
+    return { ok: true, ...this.controlState() };
+  }
+
+  controlState() {
+    return {
+      legId: this.legId,
+      callId: this.callId,
+      role: this.role,
+      mode: this.mode,
+      muted: this.muted,
+      held: this.held,
+      ended: this.ended,
+    };
   }
 
   onStop() {

@@ -37,7 +37,111 @@ function log(event, fields = {}) {
   );
 }
 
+/**
+ * Commands a live session accepts (§4).
+ *
+ * An allow-list rather than a switch inside the session, so the set of things
+ * the outside world can do to a call in progress is one short list in one
+ * place. `hangup` is included because ending a call is the one control an
+ * operator always needs and could not previously reach.
+ */
+const CONTROL_ACTIONS = [
+  'mute',
+  'unmute',
+  'hold',
+  'resume',
+  'set_mode',
+  'hangup',
+];
+
+function readBody(request) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    request.on('data', (chunk) => {
+      size += chunk.length;
+      // A control command is a few hundred bytes; anything larger is not one.
+      if (size > 8192) {
+        reject(new Error('Body too large.'));
+        request.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    request.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    request.on('error', reject);
+  });
+}
+
+async function handleControl(request, response) {
+  const send = (status, body) => {
+    response.writeHead(status, { 'content-type': 'application/json' });
+    response.end(JSON.stringify(body));
+  };
+  const secret = process.env.MEDIA_GATEWAY_SECRET ?? '';
+  // Same shared secret as the turn endpoint, in a header this time: unlike a
+  // carrier, Vaani can set headers, so it does not travel in the URL.
+  if (!secret || request.headers['x-vaani-gateway-secret'] !== secret) {
+    log('control_unauthorized', {});
+    return send(401, { error: 'Unauthorized.' });
+  }
+  let body;
+  try {
+    body = JSON.parse((await readBody(request)) || '{}');
+  } catch {
+    return send(400, { error: 'Body must be JSON.' });
+  }
+  const callId = typeof body.callId === 'string' ? body.callId.trim() : '';
+  const action = typeof body.action === 'string' ? body.action : '';
+  if (!callId) return send(400, { error: 'callId is required.' });
+  if (!CONTROL_ACTIONS.includes(action))
+    return send(400, {
+      error: `action must be one of ${CONTROL_ACTIONS.join(', ')}.`,
+    });
+
+  const matching = [...sessions].filter(
+    (session) => session.callId === callId && !session.ended,
+  );
+  if (!matching.length) {
+    // A distinct status, because "there is no such live call" and "the command
+    // failed" need different handling by the operator and by the UI.
+    log('control_no_session', { callId, action });
+    return send(409, { error: 'No live leg for that call.', callId });
+  }
+  // A specific leg when named — muting one participant is not muting the call.
+  const targets = body.legId
+    ? matching.filter((session) => session.legId === body.legId)
+    : matching;
+  if (!targets.length)
+    return send(409, { error: 'That leg is not on the call.', callId });
+
+  const results = targets.map((session) => ({
+    legId: session.legId,
+    ...session.applyControl({
+      action,
+      mode: body.mode,
+      whisperTo: body.whisperTo,
+    }),
+  }));
+  log('control', { callId, action, legs: results.length });
+  return send(results.every((result) => result.ok) ? 200 : 422, {
+    callId,
+    action,
+    results,
+  });
+}
+
 const httpServer = createServer((request, response) => {
+  if (request.method === 'POST' && request.url === '/control') {
+    void handleControl(request, response).catch((error) => {
+      log('control_failed', { error: String(error?.message ?? error) });
+      if (!response.headersSent) {
+        response.writeHead(500, { 'content-type': 'application/json' });
+        response.end(JSON.stringify({ error: 'Control failed.' }));
+      }
+    });
+    return;
+  }
   if (request.url === '/health') {
     response.writeHead(200, { 'content-type': 'application/json' });
     response.end(
@@ -111,6 +215,11 @@ wss.on('connection', (socket, request) => {
     role: legRole,
     mode: legMode,
     room,
+    // A carrier leg has no room yet: its call id arrives in the start frame,
+    // so it opens its own room at that point. Without this a real customer
+    // call was never in a room, and nothing — supervisor, mute, hold — could
+    // ever reach it.
+    openRoom: (id) => (id ? rooms.open(id) : null),
     send: (frame) => {
       if (socket.readyState === socket.OPEN) socket.send(frame);
     },
@@ -149,7 +258,10 @@ wss.on('connection', (socket, request) => {
   socket.on('close', () => {
     session.onStop();
     sessions.delete(session);
-    if (preauthorizedCallId) rooms.leave(preauthorizedCallId, session.legId);
+    // `session.callId`, not `preauthorizedCallId`: a carrier leg's id is only
+    // known after its start frame, and using the connect-time value leaked
+    // every carrier leg's room entry.
+    if (session.callId) rooms.leave(session.callId, session.legId);
     log('socket_close', { sessions: sessions.size, rooms: rooms.size });
   });
   socket.on('error', (error) => {

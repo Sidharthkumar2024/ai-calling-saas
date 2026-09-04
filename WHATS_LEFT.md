@@ -51,10 +51,11 @@ See INTEGRATION_REQUIREMENTS.md.
 
 Still genuinely missing on this path:
 
-- **Mute, hold and conference** (§4). The gateway can carry them, but they need
-  a control channel from the Agent Desk to a live session, and a real call to
-  test against. Accept, reject, transfer-in and wrap-up work today.
-- **Listening to live audio** as a supervisor — same reason.
+- **[KEY] Nothing, in code.** The control channel now exists — see *Controlling
+  a live call* under Landed — so mute, hold, resume, supervisor listen/whisper
+  and hangup reach a live carrier session, verified against the bundled
+  simulator. What is left is a carrier, so that there is a customer leg to
+  point it at.
 
 ### 2. Localisation — complete
 
@@ -84,18 +85,20 @@ English nouns embedded in Hindi labels ("LEAD स्कोर"), and letter-spac
 apart conjuncts and matras that must stay joined. Both are now neutralised
 document-wide when the interface language is Hindi.
 
-### 3. [CODE][DECIDED] Multi-currency (§14)
+### 3. Multi-currency — done, not deferred
 
-No tenant currency, FX source, price books or base-currency normalisation;
-everything is INR. Deferred because there is no second currency in play yet —
-building an FX layer now would be speculative. Needed before selling outside
-India.
+**This section was stale.** The FINAL Master Architecture put multi-currency in
+scope (§26), and it shipped: `lib/currency.ts`, `lib/rate-cards.ts`,
+`lib/price-books.ts`, `lib/workspace-pricing.ts`, `lib/tax.ts`, and the
+`fx_rates`, `price_books` and `provider_rate_cards` tables. Invoices carry
+their own currency, the FX rate used and the base-currency equivalent.
 
-### 4. [CODE][DECIDED] Partner / white-label (Track 4, §2)
+### 4. Partner / white-label — excluded, not deferred
 
-Needs org hierarchy, per-partner branding and domains, markup pricing,
-commission accounting and a second billing rollup. It touches tenant isolation
-and billing everywhere. Revisit once the core product has real usage.
+**This section was stale too.** §2 of the FINAL Master Architecture excludes
+partner and reseller white-label explicitly, so this is not a "revisit later"
+any more. It is out of scope by decision, and should not be carried as pending
+work.
 
 ### 5. [KEY] Things only you can supply
 
@@ -113,6 +116,41 @@ and billing everywhere. Revisit once the core product has real usage.
 **Rotate the three keys pasted into chat** — treat them as exposed.
 
 ## Landed
+
+**Controlling a live call (§4).** Mute, hold, supervisor monitoring and hanging
+up were all listed as "the gateway can carry them, but they need a control
+channel from the Agent Desk to a live session". Two things were missing, and
+the second was the interesting one.
+
+A **carrier leg was never in a room.** The room was opened when the socket
+connected, but a carrier only reveals which Vaani call it is on in its *start
+frame*, which arrives afterwards — so `room` was always null for a real
+customer call. The mixer has had listen and whisper from the beginning and
+neither could ever apply to a customer. A carrier leg now opens its room once
+it knows the call id, so a supervisor with a token for the same call joins the
+same room.
+
+Then the channel itself: `POST /control` on the gateway, shared-secret
+authenticated with a six-command allow-list, and `POST /api/app/calls/control`
+in the worker, which checks the call belongs to the caller's workspace before
+forwarding and audits every command — including the ones that fail. It is
+one-directional by necessity: the worker cannot hold a socket, so it commands
+and reads the resulting leg state from the response.
+
+Hold is not a louder mute. Mute silences a leg's contribution; hold also
+suspends the AI *and discards* inbound audio, because buffering a parked caller
+means transcribing their words and answering them several sentences later, out
+of context.
+
+*Found while verifying, and worse than the feature:* `stopPlayback()` cleared
+the playback timer without settling the promise `play()` awaits. The server
+feeds every frame of a call through one serialised queue and `onStart` awaits
+the greeting, so interrupting a greeting left that promise pending for ever and
+**the queue never drained — the socket stayed open and the session went deaf.**
+Barge-in during a greeting hit it too. It survived because the tests use a
+200 ms greeting that always finishes on its own, while a real one runs several
+seconds. There is now a regression test that fails without the fix.
+
 
 **`tools_json` actually filters the tools the model receives (§7).** It had been
 decorative since the beginning: the agent studio's Actions tab wrote a list, the

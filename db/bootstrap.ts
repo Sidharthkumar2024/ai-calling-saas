@@ -1022,6 +1022,28 @@ async function bootstrap() {
       model TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
+    // §6 growth runs. Each run keeps its own trace, so a report can show what
+    // was actually fetched and how long each step took rather than asking to be
+    // believed. The run id is printed on the report for the same reason.
+    db.prepare(`CREATE TABLE IF NOT EXISTS growth_runs (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      started_by TEXT REFERENCES app_users(id) ON DELETE SET NULL,
+      site_url TEXT NOT NULL,
+      host TEXT,
+      status TEXT DEFAULT 'running' NOT NULL,
+      failure_reason TEXT,
+      steps_json TEXT DEFAULT '[]' NOT NULL,
+      pages_json TEXT DEFAULT '[]' NOT NULL,
+      findings_json TEXT DEFAULT '[]' NOT NULL,
+      high_count INTEGER DEFAULT 0 NOT NULL,
+      medium_count INTEGER DEFAULT 0 NOT NULL,
+      low_count INTEGER DEFAULT 0 NOT NULL,
+      total_ms INTEGER DEFAULT 0 NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_growth_runs_org
+      ON growth_runs (organization_id, created_at)`),
     // §6's discovery interview. One row per workspace: the answers are the
     // business's own description of itself, and everything the growth board
     // says is either measured from real tables or traceable to one of these.

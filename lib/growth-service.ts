@@ -291,3 +291,91 @@ export async function saveDiscovery(input: {
     .run();
   return discoveryState(clean);
 }
+
+/**
+ * Runs a website scan and stores it with its trace (§6).
+ *
+ * The run row is written whether the scan succeeded or not. A failed scan is
+ * the more useful record of the two — it is the one somebody needs to look at
+ * — and a product that only keeps its successes cannot be debugged by the
+ * person using it.
+ */
+export async function runSiteScan(input: {
+  organizationId: string;
+  userId: string;
+  siteUrl: string;
+}) {
+  const { scanSite } = await import('@/lib/site-scan');
+  const result = await scanSite(input.siteUrl);
+  const id = `run_${crypto.randomUUID().slice(0, 8)}`;
+  await getRawDb()
+    .prepare(
+      `INSERT INTO growth_runs
+         (id, organization_id, started_by, site_url, host, status, failure_reason,
+          steps_json, pages_json, findings_json,
+          high_count, medium_count, low_count, total_ms)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .bind(
+      id,
+      input.organizationId,
+      input.userId,
+      input.siteUrl,
+      result.host ?? null,
+      result.ok ? 'complete' : 'failed',
+      result.reason ?? null,
+      JSON.stringify(result.steps),
+      JSON.stringify(result.pages),
+      JSON.stringify(result.findings),
+      result.counts.high,
+      result.counts.medium,
+      result.counts.low,
+      result.totalMs,
+    )
+    .run();
+  return { id, ...result };
+}
+
+export async function listRuns(organizationId: string, limit = 10) {
+  const rows = await getRawDb()
+    .prepare(
+      `SELECT id, site_url AS siteUrl, host, status, failure_reason AS failureReason,
+              high_count AS high, medium_count AS medium, low_count AS low,
+              total_ms AS totalMs, created_at AS createdAt
+       FROM growth_runs WHERE organization_id = ?
+       ORDER BY created_at DESC LIMIT ?`,
+    )
+    .bind(organizationId, Math.max(1, Math.min(50, limit)))
+    .all();
+  return rows.results ?? [];
+}
+
+export async function getRun(organizationId: string, runId: string) {
+  const row = await getRawDb()
+    .prepare(
+      `SELECT id, site_url AS siteUrl, host, status, failure_reason AS failureReason,
+              steps_json AS steps, pages_json AS pages, findings_json AS findings,
+              high_count AS high, medium_count AS medium, low_count AS low,
+              total_ms AS totalMs, created_at AS createdAt
+       FROM growth_runs WHERE id = ? AND organization_id = ? LIMIT 1`,
+    )
+    .bind(runId, organizationId)
+    .first<Record<string, unknown>>();
+  if (!row) return null;
+  const parse = (value: unknown) => {
+    // Only a stored JSON string is worth parsing; anything else came back in a
+    // shape this row is not supposed to hold.
+    if (typeof value !== 'string') return [];
+    try {
+      return JSON.parse(value) as unknown[];
+    } catch {
+      return [];
+    }
+  };
+  return {
+    ...row,
+    steps: parse(row.steps),
+    pages: parse(row.pages),
+    findings: parse(row.findings),
+  };
+}

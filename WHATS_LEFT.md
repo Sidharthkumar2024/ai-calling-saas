@@ -117,6 +117,55 @@ work.
 
 ## Landed
 
+**Website scan for the AI Business Manager (§6).** §6 asks for "authorized
+website scraping/indexing to understand offers and pages", and it was the
+largest thing the growth board did not have. It now fetches the workspace's own
+site and reports what is measurably wrong with each page.
+
+Modelled on four patterns worth taking from the reference product: workspace
+chips showing what the manager is working from, a **live trace** of what it
+actually did with per-step timings, connector cards that admit what is not
+connected, and a report where each action carries the page, **DO THIS**,
+**WHY** and the measurement behind it.
+
+The trace is not decoration. A scan that reports "5 pages analysed" and nothing
+else asks to be trusted; one that lists every URL with the milliseconds it took
+can be checked — and when a site is slow, blocked or unreachable, the trace is
+the difference between a diagnosis and a shrug. Runs are stored with their
+trace and carry a run id, failures included, because a failed scan is the more
+useful record of the two.
+
+**Security:** this endpoint fetches a URL a customer typed, from inside the
+platform, which is a server-side request forgery primitive unless fenced.
+Loopback, link-local, all the private IPv4 and IPv6 ranges, cloud metadata
+hosts and non-http schemes are refused. Same origin only, eight pages, a
+per-request timeout and a total budget. The crawler identifies itself honestly
+rather than posing as a browser.
+
+*Two defects found by running it against real sites, not fixtures:*
+
+- **example.com answers every path with the home page.** Guessing paths on such
+  a site returned the same document seven times and reported every problem
+  seven times — 28 findings where four were real, which is a report nobody
+  reads. Pages are now deduplicated by content fingerprint, and the trace says
+  which paths were ignored and why. 28 findings became 4.
+- **A client-rendered page was called "too thin".** `adgrowly.ca/contact`
+  delivers six words of HTML and builds the rest in the browser. Telling
+  somebody to add copy to a page that already has plenty is advice that
+  destroys trust in the rest of the report. Such pages are now detected and get
+  the finding that is actually true — the crawler receives an empty shell and
+  that shell is what gets indexed — and claims the HTML cannot support (no H1,
+  no call to action) are not made about them at all.
+
+*Verified against two real sites.* On `adgrowly.ca`: sitemap found in 815ms,
+five pages read, and two accurate high-severity findings. The reference product
+reported 26 actions for the same site; this reports 2, because it only states
+what it measured. That difference is the point.
+
+Still open in §6: Google Analytics, Search Console and HubSpot connectors,
+chat, history, scheduled reports, and turning a recommendation into a campaign.
+
+
 **Fixed the login lockout §14 caused.** Enforcing two-factor authentication
 retroactively broke sign-in on both sides, in two different ways.
 

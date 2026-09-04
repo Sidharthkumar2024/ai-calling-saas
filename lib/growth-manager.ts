@@ -26,6 +26,8 @@
 export type DiscoveryQuestion = {
   id: string;
   question: string;
+  /** Short label for the workspace chip that shows the answer back. */
+  chip: string;
   /** Why it is asked — shown, so the interview does not feel like a form. */
   purpose: string;
   required: boolean;
@@ -43,30 +45,35 @@ export type DiscoveryQuestion = {
 export const DISCOVERY_QUESTIONS: DiscoveryQuestion[] = [
   {
     id: 'business',
+    chip: 'Sells',
     question: 'What does your business sell, in your own words?',
     purpose: 'Decides the object schema and the agent’s opening.',
     required: true,
   },
   {
     id: 'website',
+    chip: 'Website',
     question: 'What is your website?',
     purpose: 'Read for offers, pricing and pages worth answering from.',
     required: false,
   },
   {
     id: 'lead_definition',
+    chip: 'A lead is',
     question: 'What counts as a lead for you?',
     purpose: 'Sets what the agent qualifies for and how leads are scored.',
     required: true,
   },
   {
     id: 'ideal_customer',
+    chip: 'Audience',
     question: 'Who is your ideal customer?',
     purpose: 'Shapes qualification questions and lead priority.',
     required: true,
   },
   {
     id: 'goals',
+    chip: 'Priority',
     question: 'What are you trying to achieve in the next quarter?',
     purpose:
       'Orders the growth plan; a booking goal and a collection goal ranks differently.',
@@ -74,6 +81,7 @@ export const DISCOVERY_QUESTIONS: DiscoveryQuestion[] = [
   },
   {
     id: 'competitors',
+    chip: 'Competitors',
     question: 'Who do customers compare you with?',
     purpose: 'Prepares the objection playbook for named comparisons.',
     required: false,

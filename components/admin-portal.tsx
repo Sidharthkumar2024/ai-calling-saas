@@ -62,6 +62,22 @@ type AdminPayload = {
   activitySeries?: Record<string, string | number>[];
   jobStats?: Record<string, string | number>[];
   providerCosts?: Record<string, unknown>[];
+  health?: {
+    overall: string;
+    windowMinutes: number;
+    measuredAt: string;
+    components: Array<{
+      component: string;
+      state: string;
+      reason: string;
+      errorRate: number | null;
+      p95LatencyMs: number | null;
+      lastSuccessAt: string | null;
+      quotaUsedFraction: number | null;
+      tokenState: string;
+      breaker: string;
+    }>;
+  };
   unitEconomics?: {
     currency: string;
     windowDays: number;
@@ -2634,6 +2650,78 @@ function SystemAudit({ data }: { data: AdminPayload }) {
         title={t('adminScreen.system_audit.title')}
         description={t('adminScreen.system_audit.description')}
       />
+      {data.health ? (
+        <Panel>
+          <PanelHeader
+            title="API health center"
+            description={`Every component classified from evidence over the last ${data.health.windowMinutes} minutes. Nothing is asserted.`}
+          />
+          <div className="mt-3 flex items-center gap-3">
+            <span
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] ${HEALTH_TONE[data.health.overall] ?? HEALTH_TONE.unknown}`}
+            >
+              <span className="size-1.5 rounded-full bg-current" />
+              Platform: {data.health.overall}
+            </span>
+            <span className="text-[10px] text-ink-muted">
+              {/* `unknown` outranks `healthy` on purpose: a platform with an
+                  unmeasured component is not known to be healthy. */}
+              measured {formatDate(data.health.measuredAt)}
+            </span>
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            {data.health.components.map((component) => (
+              <div
+                key={component.component}
+                className="rounded-xl border border-hairline bg-surface p-3"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate text-[11px] font-medium">
+                    {component.component.replace(/^provider_/, '')}
+                  </p>
+                  <span
+                    className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] ${HEALTH_TONE[component.state] ?? HEALTH_TONE.unknown}`}
+                  >
+                    {component.state}
+                  </span>
+                </div>
+                <p className="mt-1.5 text-[10px] leading-4 text-ink-muted">
+                  {component.reason}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[9px] text-ink-faint">
+                  {component.p95LatencyMs !== null ? (
+                    <span>p95 {num(component.p95LatencyMs)} ms</span>
+                  ) : null}
+                  {component.errorRate !== null ? (
+                    <span>
+                      errors {(component.errorRate * 100).toFixed(1)}%
+                    </span>
+                  ) : null}
+                  {component.quotaUsedFraction !== null ? (
+                    <span>
+                      quota {(component.quotaUsedFraction * 100).toFixed(0)}%
+                    </span>
+                  ) : null}
+                  {component.tokenState !== 'none' ? (
+                    <span>token {component.tokenState}</span>
+                  ) : null}
+                  {component.breaker !== 'closed' ? (
+                    <span className="text-warning-text">
+                      breaker {component.breaker}
+                    </span>
+                  ) : null}
+                  <span>
+                    {component.lastSuccessAt
+                      ? `last ok ${formatDate(component.lastSuccessAt)}`
+                      : 'never succeeded'}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      ) : null}
+
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
           {
@@ -2842,6 +2930,15 @@ function ErrorState({ error, retry }: { error: string; retry: () => void }) {
 function num(value: unknown) {
   return Number(value ?? 0).toLocaleString('en-IN');
 }
+/** §29's five states, in the semantic colours §4 names. */
+const HEALTH_TONE: Record<string, string> = {
+  healthy: 'border-[#16A34A]/25 bg-[#16A34A]/8 text-success-text',
+  degraded: 'border-[#D97706]/25 bg-[#D97706]/8 text-warning-text',
+  unhealthy: 'border-[#DC2626]/25 bg-[#DC2626]/8 text-danger-text',
+  unknown: 'border-hairline bg-surface-strong text-ink-muted',
+  maintenance: 'border-primary/25 bg-primary/8 text-primary',
+};
+
 function money(value: unknown, currency = 'INR') {
   return formatMoney(Math.round(Number(value ?? 0)), currency);
 }

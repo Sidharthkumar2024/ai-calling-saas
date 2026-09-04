@@ -174,6 +174,31 @@ through a relay, or not at all; without it that verdict is "not tested" rather
 than a guess. The pre-call HTTP probe still says it is an HTTP probe. 47
 assertions.
 
+**Track E — API Health Center (§29), first pass.** The old health block had two
+honest numbers — a timed D1 round trip and the queue depth — and asserted the
+rest: `api: 'operational'` was a constant, and a provider's "health" was whether
+an environment variable was set.
+
+§29 names five states, and the fifth is what makes the other four usable:
+**unknown**. A component nobody has called is not healthy, and the panel now
+says so — the live report currently reads `overall: unknown`, because six
+providers have no credentials and webhooks have never fired. The old panel would
+have shown that as green.
+
+Also measured rather than asserted: last-success timestamps, credential expiry
+(with an `expiring` state so a token is renewed before it takes a service down),
+webhook delivery health from a table that has always recorded it and was never
+surfaced, queue pressure, and circuit breakers with a `half_open` trial so a
+recovered provider closes its own breaker instead of staying shut until someone
+notices. Maintenance windows win over failures, because a component someone took
+down on purpose is not an incident.
+
+35 assertions on the classifier, including that `unknown` outranks `healthy` in
+the roll-up: a platform with an unmeasured component is not known to be healthy.
+
+Still to come on this track: the Support Executive portal (§30) — diagnostic ID,
+support PIN and an audited support view. None of it exists yet.
+
 **Track D — money: rate cards, real metering, cost and margin (§13, §26-28),
 first pass.** The admin panel titled "Provider cost and margin" summed columns
 that were structurally always zero, because `recordUsage` wrote

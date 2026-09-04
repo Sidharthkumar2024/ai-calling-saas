@@ -1207,6 +1207,25 @@ async function bootstrap() {
     db.prepare(
       `CREATE UNIQUE INDEX IF NOT EXISTS idx_rate_cards_version ON provider_rate_cards (provider, coalesce(model, ''), unit, effective_from)`,
     ),
+    // §29: per-component health state that survives a restart. The measured
+    // window comes from provider_usage_events; this row carries the facts a
+    // window cannot show — the last success, a tripped breaker, a declared
+    // maintenance window, credential expiry and quota.
+    db.prepare(`CREATE TABLE IF NOT EXISTS service_health (
+      component TEXT PRIMARY KEY NOT NULL,
+      state TEXT DEFAULT 'unknown' NOT NULL,
+      reason TEXT,
+      last_success_at TEXT,
+      last_failure_at TEXT,
+      consecutive_failures INTEGER DEFAULT 0 NOT NULL,
+      breaker_opened_at TEXT,
+      maintenance_until TEXT,
+      maintenance_note TEXT,
+      token_expires_at TEXT,
+      quota_used INTEGER,
+      quota_limit INTEGER,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
     // §26: country price books. An entry here is an explicit pricing decision
     // and beats any conversion — a rounded conversion is not a strategy.
     db.prepare(`CREATE TABLE IF NOT EXISTS price_books (

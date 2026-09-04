@@ -4,6 +4,7 @@ import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { requireAdminCapability } from '@/lib/admin-rbac';
 import { grossMargin } from '@/lib/currency';
+import { healthReport } from '@/lib/health-center';
 import { BASE_CURRENCY } from '@/lib/metering';
 
 export const dynamic = 'force-dynamic';
@@ -312,6 +313,11 @@ export async function GET(request: Request) {
     complete: unpriced30d === 0,
   };
 
+  // §29: the API Health Center. Every component classified from evidence, with
+  // `unknown` where there is none — the state the old block could not express,
+  // which is why it asserted `api: 'operational'` as a constant.
+  const health = await healthReport();
+
   return NextResponse.json({
     admin: { name: auth.session.name, email: auth.session.email },
     providerHealth,
@@ -329,6 +335,7 @@ export async function GET(request: Request) {
     jobStats: jobStats.results,
     providerCosts: providerCosts.results,
     unitEconomics,
+    health,
     compliance,
     system: {
       // 'api' is the one thing we can assert simply: this request was served.

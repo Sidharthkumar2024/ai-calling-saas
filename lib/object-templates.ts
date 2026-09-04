@@ -235,6 +235,11 @@ export const OBJECT_TEMPLATES: ObjectTemplate[] = [
             currency: 'INR',
           },
           { key: 'photo', label: 'Photo', type: 'image' },
+          {
+            key: 'delivery_asset',
+            label: 'Digital delivery file',
+            type: 'file',
+          },
           { key: 'active', label: 'Active', type: 'boolean', filterable: true },
         ],
       },

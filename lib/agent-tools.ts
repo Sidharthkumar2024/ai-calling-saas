@@ -13,6 +13,7 @@ import {
   type ObjectDefinition,
 } from '@/lib/object-store';
 import type { Filter } from '@/lib/object-engine';
+import { createOrder } from '@/lib/order-service';
 
 export type ToolContext = {
   organizationId: string;
@@ -264,6 +265,36 @@ export const VAANI_AGENT_TOOLS: Array<Record<string, unknown>> = [
         record_id: { type: 'string' },
       },
       required: ['record_id'],
+    },
+  },
+  {
+    name: 'place_order',
+    description:
+      'Place an order for catalogue items the caller agreed to buy, and get a payment link for it. Prices come from the catalogue, never from you. Tell the caller the link is on its way — never that the order is confirmed, which only the payment provider can decide.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        customer_phone: { type: 'string' },
+        customer_name: { type: 'string' },
+        customer_email: {
+          type: 'string',
+          description: 'Needed when the calling number has no WhatsApp.',
+        },
+        items: {
+          type: 'array',
+          description: 'Catalogue items, by the id a search returned.',
+          items: {
+            type: 'object',
+            properties: {
+              record_id: { type: 'string' },
+              quantity: { type: 'number' },
+            },
+            required: ['record_id'],
+          },
+        },
+        delivery: { type: 'string', enum: ['whatsapp', 'email'] },
+      },
+      required: ['customer_phone', 'items'],
     },
   },
   {
@@ -755,6 +786,93 @@ async function runTool(
       record_id: record.id,
       available,
       in_stock: available > 0,
+    };
+  }
+
+  if (name === 'place_order') {
+    const phone = digits(input.customer_phone);
+    if (phone.length < 6) return { ok: false, reason: 'invalid_phone' };
+    const rawItems = Array.isArray(input.items) ? input.items : [];
+    const items = rawItems
+      .filter(
+        (entry): entry is Record<string, unknown> =>
+          !!entry && typeof entry === 'object',
+      )
+      .map((entry) => ({
+        recordId: typeof entry.record_id === 'string' ? entry.record_id : '',
+        quantity: Number(entry.quantity ?? 1),
+      }))
+      .filter((entry) => entry.recordId);
+    if (!items.length) return { ok: false, reason: 'no_items' };
+    const delivery = ['whatsapp', 'email'].includes(str(input, 'delivery'))
+      ? str(input, 'delivery')
+      : 'whatsapp';
+
+    const order = await createOrder({
+      organizationId: ctx.organizationId,
+      items,
+      customerName: str(input, 'customer_name') || null,
+      customerPhone: phone,
+      customerEmail: str(input, 'customer_email') || null,
+      sessionId: ctx.sessionId ?? null,
+      // The same caller asking twice in one conversation gets one order, not
+      // two payment links for the same basket.
+      idempotencyKey: `order:${ctx.organizationId}:${ctx.sessionId ?? phone}:${items
+        .map((entry) => `${entry.recordId}x${entry.quantity}`)
+        .sort()
+        .join('|')}`,
+    });
+    if (!order.ok)
+      return { ok: false, reason: 'order_rejected', problems: order.errors };
+
+    // The payment link is created against the order's own total, so the amount
+    // is the catalogue's, not the model's.
+    const linkId = id('paylink');
+    const reference = id('ref');
+    await db
+      .prepare(`INSERT INTO payment_links
+        (id, organization_id, agent_id, reference_id, customer_name, customer_phone,
+         amount, currency, description, delivery_mode, provider, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'INR', ?, ?, 'razorpay', 'created')`)
+      .bind(
+        linkId,
+        ctx.organizationId,
+        ctx.agentId ?? null,
+        reference,
+        str(input, 'customer_name') || null,
+        phone,
+        Math.round(order.total),
+        order.lines
+          .map((line) => `${line.quantity}× ${line.title}`)
+          .join(', ')
+          .slice(0, 300),
+        delivery,
+      )
+      .run();
+    await db
+      .prepare(`UPDATE orders SET payment_link_id = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND organization_id = ?`)
+      .bind(linkId, order.orderId, ctx.organizationId)
+      .run();
+
+    return {
+      ok: true,
+      order_id: order.orderId,
+      payment_link_id: linkId,
+      reference_id: reference,
+      total: order.total,
+      currency: order.currency,
+      items: order.lines,
+      // §22: the order is not confirmed and the download is not open. The model
+      // is handed the sentence rather than left to compose one.
+      status: order.status,
+      say_to_customer: order.sayToCustomer,
+      ...(order.hasDigital
+        ? {
+            digital_delivery:
+              'unlocks only after the payment provider confirms',
+          }
+        : {}),
     };
   }
 

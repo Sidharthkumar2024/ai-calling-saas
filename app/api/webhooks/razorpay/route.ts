@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { getRawDb } from '@/db/index';
 import { getRazorpayWebhookSecret } from '@/lib/commerce';
+import { releaseOrder } from '@/lib/order-service';
 import { settleRefundFromProvider } from '@/lib/refund-execution';
 import { sha256 } from '@/lib/security';
 
@@ -144,7 +145,42 @@ export async function POST(request: Request) {
         ]
       : []),
   ]);
-  return NextResponse.json({ received: true, status });
+  // §9: this is the only place an order becomes paid and a digital entitlement
+  // opens. The signature has been verified and the event de-duplicated above;
+  // nothing earlier in the flow — not creating the link, not the customer
+  // saying they paid — may release anything.
+  let fulfilment: Record<string, unknown> | null = null;
+  if (status === 'paid') {
+    const order = await db
+      .prepare(
+        `SELECT id FROM orders WHERE payment_link_id = ? AND organization_id = ? LIMIT 1`,
+      )
+      .bind(payment.id, organizationId)
+      .first<{ id: string }>();
+    if (order) {
+      const released = await releaseOrder({
+        organizationId,
+        orderId: order.id,
+      });
+      fulfilment = {
+        orderId: order.id,
+        downloadsReleased: released.released,
+        alreadyPaid: released.alreadyPaid,
+        // Stock was checked when the order was placed and again here. A
+        // shortfall now is a fulfilment problem for a human, not something to
+        // hide: the money has already arrived.
+        ...(released.inventoryShortfalls.length
+          ? { outOfStock: released.inventoryShortfalls }
+          : {}),
+      };
+    }
+  }
+
+  return NextResponse.json({
+    received: true,
+    status,
+    ...(fulfilment ? { fulfilment } : {}),
+  });
 }
 
 type RazorpayWebhook = {

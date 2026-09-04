@@ -1108,6 +1108,78 @@ async function bootstrap() {
     db.prepare(
       `CREATE INDEX IF NOT EXISTS idx_record_values_number ON record_values (field_key, number_value)`,
     ),
+    // §9: an order is a distinct thing from a payment link. A link is a request
+    // for money; an order is what the customer bought, what it costs, and what
+    // has to reach them afterwards.
+    db.prepare(`CREATE TABLE IF NOT EXISTS orders (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      lead_id TEXT REFERENCES leads(id) ON DELETE SET NULL,
+      session_id TEXT,
+      customer_name TEXT,
+      customer_phone TEXT,
+      customer_email TEXT,
+      status TEXT DEFAULT 'awaiting_payment' NOT NULL,
+      currency TEXT DEFAULT 'INR' NOT NULL,
+      subtotal INTEGER DEFAULT 0 NOT NULL,
+      total INTEGER DEFAULT 0 NOT NULL,
+      has_digital INTEGER DEFAULT 0 NOT NULL,
+      payment_link_id TEXT REFERENCES payment_links(id) ON DELETE SET NULL,
+      idempotency_key TEXT UNIQUE,
+      notes TEXT,
+      paid_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_orders_org ON orders (organization_id, status, created_at)`,
+    ),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_orders_payment_link ON orders (payment_link_id)`,
+    ),
+    db.prepare(`CREATE TABLE IF NOT EXISTS order_items (
+      id TEXT PRIMARY KEY NOT NULL,
+      order_id TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+      record_id TEXT,
+      object_key TEXT,
+      title TEXT NOT NULL,
+      kind TEXT DEFAULT 'physical' NOT NULL,
+      quantity INTEGER DEFAULT 1 NOT NULL,
+      unit_price INTEGER DEFAULT 0 NOT NULL,
+      line_total INTEGER DEFAULT 0 NOT NULL,
+      inventory_field TEXT,
+      delivery_asset TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items (order_id)`,
+    ),
+    // §9: the gate. An entitlement exists from the moment the order is placed
+    // and stays 'pending' until the payment provider's *signed* webhook says
+    // the money arrived. The raw token is only ever in the delivery URL; the
+    // row stores its hash, so a leaked database does not hand out downloads.
+    db.prepare(`CREATE TABLE IF NOT EXISTS entitlements (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      order_id TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+      order_item_id TEXT REFERENCES order_items(id) ON DELETE CASCADE,
+      record_id TEXT,
+      token_hash TEXT NOT NULL,
+      asset_url TEXT NOT NULL,
+      title TEXT,
+      status TEXT DEFAULT 'pending' NOT NULL,
+      download_count INTEGER DEFAULT 0 NOT NULL,
+      max_downloads INTEGER,
+      released_at TEXT,
+      expires_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_entitlements_token ON entitlements (token_hash)`,
+    ),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_entitlements_order ON entitlements (order_id)`,
+    ),
     // §6: what the audio path actually did, per leg. Recorded from the leg's
     // own socket at the end of a call, so support can answer "why did that
     // call sound bad" with measurements instead of guesses.

@@ -204,9 +204,34 @@ that qualify, and quoted their actual floor and carpet area. The ₹3.1 crore
 units available never appeared — a record nobody has published is a record
 nobody has stood behind, and quoting it on a call would be quoting nobody.
 
-Still to come on this track: orders as a concept distinct from payment links,
-and digital delivery gated on verified payment (§9) — today the Razorpay
-webhook verifies the signature, updates the link and does nothing else.
+**Orders and digital delivery (§9).** An order is now a distinct thing from a
+payment link: a link is a request for money, an order is what the customer
+bought, what it costs and what has to reach them. Prices and stock come from the
+catalogue records, never from the caller — an agent that could name its own
+price would be a discount nobody approved.
+
+The gate: `releaseOrder` is called from **exactly one place**, the payment
+provider's verified webhook. Nothing else may mark an order paid, open a
+download or move stock. Entitlements are created when the order is placed and
+stay shut; the row stores only the token's hash, so a leaked database does not
+hand out downloads, and the delivery endpoint is rate-limited against guessing.
+
+Proven step by step against the running app:
+
+| | |
+|---|---|
+| digital item with no delivery file | refused at the till, not sold |
+| download before payment | **402** — "unlocks once the payment is confirmed" |
+| unsigned webhook | 404, nothing released |
+| matching link, **wrong signature** | **401**, entitlement still `pending` |
+| matching link, correct signature | 200, `downloadsReleased: 1` |
+| download after | **302** to the asset; order `paid`, stock 100 → 99 |
+| same event replayed | `duplicate: true` |
+| provider re-sends with a new event id | `alreadyPaid: true`, stock still 99 |
+
+Stock is checked when the order is placed *and* again on the webhook, because
+minutes pass between them; a shortfall at that point is reported as a fulfilment
+problem rather than hidden, since the money has already arrived.
 
 **Track B — the §4 light design system.** The portal, admin, landing page and
 docs are now white/soft-gray/near-black with a blue primary, per §4. The token

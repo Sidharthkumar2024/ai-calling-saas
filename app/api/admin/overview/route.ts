@@ -2,12 +2,12 @@ import { NextResponse } from 'next/server';
 
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
-import { requireAdmin } from '@/lib/api-session';
+import { requireAdminCapability } from '@/lib/admin-rbac';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-  const auth = await requireAdmin(request);
+  const auth = await requireAdminCapability(request, 'tenants.read');
   if (auth.response) return auth.response;
   await ensureSchema();
   const db = getRawDb();
@@ -210,7 +210,12 @@ export async function GET(request: Request) {
 
   const providerHealthMap = new Map<
     string,
-    { latencies: number[]; errors: number; calls: number; operations: Set<string> }
+    {
+      latencies: number[];
+      errors: number;
+      calls: number;
+      operations: Set<string>;
+    }
   >();
   for (const row of samples) {
     const entry = providerHealthMap.get(row.provider_id) ?? {
@@ -241,7 +246,8 @@ export async function GET(request: Request) {
   );
 
   const queued = Number(jobHealth?.queued ?? 0);
-  const failed = Number(jobHealth?.failed ?? 0) + Number(jobHealth?.dead_letter ?? 0);
+  const failed =
+    Number(jobHealth?.failed ?? 0) + Number(jobHealth?.dead_letter ?? 0);
   const platformP95 = percentile(
     samples.map((row) => Number(row.latency_ms)),
     0.95,

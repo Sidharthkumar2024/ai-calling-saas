@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
-import { requireAdmin } from '@/lib/api-session';
+import { requireAdminCapability, type AdminCapability } from '@/lib/admin-rbac';
 import { recordAudit } from '@/lib/demo-seed';
 import {
   platformProviderSecret,
@@ -38,8 +38,33 @@ const PROVIDER_ROW_IDS: Record<string, string> = {
   exotel: 'provider_telephony',
 };
 
+/**
+ * Which sub-role capability each action needs (§31, blueprint §21).
+ *
+ * This route used to take a bare `requireAdmin`, so the sub-roles existed on
+ * paper while every admin could rotate provider keys, change sign-in providers
+ * and edit plans. Anything not listed falls to `security.manage`, so a new
+ * action is locked down by default rather than open by omission.
+ */
+const ACTION_CAPABILITIES: Record<string, AdminCapability> = {
+  provider_key_save: 'providers.manage',
+  provider_key_clear: 'providers.manage',
+  provider_status: 'providers.manage',
+  elevenlabs_tts_test: 'providers.manage',
+  elevenlabs_voices: 'providers.manage',
+  auth_visibility: 'security.manage',
+  auth_provider_save: 'security.manage',
+  auth_enabled: 'security.manage',
+  plan_update: 'billing.manage',
+  plan_create: 'billing.manage',
+  credit_package_create: 'billing.manage',
+  kyc_status: 'tenants.manage',
+  ticket_reply: 'support.access',
+  ticket_status: 'support.access',
+};
+
 export async function GET(request: Request) {
-  const auth = await requireAdmin(request);
+  const auth = await requireAdminCapability(request, 'tenants.read');
   if (auth.response) return auth.response;
   await ensureSchema();
   const db = getRawDb();
@@ -117,9 +142,6 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const auth = await requireAdmin(request);
-  if (auth.response) return auth.response;
-  await ensureSchema();
   const body = (await request.json()) as {
     action?: string;
     provider?: string;
@@ -131,6 +153,7 @@ export async function PATCH(request: Request) {
     ticketId?: string;
     message?: string;
     planId?: string;
+    code?: string;
     name?: string;
     monthlyPrice?: number;
     includedCredits?: number;
@@ -147,6 +170,12 @@ export async function PATCH(request: Request) {
     apiKey?: string;
     config?: Record<string, string>;
   };
+  const auth = await requireAdminCapability(
+    request,
+    ACTION_CAPABILITIES[body.action ?? ''] ?? 'security.manage',
+  );
+  if (auth.response) return auth.response;
+  await ensureSchema();
   const db = getRawDb();
 
   if (body.action === 'provider_key_save') {
@@ -471,8 +500,8 @@ export async function PATCH(request: Request) {
       (provider === 'google' &&
         Boolean(
           process.env.GOOGLE_CLIENT_ID &&
-            process.env.GOOGLE_CLIENT_SECRET &&
-            process.env.GOOGLE_REDIRECT_URI,
+          process.env.GOOGLE_CLIENT_SECRET &&
+          process.env.GOOGLE_REDIRECT_URI,
         ));
     if (body.enabled && !configured) {
       return NextResponse.json(
@@ -527,6 +556,53 @@ export async function PATCH(request: Request) {
     );
     return NextResponse.json({ updated: true });
   }
+  // Plans existed only as demo seeds behind `NODE_ENV !== 'production'`, and
+  // the panel could edit a plan but never create one. On a production database
+  // the table was therefore empty, signup answered 503 "Free trial plan is not
+  // configured", and there was no supported way out of that state.
+  if (body.action === 'plan_create') {
+    const code = (body.code ?? '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]/g, '');
+    if (!code || !body.name?.trim())
+      return NextResponse.json(
+        { error: 'Plan code and name are required.' },
+        { status: 400 },
+      );
+    const existing = await db
+      .prepare(`SELECT id FROM plans WHERE code = ? LIMIT 1`)
+      .bind(code)
+      .first<{ id: string }>();
+    if (existing)
+      return NextResponse.json(
+        { error: `A plan with code "${code}" already exists.` },
+        { status: 409 },
+      );
+    const planId = `plan_${code}`;
+    await db
+      .prepare(`INSERT INTO plans
+        (id, code, name, monthly_price, included_credits, max_agents, max_numbers,
+         concurrency, features_json, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, '[]', ?)`)
+      .bind(
+        planId,
+        code,
+        body.name.trim().slice(0, 80),
+        boundedInteger(body.monthlyPrice, 0, 100_000_000),
+        boundedInteger(body.includedCredits, 0, 100_000_000),
+        boundedInteger(body.maxAgents, 1, 100_000),
+        boundedInteger(body.maxNumbers, 1, 100_000),
+        boundedInteger(body.concurrency, 1, 1_000_000),
+        body.status === 'inactive' ? 'inactive' : 'active',
+      )
+      .run();
+    await recordAudit(auth.session, 'billing.plan_created', 'plan', planId, {
+      code,
+    });
+    return NextResponse.json({ created: true, id: planId }, { status: 201 });
+  }
+
   if (body.action === 'plan_update') {
     if (!body.planId || !body.name?.trim())
       return NextResponse.json(
@@ -702,7 +778,13 @@ export async function PATCH(request: Request) {
         )
         .bind(auth.session.name, ticket.id),
     ]);
-    await recordAudit(auth.session, 'ticket.replied', 'support_ticket', ticket.id, {});
+    await recordAudit(
+      auth.session,
+      'ticket.replied',
+      'support_ticket',
+      ticket.id,
+      {},
+    );
     return NextResponse.json({ replied: true });
   }
   if (body.action === 'ticket_status') {

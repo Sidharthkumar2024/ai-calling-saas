@@ -41,9 +41,16 @@ export function adminCapabilities(role: string): AdminCapability[] {
 }
 
 /**
- * Resolves the signed-in admin's sub-role. The column is added by a migration,
- * so a database that predates it reports super_admin — the previous behaviour —
- * rather than locking the only operator out of their own platform.
+ * Resolves the signed-in admin's sub-role.
+ *
+ * This used to answer `super_admin` for a null column *or a failed query*,
+ * which made the sub-roles decorative: an operations admin whose column had
+ * never been set held every capability, and a transient database error handed
+ * out the full platform. The reason given was not locking the original operator
+ * out of a database that predates the column — a real concern, but a migration
+ * problem, not an authorisation one. `ensureSchema` now backfills existing
+ * platform admins to `super_admin` once, so this can fail closed to the
+ * read-only role the way `getCustomerAccess` already does.
  */
 export async function adminRole(userId: string): Promise<AdminRole> {
   try {
@@ -53,9 +60,10 @@ export async function adminRole(userId: string): Promise<AdminRole> {
       .first<{ admin_role: string | null }>();
     const value = row?.admin_role;
     if (value && value in ROLE_CAPABILITIES) return value as AdminRole;
-    return 'super_admin';
+    return 'analyst';
   } catch {
-    return 'super_admin';
+    // An error is not permission. Read-only is the safe answer.
+    return 'analyst';
   }
 }
 

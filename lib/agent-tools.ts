@@ -196,6 +196,33 @@ export const VAANI_AGENT_TOOLS: Array<Record<string, unknown>> = [
     },
   },
   {
+    name: 'schedule_follow_up',
+    description:
+      'Schedule a follow-up contact at a specific time. Use this when the caller asks to be contacted later, or when the next step only makes sense after a delay. Say it is scheduled, never that it has happened.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        customer_phone: { type: 'string' },
+        customer_name: { type: 'string' },
+        channel: {
+          type: 'string',
+          enum: ['call', 'whatsapp'],
+          description: 'How the follow-up should reach the customer.',
+        },
+        run_at: {
+          type: 'string',
+          description:
+            'When to follow up, as an ISO 8601 timestamp. Must be in the future.',
+        },
+        note: {
+          type: 'string',
+          description: 'What the follow-up is about, in one sentence.',
+        },
+      },
+      required: ['customer_phone', 'run_at'],
+    },
+  },
+  {
     name: 'end_call',
     description: 'Close the conversation with an outcome.',
     input_schema: {
@@ -554,6 +581,63 @@ async function runTool(
       reason: str(input, 'reason') || null,
       requestedWindow: str(input, 'requested_window') || null,
     });
+  }
+
+  if (name === 'schedule_follow_up') {
+    // Advertised in every agent's tool list since the beginning and never
+    // implemented, so a model that decided to schedule a follow-up called a
+    // tool that did not exist. It runs on the same `scheduled_actions` queue
+    // that already carries payment links.
+    const phone = digits(input.customer_phone);
+    if (phone.length < 6) return { ok: false, reason: 'invalid_phone' };
+    const runAtRaw = str(input, 'run_at');
+    const runAt = Date.parse(runAtRaw);
+    if (!Number.isFinite(runAt)) return { ok: false, reason: 'invalid_run_at' };
+    // A follow-up in the past would fire immediately and look like a bug to the
+    // customer; more than a year out is a model mistake, not an intention.
+    const now = Date.now();
+    if (runAt <= now + 60_000)
+      return { ok: false, reason: 'run_at_must_be_at_least_a_minute_ahead' };
+    if (runAt > now + 365 * 24 * 3600_000)
+      return { ok: false, reason: 'run_at_too_far_ahead' };
+    const channel = str(input, 'channel') === 'whatsapp' ? 'whatsapp' : 'call';
+    // Attach to the lead when there is one, so the follow-up shows up on the
+    // customer's timeline rather than floating free.
+    const lead = await db
+      .prepare(
+        `SELECT id FROM leads WHERE organization_id = ?
+           AND replace(replace(phone,'+',''),' ','') LIKE ?
+         ORDER BY updated_at DESC LIMIT 1`,
+      )
+      .bind(ctx.organizationId, `%${phone.slice(-10)}%`)
+      .first<{ id: string }>();
+    const actionId = id('action');
+    await db
+      .prepare(`INSERT INTO scheduled_actions
+        (id, organization_id, lead_id, agent_id, type, payload_json, status, run_at)
+        VALUES (?, ?, ?, ?, 'follow_up', ?, 'pending', ?)`)
+      .bind(
+        actionId,
+        ctx.organizationId,
+        lead?.id ?? null,
+        ctx.agentId ?? null,
+        JSON.stringify({
+          customerPhone: phone,
+          customerName: str(input, 'customer_name') || null,
+          channel,
+          note: str(input, 'note').slice(0, 300) || null,
+        }),
+        new Date(runAt).toISOString(),
+      )
+      .run();
+    return {
+      ok: true,
+      scheduled: true,
+      actionId,
+      channel,
+      runAt: new Date(runAt).toISOString(),
+      note: 'Follow-up scheduled. Tell the caller when it will happen — not that it already has.',
+    };
   }
 
   if (name === 'end_call') {

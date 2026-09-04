@@ -4,39 +4,11 @@ import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { requireCustomer } from '@/lib/api-session';
 import { recordAudit } from '@/lib/demo-seed';
+import { executeRefund } from '@/lib/refund-execution';
 import { decideApproval, recordRefundRequest } from '@/lib/handoff-service';
-import type { ActorRole } from '@/lib/action-policy';
+import { resolveActorRole } from '@/lib/handoff-service';
 
 export const dynamic = 'force-dynamic';
-
-/** Workspace role -> policy authority (§11 authority matrix). */
-function toActorRole(workspaceRole: string): ActorRole {
-  switch (workspaceRole) {
-    case 'owner':
-    case 'admin':
-      return 'admin';
-    case 'billing':
-      return 'finance';
-    case 'sales_manager':
-      return 'manager';
-    default:
-      return 'support_agent';
-  }
-}
-
-/** The workspace role lives on the membership row, not the auth session. */
-async function resolveActorRole(
-  organizationId: string,
-  userId: string,
-): Promise<ActorRole> {
-  const row = await getRawDb()
-    .prepare(
-      `SELECT role FROM organization_members WHERE organization_id = ? AND user_id = ? LIMIT 1`,
-    )
-    .bind(organizationId, userId)
-    .first<{ role: string }>();
-  return toActorRole(row?.role ?? 'agent');
-}
 
 export async function GET(request: Request) {
   const auth = await requireCustomer(request);
@@ -149,8 +121,11 @@ export async function PATCH(request: Request) {
         { status: decision.reason === 'insufficient_authority' ? 403 : 409 },
       );
 
-    // An approved refund becomes a recorded, idempotent refund request. It is
-    // still not "done" — only the provider may confirm that.
+    // An approved refund becomes a recorded, idempotent refund request and is
+    // then actually submitted to the provider. Recording alone used to be the
+    // whole story: the row sat at 'requested' for ever while every screen said
+    // the refund had been authorised. It is still not reported as "done" until
+    // the provider confirms it.
     let refund: unknown = null;
     if (body.outcome === 'approved') {
       const card = await db
@@ -193,6 +168,24 @@ export async function PATCH(request: Request) {
           authorisedBy: `${role}:${auth.session.userId}`,
           idempotencyKey: `refund:approval:${body.approvalId}`,
         });
+        if (refund && (refund as { refundId?: string }).refundId) {
+          const execution = await executeRefund({
+            organizationId: auth.session.organizationId!,
+            refundId: (refund as { refundId: string }).refundId,
+          });
+          refund = { ...(refund as object), execution };
+          await recordAudit(
+            auth.session,
+            execution.confirmed
+              ? 'refund.confirmed'
+              : execution.ok
+                ? 'refund.submitted'
+                : 'refund.submission_failed',
+            'refund',
+            execution.refundId,
+            { status: execution.status, reason: execution.reason ?? null },
+          );
+        }
       }
     }
 

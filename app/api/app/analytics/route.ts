@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { getRawDb } from '@/db/index';
+import { CONVERSION_SQL_LIST } from '@/lib/call-outcomes';
 import { requireCustomerPermission } from '@/lib/customer-rbac';
 import { languageLabel } from '@/lib/languages';
 
@@ -44,7 +45,7 @@ export async function GET(request: Request) {
       db
         .prepare(`SELECT date(started_at) AS day,
             count(*) AS calls,
-            sum(CASE WHEN outcome IN ('appointment_booked','payment_link_sent','resolved') THEN 1 ELSE 0 END) AS conversions,
+            sum(CASE WHEN outcome IN (${CONVERSION_SQL_LIST}) THEN 1 ELSE 0 END) AS conversions,
             coalesce(avg(nullif(latency_ms, 0)), 0) AS avg_latency
           FROM call_records
           WHERE organization_id = ? AND started_at >= datetime('now', ?)
@@ -144,16 +145,16 @@ export async function GET(request: Request) {
     series,
     outcomes: outcomes.results ?? [],
     sentiments: sentiments.results ?? [],
-    byLanguage: ((byLanguage.results ?? []) as Array<Record<string, unknown>>).map(
-      (row) => ({
-        language: String(row.language),
-        label: languageLabel(String(row.language)),
-        calls: Number(row.calls ?? 0),
-        avgLatencyMs: Math.round(Number(row.avg_latency ?? 0)),
-        transferred: Number(row.transferred ?? 0),
-        avgQuality: Math.round(Number(row.avg_quality ?? 0)),
-      }),
-    ),
+    byLanguage: (
+      (byLanguage.results ?? []) as Array<Record<string, unknown>>
+    ).map((row) => ({
+      language: String(row.language),
+      label: languageLabel(String(row.language)),
+      calls: Number(row.calls ?? 0),
+      avgLatencyMs: Math.round(Number(row.avg_latency ?? 0)),
+      transferred: Number(row.transferred ?? 0),
+      avgQuality: Math.round(Number(row.avg_quality ?? 0)),
+    })),
     byAgent: ((byAgent.results ?? []) as Array<Record<string, unknown>>).map(
       (row) => ({
         agent: String(row.agent),

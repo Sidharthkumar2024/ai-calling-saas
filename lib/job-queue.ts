@@ -1,4 +1,5 @@
 import { getRawDb } from '@/db/index';
+import { isCallOutcome } from '@/lib/call-outcomes';
 import { enqueueJob } from '@/lib/job-enqueue';
 import { reasonWithTools } from '@/lib/provider-adapters';
 import { closeIdlePlaygroundCalls } from '@/lib/call-telemetry';
@@ -17,7 +18,6 @@ type JobRow = {
   attempts: number;
   max_attempts: number;
 };
-
 
 export async function enqueueDueScheduledActions(limit = 50) {
   const rows = await getRawDb()
@@ -189,6 +189,7 @@ async function executeJob(job: JobRow) {
   const payload = safeObject(job.payload_json);
   if (job.type === 'scheduled.send_payment_link')
     return sendScheduledPayment(job, payload);
+  if (job.type === 'scheduled.follow_up') return runFollowUp(job, payload);
   if (job.type === 'knowledge.ingest_text')
     return finalizeKnowledgeSource(job, payload);
   if (job.type === 'workflow.execute') return executeWorkflow(job, payload);
@@ -200,7 +201,8 @@ async function executeJob(job: JobRow) {
   if (job.type === 'call.intelligence') return analyseCall(job, payload);
   if (job.type === 'calls.close_idle') return closeIdleCalls(job);
   if (job.type === 'campaign.dial') {
-    if (!job.organization_id) throw new Error('Organization scope is required.');
+    if (!job.organization_id)
+      throw new Error('Organization scope is required.');
     const campaignId = stringValue(payload.campaignId);
     if (!campaignId) throw new Error('campaignId is required.');
     return dialCampaign(job.organization_id, campaignId);
@@ -407,7 +409,14 @@ async function buildReportRows(
       .all<Record<string, unknown>>();
     const rows = result.results ?? [];
     return {
-      columns: ['day', 'provider', 'surface', 'events', 'latency_total', 'latency_avg'],
+      columns: [
+        'day',
+        'provider',
+        'surface',
+        'events',
+        'latency_total',
+        'latency_avg',
+      ],
       rows,
       summary: {
         events: rows.reduce((sum, row) => sum + Number(row.events ?? 0), 0),
@@ -445,7 +454,10 @@ async function buildReportRows(
     rows,
     summary: {
       calls: rows.length,
-      credits: rows.reduce((sum, row) => sum + Number(row.cost_credits ?? 0), 0),
+      credits: rows.reduce(
+        (sum, row) => sum + Number(row.cost_credits ?? 0),
+        0,
+      ),
       talkMinutes: Math.round(
         rows.reduce((sum, row) => sum + Number(row.duration_seconds ?? 0), 0) /
           60,
@@ -526,6 +538,71 @@ async function retryWebhook(job: JobRow, payload: Record<string, unknown>) {
     .bind(endpointId)
     .run();
   return { endpointId, statusCode: response.status };
+}
+
+/**
+ * A follow-up the agent promised during a call (§10 follow-up rules).
+ *
+ * Neither channel can be completed here, and the row says so rather than
+ * pretending otherwise:
+ *
+ *  - A **call** follow-up becomes a callback request. Placing the outbound call
+ *    needs a carrier, and marking the action done without one would record a
+ *    promise as kept.
+ *  - A **WhatsApp** follow-up is queued as an outbound message. Business
+ *    messaging outside the 24-hour window requires a template the workspace has
+ *    had approved, so free text cannot simply be sent — sending it would fail at
+ *    Meta, and claiming it was sent would be worse.
+ */
+async function runFollowUp(job: JobRow, payload: Record<string, unknown>) {
+  if (!job.organization_id) throw new Error('Organization scope is required.');
+  const actionId = stringValue(payload.actionId);
+  const customerPhone = stringValue(payload.customerPhone);
+  if (!actionId || !customerPhone)
+    throw new Error('Follow-up payload is incomplete.');
+  const db = getRawDb();
+  const channel =
+    stringValue(payload.channel) === 'whatsapp' ? 'whatsapp' : 'call';
+  const note = stringValue(payload.note) || 'Follow-up from your recent call';
+  const customerName = stringValue(payload.customerName) || null;
+
+  let outcome: Record<string, unknown>;
+  if (channel === 'whatsapp') {
+    await db
+      .prepare(`INSERT INTO outbound_messages
+        (id, organization_id, channel, destination, message_body, status)
+        VALUES (?, ?, 'whatsapp', ?, ?, 'queued')`)
+      .bind(
+        `message_${crypto.randomUUID()}`,
+        job.organization_id,
+        customerPhone,
+        note,
+      )
+      .run();
+    outcome = { channel, queued: true };
+  } else {
+    await db
+      .prepare(`INSERT INTO callback_requests
+        (id, organization_id, customer_name, customer_phone, reason, status)
+        VALUES (?, ?, ?, ?, ?, 'pending')`)
+      .bind(
+        `callback_${crypto.randomUUID()}`,
+        job.organization_id,
+        customerName,
+        customerPhone,
+        note,
+      )
+      .run();
+    outcome = { channel, queuedAsCallback: true };
+  }
+
+  await db
+    .prepare(`UPDATE scheduled_actions SET status = 'completed',
+      attempt_count = attempt_count + 1, completed_at = CURRENT_TIMESTAMP,
+      last_error = NULL WHERE id = ? AND organization_id = ?`)
+    .bind(actionId, job.organization_id)
+    .run();
+  return outcome;
 }
 
 async function sendScheduledPayment(
@@ -678,7 +755,11 @@ async function analyseCall(job: JobRow, payload: Record<string, unknown>) {
       `SELECT full_text, turn_count, language FROM transcripts WHERE call_id = ? LIMIT 1`,
     )
     .bind(callId)
-    .first<{ full_text: string; turn_count: number; language: string | null }>();
+    .first<{
+      full_text: string;
+      turn_count: number;
+      language: string | null;
+    }>();
   if (!transcript?.full_text?.trim()) {
     // Nothing was said; record that honestly instead of inventing a summary.
     await db
@@ -714,7 +795,9 @@ Rules: base every field only on the transcript. The outcome field must be exactl
     const blocks = ((response as { content?: unknown[] }).content ??
       []) as Array<{ type?: string; text?: string }>;
     const text = blocks
-      .filter((block) => block.type === 'text' && typeof block.text === 'string')
+      .filter(
+        (block) => block.type === 'text' && typeof block.text === 'string',
+      )
       .map((block) => block.text as string)
       .join('')
       .trim();
@@ -760,17 +843,9 @@ Rules: base every field only on the transcript. The outcome field must be exactl
     : 'neutral';
   // Outcome is grouped in analytics, so an off-list value becomes 'incomplete'
   // rather than creating a one-off bucket.
-  const CALL_OUTCOMES = [
-    'resolved',
-    'information_provided',
-    'appointment_booked',
-    'payment_link_sent',
-    'callback_scheduled',
-    'transferred_to_human',
-    'not_interested',
-    'incomplete',
-  ];
-  const callOutcome = CALL_OUTCOMES.includes(text('outcome'))
+  // One shared vocabulary, so the model cannot invent an outcome no screen
+  // knows how to count.
+  const callOutcome = isCallOutcome(text('outcome'))
     ? text('outcome')
     : 'incomplete';
   const objections = Array.isArray(parsed.objections)
@@ -1048,7 +1123,13 @@ async function measureAlertMetric(
 /** Alert channels used to be stored and never delivered. */
 async function dispatchAlertNotifications(input: {
   organizationId: string;
-  rule: { id: string; name: string; metric: string; threshold: number; channels_json: string | null };
+  rule: {
+    id: string;
+    name: string;
+    metric: string;
+    threshold: number;
+    channels_json: string | null;
+  };
   value: number;
   windowMinutes: number;
   ownerEmail: string | null;

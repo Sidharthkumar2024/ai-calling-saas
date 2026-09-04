@@ -18,6 +18,21 @@ export async function POST(request: Request) {
   };
   const organizationId = auth.session.organizationId!;
   const stripeKey = process.env.STRIPE_SECRET_KEY;
+  // The sandbox path below credits a wallet and issues a *paid* invoice with no
+  // money moving. That is right for local development and catastrophic in
+  // production: a deploy that forgot STRIPE_SECRET_KEY would hand out plans and
+  // credit packs for free. It is keyed on the environment, never on whether a
+  // key happens to be configured.
+  const sandboxAllowed = process.env.NODE_ENV !== 'production';
+  const paymentsUnconfigured = () =>
+    NextResponse.json(
+      {
+        error:
+          'Payments are not configured on this deployment, so no purchase can be completed. Set STRIPE_SECRET_KEY.',
+      },
+      { status: 503 },
+    );
+  if (!stripeKey && !sandboxAllowed) return paymentsUnconfigured();
 
   if (body.purchaseType === 'credits') {
     const selectedPackage = await getRawDb()
@@ -32,7 +47,7 @@ export async function POST(request: Request) {
         { status: 404 },
       );
     }
-    if (!stripeKey) {
+    if (!stripeKey && sandboxAllowed) {
       const result = await applyCreditPurchase({
         organizationId,
         credits: selectedPackage.credits,
@@ -56,6 +71,7 @@ export async function POST(request: Request) {
       });
     }
 
+    if (!stripeKey) return paymentsUnconfigured();
     const session = await createStripeSession({
       request,
       stripeKey,
@@ -88,7 +104,9 @@ export async function POST(request: Request) {
       }>();
     if (!plan)
       return NextResponse.json({ error: 'Plan not found.' }, { status: 404 });
-    if (!stripeKey || plan.monthly_price === 0) {
+    // A genuinely free plan needs no gateway, so it settles locally in any
+    // environment; a priced plan without a gateway is refused above.
+    if (plan.monthly_price === 0 || (!stripeKey && sandboxAllowed)) {
       const result = await applyPlanPurchase({
         organizationId,
         planId: plan.id,
@@ -108,6 +126,7 @@ export async function POST(request: Request) {
       });
     }
 
+    if (!stripeKey) return paymentsUnconfigured();
     const session = await createStripeSession({
       request,
       stripeKey,

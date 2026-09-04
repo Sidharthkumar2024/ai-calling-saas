@@ -621,10 +621,21 @@ export function buildVoiceAgentInstructions(input: {
     ? ` This workspace also runs in ${workspaceLanguages.join(', ')}, so you may offer those proactively.`
     : '';
   const languageRule = `Open the conversation in ${openingLanguage}.${workspaceRule} After that, always mirror the customer: reply in whichever language they speak or explicitly ask for, including Hindi, Indian English, Hinglish, Punjabi, Haryanvi, Marathi, Gujarati, Bengali, Tamil, Telugu, Kannada, Malayalam, Urdu, Bhojpuri and Rajasthani. If the customer asks you to switch language, switch on that same turn and stay in the new language until they change again. Write every language in its own natural script — Punjabi in Gurmukhi, Hindi/Haryanvi/Marathi in Devanagari, Bengali in Bengali script, Tamil in Tamil script — and keep brand, product and business terms exactly as given. Never claim you can only speak certain languages, and never refuse or deflect a language request.`;
-  return `<identity>You are ${input.agentName}, the private voice agent for ${input.businessName}. Never reveal upstream model, voice, transcription or telephony vendors.</identity>
+  // The model has no clock. Without this it converted "tomorrow at 6" into a
+  // date from its training data — the follow-up and appointment tools both take
+  // absolute timestamps, so every relative time the caller gave was unusable.
+  const now = new Date();
+  const localNow = new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    dateStyle: 'full',
+    timeStyle: 'short',
+  }).format(now);
+  const clockRule = `<current_time>It is now ${localNow} (Asia/Kolkata). Today's date is ${now.toISOString().slice(0, 10)}. Convert every relative time the caller gives — today, tomorrow, next Monday, "after two days" — against this, and pass tools an absolute ISO 8601 timestamp. Never guess a date.</current_time>
+`;
+  return `${clockRule}<identity>You are ${input.agentName}, the private voice agent for ${input.businessName}. Never reveal upstream model, voice, transcription or telephony vendors.</identity>
 <business_context>Use case: ${input.useCase || 'general customer conversation'}. The customer may sell a physical product, digital product, course, software, service or property. Use only the workspace instructions and approved knowledge; never assume which kind of product it is.</business_context>
 <conversation_rules>${languageRule} Speak in one or two short, easily interruptible sentences. Respond as soon as the customer's turn is complete. First answer the customer's actual words naturally, including greetings, jokes and small talk; only then guide gently toward the business goal. Adapt warmth, pace, formality and directness to the customer's speech and sentiment, but never imitate abuse or pressure the customer. Never respond to casual conversation with a menu of options. Ask only one question at a time. Avoid markdown, lists and long explanations.</conversation_rules>
-<action_safety>Act on an actionable request in the same turn it is made. If the caller wants to reach a human — a person, agent, manager, supervisor, senior, someone else, or says you cannot help — in any language or wording, call transfer_to_human on that turn with the skill and language; do not ask qualifying questions or look anything up first. If the caller asks for a refund, their money back, or a cancellation with money returned, call request_refund on that turn with whatever details you already have; the tool tells you what is missing, so never gather more first. If a caller asks for both, call both. Never answer an actionable request with a vague plea for more information such as "tell me a little more" — either call the tool, or ask one specific question naming exactly what you need. Never say an action succeeded unless a tool result confirms it. You do not decide refunds, approvals or transfers — call the tool and follow its say_to_customer guidance exactly. A refund is "submitted" or "sent for approval", never "done", until a tool result says confirmed. If a transfer tool reports transferred:false, never tell the caller you are connecting them; offer a callback instead. Before sending a payment link, ask whether the calling number is available on WhatsApp. If yes, confirm amount and timing, then use WhatsApp. If not, collect and read back an email address. Never request an OTP, CVV, card PIN, password or full card details. Obtain consent before messaging, booking, transferring or scheduling.</action_safety>
+<action_safety>Act on an actionable request in the same turn it is made. If the caller wants to reach a human — a person, agent, manager, supervisor, senior, someone else, or says you cannot help — in any language or wording, call transfer_to_human on that turn with the skill and language; do not ask qualifying questions or look anything up first. If the caller asks for a refund, their money back, or a cancellation with money returned, call request_refund on that turn with whatever details you already have; the tool tells you what is missing, so never gather more first. If a caller asks for both, call both. If the caller asks to be contacted later — another day, after a meeting, once they have decided, or simply not now — call schedule_follow_up on that turn with their number and the time they gave, converted to an absolute timestamp; saying you will follow up without calling it schedules nothing. Never answer an actionable request with a vague plea for more information such as "tell me a little more" — either call the tool, or ask one specific question naming exactly what you need. Never say an action succeeded unless a tool result confirms it. You do not decide refunds, approvals or transfers — call the tool and follow its say_to_customer guidance exactly. A refund is "submitted" or "sent for approval", never "done", until a tool result says confirmed. If a transfer tool reports transferred:false, never tell the caller you are connecting them; offer a callback instead. Before sending a payment link, ask whether the calling number is available on WhatsApp. If yes, confirm amount and timing, then use WhatsApp. If not, collect and read back an email address. Never request an OTP, CVV, card PIN, password or full card details. Obtain consent before messaging, booking, transferring or scheduling.</action_safety>
 <examples><example customer="क्या हो रहा है?" assistant="बस बढ़िया जी, आपसे बात हो रही है। आप सुनाइए, सब ठीक?"/><example customer="और तेरे के हाल हैं?" assistant="मैं बढ़िया सूँ जी, आप सुनाओ—आपके के हाल हैं?"/><example customer="पंजाबी में बात करो" assistant="ਹਾਂ ਜੀ, ਬਿਲਕੁਲ ਪੰਜਾਬੀ ਵਿੱਚ ਗੱਲ ਕਰਦੇ ਹਾਂ। ਦੱਸੋ, ਮੈਂ ਤੁਹਾਡੀ ਕੀ ਮਦਦ ਕਰਾਂ?"/><example customer="payment link आठ बजे भेज देना" assistant="ठीक है जी। क्या इसी calling number पर WhatsApp चलता है?"/><example customer="इस नंबर पर WhatsApp नहीं है" assistant="कोई बात नहीं। किस email address पर link भेजूँ?"/></examples>
 <workspace_instructions>${input.systemPrompt}</workspace_instructions>`;
 }
@@ -849,10 +860,9 @@ export async function testIntegrationConnection(
     });
   }
   if (row.type === 'hubspot') {
-    return probe(
-      'https://api.hubapi.com/crm/v3/objects/contacts?limit=1',
-      { authorization: `Bearer ${secrets.apiKey || ''}` },
-    );
+    return probe('https://api.hubapi.com/crm/v3/objects/contacts?limit=1', {
+      authorization: `Bearer ${secrets.apiKey || ''}`,
+    });
   }
   if (row.type === 'shopify') {
     const domain = configString(config, 'accountId').replace(
@@ -944,7 +954,10 @@ async function probe(url: string, headers: HeadersInit) {
  * ElevenLabs for it directly avoids an MP3 decode in the media gateway — and
  * MP3 is what this returned before, which the gateway cannot play at all.
  */
-const ELEVENLABS_OUTPUT: Record<string, { format: string; accept: string; contentType: string }> = {
+const ELEVENLABS_OUTPUT: Record<
+  string,
+  { format: string; accept: string; contentType: string }
+> = {
   mp3: {
     format: 'mp3_44100_128',
     accept: 'audio/mpeg',

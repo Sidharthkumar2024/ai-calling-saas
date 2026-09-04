@@ -174,6 +174,53 @@ through a relay, or not at all; without it that verdict is "not tested" rather
 than a guess. The pre-call HTTP probe still says it is an HTTP probe. 47
 assertions.
 
+**Track A — live defects (FINAL Master Architecture pass).** Nine findings from
+auditing all 40 sections against the code; the first three cost money today.
+
+- The **manual refund route** took a bare `requireCustomer` and posted straight
+  to Razorpay, bypassing the whole risk matrix. Any member — including a
+  read-only analyst — could refund the full value of any matched payment. It now
+  runs through `evaluateAction`, respects the authority matrix, and raises an
+  approval card instead of refunding when the actor's role is not enough.
+- **Platform admin RBAC failed open**: `adminRole()` answered `super_admin` for a
+  null column *or a failed query*, and the two live admin routes used
+  `requireAdmin` rather than the capability check, so the sub-roles were
+  decorative. Existing admins are backfilled once; after that it fails closed to
+  read-only, and every action names a required capability.
+- **A missing `STRIPE_SECRET_KEY` gave the product away.** The sandbox that
+  credits a wallet and issues a paid invoice was keyed on the variable's
+  presence, not the environment.
+- **Production had no plans and no way to create one** — they were seeded only
+  outside production and the panel could only edit. `plan_create` exists now.
+- **Approved refunds never executed.** Nothing in the repository updated the
+  `refunds` table, so a manager could approve and nothing moved. `executeRefund`
+  is the missing half, and success is claimed only when the provider confirms —
+  in its own response, or later in a signed `refund.processed` webhook.
+- **Agents were offered two tools that did not exist**: `schedule_follow_up`
+  (now implemented, on the `scheduled_actions` queue) and `transfer_human` (a
+  misspelling of `transfer_to_human`). `scripts/check-agent-tools.mjs` fails the
+  build on that class of drift.
+- **Two screens reported different conversion counts.** Analytics and Overview
+  each guessed a different outcome vocabulary, and Overview's counted one value
+  that is never written plus one that exists only on a demo row.
+  `lib/call-outcomes.ts` is now the single vocabulary, lifecycle words no longer
+  go in the outcome column, and existing rows were migrated.
+- **`rent` minted phone numbers nobody owned** (`+91124498xxxx`) and stored them
+  as real workspace numbers. §15 says the platform does not resell numbers, so
+  the action is gone rather than fixed; the plan limit moved to the connect path.
+- **Voice profiles were unguarded and unaudited** — any member could rebind which
+  voice an agent speaks with, leaving no trace.
+
+Two more that only running it revealed:
+
+- **The agent had no clock.** Asked to follow up "tomorrow at 6" it produced a
+  date from its training data, so every tool taking an absolute timestamp —
+  follow-ups and appointments — was unusable for a relative time.
+- **`tools_json` is decorative.** The per-agent tool list is shown in the studio
+  but never filters what the model receives, which always gets the full set.
+  Making that setting mean something is real work for a later track; for now the
+  names at least refer to tools that exist.
+
 ## Defects found and fixed while testing
 
 These were not visible from reading the code — each needed the thing to be run:

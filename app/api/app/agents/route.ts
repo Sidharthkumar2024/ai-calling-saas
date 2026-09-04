@@ -113,7 +113,7 @@ export async function POST(request: Request) {
         'send_whatsapp',
         'create_payment_link',
         'schedule_follow_up',
-        'transfer_human',
+        'transfer_to_human',
       ]),
       JSON.stringify([
         'language',

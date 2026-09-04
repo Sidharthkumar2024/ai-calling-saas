@@ -86,7 +86,8 @@ export async function POST(request: Request) {
     const result = await completeCall({
       organizationId,
       callId,
-      outcome: 'completed',
+      // The dialer knows the call ended, not what it achieved.
+      outcome: 'unknown',
       disconnectReason: 'ended_by_agent',
     });
     // §6: the tab reports what its own socket carried. Every field is bounded
@@ -281,10 +282,16 @@ export async function POST(request: Request) {
     .run();
 
   const token = await mintDialerToken({ callId, secret });
-  await recordAudit(auth.session, 'dialer.call_started', 'call_record', callId, {
-    agentId: agent.id,
-    destination,
-  });
+  await recordAudit(
+    auth.session,
+    'dialer.call_started',
+    'call_record',
+    callId,
+    {
+      agentId: agent.id,
+      destination,
+    },
+  );
   return NextResponse.json({
     callId,
     token,
@@ -329,7 +336,10 @@ function recordTransport(input: unknown) {
   if (!framesSent && !framesReceived) return null;
   const warnings = Array.isArray(raw.warnings)
     ? raw.warnings
-        .filter((entry): entry is Record<string, unknown> => !!entry && typeof entry === 'object')
+        .filter(
+          (entry): entry is Record<string, unknown> =>
+            !!entry && typeof entry === 'object',
+        )
         .slice(0, 8)
         .map((entry) => ({
           code: str(entry.code, 40),

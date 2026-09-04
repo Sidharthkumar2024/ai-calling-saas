@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
+import { CONVERSION_SQL_LIST } from '@/lib/call-outcomes';
 import { requireCustomer } from '@/lib/api-session';
 import { ensureDemoLeads } from '@/lib/demo-seed';
 
@@ -101,7 +102,7 @@ export async function GET(request: Request) {
           (SELECT count(*) FROM leads l WHERE l.organization_id = ? AND date(l.captured_at) = day) AS leads,
           (SELECT count(*) FROM call_records c WHERE c.organization_id = ? AND date(c.started_at) = day) AS calls,
           (SELECT count(*) FROM call_records c WHERE c.organization_id = ? AND date(c.started_at) = day
-             AND c.outcome IN ('appointment_booked','payment_link_requested','converted')) AS conversions
+             AND c.outcome IN (${CONVERSION_SQL_LIST})) AS conversions
         FROM days`)
       .bind(organizationId, organizationId, organizationId)
       .all(),

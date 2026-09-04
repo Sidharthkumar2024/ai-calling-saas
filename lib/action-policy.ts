@@ -74,6 +74,25 @@ const ROLE_AUTHORITY: Record<ActorRole, ActionDecision[]> = {
   admin: ['auto_execute', 'manager_approval', 'human_only'],
 };
 
+/**
+ * Workspace role -> policy authority (§23 authority matrix). Pure, and shared
+ * so that every route deciding a refund reaches the same answer — the direct
+ * refund route used to skip this matrix entirely.
+ */
+export function toActorRole(workspaceRole: string): ActorRole {
+  switch (workspaceRole) {
+    case 'owner':
+    case 'admin':
+      return 'admin';
+    case 'billing':
+      return 'finance';
+    case 'sales_manager':
+      return 'manager';
+    default:
+      return 'support_agent';
+  }
+}
+
 export function roleCanAuthorise(
   role: ActorRole,
   decision: ActionDecision,

@@ -11,6 +11,7 @@ import {
 import {
   evaluateAction,
   roleCanAuthorise,
+  toActorRole,
   type ActionDecision,
   type ActionPolicy,
   type ActorRole,
@@ -144,7 +145,8 @@ export async function routeToAgent(input: {
     })(),
   }));
 
-  const minRole = input.minRole ?? (queue?.min_role as ActorRole | null) ?? null;
+  const minRole =
+    input.minRole ?? (queue?.min_role as ActorRole | null) ?? null;
   const outcome = selectAgent(candidates, {
     strategy,
     requiredSkill: input.skill ?? queue?.required_skill ?? null,
@@ -205,8 +207,14 @@ export async function findAvailableAgent(input: {
 }): Promise<AvailableAgent | null> {
   const outcome = await routeToAgent(input);
   if (!outcome.agent) return null;
-  const { id: agentId, name, role, skills, languages, activeCalls } =
-    outcome.agent;
+  const {
+    id: agentId,
+    name,
+    role,
+    skills,
+    languages,
+    activeCalls,
+  } = outcome.agent;
   return { id: agentId, name, role, skills, languages, activeCalls };
 }
 
@@ -607,6 +615,23 @@ export async function decideApproval(input: {
     )
     .run();
   return { ok: true, status: input.outcome };
+}
+
+/**
+ * The workspace role lives on the membership row, not the auth session, so
+ * every caller that needs policy authority resolves it the same way.
+ */
+export async function resolveActorRole(
+  organizationId: string,
+  userId: string,
+): Promise<ActorRole> {
+  const row = await getRawDb()
+    .prepare(
+      `SELECT role FROM organization_members WHERE organization_id = ? AND user_id = ? LIMIT 1`,
+    )
+    .bind(organizationId, userId)
+    .first<{ role: string }>();
+  return toActorRole(row?.role ?? 'agent');
 }
 
 /**

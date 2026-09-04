@@ -109,7 +109,7 @@ export async function POST(request: Request) {
     .prepare(`INSERT INTO call_records
     (id, organization_id, agent_id, lead_id, campaign_id, direction, from_number, to_number,
      status, outcome, recording_status, started_at, analysis_json)
-    VALUES (?, ?, ?, ?, ?, 'outbound', 'pending_assignment', ?, 'queued', 'dialing', ?, ?, ?)`)
+    VALUES (?, ?, ?, ?, ?, 'outbound', 'pending_assignment', ?, 'queued', 'unknown', ?, ?, ?)`)
     .bind(
       callId,
       organizationId,

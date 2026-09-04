@@ -1,4 +1,5 @@
 import { getRawDb } from '@/db/index';
+import { normaliseOutcome } from '@/lib/call-outcomes';
 import { enqueueJob } from '@/lib/job-enqueue';
 
 /**
@@ -35,12 +36,7 @@ export async function ensurePlaygroundCallRecord(input: {
        customer_name, status, outcome, recording_status, started_at, analysis_json)
       VALUES (?, ?, ?, 'inbound', 'playground', 'playground', 'playground',
        NULL, 'in_progress', 'in_progress', 'not_available', ?, '{}')`)
-    .bind(
-      callId,
-      input.organizationId,
-      input.agentId,
-      new Date().toISOString(),
-    )
+    .bind(callId, input.organizationId, input.agentId, new Date().toISOString())
     .run();
   await db
     .prepare(`INSERT INTO call_participants
@@ -118,7 +114,10 @@ export async function refreshTranscript(
     .all<{ role: string; content: string }>();
   const rows = turns.results ?? [];
   const fullText = rows
-    .map((turn) => `${turn.role === 'customer' ? 'Customer' : 'Agent'}: ${turn.content}`)
+    .map(
+      (turn) =>
+        `${turn.role === 'customer' ? 'Customer' : 'Agent'}: ${turn.content}`,
+    )
     .join('\n');
   await db
     .prepare(`INSERT INTO transcripts
@@ -188,13 +187,17 @@ export async function completeCall(input: {
     ? 0
     : Math.max(0, Math.round((endedMs - startedMs) / 1000));
 
+  // `status` carries the lifecycle; `outcome` carries what the conversation
+  // achieved, and only the intelligence job knows that. Writing 'completed'
+  // here put a lifecycle word in the outcome column, which is what made two
+  // screens disagree about conversions.
   await db
     .prepare(`UPDATE call_records SET status = 'completed', outcome = ?,
       duration_seconds = ?, latency_ms = ?, disconnect_reason = ?,
       intelligence_status = 'queued', ended_at = CURRENT_TIMESTAMP
       WHERE id = ?`)
     .bind(
-      input.outcome || 'completed',
+      normaliseOutcome(input.outcome),
       durationSeconds,
       Math.round(Number(latency?.average ?? 0)) || null,
       input.disconnectReason || null,
@@ -241,7 +244,7 @@ export async function closeIdlePlaygroundCalls(
     const result = await completeCall({
       organizationId,
       callId: row.id,
-      outcome: 'abandoned',
+      outcome: 'incomplete',
       disconnectReason: 'idle_timeout',
     });
     if (result.completed) closed += 1;

@@ -144,8 +144,15 @@ export async function POST(request: Request) {
           )
           .first<{ id: string; included_credits: number }>();
     if (!invitation && !freePlan) {
+      // Plans were seeded only outside production, so this was the state every
+      // production deploy started in, with nothing in the admin panel able to
+      // fix it. `plan_create` exists now; say so, rather than leaving an
+      // operator with a bare 503.
       return NextResponse.json(
-        { error: 'Free trial plan is not configured.' },
+        {
+          error:
+            'No signup plan is configured on this deployment. A platform admin must create one first.',
+        },
         { status: 503 },
       );
     }
@@ -294,7 +301,7 @@ export async function POST(request: Request) {
             'create_payment_link',
             'schedule_follow_up',
             'book_appointment',
-            'transfer_human',
+            'transfer_to_human',
           ]),
           JSON.stringify([
             'language',

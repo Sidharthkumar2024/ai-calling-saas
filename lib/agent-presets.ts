@@ -33,7 +33,7 @@ export const AGENT_PRESETS: AgentPreset[] = [
       'send_whatsapp',
       'book_appointment',
       'schedule_follow_up',
-      'transfer_human',
+      'transfer_to_human',
     ],
     extractions: [
       'language',
@@ -70,7 +70,7 @@ export const AGENT_PRESETS: AgentPreset[] = [
       'send_email',
       'create_payment_link',
       'schedule_follow_up',
-      'transfer_human',
+      'transfer_to_human',
     ],
     extractions: [
       'language',
@@ -107,7 +107,7 @@ export const AGENT_PRESETS: AgentPreset[] = [
       'send_whatsapp',
       'create_payment_link',
       'book_appointment',
-      'transfer_human',
+      'transfer_to_human',
     ],
     extractions: [
       'language',
@@ -144,7 +144,7 @@ export const AGENT_PRESETS: AgentPreset[] = [
       'send_email',
       'book_appointment',
       'schedule_follow_up',
-      'transfer_human',
+      'transfer_to_human',
     ],
     extractions: [
       'language',
@@ -180,7 +180,7 @@ export const AGENT_PRESETS: AgentPreset[] = [
       'send_email',
       'book_appointment',
       'schedule_follow_up',
-      'transfer_human',
+      'transfer_to_human',
     ],
     extractions: [
       'language',
@@ -217,7 +217,7 @@ export const AGENT_PRESETS: AgentPreset[] = [
       'create_ticket',
       'send_email',
       'schedule_follow_up',
-      'transfer_human',
+      'transfer_to_human',
     ],
     extractions: [
       'language',
@@ -290,7 +290,7 @@ export const AGENT_PRESETS: AgentPreset[] = [
       'send_email',
       'create_payment_link',
       'schedule_follow_up',
-      'transfer_human',
+      'transfer_to_human',
     ],
     extractions: [
       'language',

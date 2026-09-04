@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   FileCheck2,
   FileUp,
-  Globe2,
   KeyRound,
   Loader2,
   LockKeyhole,
@@ -78,7 +77,7 @@ export function CustomerNumbers({
   onNavigate?: (page: string) => void;
 }) {
   const numbers = (data.numbers ?? []) as NumberRow[];
-  const [mode, setMode] = useState<'rent' | 'connect'>('rent');
+
   const [phoneNumber, setPhoneNumber] = useState('+91');
   const [agentName, setAgentName] = useState('Sara · Sales');
   const [providerCode, setProviderCode] = useState('auto');
@@ -111,12 +110,12 @@ export function CustomerNumbers({
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          action: mode,
-          phoneNumber: mode === 'connect' ? phoneNumber : undefined,
+          action: 'connect',
+          phoneNumber,
           assignedAgentName: agentName,
           direction: 'inbound_outbound',
           providerCode,
-          connectionMode: mode === 'rent' ? 'managed_number' : connectionMode,
+          connectionMode,
           providerAccountId,
           businessUseCase,
           estimatedMonthlyMinutes: estimatedMinutes,
@@ -133,12 +132,11 @@ export function CustomerNumbers({
       const numberId = payload.number?.id ?? '';
       setKycTargetId(numberId);
       setMessage(payload.nextStep ?? 'Number setup started.');
-      if (mode === 'connect')
-        setVerification({
-          numberId,
-          demoCode: payload.demoCode,
-          code: payload.demoCode ?? '',
-        });
+      setVerification({
+        numberId,
+        demoCode: payload.demoCode,
+        code: payload.demoCode ?? '',
+      });
       await onChanged();
     } catch (caught) {
       setError(
@@ -236,22 +234,13 @@ export function CustomerNumbers({
 
       <div className="grid gap-4 2xl:grid-cols-[1.1fr_0.9fr]">
         <section className="rounded-2xl border border-white/8 bg-[#0e1119] p-5">
-          <div className="grid grid-cols-2 gap-2 rounded-xl bg-white/[0.035] p-1">
-            <button
-              type="button"
-              onClick={() => setMode('rent')}
-              className={`rounded-lg px-3 py-2.5 text-[10px] font-medium ${mode === 'rent' ? 'bg-amber-300 text-[#17120a]' : 'text-white/42'}`}
-            >
-              Rent managed number
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('connect')}
-              className={`rounded-lg px-3 py-2.5 text-[10px] font-medium ${mode === 'connect' ? 'bg-amber-300 text-[#17120a]' : 'text-white/42'}`}
-            >
-              Import my number
-            </button>
-          </div>
+          {/* §15: numbers come from the workspace's own telephony account. The
+              platform does not resell them, so there is no second mode. */}
+          <p className="rounded-xl bg-white/[0.035] px-3 py-2.5 text-[10px] text-white/55">
+            Numbers come from your own telephony account. Vaani does not sell
+            numbers — connect a Twilio, Exotel, Plivo or SIP number you already
+            own.
+          </p>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {providers.map((provider) => (
@@ -274,48 +263,41 @@ export function CustomerNumbers({
             ))}
           </div>
 
-          {mode === 'connect' ? (
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <Field label="Connection path">
-                <select
-                  value={connectionMode}
-                  onChange={(event) =>
-                    setConnectionMode(
-                      event.target.value as 'native_import' | 'sip_trunk',
-                    )
-                  }
-                  className="number-select"
-                >
-                  <option value="native_import">Native provider import</option>
-                  <option value="sip_trunk">SIP trunk / BYOC</option>
-                </select>
-              </Field>
-              <Field label="Existing number (E.164)">
-                <Input
-                  value={phoneNumber}
-                  onChange={(event) => setPhoneNumber(event.target.value)}
-                  placeholder="+919876543210"
-                />
-              </Field>
-              <Field label="Provider account / trunk reference">
-                <Input
-                  value={providerAccountId}
-                  onChange={(event) => setProviderAccountId(event.target.value)}
-                  placeholder="Stored only as a masked hint here"
-                />
-              </Field>
-              <div className="rounded-xl border border-violet-300/12 bg-violet-300/[0.03] p-3 text-[9px] leading-4 text-white/38">
-                <LockKeyhole className="mb-2 size-4 text-violet-200" />
-                API tokens are never stored in the number record. Add them in
-                Integrations & API using encrypted secret storage.
-              </div>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <Field label="Connection path">
+              <select
+                value={connectionMode}
+                onChange={(event) =>
+                  setConnectionMode(
+                    event.target.value as 'native_import' | 'sip_trunk',
+                  )
+                }
+                className="number-select"
+              >
+                <option value="native_import">Native provider import</option>
+                <option value="sip_trunk">SIP trunk / BYOC</option>
+              </select>
+            </Field>
+            <Field label="Existing number (E.164)">
+              <Input
+                value={phoneNumber}
+                onChange={(event) => setPhoneNumber(event.target.value)}
+                placeholder="+919876543210"
+              />
+            </Field>
+            <Field label="Provider account / trunk reference">
+              <Input
+                value={providerAccountId}
+                onChange={(event) => setProviderAccountId(event.target.value)}
+                placeholder="Stored only as a masked hint here"
+              />
+            </Field>
+            <div className="rounded-xl border border-violet-300/12 bg-violet-300/[0.03] p-3 text-[9px] leading-4 text-white/38">
+              <LockKeyhole className="mb-2 size-4 text-violet-200" />
+              API tokens are never stored in the number record. Add them in
+              Integrations & API using encrypted secret storage.
             </div>
-          ) : (
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <Info label="Country" value="India" />
-              <Info label="Number type" value="Local business" />
-            </div>
-          )}
+          </div>
 
           <div className="mt-5 grid gap-4 sm:grid-cols-3">
             <Field label="Calling use case">
@@ -357,16 +339,8 @@ export function CustomerNumbers({
               disabled={loading}
               className="flex-1 bg-amber-300 text-[#17120a] hover:bg-amber-200"
             >
-              {loading ? (
-                <Loader2 className="animate-spin" />
-              ) : mode === 'rent' ? (
-                <Globe2 />
-              ) : (
-                <KeyRound />
-              )}
-              {mode === 'rent'
-                ? 'Create number request'
-                : 'Start ownership check'}
+              {loading ? <Loader2 className="animate-spin" /> : <KeyRound />}
+              Start ownership check
             </Button>
             <Button
               type="button"
@@ -630,16 +604,6 @@ function Field({
         {children}
       </div>
     </label>
-  );
-}
-function Info({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-white/8 bg-white/[0.02] p-3">
-      <p className="text-[9px] uppercase tracking-wider text-white/28">
-        {label}
-      </p>
-      <p className="mt-2 text-xs">{value}</p>
-    </div>
   );
 }
 function Status({ value }: { value: string }) {

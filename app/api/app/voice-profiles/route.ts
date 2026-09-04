@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { requireCustomer } from '@/lib/api-session';
+import { requireCustomerPermission } from '@/lib/customer-rbac';
+import { recordAudit } from '@/lib/demo-seed';
 import { listVoiceProfiles } from '@/lib/voice-profiles';
 
 export const dynamic = 'force-dynamic';
@@ -25,8 +27,11 @@ export async function GET(request: Request) {
   return NextResponse.json({ profiles, agents: agents.results ?? [] });
 }
 
+// Which voice an agent speaks with is an agent configuration change, and §32
+// requires it to be attributable: creating or rebinding a voice was previously
+// open to every workspace member and left no audit trail at all.
 export async function POST(request: Request) {
-  const auth = await requireCustomer(request);
+  const auth = await requireCustomerPermission(request, 'agents.manage');
   if (auth.response) return auth.response;
   await ensureSchema();
   const body = (await request.json()) as {
@@ -87,11 +92,12 @@ export async function POST(request: Request) {
       body.fallbackProfileId?.trim() || null,
     )
     .run();
+  await recordAudit(auth.session, 'voice_profile.created', 'voice_profile', id);
   return NextResponse.json({ created: true, id });
 }
 
 export async function PATCH(request: Request) {
-  const auth = await requireCustomer(request);
+  const auth = await requireCustomerPermission(request, 'agents.manage');
   if (auth.response) return auth.response;
   await ensureSchema();
   const body = (await request.json()) as {
@@ -134,6 +140,13 @@ export async function PATCH(request: Request) {
       .run();
     if (!result.meta.changes)
       return NextResponse.json({ error: 'Agent not found.' }, { status: 404 });
+    await recordAudit(
+      auth.session,
+      'voice_profile.bound_to_agent',
+      'voice_agent',
+      String(body.agentId),
+      { profileId: body.profileId },
+    );
     return NextResponse.json({ bound: true });
   }
 
@@ -190,5 +203,11 @@ export async function PATCH(request: Request) {
       { error: 'Voice profile not found.' },
       { status: 404 },
     );
+  await recordAudit(
+    auth.session,
+    'voice_profile.updated',
+    'voice_profile',
+    String(body.profileId),
+  );
   return NextResponse.json({ updated: true });
 }

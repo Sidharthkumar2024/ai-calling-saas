@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   const auth = await requireCustomerPermission(request, 'telephony.manage');
   if (auth.response) return auth.response;
   const body = (await request.json()) as {
-    action?: 'rent' | 'connect';
+    action?: 'connect';
     phoneNumber?: string;
     assignedAgentName?: string;
     direction?: 'inbound' | 'outbound' | 'inbound_outbound';
@@ -40,9 +40,16 @@ export async function POST(request: Request) {
     businessUseCase?: string;
     estimatedMonthlyMinutes?: number;
   };
-  if (body.action !== 'rent' && body.action !== 'connect') {
+  // §15: the platform does not resell numbers — a workspace connects its own
+  // Twilio/Exotel/Vobiz/SIP account. The old 'rent' action minted a plausible
+  // Indian number (+91124498xxxx) that nobody owned and stored it as a real
+  // workspace number, so a call to it went nowhere.
+  if (body.action !== 'connect') {
     return NextResponse.json(
-      { error: 'Choose rent or connect.' },
+      {
+        error:
+          'Connect a number from your own telephony account. Vaani does not sell numbers.',
+      },
       { status: 400 },
     );
   }
@@ -63,12 +70,11 @@ export async function POST(request: Request) {
   const providerCode = supportedProviders.has(body.providerCode ?? '')
     ? body.providerCode!
     : 'auto';
-  const connectionMode =
-    body.action === 'rent'
-      ? 'managed_number'
-      : ['native_import', 'sip_trunk'].includes(body.connectionMode ?? '')
-        ? body.connectionMode!
-        : 'native_import';
+  const connectionMode = ['native_import', 'sip_trunk'].includes(
+    body.connectionMode ?? '',
+  )
+    ? body.connectionMode!
+    : 'native_import';
   const accountHint = body.providerAccountId?.trim()
     ? `••••${body.providerAccountId.trim().slice(-6)}`
     : null;
@@ -78,64 +84,6 @@ export async function POST(request: Request) {
     0,
     Math.min(10_000_000, Math.round(Number(body.estimatedMonthlyMinutes || 0))),
   );
-  if (body.action === 'rent') {
-    // plans.max_numbers was stored and shown on the overview but never checked,
-    // so a one-number plan could rent twenty.
-    const limit = await checkPlanLimit(
-      auth.session.organizationId!,
-      'numbers',
-    );
-    if (!limit.allowed)
-      return NextResponse.json(
-        {
-          error: limit.message ?? 'Your plan number limit has been reached.',
-          limit: limit.limit,
-          used: limit.used,
-        },
-        { status: 409 },
-      );
-    const suffix = String(
-      1000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 9000),
-    );
-    const phoneNumber = `+91124498${suffix}`;
-    await db
-      .prepare(
-        `INSERT INTO phone_numbers
-         (id, organization_id, phone_number, country, number_type,
-          acquisition_type, public_provider_name, provider_code, connection_mode,
-          provider_account_hint, business_use_case, estimated_monthly_minutes,
-          onboarding_status, assigned_agent_name, direction, kyc_status, status, monthly_rental)
-         VALUES (?, ?, ?, 'IN', 'local', 'platform_provided', 'Vaani Connect', ?, ?, ?, ?, ?,
-          'kyc_required', ?, ?, 'not_submitted', 'kyc_required', 49900)`,
-      )
-      .bind(
-        id,
-        auth.session.organizationId,
-        phoneNumber,
-        providerCode,
-        connectionMode,
-        accountHint,
-        businessUseCase,
-        estimatedMonthlyMinutes,
-        body.assignedAgentName?.trim() || null,
-        direction,
-      )
-      .run();
-    await recordAudit(
-      auth.session,
-      'number.rental_requested',
-      'phone_number',
-      id,
-    );
-    return NextResponse.json(
-      {
-        number: { id, phoneNumber, status: 'kyc_required' },
-        nextStep: 'Complete business KYC and calling-purpose review.',
-      },
-      { status: 201 },
-    );
-  }
-
   const normalized = body.phoneNumber?.replace(/[\s()-]/g, '') ?? '';
   if (!/^\+[1-9]\d{7,14}$/.test(normalized)) {
     return NextResponse.json(
@@ -143,6 +91,19 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+  // The plan's number limit used to be checked only on the rented path, which
+  // no longer exists — a connected number occupies a workspace slot just the
+  // same, so removing that branch must not remove the limit with it.
+  const limit = await checkPlanLimit(auth.session.organizationId!, 'numbers');
+  if (!limit.allowed)
+    return NextResponse.json(
+      {
+        error: limit.message ?? 'Your plan number limit has been reached.',
+        limit: limit.limit,
+        used: limit.used,
+      },
+      { status: 409 },
+    );
   const code = String(
     100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000),
   );

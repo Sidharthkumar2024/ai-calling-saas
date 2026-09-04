@@ -1531,6 +1531,15 @@ async function bootstrap() {
 
   // Platform admin sub-roles, so tenant-destructive actions are deliberate.
   await ensureColumn(db, 'app_users', 'admin_role', 'TEXT');
+  // Backfill once, so `adminRole()` can fail closed. Admins that existed before
+  // sub-roles keep everything they had; a null column afterwards means the role
+  // was never granted, and is answered with read-only rather than everything.
+  await db
+    .prepare(
+      `UPDATE app_users SET admin_role = 'super_admin'
+        WHERE role = 'platform_admin' AND admin_role IS NULL`,
+    )
+    .run();
   await ensureColumn(db, 'organizations', 'suspended_at', 'TEXT');
   await ensureColumn(db, 'organizations', 'suspension_reason', 'TEXT');
 
@@ -1582,10 +1591,45 @@ async function bootstrap() {
   // The WebRTC capability probe's findings (§6), stored beside the HTTP
   // measurements rather than mixed into them: they answer different questions.
   await ensureColumn(db, 'device_test_runs', 'webrtc_json', 'TEXT');
+  // §15: nothing on the platform is 'platform_provided' any more — the rented
+  // number path is gone, so a row still claiming it would describe a number
+  // nobody owns.
+  await db
+    .prepare(
+      `UPDATE phone_numbers SET acquisition_type = 'bring_your_own', monthly_rental = 0
+        WHERE acquisition_type = 'platform_provided'`,
+    )
+    .run();
+  // One vocabulary for call outcomes (lib/call-outcomes.ts). Lifecycle values
+  // had been written into the outcome column alongside the intelligence job's
+  // own set, and two screens each counted conversions from a different guess at
+  // which was which. Existing rows are mapped once; `unknown` means the call was
+  // never analysed, which is not the same as "nothing happened".
+  await db
+    .prepare(
+      `UPDATE call_records SET outcome = CASE
+         WHEN outcome IN ('resolved','information_provided','appointment_booked',
+           'payment_link_sent','callback_scheduled','transferred_to_human',
+           'not_interested','incomplete','unknown') THEN outcome
+         WHEN outcome IN ('completed','in_progress','dialing','enqueue',
+           'qualifying','payment_link_requested') THEN 'unknown'
+         WHEN outcome = 'abandoned' THEN 'incomplete'
+         WHEN outcome IN ('callback','callback_requested') THEN 'callback_scheduled'
+         WHEN outcome = 'transferred' THEN 'transferred_to_human'
+         WHEN outcome = 'converted' THEN 'resolved'
+         WHEN outcome IS NULL OR trim(outcome) = '' THEN 'unknown'
+         ELSE 'incomplete' END`,
+    )
+    .run();
   // Added after the table shipped: a database created by the earlier build has
   // call_transport_stats without this column, and CREATE TABLE IF NOT EXISTS
   // will not add it.
-  await ensureColumn(db, 'call_transport_stats', 'longest_silence_ms', 'INTEGER');
+  await ensureColumn(
+    db,
+    'call_transport_stats',
+    'longest_silence_ms',
+    'INTEGER',
+  );
 
   // Bind an agent to a voice profile. Added separately because the column may
   // already exist on databases created before voice profiles shipped.
@@ -1692,7 +1736,7 @@ async function seedLocalDemo(db: D1Database) {
       VALUES ('invoice_demo_paid', 'org_vaani_demo', 'VAI-2026-0831', 'paid', '[{"description":"Growth plan","quantity":1,"amount":799900}]', 799900, 143982, 943882, 'INR', '2026-08-31T10:00:00.000Z', '2026-08-31T10:02:00.000Z')`),
     db.prepare(`INSERT OR IGNORE INTO phone_numbers
       (id, organization_id, phone_number, country, number_type, acquisition_type, public_provider_name, assigned_agent_name, direction, kyc_status, status, monthly_rental)
-      VALUES ('number_demo_active', 'org_vaani_demo', '+911244982201', 'IN', 'local', 'platform_provided', 'Vaani Connect', 'Sara · Sales', 'inbound_outbound', 'approved', 'active', 49900)`),
+      VALUES ('number_demo_active', 'org_vaani_demo', '+911244982201', 'IN', 'local', 'bring_your_own', 'Exotel', 'Sara · Sales', 'inbound_outbound', 'approved', 'active', 0)`),
     db.prepare(`INSERT OR IGNORE INTO phone_numbers
       (id, organization_id, phone_number, country, number_type, acquisition_type, public_provider_name, assigned_agent_name, direction, kyc_status, status, monthly_rental)
       VALUES ('number_demo_byoc', 'org_vaani_demo', '+919876500001', 'IN', 'mobile', 'bring_your_own', 'Vaani Connect', 'Meera · Reception', 'inbound', 'approved', 'active', 0)`),

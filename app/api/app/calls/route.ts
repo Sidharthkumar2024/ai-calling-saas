@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
+import { assertCanPlaceRealCall } from '@/lib/onboarding-service';
 import { requireCustomer } from '@/lib/api-session';
 import { startOutboundCall } from '@/lib/provider-adapters';
 import { enforceRateLimit } from '@/lib/rate-limit';
@@ -78,6 +79,14 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: 'Active agent was not found.' },
       { status: 404 },
+    );
+  // §3: no free production plan. The playground is open to a new workspace;
+  // dialling a real person is not, until setup is finished and paid for.
+  const gate = await assertCanPlaceRealCall(organizationId);
+  if (!gate.allowed)
+    return NextResponse.json(
+      { error: gate.reason, blockers: gate.blockers, onboarding: 'incomplete' },
+      { status: 402 },
     );
   if (!wallet || wallet.balance < 10)
     return NextResponse.json(

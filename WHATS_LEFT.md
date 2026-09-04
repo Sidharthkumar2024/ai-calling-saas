@@ -174,6 +174,46 @@ through a relay, or not at all; without it that verdict is "not tested" rather
 than a guess. The pre-call HTTP probe still says it is an HTTP probe. 47
 assertions.
 
+**Track F — paid onboarding (§3) and Voice Studio (§32).**
+
+**No free production plan.** Signing up now creates a workspace with a
+playground and nothing else — no subscription, no plan — and signup no longer
+depends on a plan existing at all, which also removes the 503 a production
+deploy used to start life in. The wizard is what turns a workspace into
+something that can call a real person.
+
+The stage is **derived from evidence, not stored as a flag**. The old
+`onboarding_profiles.stage` was written once at signup and never advanced —
+a stage nobody moves means nothing, and it could also be skipped by writing to a
+column. Nothing here can be skipped without doing the thing: a plan means a
+subscription row, payment means a paid invoice with a total above zero, an agent
+means a published agent. Verified live: the demo workspace read 75% with
+"Business details" as the only blocker, a real outbound call returned **402 —
+"Finish setup before placing real calls: Business details"**, and filling in the
+legal name moved it to live, after which the call proceeded to the *next* real
+check. Integrations and knowledge are deliberately **not** required: marking
+every step required would look thorough and make the product unusable.
+
+One consequence handled rather than left: `checkPlanLimit` treated "no plan" as
+"no limits", which was defensible when every workspace had one and is wrong now
+that an unpaid workspace is the normal case — it would have made a trial *less*
+restricted than a paying customer. A workspace with no plan is now held to trial
+limits: one agent, no numbers, one concurrent call.
+
+**Voice Studio (§32).** The section's last sentence is the one that matters: no
+unauthorised impersonation. A prebuilt library voice needs nothing — the
+provider licensed it. A **custom** voice cannot be bound to anything until a
+person at the platform has looked at the consent evidence, because the person
+whose voice it is cannot be the one clicking the button.
+
+Verified end to end: a one-word statement is refused (*a checkbox is not
+consent*); a real submission goes to `pending`; binding while pending is **409**;
+a platform reviewer verifies it and binding works; the **kill switch** blocks the
+voice *and unbinds it from every agent in every workspace*, because a block that
+only applies to the next binding does nothing about the call happening now; and
+when the speaker **withdraws** consent, the voice comes off live agents
+immediately and cannot be re-bound.
+
 **Track E — API Health Center (§29), first pass.** The old health block had two
 honest numbers — a timed D1 round trip and the queue depth — and asserted the
 rest: `api: 'operational'` was a constant, and a provider's "health" was whether

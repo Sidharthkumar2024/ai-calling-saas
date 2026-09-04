@@ -28,9 +28,19 @@ const COUNTS: Record<Exclude<LimitKind, 'concurrency'>, string> = {
 };
 
 /**
- * Checks one limit. A workspace with no plan row is not blocked — that is a
- * provisioning gap, not a customer overage, and failing closed there would
- * lock people out of their own workspace.
+ * Limits for a workspace that has not bought a plan yet.
+ *
+ * Under §3 that is now the *normal* state of a new signup rather than a
+ * provisioning gap, so "no plan" can no longer mean "no limits" — which would
+ * have made an unpaid workspace less restricted than a paying one. These are
+ * enough to build and hear an agent in the playground, which is exactly what
+ * the trial is for.
+ */
+const TRIAL_LIMITS = { name: 'Trial', agents: 1, numbers: 0, concurrency: 1 };
+
+/**
+ * Checks one limit. A workspace with no plan is held to the trial limits above
+ * rather than waved through.
  */
 export async function checkPlanLimit(
   organizationId: string,
@@ -51,22 +61,34 @@ export async function checkPlanLimit(
       max_numbers: number | null;
       concurrency: number | null;
     }>();
-  if (!plan)
+  const effective = plan ?? {
+    name: TRIAL_LIMITS.name,
+    max_agents: TRIAL_LIMITS.agents,
+    max_numbers: TRIAL_LIMITS.numbers,
+    concurrency: TRIAL_LIMITS.concurrency,
+  };
+
+  // A trial allows no numbers at all, and 0 here means "none" rather than
+  // "unlimited" — the opposite of what it means on a plan, so it is handled
+  // before the shared unlimited check below.
+  if (!plan && kind === 'numbers')
     return {
-      allowed: true,
+      allowed: false,
       kind,
-      limit: null,
+      limit: 0,
       used: 0,
       requested,
-      planName: null,
+      planName: TRIAL_LIMITS.name,
+      message:
+        'Connecting a number needs a plan. Choose one to finish setting up your workspace.',
     };
 
   const limitRaw =
     kind === 'numbers'
-      ? plan.max_numbers
+      ? effective.max_numbers
       : kind === 'agents'
-        ? plan.max_agents
-        : plan.concurrency;
+        ? effective.max_agents
+        : effective.concurrency;
   const limit = Number(limitRaw ?? 0);
   // 0 or null means "not limited by this plan".
   if (!Number.isFinite(limit) || limit <= 0)
@@ -76,7 +98,7 @@ export async function checkPlanLimit(
       limit: null,
       used: 0,
       requested,
-      planName: plan.name,
+      planName: effective.name,
     };
 
   if (kind === 'concurrency')
@@ -86,11 +108,11 @@ export async function checkPlanLimit(
       limit,
       used: 0,
       requested,
-      planName: plan.name,
+      planName: effective.name,
       message:
         requested <= limit
           ? undefined
-          : `The ${plan.name} plan allows ${limit} concurrent calls. Reduce concurrency or upgrade the plan.`,
+          : `The ${effective.name} plan allows ${limit} concurrent calls. Reduce concurrency or upgrade the plan.`,
     };
 
   const row = await db
@@ -105,9 +127,9 @@ export async function checkPlanLimit(
     limit,
     used,
     requested,
-    planName: plan.name,
+    planName: effective.name,
     message: allowed
       ? undefined
-      : `The ${plan.name} plan includes ${limit} ${kind}. You are using ${used}. Upgrade the plan to add more.`,
+      : `The ${effective.name} plan includes ${limit} ${kind}. You are using ${used}. Upgrade the plan to add more.`,
   };
 }

@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { CONVERSION_SQL_LIST } from '@/lib/call-outcomes';
+import { workspaceOnboarding } from '@/lib/onboarding-service';
 import { requireCustomer } from '@/lib/api-session';
 import { ensureDemoLeads } from '@/lib/demo-seed';
 
@@ -116,7 +117,13 @@ export async function GET(request: Request) {
     ),
   ]);
 
+  // §3: the onboarding wizard's state, derived from evidence rather than a
+  // stored counter — the previous `onboarding_profiles.stage` was written once
+  // at signup and never advanced.
+  const onboarding = await workspaceOnboarding(organizationId);
+
   return NextResponse.json({
+    onboarding,
     workspace: {
       name: auth.session.organizationName,
       user: { name: auth.session.name, email: auth.session.email },

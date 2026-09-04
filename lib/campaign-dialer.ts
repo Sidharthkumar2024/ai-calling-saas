@@ -1,5 +1,6 @@
 import { getRawDb } from '@/db/index';
 import { enqueueJob } from '@/lib/job-enqueue';
+import { assertCanPlaceRealCall } from '@/lib/onboarding-service';
 import { checkPlanLimit } from '@/lib/plan-limits';
 import { sha256 } from '@/lib/security';
 import { localClock, minuteOfDay } from '@/lib/shifts';
@@ -116,6 +117,23 @@ export async function dialCampaign(
       // Outside the window we come back rather than dropping the campaign.
       requeued: await requeue(organizationId, campaignId, 15),
       reason: 'outside_calling_window',
+    };
+
+  // §3: a campaign is the fastest way to call a lot of real people, so it is
+  // gated the same way a single outbound call is.
+  const liveGate = await assertCanPlaceRealCall(organizationId);
+  if (!liveGate.allowed)
+    return {
+      campaignId,
+      status: campaign.status,
+      considered: 0,
+      attempted: 0,
+      skipped,
+      // Requeued rather than failed: the workspace is mid-setup, and the
+      // campaign should start dialling once they finish rather than needing to
+      // be created again.
+      requeued: await requeue(organizationId, campaignId, 60),
+      reason: `onboarding_incomplete:${liveGate.blockers.join('|')}`,
     };
 
   // Never exceed the plan's concurrency or the campaign's own setting.

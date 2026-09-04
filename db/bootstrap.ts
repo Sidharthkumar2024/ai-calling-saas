@@ -1207,6 +1207,28 @@ async function bootstrap() {
     db.prepare(
       `CREATE UNIQUE INDEX IF NOT EXISTS idx_rate_cards_version ON provider_rate_cards (provider, coalesce(model, ''), unit, effective_from)`,
     ),
+    // §32: consent for a custom voice. The artefact a platform reviewer reads
+    // before anyone may speak in somebody else's voice.
+    db.prepare(`CREATE TABLE IF NOT EXISTS voice_consents (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      voice_profile_id TEXT NOT NULL REFERENCES voice_profiles(id) ON DELETE CASCADE,
+      speaker_name TEXT NOT NULL,
+      relationship TEXT NOT NULL,
+      statement TEXT NOT NULL,
+      /* A stored recording or signed document, never a public URL. */
+      evidence_key TEXT NOT NULL,
+      state TEXT DEFAULT 'pending' NOT NULL,
+      submitted_by TEXT,
+      verified_by TEXT,
+      verified_at TEXT,
+      review_note TEXT,
+      withdrawn_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_voice_consents_profile ON voice_consents (voice_profile_id)`,
+    ),
     // §30: audited support access. A PIN is minted *inside* the workspace by
     // someone who works there — support cannot let itself in — and it is
     // single-use, attempt-limited and short-lived. Only the hash is stored.
@@ -1898,6 +1920,12 @@ async function bootstrap() {
   // §30: a short code the customer can quote, so a ticket and a call can be
   // found without anyone reading out a UUID.
   await ensureColumn(db, 'support_tickets', 'diagnostic_code', 'TEXT');
+  // §32: a prebuilt library voice and a cloned one carry very different
+  // obligations, so the profile has to say which it is.
+  await ensureColumn(db, 'voice_profiles', 'kind', "TEXT DEFAULT 'prebuilt'");
+  // The Super Admin kill switch.
+  await ensureColumn(db, 'voice_profiles', 'platform_blocked', 'INTEGER DEFAULT 0');
+  await ensureColumn(db, 'voice_profiles', 'platform_block_reason', 'TEXT');
   await ensureColumn(db, 'organization_settings', 'legal_name', 'TEXT');
   await ensureColumn(db, 'organization_settings', 'billing_state', 'TEXT');
   await ensureColumn(db, 'organization_settings', 'billing_country', "TEXT DEFAULT 'IN'");

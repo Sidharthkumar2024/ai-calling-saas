@@ -6,6 +6,7 @@ import { requireCustomer } from '@/lib/api-session';
 import { requireCustomerPermission } from '@/lib/customer-rbac';
 import { recordAudit } from '@/lib/demo-seed';
 import { listVoiceProfiles } from '@/lib/voice-profiles';
+import { validateConsent, voiceGate } from '@/lib/voice-consent';
 
 export const dynamic = 'force-dynamic';
 
@@ -101,7 +102,7 @@ export async function PATCH(request: Request) {
   if (auth.response) return auth.response;
   await ensureSchema();
   const body = (await request.json()) as {
-    action?: 'update' | 'bind_agent';
+    action?: 'update' | 'bind_agent' | 'submit_consent' | 'withdraw_consent';
     profileId?: string;
     agentId?: string;
     voiceLock?: boolean;
@@ -112,6 +113,10 @@ export async function PATCH(request: Request) {
     modelId?: string;
     fallbackProfileId?: string;
     autoLanguageSwitch?: boolean;
+    speakerName?: string;
+    relationship?: string;
+    statement?: string;
+    evidenceKey?: string;
   };
   const db = getRawDb();
 
@@ -123,14 +128,54 @@ export async function PATCH(request: Request) {
       );
     const owned = await db
       .prepare(
-        `SELECT id FROM voice_profiles WHERE id = ? AND organization_id = ? LIMIT 1`,
+        `SELECT p.id, coalesce(p.kind,'prebuilt') AS kind, p.status,
+           coalesce(p.platform_blocked, 0) AS platform_blocked,
+           p.removal_notice_at,
+           c.state AS consent_state, c.relationship, c.evidence_key, c.verified_by,
+           c.withdrawn_at
+         FROM voice_profiles p
+         LEFT JOIN voice_consents c ON c.voice_profile_id = p.id
+         WHERE p.id = ? AND p.organization_id = ? LIMIT 1`,
       )
       .bind(body.profileId, auth.session.organizationId)
-      .first<{ id: string }>();
+      .first<{
+        id: string;
+        kind: string;
+        status: string;
+        platform_blocked: number;
+        removal_notice_at: string | null;
+        consent_state: string | null;
+        relationship: string | null;
+        evidence_key: string | null;
+        verified_by: string | null;
+        withdrawn_at: string | null;
+      }>();
     if (!owned)
       return NextResponse.json(
         { error: 'Voice profile not found.' },
         { status: 404 },
+      );
+    // §32: no unauthorised impersonation. A custom voice cannot be bound to an
+    // agent until a platform reviewer has verified the consent evidence — not
+    // "unless someone objects", and not "pending is close enough".
+    const gate = voiceGate({
+      kind: owned.kind === 'custom' ? 'custom' : 'prebuilt',
+      status: owned.status,
+      platformBlocked: owned.platform_blocked === 1,
+      providerDisabled: Boolean(owned.removal_notice_at),
+      consent: owned.consent_state
+        ? {
+            state: owned.consent_state as never,
+            evidenceKey: owned.evidence_key,
+            verifiedBy: owned.verified_by,
+            withdrawnAt: owned.withdrawn_at,
+          }
+        : null,
+    });
+    if (!gate.allowed)
+      return NextResponse.json(
+        { error: gate.reason, code: gate.code },
+        { status: 409 },
       );
     const result = await db
       .prepare(
@@ -148,6 +193,114 @@ export async function PATCH(request: Request) {
       { profileId: body.profileId },
     );
     return NextResponse.json({ bound: true });
+  }
+
+  if (body.action === 'submit_consent') {
+    const owned = await db
+      .prepare(
+        `SELECT id FROM voice_profiles WHERE id = ? AND organization_id = ? LIMIT 1`,
+      )
+      .bind(body.profileId ?? '', auth.session.organizationId)
+      .first<{ id: string }>();
+    if (!owned)
+      return NextResponse.json(
+        { error: 'Voice profile not found.' },
+        { status: 404 },
+      );
+    const consent = validateConsent({
+      speakerName: body.speakerName,
+      relationship: body.relationship,
+      statement: body.statement,
+      evidenceKey: body.evidenceKey,
+    });
+    if (!consent.ok)
+      return NextResponse.json(
+        {
+          error: 'This consent record is not complete.',
+          problems: consent.errors,
+        },
+        { status: 400 },
+      );
+    await db
+      .prepare(
+        `INSERT INTO voice_consents
+          (id, organization_id, voice_profile_id, speaker_name, relationship,
+           statement, evidence_key, state, submitted_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+         ON CONFLICT(voice_profile_id) DO UPDATE SET
+           speaker_name = excluded.speaker_name,
+           relationship = excluded.relationship,
+           statement = excluded.statement,
+           evidence_key = excluded.evidence_key,
+           /* Resubmitting restarts the review. A workspace must not be able to
+              edit an already-verified consent into something else. */
+           state = 'pending', verified_by = NULL, verified_at = NULL,
+           withdrawn_at = NULL, submitted_by = excluded.submitted_by`,
+      )
+      .bind(
+        `voiceconsent_${crypto.randomUUID()}`,
+        auth.session.organizationId,
+        body.profileId,
+        consent.speakerName,
+        consent.relationship,
+        consent.statement,
+        consent.evidenceKey,
+        auth.session.userId,
+      )
+      .run();
+    await db
+      .prepare(
+        `UPDATE voice_profiles SET kind = 'custom' WHERE id = ? AND organization_id = ?`,
+      )
+      .bind(body.profileId, auth.session.organizationId)
+      .run();
+    await recordAudit(
+      auth.session,
+      'voice_consent.submitted',
+      'voice_profile',
+      String(body.profileId),
+      { speaker: consent.speakerName, relationship: consent.relationship },
+    );
+    return NextResponse.json({
+      submitted: true,
+      state: 'pending',
+      note: 'A platform reviewer checks the evidence before this voice can be used.',
+    });
+  }
+
+  if (body.action === 'withdraw_consent') {
+    const result = await db
+      .prepare(
+        `UPDATE voice_consents SET state = 'withdrawn', withdrawn_at = CURRENT_TIMESTAMP
+         WHERE voice_profile_id = ? AND organization_id = ? AND state != 'withdrawn'`,
+      )
+      .bind(body.profileId ?? '', auth.session.organizationId)
+      .run();
+    if (!result.meta.changes)
+      return NextResponse.json(
+        { error: 'No active consent to withdraw.' },
+        { status: 404 },
+      );
+    // Unbinding is the point: withdrawing consent on a voice that is still
+    // speaking on live agents would change a row and nothing else.
+    const unbound = await db
+      .prepare(
+        `UPDATE voice_agents SET voice_profile_id = NULL
+         WHERE voice_profile_id = ? AND organization_id = ?`,
+      )
+      .bind(body.profileId ?? '', auth.session.organizationId)
+      .run();
+    await recordAudit(
+      auth.session,
+      'voice_consent.withdrawn',
+      'voice_profile',
+      String(body.profileId),
+      { agentsUnbound: unbound.meta.changes ?? 0 },
+    );
+    return NextResponse.json({
+      withdrawn: true,
+      agentsUnbound: unbound.meta.changes ?? 0,
+    });
   }
 
   if (!body.profileId)

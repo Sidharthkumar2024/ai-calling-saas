@@ -8,6 +8,14 @@ import { enforceRateLimit, requestFingerprint } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Credits a new workspace gets for the playground (§3).
+ *
+ * Enough to hear the agent and try a few conversations. It buys no production
+ * capability: placing a real call needs the onboarding wizard finished and paid.
+ */
+const PLAYGROUND_TRIAL_CREDITS = 100;
+
 const supportedUseCases = new Set([
   'sales',
   'commerce_sales',
@@ -136,32 +144,16 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     }
-    const freePlan = invitation
-      ? null
-      : await db
-          .prepare(
-            "SELECT id, included_credits FROM plans WHERE code = 'free' LIMIT 1",
-          )
-          .first<{ id: string; included_credits: number }>();
-    if (!invitation && !freePlan) {
-      // Plans were seeded only outside production, so this was the state every
-      // production deploy started in, with nothing in the admin panel able to
-      // fix it. `plan_create` exists now; say so, rather than leaving an
-      // operator with a bare 503.
-      return NextResponse.json(
-        {
-          error:
-            'No signup plan is configured on this deployment. A platform admin must create one first.',
-        },
-        { status: 503 },
-      );
-    }
+    // §3: no free production plan. Signing up creates a workspace with a
+    // playground and nothing else — no subscription, no plan — and the
+    // onboarding wizard is what turns it into something that can call a real
+    // person. Signup therefore no longer depends on a plan existing at all,
+    // which also removes the 503 a production deploy used to start life in.
 
     const suffix = crypto.randomUUID().replaceAll('-', '').slice(0, 10);
     const organizationId = `org_${suffix}`;
     const userId = `user_${suffix}`;
     const memberId = `member_${suffix}`;
-    const subscriptionId = `sub_${suffix}`;
     const agentId = `agent_${suffix}`;
     const manualSourceId = `source_manual_${suffix}`;
     const webSourceId = `source_web_${suffix}`;
@@ -238,24 +230,23 @@ export async function POST(request: Request) {
         .prepare(`INSERT INTO organization_members
           (id, organization_id, user_id, email, role) VALUES (?, ?, ?, ?, 'admin')`)
         .bind(memberId, organizationId, userId, email),
-      db
-        .prepare(`INSERT INTO subscriptions
-          (id, organization_id, plan_id, status) VALUES (?, ?, ?, 'trialing')`)
-        .bind(subscriptionId, organizationId, freePlan!.id),
+      // Credits for the playground, and no subscription. The wallet is what
+      // lets a new workspace hear its agent; the plan is what lets it call
+      // somebody, and that is bought in the wizard.
       db
         .prepare(`INSERT INTO organization_wallets
           (organization_id, balance, low_balance_threshold) VALUES (?, ?, 50)`)
-        .bind(organizationId, freePlan!.included_credits),
+        .bind(organizationId, PLAYGROUND_TRIAL_CREDITS),
       db
         .prepare(`INSERT INTO credit_ledger
           (id, organization_id, type, amount, balance_after, reference_type, reference_id, description)
-          VALUES (?, ?, 'trial_grant', ?, ?, 'subscription', ?, 'Welcome trial credits')`)
+          VALUES (?, ?, 'trial_grant', ?, ?, 'organization', ?, 'Playground trial credits')`)
         .bind(
           `credit_${suffix}`,
           organizationId,
-          freePlan!.included_credits,
-          freePlan!.included_credits,
-          subscriptionId,
+          PLAYGROUND_TRIAL_CREDITS,
+          PLAYGROUND_TRIAL_CREDITS,
+          organizationId,
         ),
       db
         .prepare(`INSERT INTO onboarding_profiles
@@ -326,7 +317,7 @@ export async function POST(request: Request) {
     const response = NextResponse.json(
       {
         redirectTo: '/app',
-        trialCredits: freePlan!.included_credits,
+        trialCredits: PLAYGROUND_TRIAL_CREDITS,
         onboardingStage: 'agent_test',
       },
       { status: 201 },

@@ -59,6 +59,8 @@ const ACTION_CAPABILITIES: Record<string, AdminCapability> = {
   plan_create: 'billing.manage',
   credit_package_create: 'billing.manage',
   kyc_status: 'tenants.manage',
+  voice_consent_review: 'security.manage',
+  voice_block: 'security.manage',
   ticket_reply: 'support.access',
   ticket_status: 'support.access',
 };
@@ -560,6 +562,77 @@ export async function PATCH(request: Request) {
   // the panel could edit a plan but never create one. On a production database
   // the table was therefore empty, signup answered 503 "Free trial plan is not
   // configured", and there was no supported way out of that state.
+  // §32: a person at the platform looks at the consent evidence before anyone
+  // speaks in somebody else's voice. Nothing about a custom voice works until
+  // this happens, which is the whole point of the section.
+  if (body.action === 'voice_consent_review') {
+    const decision = body.status === 'verified' ? 'verified' : 'rejected';
+    const result = await db
+      .prepare(
+        `UPDATE voice_consents SET state = ?, verified_by = ?, verified_at = CURRENT_TIMESTAMP,
+           review_note = ?
+         WHERE voice_profile_id = ? AND state = 'pending'`,
+      )
+      .bind(
+        decision,
+        auth.session.email ?? auth.session.userId,
+        (body.rejectionReason ?? '').trim().slice(0, 300) || null,
+        body.id ?? '',
+      )
+      .run();
+    if (!result.meta.changes)
+      return NextResponse.json(
+        { error: 'No consent is awaiting review for that voice.' },
+        { status: 404 },
+      );
+    await recordAudit(
+      auth.session,
+      `voice_consent.${decision}`,
+      'voice_profile',
+      body.id ?? '',
+      { note: body.rejectionReason ?? null },
+    );
+    return NextResponse.json({ reviewed: true, state: decision });
+  }
+
+  // The kill switch. Outranks a verified consent, because it is a decision
+  // about the voice itself rather than about the workspace's paperwork.
+  if (body.action === 'voice_block') {
+    const blocked = body.status !== 'unblock';
+    await db
+      .prepare(
+        `UPDATE voice_profiles SET platform_blocked = ?, platform_block_reason = ?
+         WHERE id = ?`,
+      )
+      .bind(
+        blocked ? 1 : 0,
+        blocked
+          ? (body.rejectionReason ?? '').trim().slice(0, 300) ||
+              'Blocked by platform'
+          : null,
+        body.id ?? '',
+      )
+      .run();
+    if (blocked)
+      // A blocked voice is unbound from every agent using it, in every
+      // workspace. Leaving it bound would mean the block took effect only on
+      // the next binding rather than on the next call.
+      await db
+        .prepare(
+          `UPDATE voice_agents SET voice_profile_id = NULL WHERE voice_profile_id = ?`,
+        )
+        .bind(body.id ?? '')
+        .run();
+    await recordAudit(
+      auth.session,
+      blocked ? 'voice.blocked' : 'voice.unblocked',
+      'voice_profile',
+      body.id ?? '',
+      { reason: body.rejectionReason ?? null },
+    );
+    return NextResponse.json({ blocked });
+  }
+
   if (body.action === 'plan_create') {
     const code = (body.code ?? '')
       .trim()

@@ -174,6 +174,33 @@ through a relay, or not at all; without it that verdict is "not tested" rather
 than a guess. The pre-call HTTP probe still says it is an HTTP probe. 47
 assertions.
 
+**Knowledge reaches the call (§36).** The agent's system prompt has always said
+it uses "approved knowledge". Nothing ever gave it any: ingestion worked, chunks
+were written, and `knowledge_chunks` had exactly one reader in the whole
+repository — a search box. So the sentence was aspirational and the model
+answered from whatever it already believed.
+
+The search that existed was `content LIKE '%<the whole question>%'`, which
+matches only if the document happens to use the caller's exact words. "What's
+your refund policy?" matched nothing. Retrieval now scores per term, with
+diminishing returns on repetition and a length penalty, so a short passage that
+answers the question beats a long one that repeats a word.
+
+It is **not** vector search — there are no embeddings in this runtime — and it
+does not pretend to be: every result carries `method: 'keyword'`, and swapping
+in embeddings later means changing one function.
+
+Verified live. A booking policy was ingested, then asked *"booking amount kitna
+hai aur refundable hai kya?"* — the agent answered **"unit price का 2 percent…
+15 din ke andar… पूरा refundable"**, which is what the document says and which it
+had no way to know before. Asked something the document does not cover, it said
+it would check and follow up instead of inventing a number.
+
+Found while building it: `\p{L}\p{N}` shreds Devanagari. Matras and the anusvara
+are combining **marks**, so "रिफंड" split at its own anusvara into "रिफ" and
+"ड" and matched nothing — Hindi knowledge would have been silently unsearchable
+in a product built for Indian languages.
+
 **Track F — paid onboarding (§3) and Voice Studio (§32).**
 
 **No free production plan.** Signing up now creates a workspace with a

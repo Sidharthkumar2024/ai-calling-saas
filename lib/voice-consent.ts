@@ -123,8 +123,7 @@ export function voiceGate(profile: VoiceProfileFacts): VoiceGate {
     return {
       allowed: false,
       code: 'consent_rejected',
-      reason:
-        'The consent evidence for this voice was reviewed and rejected.',
+      reason: 'The consent evidence for this voice was reviewed and rejected.',
     };
   if (consent.state === 'pending')
     return {
@@ -169,9 +168,7 @@ export type ConsentValidation =
     }
   | { ok: false; errors: string[] };
 
-export function validateConsent(
-  input: ConsentSubmission,
-): ConsentValidation {
+export function validateConsent(input: ConsentSubmission): ConsentValidation {
   const errors: string[] = [];
   const text = (value: unknown) =>
     typeof value === 'string' ? value.trim() : '';

@@ -1022,6 +1022,16 @@ async function bootstrap() {
       model TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
+    // §6's discovery interview. One row per workspace: the answers are the
+    // business's own description of itself, and everything the growth board
+    // says is either measured from real tables or traceable to one of these.
+    db.prepare(`CREATE TABLE IF NOT EXISTS business_profiles (
+      organization_id TEXT PRIMARY KEY NOT NULL
+        REFERENCES organizations(id) ON DELETE CASCADE,
+      answers_json TEXT DEFAULT '{}' NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
     // §3.5: "Save named filter/view combinations by user/team." Per-person by
     // default because a view is how somebody works, not a workspace setting;
     // `shared` promotes one to the whole team.

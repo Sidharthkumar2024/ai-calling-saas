@@ -31,6 +31,7 @@ import {
   RefreshCcw,
   Repeat2,
   Settings2,
+  Sparkles,
   Target,
   UsersRound,
   Webhook,
@@ -81,6 +82,7 @@ import {
   NotificationCenter,
 } from '@/components/notification-center';
 import { CustomerSecurity } from '@/components/customer-security';
+import { CustomerGrowth } from '@/components/customer-growth';
 import {
   CustomerOperations,
   type OperationsData,
@@ -195,6 +197,12 @@ const groups: PortalNavGroup[] = [
         label: 'Advanced CRM',
         icon: Target,
         translationKey: 'nav.crm',
+      },
+      {
+        id: 'growth',
+        label: 'AI business manager',
+        icon: Sparkles,
+        translationKey: 'nav.growth',
       },
       {
         id: 'agents',
@@ -399,6 +407,7 @@ const navPermissions: Record<string, string> = {
   numbers: 'telephony.manage',
   sip_trunks: 'telephony.manage',
   live_monitor: 'calls.monitor',
+  growth: 'analytics.view',
   analytics: 'analytics.view',
   quality: 'analytics.view',
   reports: 'analytics.view',
@@ -649,6 +658,9 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
               onChanged={load}
               onStartFollowUp={() => setActive('campaigns')}
             />
+          ) : null}
+          {!loading && !error && active === 'growth' ? (
+            <CustomerGrowth />
           ) : null}
           {!loading && !error && active === 'agents' ? (
             <CustomerAgentStudio

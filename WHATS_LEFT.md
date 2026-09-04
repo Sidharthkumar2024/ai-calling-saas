@@ -117,6 +117,50 @@ work.
 
 ## Landed
 
+**AI Business Manager — discovery and the evidence board (Blueprint §6, first
+slice).** §6 asks for business discovery, an evidence board showing
+"observations, source/evidence and confidence", a prioritised growth plan,
+chat, history, reports and execution.
+
+The evidence board is the part that decides whether the module is worth having.
+A growth manager that emits plausible advice — *improve your follow-up cadence*
+— from no data is indistinguishable from a horoscope, and this codebase has
+spent a long time deleting exactly that. So the rule is structural, not
+aspirational:
+
+> An observation must carry the number it is derived from, the source that
+> produced it, and a sample size. A recommendation must cite observations.
+> Neither can be constructed without them.
+
+Concretely: below five records an observation returns `null` rather than
+rendering faintly — grey text still gets read, quoted and acted on. Confidence
+is sample size and nothing else, because a conversion rate from nine calls is a
+conversion rate from nine calls however cleverly it is computed. A
+recommendation inherits the confidence of its **weakest** evidence, since advice
+resting on one solid number and one shaky one is shaky advice. And the plan
+ranks confidence above priority: a high-confidence, moderately important
+finding beats a guess about something urgent.
+
+There is no model call anywhere in it. An evidence board whose evidence is a
+language model's impression of the data is not an evidence board.
+
+**Not built, and said so on the board itself:** §6's website scan, Google
+Analytics, Search Console and HubSpot connections. Those are OAuth adapters
+that do not exist, and inventing observations attributed to them is the precise
+failure this module is designed against. The board lists them as not connected.
+
+Also still open from §6: chat, history, scheduled reports, and turning a
+recommendation into a campaign or task.
+
+*Verified live against the demo workspace's real 54 calls*, with every number
+computed independently from the tables first and matched: conversion 1.9%,
+refusal 3.7%, transfers 9.3%, negative sentiment 28.2%, all medium confidence
+— and hot leads at **low**, because there are only seven leads, with that low
+confidence correctly inherited by the recommendation citing it. The objection
+recommendation is absent entirely, because the objection library is empty and
+advice without evidence does not get made.
+
+
 **Two-factor authentication is enforced for privileged roles (Blueprint §14).**
 Enrolment had existed since the security screen was written — `mfa_begin`,
 `mfa_confirm`, a TOTP secret, and a login that demands a code from anybody who

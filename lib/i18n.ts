@@ -33,6 +33,7 @@ const en = {
   // Navigation items
   'nav.overview': 'Overview',
   'nav.crm': 'Advanced CRM',
+  'nav.growth': 'AI business manager',
   'nav.agents': 'AI agents',
   'nav.voice_profiles': 'Voice profiles',
   'nav.graph_agents': 'Graph agents',
@@ -787,6 +788,7 @@ const hi: Partial<Record<TranslationKey, string>> = {
 
   'nav.overview': 'अवलोकन',
   'nav.crm': 'एडवांस्ड CRM',
+  'nav.growth': 'AI बिज़नेस मैनेजर',
   'nav.agents': 'AI एजेंट',
   'nav.voice_profiles': 'आवाज़ प्रोफ़ाइल',
   'nav.graph_agents': 'ग्राफ़ एजेंट',

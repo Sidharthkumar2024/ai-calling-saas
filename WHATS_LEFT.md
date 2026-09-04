@@ -174,6 +174,40 @@ through a relay, or not at all; without it that verdict is "not tested" rather
 than a guess. The pre-call HTTP probe still says it is an HTTP probe. 47
 assertions.
 
+**Track C — Universal Object Engine (§7-9), first pass.** A workspace defines
+its own objects and the agent reads real records. Before this there was no
+`products`, `catalog` or `inventory` table anywhere: what made Vaani *look*
+like a real-estate or commerce product was English prose in a system prompt —
+the `real_estate_sales` preset told the model to "answer only from approved
+inventory" and there was no inventory for it to read.
+
+- **Schema**: `custom_objects`, `custom_fields`, `records`, `record_values` —
+  the names §38 uses. Fourteen field types including currency, relation, geo,
+  image, video, 3D URL and inventory.
+- **How a record is stored**: `values_json` is the whole record and the source
+  of truth; `record_values` is a typed projection of the filterable fields so
+  SQLite can index them. The projection is rebuilt from the JSON on every write,
+  so the two cannot drift.
+- **AI Schema Builder** turns a plain-language business description into a
+  proposed schema. §7 says the admin approves, so it *only* proposes — nothing
+  in that path writes to the database, and the model's answer is treated as
+  untrusted: unknown field types are dropped with a note rather than stored.
+- **Templates** for real estate (locality → project → unit), commerce (product
+  → variant, with stock) and services. Seeded object definitions, not hardcoded
+  tables, so a property business and a bakery run on the same engine.
+- **Agent tools** `search_catalog`, `get_catalog_item` and `check_availability`.
+
+Verified on a live playground call: asked for "3BHK, budget 2 crore तक", the
+agent called `search_catalog` with `price lte 20000000`, got the two real units
+that qualify, and quoted their actual floor and carpet area. The ₹3.1 crore
+4BHK was excluded because it is over budget, and a **draft** record with nine
+units available never appeared — a record nobody has published is a record
+nobody has stood behind, and quoting it on a call would be quoting nobody.
+
+Still to come on this track: orders as a concept distinct from payment links,
+and digital delivery gated on verified payment (§9) — today the Razorpay
+webhook verifies the signature, updates the link and does nothing else.
+
 **Track B — the §4 light design system.** The portal, admin, landing page and
 docs are now white/soft-gray/near-black with a blue primary, per §4. The token
 layer already held a full light palette that was never reachable, because the

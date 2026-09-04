@@ -6,6 +6,13 @@ import {
   initiateWarmTransfer,
   recordRefundRequest,
 } from '@/lib/handoff-service';
+import {
+  getRecord,
+  listObjects,
+  searchRecords,
+  type ObjectDefinition,
+} from '@/lib/object-store';
+import type { Filter } from '@/lib/object-engine';
 
 export type ToolContext = {
   organizationId: string;
@@ -193,6 +200,70 @@ export const VAANI_AGENT_TOOLS: Array<Record<string, unknown>> = [
         },
       },
       required: ['customer_phone'],
+    },
+  },
+  {
+    name: 'search_catalog',
+    description:
+      "Search the workspace's own inventory — properties, products, services, whatever this business sells. Use this before quoting anything. Never describe an item that this tool did not return.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        object: {
+          type: 'string',
+          description:
+            "Which catalogue to search, e.g. 'unit', 'product', 'service'. Omit to search the workspace's main one.",
+        },
+        query: {
+          type: 'string',
+          description: 'Free text the caller used, e.g. "3BHK in Baner".',
+        },
+        filters: {
+          type: 'array',
+          description:
+            'Narrow by a field, e.g. price under 5000000 or unit_type equals 3BHK.',
+          items: {
+            type: 'object',
+            properties: {
+              field: { type: 'string' },
+              operator: {
+                type: 'string',
+                enum: ['eq', 'ne', 'lt', 'lte', 'gt', 'gte', 'contains', 'in'],
+              },
+              value: {},
+            },
+            required: ['field', 'operator', 'value'],
+          },
+        },
+        limit: { type: 'number' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'get_catalog_item',
+    description:
+      'Read one catalogue item in full, by the id a search returned. Use this when the caller asks for details.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        object: { type: 'string' },
+        record_id: { type: 'string' },
+      },
+      required: ['record_id'],
+    },
+  },
+  {
+    name: 'check_availability',
+    description:
+      'Check how many units of a catalogue item are left before promising it. Never say something is in stock without calling this.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        object: { type: 'string' },
+        record_id: { type: 'string' },
+      },
+      required: ['record_id'],
     },
   },
   {
@@ -583,6 +654,110 @@ async function runTool(
     });
   }
 
+  if (
+    name === 'search_catalog' ||
+    name === 'get_catalog_item' ||
+    name === 'check_availability'
+  ) {
+    // §7-9: the agent reads the workspace's real inventory. Before this, the
+    // "inventory" a preset told the model to answer from did not exist, so it
+    // had nothing to consult and answered from the prompt.
+    const objects = await listObjects(ctx.organizationId);
+    if (!objects.length)
+      return {
+        ok: false,
+        reason: 'no_catalog_configured',
+        say_to_customer:
+          'I do not have the catalogue in front of me, so let me have a colleague send you the details.',
+      };
+    const requested = str(input, 'object');
+    const object =
+      objects.find(
+        (entry) => entry.key === requested || entry.id === requested,
+      ) ??
+      // No object named: the one with the most records is the catalogue this
+      // workspace actually sells from.
+      (await busiestObject(ctx.organizationId, objects));
+    if (!object)
+      return {
+        ok: false,
+        reason: 'unknown_object',
+        available: objects.map((o) => o.key),
+      };
+
+    if (name === 'search_catalog') {
+      const filters = Array.isArray(input.filters)
+        ? (input.filters as Array<Record<string, unknown>>)
+            .filter((entry) => entry && typeof entry === 'object')
+            .map((entry) => ({
+              field: typeof entry.field === 'string' ? entry.field : '',
+              operator: (typeof entry.operator === 'string'
+                ? entry.operator
+                : 'eq') as Filter['operator'],
+              value: entry.value,
+            }))
+        : [];
+      const result = await searchRecords({
+        organizationId: ctx.organizationId,
+        object,
+        filters,
+        text: str(input, 'query') || null,
+        limit: Math.max(1, Math.min(10, Number(input.limit) || 5)),
+        // Only what the workspace has published. A draft is something nobody
+        // has stood behind, and quoting it on a call would be quoting nobody.
+        publishedOnly: true,
+      });
+      return {
+        ok: true,
+        object: object.key,
+        matches: result.records.map((record) => ({
+          id: record.id,
+          title: record.title,
+          detail: record.summary,
+        })),
+        total: result.total,
+        // Reported, so the model does not present a narrower answer than it
+        // actually asked for as if it had been narrowed.
+        ...(result.skippedFilters.length
+          ? { filters_not_applied: result.skippedFilters }
+          : {}),
+      };
+    }
+
+    const record = await getRecord(
+      ctx.organizationId,
+      object,
+      str(input, 'record_id'),
+    );
+    if (!record) return { ok: false, reason: 'not_found' };
+
+    if (name === 'get_catalog_item')
+      return {
+        ok: true,
+        object: object.key,
+        item: { id: record.id, title: record.title, ...record.values },
+      };
+
+    const inventoryField = object.fields.find(
+      (field) => field.type === 'inventory',
+    );
+    if (!inventoryField)
+      return {
+        ok: false,
+        reason: 'no_inventory_field',
+        say_to_customer:
+          'I cannot confirm availability from here — let me get that checked and come back to you.',
+      };
+    const available = Number(record.values[inventoryField.key] ?? 0);
+    return {
+      ok: true,
+      object: object.key,
+      record_id: record.id,
+      available,
+      in_stock: available > 0,
+    };
+  }
+
   if (name === 'schedule_follow_up') {
     // Advertised in every agent's tool list since the beginning and never
     // implemented, so a model that decided to schedule a follow-up called a
@@ -699,4 +874,29 @@ export async function executeAgentTool(
     /* logging must never break the turn */
   }
   return outcome;
+}
+
+/**
+ * The catalogue a workspace actually sells from, when the model did not name
+ * one. Most workspaces have a single object with records in it; picking the
+ * fullest is a better guess than picking the first alphabetically.
+ */
+async function busiestObject(
+  organizationId: string,
+  objects: ObjectDefinition[],
+): Promise<ObjectDefinition | null> {
+  if (objects.length === 1) return objects[0];
+  const counts = await getRawDb()
+    .prepare(
+      `SELECT object_id, count(*) AS total FROM records
+       WHERE organization_id = ? AND status = 'published'
+       GROUP BY object_id ORDER BY total DESC LIMIT 1`,
+    )
+    .bind(organizationId)
+    .first<{ object_id: string }>();
+  return (
+    objects.find((entry) => entry.id === counts?.object_id) ??
+    objects[0] ??
+    null
+  );
 }

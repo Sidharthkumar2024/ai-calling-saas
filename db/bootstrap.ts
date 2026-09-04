@@ -1034,6 +1034,80 @@ async function bootstrap() {
     db.prepare(
       `CREATE INDEX IF NOT EXISTS idx_call_participants_call ON call_participants (call_id)`,
     ),
+    // §7-9: the Universal Object Engine. A workspace defines its own objects
+    // and fields; `records.values_json` is the whole record, and `record_values`
+    // is a typed projection of the filterable fields so SQLite can index them.
+    // The projection is derived on every write, never authoritative.
+    db.prepare(`CREATE TABLE IF NOT EXISTS custom_objects (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      key TEXT NOT NULL,
+      name TEXT NOT NULL,
+      plural_name TEXT,
+      description TEXT,
+      icon TEXT,
+      /* Which field is the record's headline, for tool results and lists. */
+      title_field TEXT,
+      status TEXT DEFAULT 'active' NOT NULL,
+      source TEXT DEFAULT 'manual' NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_custom_objects_key ON custom_objects (organization_id, key)`,
+    ),
+    db.prepare(`CREATE TABLE IF NOT EXISTS custom_fields (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      object_id TEXT NOT NULL REFERENCES custom_objects(id) ON DELETE CASCADE,
+      key TEXT NOT NULL,
+      label TEXT NOT NULL,
+      type TEXT NOT NULL,
+      required INTEGER DEFAULT 0 NOT NULL,
+      filterable INTEGER DEFAULT 0 NOT NULL,
+      options_json TEXT DEFAULT '[]' NOT NULL,
+      related_object TEXT,
+      currency TEXT,
+      position INTEGER DEFAULT 0 NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_custom_fields_key ON custom_fields (object_id, key)`,
+    ),
+    db.prepare(`CREATE TABLE IF NOT EXISTS records (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      object_id TEXT NOT NULL REFERENCES custom_objects(id) ON DELETE CASCADE,
+      title TEXT,
+      values_json TEXT DEFAULT '{}' NOT NULL,
+      search_text TEXT DEFAULT '' NOT NULL,
+      /* published records are the only ones an agent may quote to a customer. */
+      status TEXT DEFAULT 'published' NOT NULL,
+      external_id TEXT,
+      created_by TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_records_object ON records (organization_id, object_id, status)`,
+    ),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_records_external ON records (object_id, external_id)`,
+    ),
+    db.prepare(`CREATE TABLE IF NOT EXISTS record_values (
+      record_id TEXT NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+      field_key TEXT NOT NULL,
+      text_value TEXT,
+      number_value REAL,
+      date_value TEXT,
+      PRIMARY KEY (record_id, field_key)
+    )`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_record_values_text ON record_values (field_key, text_value)`,
+    ),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_record_values_number ON record_values (field_key, number_value)`,
+    ),
     // §6: what the audio path actually did, per leg. Recorded from the leg's
     // own socket at the end of a call, so support can answer "why did that
     // call sound bad" with measurements instead of guesses.

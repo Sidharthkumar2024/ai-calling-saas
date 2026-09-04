@@ -165,9 +165,9 @@ export async function resolveInboundCall(input: {
     const action = available
       ? 'enqueue'
       : offHours
-        ? (['voicemail', 'callback', 'reject'].includes(route.off_hours_action)
-            ? (route.off_hours_action as 'voicemail' | 'callback' | 'reject')
-            : 'voicemail')
+        ? ['voicemail', 'callback', 'reject'].includes(route.off_hours_action)
+          ? (route.off_hours_action as 'voicemail' | 'callback' | 'reject')
+          : 'voicemail'
         : 'enqueue';
     return {
       matched: true,

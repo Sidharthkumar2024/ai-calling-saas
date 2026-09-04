@@ -64,10 +64,12 @@ const en = {
 
   // Panels: import, dialer, diagnostics, agent desk, supervisor
   'import.title': 'Import an audience',
-  'import.hint': 'CSV, TSV or XLSX. Rows are validated, de-duplicated and checked against your suppression list before anything is added.',
+  'import.hint':
+    'CSV, TSV or XLSX. Rows are validated, de-duplicated and checked against your suppression list before anything is added.',
   'import.countryCode': 'Default country code',
   'import.reading': 'Reading…',
-  'import.truncated': 'The file was longer than the row limit, so only the first rows were read. Split it and import the rest separately.',
+  'import.truncated':
+    'The file was longer than the row limit, so only the first rows were read. Split it and import the rest separately.',
   'import.nothingToAdd': 'Nothing to add — fix the file and upload again.',
   'import.recent': 'Recent imports',
   'import.addToCampaign': 'Add to campaign…',
@@ -78,10 +80,12 @@ const en = {
   'import.rejected': 'Rejected',
   'import.duplicates': 'Duplicates',
   'import.suppressed': 'Suppressed',
-  'dialer.gatewayMissing': 'The media gateway is not configured, so no call can be placed. Set',
+  'dialer.gatewayMissing':
+    'The media gateway is not configured, so no call can be placed. Set',
   'dialer.callerId': 'Caller ID (optional)',
   'dialer.customerNumber': 'Customer number (optional)',
-  'dialer.carrierNote': 'A customer number is recorded on the call but not dialled: bridging a real customer onto this leg needs a carrier. Leaving it blank is a straight conversation with the AI.',
+  'dialer.carrierNote':
+    'A customer number is recorded on the call but not dialled: bridging a real customer onto this leg needs a carrier. Leaving it blank is a straight conversation with the AI.',
   'dialer.startCall': 'Start call',
   'dialer.mute': 'Mute',
   'dialer.unmute': 'Unmute',
@@ -111,22 +115,27 @@ const en = {
   'dialer.recentCalls': 'Recent dialer calls',
   'dialer.you': 'you',
   'dialer.agentLabel': 'agent',
-  'diag.unsupportedBrowser': 'This browser does not expose audio devices. Use a current Chrome, Edge, Firefox or Safari.',
+  'diag.unsupportedBrowser':
+    'This browser does not expose audio devices. Use a current Chrome, Edge, Firefox or Safari.',
   'diag.microphone': 'Microphone',
   'diag.systemDefault': 'System default',
   'diag.testMic': 'Test microphone',
   'diag.stop': 'Stop',
-  'diag.namesAfterPermission': 'Device names appear after permission is granted.',
-  'diag.notListening': 'Not listening. The microphone is only opened during a test.',
+  'diag.namesAfterPermission':
+    'Device names appear after permission is granted.',
+  'diag.notListening':
+    'Not listening. The microphone is only opened during a test.',
   'diag.noSound': 'No sound is reaching the microphone — say something.',
   'diag.clipping': 'Clipping: lower the input level or move further away.',
   'diag.healthy': 'Input level looks healthy.',
   'diag.speaker': 'Speaker & headset',
   'diag.rememberDevices': 'Remember devices',
-  'diag.monoNote': 'A phone call itself is mono; the left/right test only checks your own headset wiring.',
+  'diag.monoNote':
+    'A phone call itself is mono; the left/right test only checks your own headset wiring.',
   'diag.readiness': 'Readiness check',
   'diag.runFullTest': 'Run full test',
-  'diag.measuresNote': 'Measures microphone level and HTTP round-trip time to Vaani. There is no WebRTC peer connection in this tab, so these are network round trips, not call media statistics.',
+  'diag.measuresNote':
+    'Measures microphone level and HTTP round-trip time to Vaani. There is no WebRTC peer connection in this tab, so these are network round trips, not call media statistics.',
   'diag.readyToTake': 'Ready to take calls',
   'diag.usableWithProblems': 'Usable, with problems',
   'diag.notReady': 'Not ready',
@@ -143,9 +152,11 @@ const en = {
   'diag.ice.relay_required': 'only via relay',
   'diag.ice.blocked': 'no — UDP blocked',
   'diag.ice.untested': 'not tested',
-  'diag.supportCodeNote': 'quote this in a ticket and support can find this exact run.',
+  'diag.supportCodeNote':
+    'quote this in a ticket and support can find this exact run.',
   'desk.notOnBench': 'You are not on the support bench',
-  'desk.notOnBenchHint': 'The Agent Desk shows conversations assigned to you. Your workspace account is not linked to a support agent record yet, so there is nothing to take. A workspace admin can add you to the bench and to a queue.',
+  'desk.notOnBenchHint':
+    'The Agent Desk shows conversations assigned to you. Your workspace account is not linked to a support agent record yet, so there is nothing to take. A workspace admin can add you to the bench and to a queue.',
   'desk.slotsInUse': 'slots in use',
   'desk.nothingWaiting': 'Nothing is waiting.',
   'desk.noSummary': 'No AI summary was attached to this handoff.',
@@ -153,12 +164,14 @@ const en = {
   'desk.goOnlineToAccept': 'Go online to accept',
   'desk.noActive': 'You have no active conversations.',
   'desk.chooseDisposition': 'Choose a disposition…',
-  'desk.notesPlaceholder': 'What happened, and what did you promise the customer?',
+  'desk.notesPlaceholder':
+    'What happened, and what did you promise the customer?',
   'desk.saveWrapUp': 'Save wrap-up',
   'desk.wrapUp': 'Wrap up',
   'desk.returnToQueue': 'Return to queue',
   'desk.supportBench': 'Support bench',
-  'desk.noSupportAgents': 'No support agents exist yet, so every escalation will queue.',
+  'desk.noSupportAgents':
+    'No support agents exist yet, so every escalation will queue.',
   'desk.routingRules': 'Routing rules',
   'desk.routingRulesHint': 'First match by priority decides the queue.',
   'desk.recentlyWrapped': 'Recently wrapped up',
@@ -178,7 +191,8 @@ const en = {
   'sup.choose': 'Choose how you want to join this call.',
   'sup.nobodyHears': 'Nobody can hear you.',
   'sup.onlyAgentHears': 'Only the agent hears you — the customer does not.',
-  'sup.everyoneHears': 'Everyone on the call hears you, including the customer.',
+  'sup.everyoneHears':
+    'Everyone on the call hears you, including the customer.',
 
   // Sign-in screen
   'login.backToVaani': 'Back to Vaani',
@@ -188,12 +202,16 @@ const en = {
   'login.adminDisabled': 'Admin disabled',
   'login.admin.eyebrow': 'Platform control',
   'login.admin.title': 'Vaani admin console',
-  'login.admin.description': 'Manage tenants, KYC, calling operations, plans, credits, integrations and platform health.',
-  'login.admin.useAccount': 'Use the dedicated admin account. Accounts cannot cross between portals.',
+  'login.admin.description':
+    'Manage tenants, KYC, calling operations, plans, credits, integrations and platform health.',
+  'login.admin.useAccount':
+    'Use the dedicated admin account. Accounts cannot cross between portals.',
   'login.customer.eyebrow': 'Customer workspace',
   'login.customer.title': 'Run your revenue voice OS',
-  'login.customer.description': 'Capture leads, qualify intent, automate calling, manage CRM and measure every revenue outcome.',
-  'login.customer.useAccount': 'Use the dedicated customer account. Accounts cannot cross between portals.',
+  'login.customer.description':
+    'Capture leads, qualify intent, automate calling, manage CRM and measure every revenue outcome.',
+  'login.customer.useAccount':
+    'Use the dedicated customer account. Accounts cannot cross between portals.',
   'login.signIn': 'Sign in',
   'login.demoCredentials': 'Local demo credentials',
   'login.accountEmail': 'Account email',
@@ -227,40 +245,51 @@ const en = {
   'adminNav.support_tickets': 'Support tickets',
   'adminScreen.customers.eyebrow': 'Tenant management',
   'adminScreen.customers.title': 'Customer accounts',
-  'adminScreen.customers.description': 'Plan, wallet, numbers and lead volume stay scoped to each organization.',
+  'adminScreen.customers.description':
+    'Plan, wallet, numbers and lead volume stay scoped to each organization.',
   'adminScreen.call_ops.eyebrow': 'Call operations',
   'adminScreen.call_ops.title': 'Platform call activity',
-  'adminScreen.call_ops.description': 'Every figure here is read from call records and provider telemetry. Nothing on this screen is estimated.',
+  'adminScreen.call_ops.description':
+    'Every figure here is read from call records and provider telemetry. Nothing on this screen is estimated.',
   'adminScreen.voice_engines.eyebrow': 'Voice engines',
   'adminScreen.voice_engines.title': 'Measured provider performance',
-  'adminScreen.voice_engines.description': 'Latency, volume and error rate come from recorded provider calls. Engines with no traffic are shown as unmeasured rather than healthy.',
+  'adminScreen.voice_engines.description':
+    'Latency, volume and error rate come from recorded provider calls. Engines with no traffic are shown as unmeasured rather than healthy.',
   'adminScreen.numbers_kyc.eyebrow': 'Telephony governance',
   'adminScreen.numbers_kyc.title': 'Number activation and KYC review',
-  'adminScreen.numbers_kyc.description': 'Review managed numbers, native carrier imports and SIP routes with an auditable ownership-to-activation flow.',
+  'adminScreen.numbers_kyc.description':
+    'Review managed numbers, native carrier imports and SIP routes with an auditable ownership-to-activation flow.',
   'adminScreen.plans_billing.eyebrow': 'Commercial control',
   'adminScreen.plans_billing.title': 'Plans, credits and invoices',
-  'adminScreen.plans_billing.description': 'Edit pricing and capacity centrally while every wallet mutation remains traceable in the immutable ledger.',
+  'adminScreen.plans_billing.description':
+    'Edit pricing and capacity centrally while every wallet mutation remains traceable in the immutable ledger.',
   'adminScreen.trials_commerce.eyebrow': 'Activation & assisted revenue',
   'adminScreen.trials_commerce.title': 'Trials, agent tests and AI commerce',
-  'adminScreen.trials_commerce.description': 'Monitor free-credit activation, no-call playground usage and payment-link execution across tenants without exposing provider credentials.',
+  'adminScreen.trials_commerce.description':
+    'Monitor free-credit activation, no-call playground usage and payment-link execution across tenants without exposing provider credentials.',
   'adminScreen.integrations.eyebrow': 'Integration control plane',
   'adminScreen.integrations.title': 'API, webhooks and provider adapters',
-  'adminScreen.integrations.description': 'Customers see Vaani products; raw infrastructure credentials remain encrypted and admin-only.',
+  'adminScreen.integrations.description':
+    'Customers see Vaani products; raw infrastructure credentials remain encrypted and admin-only.',
   'adminScreen.platform_apis.eyebrow': 'Admin-only configuration',
   'adminScreen.platform_apis.title': 'Identity, APIs and cloud requirements',
-  'adminScreen.platform_apis.description': 'Customer screens use Vaani product names. Provider credentials, readiness and health remain inside this operator console.',
+  'adminScreen.platform_apis.description':
+    'Customer screens use Vaani product names. Provider credentials, readiness and health remain inside this operator console.',
   'adminScreen.support_tickets.eyebrow': 'Tenant support',
   'adminScreen.support_tickets.title': 'Support desk',
-  'adminScreen.support_tickets.description': 'Customer tickets, platform replies, assignment and resolution status in one admin queue.',
+  'adminScreen.support_tickets.description':
+    'Customer tickets, platform replies, assignment and resolution status in one admin queue.',
   'adminScreen.system_audit.eyebrow': 'Security & reliability',
   'adminScreen.system_audit.title': 'System health and audit trail',
-  'adminScreen.system_audit.description': 'Every sensitive mutation is attributable, tenant-scoped and designed for incident review.',
+  'adminScreen.system_audit.description':
+    'Every sensitive mutation is attributable, tenant-scoped and designed for incident review.',
 
   // Settings screen copy
   'settings.recording.consent': 'Record with consent',
   'settings.recording.disabled': 'Do not record',
   'settings.recording.always': 'Always record where lawful',
-  'settings.languages.title': 'Languages the agents in this workspace may speak',
+  'settings.languages.title':
+    'Languages the agents in this workspace may speak',
   'settings.languages.hint': 'The default language is always included.',
   'settings.languages.defaultSuffix': 'default',
   'settings.redact': 'Redact sensitive data in transcripts and analytics',
@@ -270,18 +299,22 @@ const en = {
 
   // Panel titles, hints and placeholders
   'panel.branches.title': 'Branches and teams',
-  'panel.branches.hint': 'Group agents by office and function so routing and reporting can follow the real organisation.',
+  'panel.branches.hint':
+    'Group agents by office and function so routing and reporting can follow the real organisation.',
   'panel.branches.namePlaceholder': 'Branch name',
   'panel.branches.cityPlaceholder': 'City',
   'panel.branches.teamPlaceholder': 'Team name',
   'panel.shifts.title': 'Working hours',
-  'panel.shifts.hint': 'Routing skips an agent outside their shift or on a break, even if they left themselves marked online.',
+  'panel.shifts.hint':
+    'Routing skips an agent outside their shift or on a break, even if they left themselves marked online.',
   'panel.shifts.breakStart': 'Break start',
   'panel.shifts.breakEnd': 'Break end',
   'panel.numberRoutes.title': 'Number routing',
-  'panel.numberRoutes.hint': 'Each number can reach a different voice agent or queue. Without a route, a number is only a free-text label.',
+  'panel.numberRoutes.hint':
+    'Each number can reach a different voice agent or queue. Without a route, a number is only a free-text label.',
   'panel.contacts.title': 'Contacts',
-  'panel.contacts.hint': 'A person can exist here without being a sales lead — support callers, past customers, anyone you may call back.',
+  'panel.contacts.hint':
+    'A person can exist here without being a sales lead — support callers, past customers, anyone you may call back.',
   'panel.contacts.namePlaceholder': 'Full name',
   'panel.contacts.languagePlaceholder': 'Preferred language…',
 
@@ -784,10 +817,12 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'nav.settings': 'सेटिंग्स',
 
   'import.title': 'ऑडियंस आयात करें',
-  'import.hint': 'CSV, TSV या XLSX। कुछ भी जोड़ने से पहले हर पंक्ति जाँची जाती है, दोहराव हटाया जाता है और आपकी सप्रेशन सूची से मिलान होता है।',
+  'import.hint':
+    'CSV, TSV या XLSX। कुछ भी जोड़ने से पहले हर पंक्ति जाँची जाती है, दोहराव हटाया जाता है और आपकी सप्रेशन सूची से मिलान होता है।',
   'import.countryCode': 'डिफ़ॉल्ट कंट्री कोड',
   'import.reading': 'पढ़ा जा रहा है…',
-  'import.truncated': 'फ़ाइल पंक्ति-सीमा से बड़ी थी, तो शुरुआती पंक्तियाँ ही पढ़ी गईं। इसे बाँटकर बाक़ी अलग से आयात कीजिए।',
+  'import.truncated':
+    'फ़ाइल पंक्ति-सीमा से बड़ी थी, तो शुरुआती पंक्तियाँ ही पढ़ी गईं। इसे बाँटकर बाक़ी अलग से आयात कीजिए।',
   'import.nothingToAdd': 'जोड़ने को कुछ नहीं — फ़ाइल ठीक करके दोबारा भेजिए।',
   'import.recent': 'हाल के आयात',
   'import.addToCampaign': 'कैंपेन में जोड़ें…',
@@ -798,10 +833,12 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'import.rejected': 'अस्वीकृत',
   'import.duplicates': 'दोहराव',
   'import.suppressed': 'सप्रेस किए',
-  'dialer.gatewayMissing': 'मीडिया गेटवे सेट नहीं है, तो कोई कॉल नहीं लग सकती। सेट कीजिए',
+  'dialer.gatewayMissing':
+    'मीडिया गेटवे सेट नहीं है, तो कोई कॉल नहीं लग सकती। सेट कीजिए',
   'dialer.callerId': 'कॉलर ID (वैकल्पिक)',
   'dialer.customerNumber': 'ग्राहक का नंबर (वैकल्पिक)',
-  'dialer.carrierNote': 'ग्राहक का नंबर कॉल पर दर्ज होता है पर डायल नहीं होता: असली ग्राहक को इस leg से जोड़ने के लिए carrier चाहिए। खाली छोड़िए तो सीधे AI से बात होगी।',
+  'dialer.carrierNote':
+    'ग्राहक का नंबर कॉल पर दर्ज होता है पर डायल नहीं होता: असली ग्राहक को इस leg से जोड़ने के लिए carrier चाहिए। खाली छोड़िए तो सीधे AI से बात होगी।',
   'dialer.startCall': 'कॉल शुरू करें',
   'dialer.mute': 'म्यूट',
   'dialer.unmute': 'अनम्यूट',
@@ -812,8 +849,7 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'dialer.heldNotice': 'कॉल होल्ड पर है; चुप्पी भेजी जा रही है।',
   'dialer.resumeHint': 'जब तक आप जारी नहीं करते, एजेंट कुछ नहीं सुनता।',
   'field.audioPath': 'नापा गया ऑडियो रास्ता',
-  'field.audioPathNote':
-    'कॉल ख़त्म होते समय उसी leg के socket से दर्ज किया गया।',
+  'field.audioPathNote': 'कॉल ख़त्म होते समय उसी leg के socket से दर्ज किया गया।',
   'dialer.audioPath': 'कॉल का ऑडियो रास्ता',
   'dialer.audioPathNote':
     'यह उसी socket पर नापा गया है जिससे इस कॉल की आवाज़ असल में जा रही है — WebRTC का अनुमान नहीं।',
@@ -831,7 +867,8 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'dialer.recentCalls': 'हाल की डायलर कॉल',
   'dialer.you': 'आप',
   'dialer.agentLabel': 'एजेंट',
-  'diag.unsupportedBrowser': 'यह ब्राउज़र ऑडियो डिवाइस नहीं दिखाता। नया Chrome, Edge, Firefox या Safari इस्तेमाल कीजिए।',
+  'diag.unsupportedBrowser':
+    'यह ब्राउज़र ऑडियो डिवाइस नहीं दिखाता। नया Chrome, Edge, Firefox या Safari इस्तेमाल कीजिए।',
   'diag.microphone': 'माइक्रोफ़ोन',
   'diag.systemDefault': 'सिस्टम डिफ़ॉल्ट',
   'diag.testMic': 'माइक्रोफ़ोन जाँचें',
@@ -843,10 +880,12 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'diag.healthy': 'Input level ठीक लग रहा है।',
   'diag.speaker': 'स्पीकर और हेडसेट',
   'diag.rememberDevices': 'डिवाइस याद रखें',
-  'diag.monoNote': 'फ़ोन कॉल खुद mono होती है; बाएँ/दाएँ जाँच सिर्फ़ आपके हेडसेट की वायरिंग देखती है।',
+  'diag.monoNote':
+    'फ़ोन कॉल खुद mono होती है; बाएँ/दाएँ जाँच सिर्फ़ आपके हेडसेट की वायरिंग देखती है।',
   'diag.readiness': 'तैयारी जाँच',
   'diag.runFullTest': 'पूरी जाँच चलाएँ',
-  'diag.measuresNote': 'माइक्रोफ़ोन का स्तर और Vaani तक HTTP round-trip मापता है। इस टैब में कोई WebRTC peer connection नहीं है, तो ये network round trip हैं — call media के आँकड़े नहीं।',
+  'diag.measuresNote':
+    'माइक्रोफ़ोन का स्तर और Vaani तक HTTP round-trip मापता है। इस टैब में कोई WebRTC peer connection नहीं है, तो ये network round trip हैं — call media के आँकड़े नहीं।',
   'diag.readyToTake': 'कॉल लेने के लिए तैयार',
   'diag.usableWithProblems': 'चल जाएगा, पर दिक़्क़तें हैं',
   'diag.notReady': 'तैयार नहीं',
@@ -865,7 +904,8 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'diag.ice.untested': 'जाँचा नहीं गया',
   'diag.supportCodeNote': 'टिकट में यह कोड लिखिए, तो सपोर्ट यही जाँच ढूँढ लेगा।',
   'desk.notOnBench': 'आप सपोर्ट बेंच पर नहीं हैं',
-  'desk.notOnBenchHint': 'एजेंट डेस्क वही बातचीत दिखाता है जो आपको सौंपी गई है। आपका खाता अभी किसी सपोर्ट एजेंट रिकॉर्ड से जुड़ा नहीं, इसलिए लेने को कुछ नहीं। कोई workspace admin आपको बेंच और क़तार में जोड़ सकता है।',
+  'desk.notOnBenchHint':
+    'एजेंट डेस्क वही बातचीत दिखाता है जो आपको सौंपी गई है। आपका खाता अभी किसी सपोर्ट एजेंट रिकॉर्ड से जुड़ा नहीं, इसलिए लेने को कुछ नहीं। कोई workspace admin आपको बेंच और क़तार में जोड़ सकता है।',
   'desk.slotsInUse': 'स्लॉट इस्तेमाल में',
   'desk.nothingWaiting': 'कुछ प्रतीक्षा में नहीं है।',
   'desk.noSummary': 'इस हैंडऑफ़ के साथ कोई AI सारांश नहीं आया।',
@@ -907,12 +947,16 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'login.adminDisabled': 'admin ने बंद किया',
   'login.admin.eyebrow': 'प्लेटफ़ॉर्म नियंत्रण',
   'login.admin.title': 'Vaani admin कंसोल',
-  'login.admin.description': 'टेनेंट, KYC, कॉल संचालन, प्लान, क्रेडिट, इंटीग्रेशन और प्लेटफ़ॉर्म स्वास्थ्य — सब संभालिए।',
-  'login.admin.useAccount': 'सिर्फ़ admin खाते से आइए। खाते एक portal से दूसरे में नहीं चलते।',
+  'login.admin.description':
+    'टेनेंट, KYC, कॉल संचालन, प्लान, क्रेडिट, इंटीग्रेशन और प्लेटफ़ॉर्म स्वास्थ्य — सब संभालिए।',
+  'login.admin.useAccount':
+    'सिर्फ़ admin खाते से आइए। खाते एक portal से दूसरे में नहीं चलते।',
   'login.customer.eyebrow': 'ग्राहक वर्कस्पेस',
   'login.customer.title': 'अपना revenue voice OS चलाइए',
-  'login.customer.description': 'लीड पकड़िए, मंशा जाँचिए, कॉल अपने आप कराइए, CRM संभालिए और हर नतीजा मापिए।',
-  'login.customer.useAccount': 'सिर्फ़ ग्राहक खाते से आइए। खाते एक portal से दूसरे में नहीं चलते।',
+  'login.customer.description':
+    'लीड पकड़िए, मंशा जाँचिए, कॉल अपने आप कराइए, CRM संभालिए और हर नतीजा मापिए।',
+  'login.customer.useAccount':
+    'सिर्फ़ ग्राहक खाते से आइए। खाते एक portal से दूसरे में नहीं चलते।',
   'login.signIn': 'साइन इन',
   'login.demoCredentials': 'लोकल डेमो लॉगिन',
   'login.accountEmail': 'खाते का ईमेल',
@@ -945,34 +989,44 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'adminNav.support_tickets': 'सपोर्ट टिकट',
   'adminScreen.customers.eyebrow': 'टेनेंट प्रबंधन',
   'adminScreen.customers.title': 'ग्राहक खाते',
-  'adminScreen.customers.description': 'प्लान, वॉलेट, नंबर और लीड — सब हर संगठन तक सीमित रहते हैं।',
+  'adminScreen.customers.description':
+    'प्लान, वॉलेट, नंबर और लीड — सब हर संगठन तक सीमित रहते हैं।',
   'adminScreen.call_ops.eyebrow': 'कॉल संचालन',
   'adminScreen.call_ops.title': 'प्लेटफ़ॉर्म की कॉल गतिविधि',
-  'adminScreen.call_ops.description': 'यहाँ का हर आँकड़ा कॉल रिकॉर्ड और प्रोवाइडर telemetry से पढ़ा गया है। इस स्क्रीन पर कुछ भी अनुमान नहीं है।',
+  'adminScreen.call_ops.description':
+    'यहाँ का हर आँकड़ा कॉल रिकॉर्ड और प्रोवाइडर telemetry से पढ़ा गया है। इस स्क्रीन पर कुछ भी अनुमान नहीं है।',
   'adminScreen.voice_engines.eyebrow': 'आवाज़ इंजन',
   'adminScreen.voice_engines.title': 'प्रोवाइडर का मापा गया प्रदर्शन',
-  'adminScreen.voice_engines.description': 'Latency, मात्रा और त्रुटि दर दर्ज प्रोवाइडर कॉल से आते हैं। जिन इंजनों पर कोई ट्रैफ़िक नहीं, उन्हें स्वस्थ नहीं — "मापा नहीं गया" दिखाया जाता है।',
+  'adminScreen.voice_engines.description':
+    'Latency, मात्रा और त्रुटि दर दर्ज प्रोवाइडर कॉल से आते हैं। जिन इंजनों पर कोई ट्रैफ़िक नहीं, उन्हें स्वस्थ नहीं — "मापा नहीं गया" दिखाया जाता है।',
   'adminScreen.numbers_kyc.eyebrow': 'टेलीफ़ोनी शासन',
   'adminScreen.numbers_kyc.title': 'नंबर चालू करना और KYC जाँच',
-  'adminScreen.numbers_kyc.description': 'मैनेज्ड नंबर, कैरियर से आए नंबर और SIP रूट जाँचिए — मालिकाना हक़ से चालू होने तक पूरा ऑडिट होता है।',
+  'adminScreen.numbers_kyc.description':
+    'मैनेज्ड नंबर, कैरियर से आए नंबर और SIP रूट जाँचिए — मालिकाना हक़ से चालू होने तक पूरा ऑडिट होता है।',
   'adminScreen.plans_billing.eyebrow': 'व्यापारिक नियंत्रण',
   'adminScreen.plans_billing.title': 'प्लान, क्रेडिट और इनवॉइस',
-  'adminScreen.plans_billing.description': 'कीमत और क्षमता एक जगह से बदलिए, और वॉलेट का हर बदलाव अपरिवर्तनीय बही में दर्ज रहे।',
+  'adminScreen.plans_billing.description':
+    'कीमत और क्षमता एक जगह से बदलिए, और वॉलेट का हर बदलाव अपरिवर्तनीय बही में दर्ज रहे।',
   'adminScreen.trials_commerce.eyebrow': 'सक्रियण और सहायक आमदनी',
   'adminScreen.trials_commerce.title': 'ट्रायल, एजेंट टेस्ट और AI कॉमर्स',
-  'adminScreen.trials_commerce.description': 'मुफ़्त क्रेडिट, बिना-कॉल playground का उपयोग और पेमेंट लिंक — सभी टेनेंट में देखिए, बिना प्रोवाइडर credentials खोले।',
+  'adminScreen.trials_commerce.description':
+    'मुफ़्त क्रेडिट, बिना-कॉल playground का उपयोग और पेमेंट लिंक — सभी टेनेंट में देखिए, बिना प्रोवाइडर credentials खोले।',
   'adminScreen.integrations.eyebrow': 'इंटीग्रेशन नियंत्रण',
   'adminScreen.integrations.title': 'API, webhook और प्रोवाइडर अडैप्टर',
-  'adminScreen.integrations.description': 'ग्राहक Vaani के प्रोडक्ट देखते हैं; असली infrastructure credentials एन्क्रिप्टेड और सिर्फ़ admin के लिए रहते हैं।',
+  'adminScreen.integrations.description':
+    'ग्राहक Vaani के प्रोडक्ट देखते हैं; असली infrastructure credentials एन्क्रिप्टेड और सिर्फ़ admin के लिए रहते हैं।',
   'adminScreen.platform_apis.eyebrow': 'सिर्फ़ admin की सेटिंग',
   'adminScreen.platform_apis.title': 'लॉगिन, API और क्लाउड ज़रूरतें',
-  'adminScreen.platform_apis.description': 'ग्राहक की स्क्रीन पर Vaani के नाम दिखते हैं। प्रोवाइडर credentials, तैयारी और स्वास्थ्य इसी operator console में रहते हैं।',
+  'adminScreen.platform_apis.description':
+    'ग्राहक की स्क्रीन पर Vaani के नाम दिखते हैं। प्रोवाइडर credentials, तैयारी और स्वास्थ्य इसी operator console में रहते हैं।',
   'adminScreen.support_tickets.eyebrow': 'टेनेंट सपोर्ट',
   'adminScreen.support_tickets.title': 'सपोर्ट डेस्क',
-  'adminScreen.support_tickets.description': 'ग्राहक के टिकट, प्लेटफ़ॉर्म के जवाब, सौंपना और समाधान की स्थिति — एक ही admin क़तार में।',
+  'adminScreen.support_tickets.description':
+    'ग्राहक के टिकट, प्लेटफ़ॉर्म के जवाब, सौंपना और समाधान की स्थिति — एक ही admin क़तार में।',
   'adminScreen.system_audit.eyebrow': 'सुरक्षा और भरोसा',
   'adminScreen.system_audit.title': 'सिस्टम स्वास्थ्य और ऑडिट रिकॉर्ड',
-  'adminScreen.system_audit.description': 'हर संवेदनशील बदलाव किसके द्वारा हुआ यह दर्ज है, टेनेंट तक सीमित है, और घटना-समीक्षा के लिए बना है।',
+  'adminScreen.system_audit.description':
+    'हर संवेदनशील बदलाव किसके द्वारा हुआ यह दर्ज है, टेनेंट तक सीमित है, और घटना-समीक्षा के लिए बना है।',
 
   'settings.recording.consent': 'सहमति के साथ रिकॉर्ड करें',
   'settings.recording.disabled': 'रिकॉर्ड न करें',
@@ -986,18 +1040,22 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'settings.compliance.hint': 'कॉल गेट जिस सबूत पर चलता है, आपके ही खाते का',
 
   'panel.branches.title': 'शाखाएँ और टीमें',
-  'panel.branches.hint': 'एजेंट्स को दफ़्तर और काम के हिसाब से बाँटिए, ताकि रूटिंग और रिपोर्ट असली संगठन के अनुसार चलें।',
+  'panel.branches.hint':
+    'एजेंट्स को दफ़्तर और काम के हिसाब से बाँटिए, ताकि रूटिंग और रिपोर्ट असली संगठन के अनुसार चलें।',
   'panel.branches.namePlaceholder': 'शाखा का नाम',
   'panel.branches.cityPlaceholder': 'शहर',
   'panel.branches.teamPlaceholder': 'टीम का नाम',
   'panel.shifts.title': 'काम के घंटे',
-  'panel.shifts.hint': 'शिफ़्ट के बाहर या ब्रेक पर होने पर रूटिंग उस एजेंट को छोड़ देती है — चाहे उन्होंने खुद को online छोड़ रखा हो।',
+  'panel.shifts.hint':
+    'शिफ़्ट के बाहर या ब्रेक पर होने पर रूटिंग उस एजेंट को छोड़ देती है — चाहे उन्होंने खुद को online छोड़ रखा हो।',
   'panel.shifts.breakStart': 'ब्रेक शुरू',
   'panel.shifts.breakEnd': 'ब्रेक ख़त्म',
   'panel.numberRoutes.title': 'नंबर रूटिंग',
-  'panel.numberRoutes.hint': 'हर नंबर अलग आवाज़ एजेंट या क़तार तक जा सकता है। रूट न हो तो नंबर सिर्फ़ एक लेबल है।',
+  'panel.numberRoutes.hint':
+    'हर नंबर अलग आवाज़ एजेंट या क़तार तक जा सकता है। रूट न हो तो नंबर सिर्फ़ एक लेबल है।',
   'panel.contacts.title': 'संपर्क',
-  'panel.contacts.hint': 'कोई व्यक्ति यहाँ बिना sales lead बने भी रह सकता है — सपोर्ट कॉलर, पुराने ग्राहक, कोई भी जिसे आप वापस कॉल कर सकते हैं।',
+  'panel.contacts.hint':
+    'कोई व्यक्ति यहाँ बिना sales lead बने भी रह सकता है — सपोर्ट कॉलर, पुराने ग्राहक, कोई भी जिसे आप वापस कॉल कर सकते हैं।',
   'panel.contacts.namePlaceholder': 'पूरा नाम',
   'panel.contacts.languagePlaceholder': 'पसंदीदा भाषा…',
 
@@ -1132,8 +1190,7 @@ const hi: Partial<Record<TranslationKey, string>> = {
     'जो बातचीत AI ने इंसान को सौंपी है, AI के सारांश के साथ।',
   'screen.wallboard.eyebrow': 'संचालन',
   'screen.wallboard.title': 'सुपरवाइज़र बोर्ड',
-  'screen.wallboard.description':
-    'पूरे वर्कस्पेस की क़तारें, स्टाफ़ और SLA का दबाव।',
+  'screen.wallboard.description': 'पूरे वर्कस्पेस की क़तारें, स्टाफ़ और SLA का दबाव।',
   'screen.org_structure.eyebrow': 'वर्कस्पेस का ढाँचा',
   'screen.org_structure.title': 'संगठन और नंबर रूटिंग',
   'screen.org_structure.description':
@@ -1289,8 +1346,7 @@ const hi: Partial<Record<TranslationKey, string>> = {
     'प्रोजेक्ट की जानकारी दीजिए और आम आपत्तियाँ सँभालिए',
   'landing.industry.realEstate.point3':
     'साइट विज़िट बुक कीजिए और गंभीर ख़रीदारों को सेल्स तक भेजिए',
-  'landing.industry.realEstate.outcome':
-    'एक चालू campaign से 41 साइट विज़िट',
+  'landing.industry.realEstate.outcome': 'एक चालू campaign से 41 साइट विज़िट',
   'landing.industry.healthcare': 'स्वास्थ्य सेवा',
   'landing.industry.healthcare.eyebrow': 'मरीज़ की पहुँच',
   'landing.industry.healthcare.title':
@@ -1299,16 +1355,13 @@ const hi: Partial<Record<TranslationKey, string>> = {
     'आने वाली पूछताछ कॉल करने वाले की भाषा में सँभालिए',
   'landing.industry.healthcare.point2':
     'उपलब्धता की पुष्टि कीजिए और अपॉइंटमेंट का अनुरोध बनाइए',
-  'landing.industry.healthcare.point3':
-    'ज़रूरी या नाज़ुक बातचीत स्टाफ़ को सौंपिए',
-  'landing.industry.healthcare.outcome':
-    'फ़्रंट डेस्क का बोझ बढ़ाए बिना तेज़ जवाब',
+  'landing.industry.healthcare.point3': 'ज़रूरी या नाज़ुक बातचीत स्टाफ़ को सौंपिए',
+  'landing.industry.healthcare.outcome': 'फ़्रंट डेस्क का बोझ बढ़ाए बिना तेज़ जवाब',
   'landing.industry.education': 'शिक्षा',
   'landing.industry.education.eyebrow': 'दाख़िले का ऑटोमेशन',
   'landing.industry.education.title':
     'आवेदकों से फ़ॉलो-अप कीजिए और काउंसलर का वक़्त गंभीर छात्रों पर लगाइए।',
-  'landing.industry.education.point1':
-    'कोर्स, योग्यता और आवेदन के कदम समझाइए',
+  'landing.industry.education.point1': 'कोर्स, योग्यता और आवेदन के कदम समझाइए',
   'landing.industry.education.point2':
     'इरादा आँकिए और काउंसलर का callback तय कीजिए',
   'landing.industry.education.point3':
@@ -1319,14 +1372,11 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'landing.industry.commerce.eyebrow': 'D2C और सेवाएँ',
   'landing.industry.commerce.title':
     'छूटी मांग वापस लाइए, ऑर्डर पक्के कीजिए और दोहराने लायक़ सेल्स तरीक़ा बनाइए।',
-  'landing.industry.commerce.point1':
-    'बड़ी कीमत वाले प्रोडक्ट की पूछताछ जाँचिए',
-  'landing.industry.commerce.point2':
-    'अधूरे छोड़े या छूट गए मौक़े वापस लाइए',
+  'landing.industry.commerce.point1': 'बड़ी कीमत वाले प्रोडक्ट की पूछताछ जाँचिए',
+  'landing.industry.commerce.point2': 'अधूरे छोड़े या छूट गए मौक़े वापस लाइए',
   'landing.industry.commerce.point3':
     'ग्राहक के असली इरादे से ऑफ़र और retargeting चलाइए',
-  'landing.industry.commerce.outcome':
-    'हर नतीजा अपने आप अगला कदम बन जाता है',
+  'landing.industry.commerce.outcome': 'हर नतीजा अपने आप अगला कदम बन जाता है',
 
   'landing.engines.eyebrow': 'Vaani इंजन परिवार',
   'landing.engines.title': 'पूरे voice stack पर एक ही ब्रांड.',
@@ -1420,8 +1470,7 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'showcase.customer': 'ग्राहक',
   'showcase.response': 'Vaani का जवाब',
   'showcase.preview': 'प्रीव्यू',
-  'showcase.testMode':
-    'Razorpay जोड़ने तक असली भुगतान टेस्ट मोड में ही रहते हैं',
+  'showcase.testMode': 'Razorpay जोड़ने तक असली भुगतान टेस्ट मोड में ही रहते हैं',
   'showcase.tryYourOwn': 'अपना एजेंट बनाइए',
   'showcase.eyebrow': 'एजेंट जो काम पूरा करते हैं',
   'showcase.title': 'किसी को कॉल करने से पहले बातचीत जाँच लीजिए.',
@@ -1449,7 +1498,10 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'showcase.support.action3': 'Escalation नियम तैयार',
 };
 
-const CATALOGS: Record<PortalLocale, Partial<Record<TranslationKey, string>>> = {
+const CATALOGS: Record<
+  PortalLocale,
+  Partial<Record<TranslationKey, string>>
+> = {
   en,
   hi,
 };

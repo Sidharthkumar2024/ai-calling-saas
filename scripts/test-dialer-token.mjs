@@ -16,15 +16,16 @@ const SECRET = 'gw_secret_for_tests';
 const now = Date.now();
 
 console.log('minting and verifying:');
-const token = await mintDialerToken({ callId: 'call_abc', secret: SECRET, now });
+const token = await mintDialerToken({
+  callId: 'call_abc',
+  secret: SECRET,
+  now,
+});
 ok(
   'a fresh token verifies and returns its call id',
   (await verifyDialerToken(token, SECRET, now)).callId === 'call_abc',
 );
-ok(
-  'the token carries no secret material',
-  !token.includes(SECRET),
-);
+ok('the token carries no secret material', !token.includes(SECRET));
 ok(
   'a token is bound to one call id',
   (() => {
@@ -36,7 +37,8 @@ ok(
 );
 ok(
   'the wrong secret is rejected',
-  (await verifyDialerToken(token, 'other', now)).reason === 'signature_mismatch',
+  (await verifyDialerToken(token, 'other', now)).reason ===
+    'signature_mismatch',
 );
 ok(
   'a tampered signature is rejected',
@@ -51,13 +53,23 @@ ok(
 );
 ok(
   'a token is rejected after it expires',
-  (await verifyDialerToken(token, SECRET, now + (DIALER_TOKEN_TTL_SECONDS + 5) * 1000))
-    .reason === 'expired',
+  (
+    await verifyDialerToken(
+      token,
+      SECRET,
+      now + (DIALER_TOKEN_TTL_SECONDS + 5) * 1000,
+    )
+  ).reason === 'expired',
 );
 ok(
   'a token is still valid just before expiry',
-  (await verifyDialerToken(token, SECRET, now + (DIALER_TOKEN_TTL_SECONDS - 5) * 1000))
-    .ok === true,
+  (
+    await verifyDialerToken(
+      token,
+      SECRET,
+      now + (DIALER_TOKEN_TTL_SECONDS - 5) * 1000,
+    )
+  ).ok === true,
 );
 ok(
   'extending the expiry by hand invalidates the signature',
@@ -169,7 +181,10 @@ for (const [label, value] of [
   ['an unknown version', 'v2.call_abc.123.abcd'],
   ['a non-numeric expiry', 'v1.call_abc.soon.abcd'],
 ]) {
-  ok(`${label} is rejected without throwing`, (await verifyDialerToken(value, SECRET, now)).ok === false);
+  ok(
+    `${label} is rejected without throwing`,
+    (await verifyDialerToken(value, SECRET, now)).ok === false,
+  );
 }
 ok(
   'a call id containing a dot is refused at mint time',

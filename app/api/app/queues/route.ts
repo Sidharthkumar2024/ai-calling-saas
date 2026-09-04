@@ -8,10 +8,7 @@ import {
 } from '@/lib/customer-rbac';
 import { recordAudit } from '@/lib/demo-seed';
 import { copilotForHandoff } from '@/lib/copilot';
-import {
-  initiateWarmTransfer,
-  resolveRouting,
-} from '@/lib/handoff-service';
+import { initiateWarmTransfer, resolveRouting } from '@/lib/handoff-service';
 import { ROUTING_STRATEGIES } from '@/lib/routing';
 
 export const dynamic = 'force-dynamic';
@@ -110,8 +107,7 @@ export async function GET(request: Request) {
 
   const waitingRows = (waiting.results ?? []) as Array<Record<string, unknown>>;
   const breaching = waitingRows.filter(
-    (row) =>
-      Number(row.waiting_seconds ?? 0) > Number(row.sla_seconds ?? 60),
+    (row) => Number(row.waiting_seconds ?? 0) > Number(row.sla_seconds ?? 60),
   ).length;
   const agentRows = (agents.results ?? []) as Array<Record<string, unknown>>;
 
@@ -185,7 +181,12 @@ export async function POST(request: Request) {
   const organizationId = auth.session.organizationId!;
   const text = (value: unknown, max = 120) =>
     typeof value === 'string' ? value.trim().slice(0, max) : '';
-  const bounded = (value: unknown, min: number, max: number, fallback: number) => {
+  const bounded = (
+    value: unknown,
+    min: number,
+    max: number,
+    fallback: number,
+  ) => {
     const parsed = Number(value);
     return Number.isFinite(parsed)
       ? Math.min(max, Math.max(min, Math.round(parsed)))
@@ -208,8 +209,13 @@ export async function POST(request: Request) {
       ? text(body.overflowAction)
       : 'callback';
     const slug =
-      text(body.slug, 40).toLowerCase().replaceAll(/[^a-z0-9_-]/g, '-') ||
-      name.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-').slice(0, 40);
+      text(body.slug, 40)
+        .toLowerCase()
+        .replaceAll(/[^a-z0-9_-]/g, '-') ||
+      name
+        .toLowerCase()
+        .replaceAll(/[^a-z0-9]+/g, '-')
+        .slice(0, 40);
     // An overflow queue must exist in this workspace, or overflow silently
     // dead-ends at routing time.
     let overflowQueueId = text(body.overflowQueueId, 80) || null;

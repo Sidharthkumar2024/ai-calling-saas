@@ -26,11 +26,7 @@ async function sign(payload: string, secret: string) {
     false,
     ['sign'],
   );
-  const digest = await crypto.subtle.sign(
-    'HMAC',
-    key,
-    encoder.encode(payload),
-  );
+  const digest = await crypto.subtle.sign('HMAC', key, encoder.encode(payload));
   return Array.from(new Uint8Array(digest), (byte) =>
     byte.toString(16).padStart(2, '0'),
   ).join('');

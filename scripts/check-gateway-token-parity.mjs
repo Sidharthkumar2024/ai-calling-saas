@@ -42,7 +42,10 @@ for (const shape of shapes) {
     secret: SECRET,
     now,
   });
-  ok(`identical token bytes for ${callId.slice(0, 18)}`, fromApp === fromGateway);
+  ok(
+    `identical token bytes for ${callId.slice(0, 18)}`,
+    fromApp === fromGateway,
+  );
   const viaGateway = await gateway.verifyDialerToken(fromApp, SECRET, now);
   const viaApp = await app.verifyDialerToken(fromGateway, SECRET, now);
   ok(
@@ -57,11 +60,21 @@ for (const shape of shapes) {
 for (const [label, token] of [
   ['garbage', 'nope'],
   ['wrong version', 'v2.call_a.999.aa'],
-  ['expired', await app.mintDialerToken({ callId: 'call_a', secret: SECRET, now: now - 600_000 })],
+  [
+    'expired',
+    await app.mintDialerToken({
+      callId: 'call_a',
+      secret: SECRET,
+      now: now - 600_000,
+    }),
+  ],
 ]) {
   const a = await app.verifyDialerToken(token, SECRET, now);
   const g = await gateway.verifyDialerToken(token, SECRET, now);
-  ok(`both reject ${label} with the same reason`, a.ok === false && g.ok === false && a.reason === g.reason);
+  ok(
+    `both reject ${label} with the same reason`,
+    a.ok === false && g.ok === false && a.reason === g.reason,
+  );
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

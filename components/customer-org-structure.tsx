@@ -202,10 +202,7 @@ function BranchesAndTeams({
   const [branch, setBranch] = useState({ name: '', city: '' });
   const [team, setTeam] = useState({ name: '', branchId: '' });
   return (
-    <Panel
-      title={t('panel.branches.title')}
-      hint={t('panel.branches.hint')}
-    >
+    <Panel title={t('panel.branches.title')} hint={t('panel.branches.hint')}>
       <div className="grid gap-4 xl:grid-cols-2">
         <div>
           <div className="flex flex-wrap gap-2">
@@ -359,10 +356,7 @@ function Shifts({
         : [...form.days, day].sort((a, b) => a - b),
     });
   return (
-    <Panel
-      title={t('panel.shifts.title')}
-      hint={t('panel.shifts.hint')}
-    >
+    <Panel title={t('panel.shifts.title')} hint={t('panel.shifts.hint')}>
       <div className="flex flex-wrap items-end gap-2">
         <select
           value={form.supportAgentId}
@@ -665,10 +659,7 @@ function Contacts({
     preferredLanguage: '',
   });
   return (
-    <Panel
-      title={t('panel.contacts.title')}
-      hint={t('panel.contacts.hint')}
-    >
+    <Panel title={t('panel.contacts.title')} hint={t('panel.contacts.hint')}>
       <div className="flex flex-wrap items-end gap-2">
         <Input
           placeholder={t('panel.contacts.namePlaceholder')}

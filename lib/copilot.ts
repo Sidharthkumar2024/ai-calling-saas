@@ -79,8 +79,7 @@ export async function copilotForHandoff(input: {
     .bind(callId)
     .all<{ role: string; content: string }>();
   const rows = turns.results ?? [];
-  if (!rows.length)
-    return { ...empty, reason: 'no_transcript_yet' };
+  if (!rows.length) return { ...empty, reason: 'no_transcript_yet' };
 
   const cached = await db
     .prepare(`SELECT goal, facts_json, suggestions_json, risks_json, next_action, model
@@ -138,7 +137,9 @@ Rules: base everything on the transcript only. "suggestions" are up to three sho
     const blocks = ((response as { content?: unknown[] }).content ??
       []) as Array<{ type?: string; text?: string }>;
     const text = blocks
-      .filter((block) => block.type === 'text' && typeof block.text === 'string')
+      .filter(
+        (block) => block.type === 'text' && typeof block.text === 'string',
+      )
       .map((block) => block.text as string)
       .join('')
       .trim();

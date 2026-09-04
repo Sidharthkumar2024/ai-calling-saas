@@ -118,8 +118,7 @@ export function LandingAgentShowcase() {
           <div className="relative flex min-h-[400px] flex-col overflow-hidden border-b border-[#e4e7ef] bg-[radial-gradient(circle_at_50%_30%,rgba(103,232,249,0.23),transparent_26%),radial-gradient(circle_at_58%_34%,rgba(167,139,250,0.25),transparent_36%),#fbfcff] p-5 sm:min-h-[480px] sm:p-6 xl:min-h-[520px] xl:border-b-0 xl:border-r xl:p-8">
             <div className="flex items-center justify-between">
               <span className="inline-flex items-center gap-2 rounded-full border border-[#dfe2eb] bg-white/80 px-3 py-1.5 text-[10px] font-medium text-[#596077]">
-                <Icon className="size-3.5 text-[#6e58d8]" />{' '}
-                {t(example.key)}
+                <Icon className="size-3.5 text-[#6e58d8]" /> {t(example.key)}
               </span>
               <span className="flex items-center gap-1.5 text-[9px] text-[#647089]">
                 <span className="size-1.5 rounded-full bg-emerald-500" />{' '}

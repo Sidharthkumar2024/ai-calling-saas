@@ -89,9 +89,8 @@ export function shiftCovers(shift: Shift, at: Date): ShiftVerdict {
   // A shift that crosses midnight is owned by the day it started on, so an
   // 22:00-06:00 shift still covers 02:00 on the following morning.
   const crossesMidnight = shift.endMinute <= shift.startMinute;
-  const startDay = crossesMidnight && minuteOfDay < shift.endMinute
-    ? (day + 6) % 7
-    : day;
+  const startDay =
+    crossesMidnight && minuteOfDay < shift.endMinute ? (day + 6) % 7 : day;
   if (!shift.days.includes(startDay))
     return { onShift: false, reason: 'off_day' };
   if (!withinWindow(minuteOfDay, shift.startMinute, shift.endMinute))

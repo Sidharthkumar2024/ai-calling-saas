@@ -207,8 +207,7 @@ export function CustomerIntegrationMarketplace() {
         <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading providers…
       </div>
     );
-  if (error)
-    return <p className="text-[11px] text-rose-300">{error}</p>;
+  if (error) return <p className="text-[11px] text-rose-300">{error}</p>;
 
   return (
     <div className="space-y-5">

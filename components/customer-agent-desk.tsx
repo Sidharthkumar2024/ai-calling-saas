@@ -232,7 +232,9 @@ function AgentDeskView({
         </h2>
         <div className="mt-3 space-y-2.5">
           {data.waiting.length === 0 ? (
-            <p className="text-[11px] text-white/35">{t('desk.nothingWaiting')}</p>
+            <p className="text-[11px] text-white/35">
+              {t('desk.nothingWaiting')}
+            </p>
           ) : null}
           {data.waiting.map((row) => {
             const waited = Number(row.waiting_seconds ?? 0);
@@ -253,7 +255,8 @@ function AgentDeskView({
                   </span>
                   <span>{str(row.reason).replaceAll('_', ' ')}</span>
                   <span className={waited > sla ? 'text-rose-200' : ''}>
-                    waiting {waited}s{waited > sla ? ` · SLA ${sla}s breached` : ''}
+                    waiting {waited}s
+                    {waited > sla ? ` · SLA ${sla}s breached` : ''}
                   </span>
                 </div>
                 {str(row.ai_summary) ? (
@@ -300,9 +303,7 @@ function AgentDeskView({
         </h2>
         <div className="mt-3 space-y-2.5">
           {mine.length === 0 ? (
-            <p className="text-[11px] text-white/35">
-              {t('desk.noActive')}
-            </p>
+            <p className="text-[11px] text-white/35">{t('desk.noActive')}</p>
           ) : null}
           {mine.map((row) => (
             <article
@@ -505,8 +506,8 @@ function WallboardView({
                   <p className="text-[11px] font-medium">{str(agent.name)}</p>
                   <p className="mt-0.5 text-[9px] text-white/32">
                     {str(agent.role).replaceAll('_', ' ')} ·{' '}
-                    {str(agent.active_calls)}/
-                    {str(agent.max_concurrent_calls)} slots
+                    {str(agent.active_calls)}/{str(agent.max_concurrent_calls)}{' '}
+                    slots
                   </p>
                 </div>
                 {(['online', 'break', 'offline'] as const).map((state) => (
@@ -575,9 +576,7 @@ function WallboardView({
         </h2>
         <div className="mt-3 space-y-2">
           {data.recentHandoffs.length === 0 ? (
-            <p className="text-[11px] text-white/35">
-              {t('desk.noneWrapped')}
-            </p>
+            <p className="text-[11px] text-white/35">{t('desk.noneWrapped')}</p>
           ) : null}
           {data.recentHandoffs.map((row) => (
             <div
@@ -668,7 +667,9 @@ function CopilotCard({ handoffId }: { handoffId: string }) {
       </div>
 
       {!data && loading ? (
-        <p className="mt-2 text-[11px] text-white/40">{t('desk.copilotReading')}</p>
+        <p className="mt-2 text-[11px] text-white/40">
+          {t('desk.copilotReading')}
+        </p>
       ) : null}
 
       {data && !data.available ? (
@@ -736,7 +737,9 @@ function CopilotCard({ handoffId }: { handoffId: string }) {
             </p>
           ) : null}
           <p className="text-[9px] text-white/25">
-            {data.cached ? 'Cached for this transcript length' : 'Freshly generated'}
+            {data.cached
+              ? 'Cached for this transcript length'
+              : 'Freshly generated'}
             {data.model ? ` · ${data.model}` : ''}
           </p>
         </div>

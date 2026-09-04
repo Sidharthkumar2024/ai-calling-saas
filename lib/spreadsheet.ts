@@ -69,8 +69,7 @@ export function parseDelimited(
   const all = splitDelimited(clean, format === 'tsv' ? '\t' : ',').filter(
     (row) => row.some((cell) => cell.trim().length),
   );
-  if (!all.length)
-    return { headers: [], rows: [], format, truncated: false };
+  if (!all.length) return { headers: [], rows: [], format, truncated: false };
   const [headers, ...rest] = all;
   return {
     headers: headers.map((cell) => cell.trim()),
@@ -140,10 +139,7 @@ async function readZip(buffer: ArrayBuffer) {
     const localExtraLength = view.getUint16(localOffset + 28, true);
     const dataStart = localOffset + 30 + localNameLength + localExtraLength;
     const raw = bytes.subarray(dataStart, dataStart + compressedSize);
-    files.set(
-      name,
-      method === 0 ? raw : await inflateRaw(raw),
-    );
+    files.set(name, method === 0 ? raw : await inflateRaw(raw));
     offset += 46 + nameLength + extraLength + commentLength;
   }
   return files;
@@ -213,9 +209,7 @@ export async function parseXlsx(buffer: ArrayBuffer): Promise<SheetTable> {
       } else {
         const raw = /<v>([\s\S]*?)<\/v>/.exec(body)?.[1] ?? '';
         value =
-          type === 's'
-            ? (shared[Number(raw)] ?? '')
-            : decodeXmlEntities(raw);
+          type === 's' ? (shared[Number(raw)] ?? '') : decodeXmlEntities(raw);
       }
       // Honour the cell reference so a sparse row keeps its columns aligned.
       const target = reference ? columnIndex(reference) : cells.length;
@@ -282,7 +276,8 @@ export function normalisePhone(
   if (/e\+?\d+$/i.test(trimmed))
     return {
       phone: null,
-      reason: 'scientific_notation — format the column as text before exporting',
+      reason:
+        'scientific_notation — format the column as text before exporting',
     };
   const hadPlus = trimmed.startsWith('+');
   const digits = trimmed.replace(/\D/g, '');
@@ -291,7 +286,8 @@ export function normalisePhone(
   if (!hadPlus) {
     // 0-prefixed trunk code, then a bare local number.
     if (candidate.startsWith('0')) candidate = candidate.replace(/^0+/, '');
-    if (candidate.length === 10) candidate = `${defaultCountryCode}${candidate}`;
+    if (candidate.length === 10)
+      candidate = `${defaultCountryCode}${candidate}`;
     else if (candidate.startsWith('00')) candidate = candidate.slice(2);
   }
   if (candidate.length < 8 || candidate.length > 15)

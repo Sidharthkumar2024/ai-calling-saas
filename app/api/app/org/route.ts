@@ -175,7 +175,12 @@ export async function POST(request: Request) {
   const organizationId = auth.session.organizationId!;
   const text = (value: unknown, max = 120) =>
     typeof value === 'string' ? value.trim().slice(0, max) : '';
-  const bounded = (value: unknown, min: number, max: number, fallback: number) => {
+  const bounded = (
+    value: unknown,
+    min: number,
+    max: number,
+    fallback: number,
+  ) => {
     const parsed = Number(value);
     return Number.isFinite(parsed)
       ? Math.min(max, Math.max(min, Math.round(parsed)))
@@ -342,7 +347,9 @@ export async function POST(request: Request) {
           new Set(
             body.days
               .map((item) => Number(item))
-              .filter((item) => Number.isInteger(item) && item >= 0 && item <= 6),
+              .filter(
+                (item) => Number.isInteger(item) && item >= 0 && item <= 6,
+              ),
           ),
         )
       : [];
@@ -412,12 +419,7 @@ export async function POST(request: Request) {
       await db
         .prepare(`INSERT INTO agent_languages
           (id, organization_id, support_agent_id, language) VALUES (?, ?, ?, ?)`)
-        .bind(
-          `al_${crypto.randomUUID()}`,
-          organizationId,
-          agentId,
-          language,
-        )
+        .bind(`al_${crypto.randomUUID()}`, organizationId, agentId, language)
         .run();
     }
     // Routing reads languages_json, so keep the two in step rather than

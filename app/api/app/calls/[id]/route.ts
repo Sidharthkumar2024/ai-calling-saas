@@ -33,51 +33,58 @@ export async function GET(
   if (!call)
     return NextResponse.json({ error: 'Call not found.' }, { status: 404 });
 
-  const [turns, transcript, summary, participants, review, recording, transport] =
-    await Promise.all([
-      db
-        .prepare(`SELECT turn_index, role, content, language, latency_ms, model,
+  const [
+    turns,
+    transcript,
+    summary,
+    participants,
+    review,
+    recording,
+    transport,
+  ] = await Promise.all([
+    db
+      .prepare(`SELECT turn_index, role, content, language, latency_ms, model,
           tool_calls_json, created_at FROM call_turns
         WHERE call_id = ? ORDER BY turn_index`)
-        .bind(id)
-        .all(),
-      db
-        .prepare(
-          `SELECT language, source, turn_count, full_text, updated_at FROM transcripts WHERE call_id = ? LIMIT 1`,
-        )
-        .bind(id)
-        .first(),
-      db
-        .prepare(`SELECT summary, intent, sentiment, outcome, objections_json,
+      .bind(id)
+      .all(),
+    db
+      .prepare(
+        `SELECT language, source, turn_count, full_text, updated_at FROM transcripts WHERE call_id = ? LIMIT 1`,
+      )
+      .bind(id)
+      .first(),
+    db
+      .prepare(`SELECT summary, intent, sentiment, outcome, objections_json,
           next_action, model, created_at FROM summaries WHERE call_id = ? LIMIT 1`)
-        .bind(id)
-        .first(),
-      db
-        .prepare(`SELECT participant_type, display_name, joined_at, left_at
+      .bind(id)
+      .first(),
+    db
+      .prepare(`SELECT participant_type, display_name, joined_at, left_at
           FROM call_participants WHERE call_id = ? ORDER BY joined_at`)
-        .bind(id)
-        .all(),
-      db
-        .prepare(`SELECT overall_score, resolution_score, knowledge_score,
+      .bind(id)
+      .all(),
+    db
+      .prepare(`SELECT overall_score, resolution_score, knowledge_score,
           naturalness_score, policy_score, hallucination_count, status, findings_json
           FROM call_quality_reviews WHERE call_id = ? ORDER BY created_at DESC LIMIT 1`)
-        .bind(id)
-        .first(),
-      db
-        .prepare(
-          `SELECT status, format, duration_seconds, bytes FROM recordings WHERE call_id = ? ORDER BY created_at DESC LIMIT 1`,
-        )
-        .bind(id)
-        .first(),
-      db
-        .prepare(`SELECT leg_role, transport, band, score, frames_sent,
+      .bind(id)
+      .first(),
+    db
+      .prepare(
+        `SELECT status, format, duration_seconds, bytes FROM recordings WHERE call_id = ? ORDER BY created_at DESC LIMIT 1`,
+      )
+      .bind(id)
+      .first(),
+    db
+      .prepare(`SELECT leg_role, transport, band, score, frames_sent,
           frames_received, send_kbps, receive_kbps, pacing_jitter_ms,
           worst_gap_ms, underruns, longest_silence_ms, socket_rtt_ms, socket_jitter_ms,
           primary_issue, warnings_json
           FROM call_transport_stats WHERE call_id = ? ORDER BY created_at`)
-        .bind(id)
-        .all(),
-    ]);
+      .bind(id)
+      .all(),
+  ]);
 
   return NextResponse.json({
     call,

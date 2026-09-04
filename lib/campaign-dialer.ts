@@ -39,7 +39,10 @@ export function withinCallingWindow(
   const start = minuteOfDay(window.start ?? '10:00');
   const end = minuteOfDay(window.end ?? '19:00');
   if (start === null || end === null) return true;
-  const { minuteOfDay: now } = localClock(at, window.timezone || 'Asia/Kolkata');
+  const { minuteOfDay: now } = localClock(
+    at,
+    window.timezone || 'Asia/Kolkata',
+  );
   return end > start ? now >= start && now < end : now >= start || now < end;
 }
 

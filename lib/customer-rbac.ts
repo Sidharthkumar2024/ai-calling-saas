@@ -123,8 +123,7 @@ export function canManageTargetRole(
   targetRole: string,
 ): boolean {
   if (actorRole === 'owner') return targetRole !== 'owner';
-  if (actorRole === 'admin')
-    return !['owner', 'admin'].includes(targetRole);
+  if (actorRole === 'admin') return !['owner', 'admin'].includes(targetRole);
   return false;
 }
 
@@ -159,10 +158,14 @@ export async function requireAnyCustomerPermission(
   const auth = await requireCustomer(request);
   if (auth.response) return auth;
   const access = await getCustomerAccess(auth.session);
-  if (!permissions.some((permission) => access.permissions.includes(permission))) {
+  if (
+    !permissions.some((permission) => access.permissions.includes(permission))
+  ) {
     return {
       response: NextResponse.json(
-        { error: `Workspace permission required: one of ${permissions.join(', ')}.` },
+        {
+          error: `Workspace permission required: one of ${permissions.join(', ')}.`,
+        },
         { status: 403 },
       ),
     } as const;

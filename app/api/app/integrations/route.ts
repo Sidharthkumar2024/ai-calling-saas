@@ -14,7 +14,6 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-
 export async function GET(request: Request) {
   // The list carries credential hints and provider config, so it is not
   // readable by every workspace member.
@@ -28,9 +27,7 @@ export async function GET(request: Request) {
     )
     .bind(auth.session.organizationId)
     .all<{ type: string; status: string }>();
-  const connected = new Map(
-    (rows.results ?? []).map((row) => [row.type, row]),
-  );
+  const connected = new Map((rows.results ?? []).map((row) => [row.type, row]));
   const catalogIds = new Set(INTEGRATION_CATALOG.map((entry) => entry.id));
   // A stored connection whose type is not in the catalog would otherwise be
   // invisible in the grid while still holding a secret. Surface it instead.

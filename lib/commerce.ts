@@ -202,7 +202,8 @@ export async function getRazorpayCredentials(organizationId: string) {
   const bundle = await integrationSecrets(organizationId, 'razorpay');
   const keyId = bundle.publicConfig.accountId as string | undefined;
   const keySecret = bundle.secrets.apiKey;
-  if (keyId && keySecret) return { keyId, keySecret, source: 'tenant' as const };
+  if (keyId && keySecret)
+    return { keyId, keySecret, source: 'tenant' as const };
   if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
     return {
       keyId: process.env.RAZORPAY_KEY_ID,

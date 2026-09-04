@@ -35,10 +35,7 @@ export async function GET(request: Request) {
       .bind(jobId, organizationId)
       .first();
     if (!job)
-      return NextResponse.json(
-        { error: 'Import not found.' },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: 'Import not found.' }, { status: 404 });
     const status = url.searchParams.get('rows') ?? 'rejected';
     const rows = await db
       .prepare(`SELECT row_number, phone, name, language, status, reason
@@ -47,7 +44,11 @@ export async function GET(request: Request) {
         ORDER BY row_number LIMIT 200`)
       .bind(jobId, organizationId, status, status)
       .all();
-    return NextResponse.json({ job, rows: rows.results ?? [], fields: IMPORT_FIELDS });
+    return NextResponse.json({
+      job,
+      rows: rows.results ?? [],
+      fields: IMPORT_FIELDS,
+    });
   }
 
   const jobs = await db
@@ -102,7 +103,9 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error ? error.message : 'The file could not be read.',
+          error instanceof Error
+            ? error.message
+            : 'The file could not be read.',
       },
       { status: 400 },
     );
@@ -121,7 +124,11 @@ export async function POST(request: Request) {
       const parsed = JSON.parse(submitted) as Record<string, unknown>;
       for (const field of IMPORT_FIELDS) {
         const value = Number(parsed[field.key]);
-        if (Number.isInteger(value) && value >= 0 && value < table.headers.length)
+        if (
+          Number.isInteger(value) &&
+          value >= 0 &&
+          value < table.headers.length
+        )
           mapping[field.key] = value;
       }
     } catch {
@@ -194,12 +201,20 @@ export async function POST(request: Request) {
     };
     if (!phone) {
       rejected += 1;
-      prepared.push({ ...base, status: 'rejected', reason: reason ?? 'invalid_phone' });
+      prepared.push({
+        ...base,
+        status: 'rejected',
+        reason: reason ?? 'invalid_phone',
+      });
       continue;
     }
     if (seen.has(phone)) {
       duplicates += 1;
-      prepared.push({ ...base, status: 'duplicate', reason: 'duplicate_in_file' });
+      prepared.push({
+        ...base,
+        status: 'duplicate',
+        reason: 'duplicate_in_file',
+      });
       continue;
     }
     seen.add(phone);
@@ -345,7 +360,9 @@ export async function PATCH(request: Request) {
         AND (expires_at IS NULL OR expires_at > datetime('now')) LIMIT 20000`)
     .bind(organizationId)
     .all<{ phone: string }>();
-  const grantedPhones = new Set((granted.results ?? []).map((row) => row.phone));
+  const grantedPhones = new Set(
+    (granted.results ?? []).map((row) => row.phone),
+  );
 
   const rows = await db
     .prepare(`SELECT phone, name FROM import_rows
@@ -383,7 +400,9 @@ export async function PATCH(request: Request) {
     .bind(campaignId)
     .first<{ total: number }>();
   await db
-    .prepare(`UPDATE campaigns SET audience_size = ? WHERE id = ? AND organization_id = ?`)
+    .prepare(
+      `UPDATE campaigns SET audience_size = ? WHERE id = ? AND organization_id = ?`,
+    )
     .bind(Number(audience?.total ?? 0), campaignId, organizationId)
     .run();
   await db

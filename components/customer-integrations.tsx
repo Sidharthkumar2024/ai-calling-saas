@@ -379,7 +379,6 @@ function Status({ value }: { value: string }) {
   );
 }
 
-
 function safeStringList(value: string) {
   try {
     const parsed: unknown = JSON.parse(value);

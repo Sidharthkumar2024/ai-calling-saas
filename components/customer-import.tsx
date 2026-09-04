@@ -237,10 +237,22 @@ export function CustomerImport({
           <div className="grid gap-2 sm:grid-cols-5">
             {[
               [t('import.rows'), preview.totals.rows, 'text-white'],
-              [t('import.accepted'), preview.totals.accepted, 'text-emerald-200'],
+              [
+                t('import.accepted'),
+                preview.totals.accepted,
+                'text-emerald-200',
+              ],
               [t('import.rejected'), preview.totals.rejected, 'text-rose-200'],
-              [t('import.duplicates'), preview.totals.duplicates, 'text-amber-200'],
-              [t('import.suppressed'), preview.totals.suppressed, 'text-sky-200'],
+              [
+                t('import.duplicates'),
+                preview.totals.duplicates,
+                'text-amber-200',
+              ],
+              [
+                t('import.suppressed'),
+                preview.totals.suppressed,
+                'text-sky-200',
+              ],
             ].map(([label, value, colour]) => (
               <div
                 key={String(label)}
@@ -393,9 +405,7 @@ export function CustomerImport({
                     {str(job.rejected_rows)} rejected
                   </span>
                 ) : null}
-                <span className="ml-auto text-white/28">
-                  {str(job.status)}
-                </span>
+                <span className="ml-auto text-white/28">{str(job.status)}</span>
               </div>
             ))}
           </div>

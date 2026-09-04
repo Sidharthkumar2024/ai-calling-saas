@@ -66,7 +66,6 @@ const stateTone: Record<string, string> = {
   blocked: 'border-rose-400/35 bg-rose-400/10 text-rose-100',
 };
 
-
 /**
  * Asks the browser and the network what they can actually do, using a
  * throwaway loopback peer connection. Two answers come out of it:
@@ -299,7 +298,6 @@ export function CustomerDiagnostics() {
     };
   }, [supported, refreshDevices]);
 
-
   async function startListening() {
     if (!supported) return;
     setNotice(null);
@@ -453,7 +451,8 @@ export function CustomerDiagnostics() {
           inputDeviceId: inputId,
           outputDeviceId: outputId,
           inputDeviceLabel: inputs.find((d) => d.deviceId === inputId)?.label,
-          outputDeviceLabel: outputs.find((d) => d.deviceId === outputId)?.label,
+          outputDeviceLabel: outputs.find((d) => d.deviceId === outputId)
+            ?.label,
         }),
       });
       setNotice('Devices saved for this browser.');
@@ -510,7 +509,11 @@ export function CustomerDiagnostics() {
               </option>
             ))}
           </select>
-          <Button onClick={() => (listening ? stopListening() : void startListening())}>
+          <Button
+            onClick={() =>
+              listening ? stopListening() : void startListening()
+            }
+          >
             {listening ? t('diag.stop') : t('diag.testMic')}
           </Button>
           {permission === 'granted' && !inputs[0]?.label ? (
@@ -577,9 +580,7 @@ export function CustomerDiagnostics() {
             {t('diag.rememberDevices')}
           </Button>
         </div>
-        <p className="mt-2 text-[10px] text-white/32">
-          {t('diag.monoNote')}
-        </p>
+        <p className="mt-2 text-[10px] text-white/32">{t('diag.monoNote')}</p>
       </section>
 
       <section className="portal-panel p-5">
@@ -622,7 +623,11 @@ export function CustomerDiagnostics() {
             </div>
             <div className="grid gap-2 sm:grid-cols-4">
               {[
-                ['Score', `${result.quality.score}/100`, bandTone[result.quality.band]],
+                [
+                  'Score',
+                  `${result.quality.score}/100`,
+                  bandTone[result.quality.band],
+                ],
                 ['Round trip', `${result.quality.rttMs} ms`, ''],
                 ['Jitter', `${result.quality.jitterMs} ms`, ''],
                 ['Loss', `${result.quality.lossPercent}%`, ''],

@@ -41,7 +41,10 @@ export async function GET(request: Request) {
           coalesce(device_test_valid_hours, 12) AS device_test_valid_hours
         FROM organization_settings WHERE organization_id = ? LIMIT 1`)
       .bind(organizationId)
-      .first<{ require_device_test: number; device_test_valid_hours: number }>(),
+      .first<{
+        require_device_test: number;
+        device_test_valid_hours: number;
+      }>(),
     db
       .prepare(
         `SELECT id, availability FROM support_agents WHERE organization_id = ? AND user_id = ? LIMIT 1`,
@@ -56,15 +59,17 @@ export async function GET(request: Request) {
     | undefined;
   const passedRecently = Boolean(
     latest &&
-      latest.readiness !== 'blocked' &&
-      Date.now() - Date.parse(`${latest.created_at.replace(' ', 'T')}Z`) <
-        validHours * 3600_000,
+    latest.readiness !== 'blocked' &&
+    Date.now() - Date.parse(`${latest.created_at.replace(' ', 'T')}Z`) <
+      validHours * 3600_000,
   );
 
   // STUN/TURN is infrastructure, like the gateway URL — one platform setting,
   // not a per-tenant one. Validated before it reaches a browser so a typo in
   // the env var cannot point a tab at an arbitrary host.
-  const iceServers = normaliseIceServers(parseJson(process.env.RTC_ICE_SERVERS));
+  const iceServers = normaliseIceServers(
+    parseJson(process.env.RTC_ICE_SERVERS),
+  );
 
   return NextResponse.json({
     preferences: preferences ?? null,
@@ -154,12 +159,9 @@ export async function POST(request: Request) {
         .filter((value) => Number.isFinite(value) && value >= 0)
         .slice(0, 100)
     : [];
-  const permission = [
-    'granted',
-    'denied',
-    'prompt',
-    'unsupported',
-  ].includes(String(body.microphonePermission))
+  const permission = ['granted', 'denied', 'prompt', 'unsupported'].includes(
+    String(body.microphonePermission),
+  )
     ? (body.microphonePermission as
         | 'granted'
         | 'denied'
@@ -209,7 +211,10 @@ export async function POST(request: Request) {
       text(body.outputDeviceLabel),
       text(body.browser, 200),
       text(body.platform, 80),
-      JSON.stringify([...quality.warnings, ...readiness.reasons.map((r) => ({ code: 'readiness', message: r }))]),
+      JSON.stringify([
+        ...quality.warnings,
+        ...readiness.reasons.map((r) => ({ code: 'readiness', message: r })),
+      ]),
       webrtcProbe(body.webrtc),
     )
     .run();
@@ -239,11 +244,7 @@ export async function PATCH(request: Request) {
       SET require_device_test = ?, device_test_valid_hours = ?,
           updated_at = CURRENT_TIMESTAMP
       WHERE organization_id = ?`)
-    .bind(
-      body.requireDeviceTest ? 1 : 0,
-      hours,
-      auth.session.organizationId,
-    )
+    .bind(body.requireDeviceTest ? 1 : 0, hours, auth.session.organizationId)
     .run();
   return NextResponse.json({
     requireDeviceTest: Boolean(body.requireDeviceTest),
@@ -278,7 +279,9 @@ function webrtcProbe(input: unknown) {
     typeof value === 'number' && Number.isFinite(value) ? value : null;
   const list = (value: unknown) =>
     Array.isArray(value)
-      ? value.filter((entry): entry is string => typeof entry === 'string').slice(0, 8)
+      ? value
+          .filter((entry): entry is string => typeof entry === 'string')
+          .slice(0, 8)
       : [];
   const verdict = str(ice.verdict, 20);
   return JSON.stringify({

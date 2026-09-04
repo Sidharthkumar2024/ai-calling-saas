@@ -142,7 +142,10 @@ export type RtcProbeSummary = {
 const num = (value: unknown) =>
   typeof value === 'number' && Number.isFinite(value) ? value : null;
 
-function findStat(reports: RtcStatLike[], predicate: (r: RtcStatLike) => boolean) {
+function findStat(
+  reports: RtcStatLike[],
+  predicate: (r: RtcStatLike) => boolean,
+) {
   return reports.find((report) => predicate(report)) ?? null;
 }
 
@@ -159,7 +162,10 @@ export function summariseRtcStats(
   options: { elapsedMs?: number; scope?: RtcProbeSummary['scope'] } = {},
 ): RtcProbeSummary {
   const list = reports ?? [];
-  const outbound = findStat(list, (r) => r.type === 'outbound-rtp' && isAudio(r));
+  const outbound = findStat(
+    list,
+    (r) => r.type === 'outbound-rtp' && isAudio(r),
+  );
   const inbound = findStat(list, (r) => r.type === 'inbound-rtp' && isAudio(r));
   const codecStat =
     findStat(
@@ -175,9 +181,13 @@ export function summariseRtcStats(
         r.state === 'succeeded' &&
         r.nominated === true,
     ) ??
-    findStat(list, (r) => r.type === 'candidate-pair' && r.state === 'succeeded');
+    findStat(
+      list,
+      (r) => r.type === 'candidate-pair' && r.state === 'succeeded',
+    );
 
-  const mimeType = typeof codecStat?.mimeType === 'string' ? codecStat.mimeType : null;
+  const mimeType =
+    typeof codecStat?.mimeType === 'string' ? codecStat.mimeType : null;
   const elapsedMs = num(options.elapsedMs);
   const bytesSent = num(outbound?.bytesSent);
   const sendBitrateKbps =
@@ -208,8 +218,10 @@ export function summariseRtcStats(
     packetsReceived,
     packetsLost,
     lossPercent,
-    jitterMs: jitterSeconds === null ? null : Math.round(jitterSeconds * 10000) / 10,
-    roundTripMs: rttSeconds === null ? null : Math.round(rttSeconds * 10000) / 10,
+    jitterMs:
+      jitterSeconds === null ? null : Math.round(jitterSeconds * 10000) / 10,
+    roundTripMs:
+      rttSeconds === null ? null : Math.round(rttSeconds * 10000) / 10,
     scope: options.scope ?? 'unknown',
   };
 }
@@ -257,7 +269,9 @@ export type TransportSummary = {
  * here comes from audio that was actually carried, which is why an underrun
  * counts for more than a slow round trip: the agent heard that one.
  */
-export function summariseTransport(samples: TransportSamples): TransportSummary {
+export function summariseTransport(
+  samples: TransportSamples,
+): TransportSummary {
   const frameMs = samples.frameMs > 0 ? samples.frameMs : 20;
   const frameBytes = samples.frameBytes > 0 ? samples.frameBytes : 160;
   const arrivals = (samples.arrivalsMs ?? []).filter((value) =>
@@ -395,7 +409,11 @@ export function summariseTransport(samples: TransportSamples): TransportSummary 
 /** Validates operator-supplied ICE servers before a browser is handed them. */
 export function normaliseIceServers(input: unknown) {
   const raw = Array.isArray(input) ? input : [];
-  const servers: Array<{ urls: string[]; username?: string; credential?: string }> = [];
+  const servers: Array<{
+    urls: string[];
+    username?: string;
+    credential?: string;
+  }> = [];
   for (const entry of raw) {
     if (!entry || typeof entry !== 'object') continue;
     const record = entry as Record<string, unknown>;
@@ -404,7 +422,9 @@ export function normaliseIceServers(input: unknown) {
       .map((url) => url.trim())
       .filter((url) => /^(stuns?|turns?):[^\s]+$/i.test(url));
     if (!urls.length) continue;
-    const server: { urls: string[]; username?: string; credential?: string } = { urls };
+    const server: { urls: string[]; username?: string; credential?: string } = {
+      urls,
+    };
     if (typeof record.username === 'string' && record.username)
       server.username = record.username;
     if (typeof record.credential === 'string' && record.credential)

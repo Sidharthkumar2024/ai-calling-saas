@@ -162,8 +162,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
               onClick={onEnterWorkspace}
               className="h-9 rounded-full bg-white px-4 text-xs text-black hover:bg-white/90"
             >
-              {t('landing.openPlatform')}{' '}
-              <ArrowRight className="size-3.5" />
+              {t('landing.openPlatform')} <ArrowRight className="size-3.5" />
             </Button>
           </div>
         </div>
@@ -343,10 +342,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                   </div>
                   {(
                     [
-                      [
-                        t('landing.demo.intent'),
-                        t('landing.demo.intentValue'),
-                      ],
+                      [t('landing.demo.intent'), t('landing.demo.intentValue')],
                       [t('landing.demo.budget'), '₹2 crore'],
                       [t('landing.demo.language'), 'Hinglish'],
                       [
@@ -376,8 +372,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                   </div>
                   <div className="rounded-xl border border-violet-300/15 bg-violet-300/[0.055] p-3">
                     <p className="flex items-center gap-1.5 text-[10px] font-medium text-violet-200">
-                      <Zap className="size-3" />{' '}
-                      {t('landing.demo.turnTaking')}
+                      <Zap className="size-3" /> {t('landing.demo.turnTaking')}
                     </p>
                     <p className="mt-1 text-[9px] leading-4 text-white/40">
                       {t('landing.demo.duplex')}
@@ -742,8 +737,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
               variant="outline"
               className="gap-2 rounded-full border-emerald-400/18 bg-emerald-400/7 text-emerald-300"
             >
-              <ShieldCheck className="size-3.5" />{' '}
-              {t('landing.security.badge')}
+              <ShieldCheck className="size-3.5" /> {t('landing.security.badge')}
             </Badge>
             <h2 className="mt-6 text-4xl font-semibold tracking-[-0.045em]">
               {t('landing.security.title')}

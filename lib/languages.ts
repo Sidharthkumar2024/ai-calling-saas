@@ -19,7 +19,8 @@ export const SUPPORTED_LANGUAGES = [
   { code: 'ur-IN', label: 'Urdu' },
 ] as const;
 
-export type SupportedLanguageCode = (typeof SUPPORTED_LANGUAGES)[number]['code'];
+export type SupportedLanguageCode =
+  (typeof SUPPORTED_LANGUAGES)[number]['code'];
 
 export const SUPPORTED_LANGUAGE_CODES: ReadonlySet<string> = new Set(
   SUPPORTED_LANGUAGES.map((language) => language.code),
@@ -27,6 +28,7 @@ export const SUPPORTED_LANGUAGE_CODES: ReadonlySet<string> = new Set(
 
 export function languageLabel(code: string) {
   return (
-    SUPPORTED_LANGUAGES.find((language) => language.code === code)?.label ?? code
+    SUPPORTED_LANGUAGES.find((language) => language.code === code)?.label ??
+    code
   );
 }

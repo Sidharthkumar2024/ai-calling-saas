@@ -171,7 +171,8 @@ export async function POST(request: Request) {
   const escalationModel =
     typeof (anthropic.config as Record<string, unknown>)?.escalationModel ===
     'string'
-      ? ((anthropic.config as Record<string, unknown>).escalationModel as string)
+      ? ((anthropic.config as Record<string, unknown>)
+          .escalationModel as string)
       : null;
   const route = routeTurn({
     message: transcript,

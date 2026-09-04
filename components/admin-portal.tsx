@@ -70,10 +70,16 @@ const groups: PortalNavGroup[] = [
     label: 'Platform',
     translationKey: 'adminNav.group.platform',
     items: [
-      { id: 'overview', label: 'Command center', icon: Gauge,
+      {
+        id: 'overview',
+        label: 'Command center',
+        icon: Gauge,
         translationKey: 'adminNav.overview',
       },
-      { id: 'customers', label: 'Customers', icon: Building2,
+      {
+        id: 'customers',
+        label: 'Customers',
+        icon: Building2,
         translationKey: 'adminNav.customers',
       },
       {
@@ -82,7 +88,10 @@ const groups: PortalNavGroup[] = [
         icon: Radio,
         translationKey: 'adminNav.call_ops',
       },
-      { id: 'voice_engines', label: 'Voice engines', icon: Activity,
+      {
+        id: 'voice_engines',
+        label: 'Voice engines',
+        icon: Activity,
         translationKey: 'adminNav.voice_engines',
       },
     ],
@@ -91,10 +100,16 @@ const groups: PortalNavGroup[] = [
     label: 'Commercial',
     translationKey: 'adminNav.group.commercial',
     items: [
-      { id: 'numbers_kyc', label: 'Numbers & KYC', icon: FileCheck2,
+      {
+        id: 'numbers_kyc',
+        label: 'Numbers & KYC',
+        icon: FileCheck2,
         translationKey: 'adminNav.numbers_kyc',
       },
-      { id: 'plans_billing', label: 'Plans & billing', icon: CreditCard,
+      {
+        id: 'plans_billing',
+        label: 'Plans & billing',
+        icon: CreditCard,
         translationKey: 'adminNav.plans_billing',
       },
       {
@@ -104,7 +119,10 @@ const groups: PortalNavGroup[] = [
         badge: 'New',
         translationKey: 'adminNav.trials_commerce',
       },
-      { id: 'integrations', label: 'API & integrations', icon: Network,
+      {
+        id: 'integrations',
+        label: 'API & integrations',
+        icon: Network,
         translationKey: 'adminNav.integrations',
       },
       {
@@ -119,10 +137,16 @@ const groups: PortalNavGroup[] = [
     label: 'Governance',
     translationKey: 'adminNav.group.governance',
     items: [
-      { id: 'system_audit', label: 'System & audit', icon: ShieldCheck,
+      {
+        id: 'system_audit',
+        label: 'System & audit',
+        icon: ShieldCheck,
         translationKey: 'adminNav.system_audit',
       },
-      { id: 'support_tickets', label: 'Support tickets', icon: LifeBuoy,
+      {
+        id: 'support_tickets',
+        label: 'Support tickets',
+        icon: LifeBuoy,
         translationKey: 'adminNav.support_tickets',
       },
     ],
@@ -553,7 +577,6 @@ function Customers({ data }: { data: AdminPayload }) {
   );
 }
 
-
 /**
  * Tenant lifecycle. There was no admin API to create or suspend an
  * organization at all, and the portal's "Invite customer" button had no
@@ -749,7 +772,9 @@ function TenantLifecycle() {
                       className="w-44 rounded-lg border border-white/10 bg-white/4 px-2.5 py-1.5 text-[10px] outline-none focus:border-white/25"
                     />
                     <Button
-                      disabled={busy === `off-${id}` || !(reason[id] ?? '').trim()}
+                      disabled={
+                        busy === `off-${id}` || !(reason[id] ?? '').trim()
+                      }
                       onClick={() =>
                         void act(`off-${id}`, {
                           action: 'suspend',
@@ -897,7 +922,10 @@ function CallOperations({ data }: { data: AdminPayload }) {
               </thead>
               <tbody className="divide-y divide-white/5">
                 {calls.map((row) => (
-                  <tr key={textValue(row.id)} className="hover:bg-white/[0.025]">
+                  <tr
+                    key={textValue(row.id)}
+                    className="hover:bg-white/[0.025]"
+                  >
                     <td className="px-3 py-3">
                       {textValue(row.organization_name)}
                     </td>
@@ -1006,8 +1034,9 @@ function VoiceEngines({ data }: { data: AdminPayload }) {
                           : providerId.replace('provider_', '')}
                       </p>
                       <p className="mt-1 text-[9px] text-white/32">
-                        {(entry.operations as string[] | undefined)?.join(' · ') ??
-                          '—'}
+                        {(entry.operations as string[] | undefined)?.join(
+                          ' · ',
+                        ) ?? '—'}
                       </p>
                     </div>
                     <Badge
@@ -1062,13 +1091,17 @@ function VoiceEngines({ data }: { data: AdminPayload }) {
             <table className="w-full min-w-[700px] text-left text-xs">
               <thead className="border-y border-white/8 text-[9px] uppercase tracking-wider text-white/32">
                 <tr>
-                  {['Provider', 'Category', 'Events', 'Cost', 'Billed credits'].map(
-                    (heading) => (
-                      <th key={heading} className="px-3 py-3 font-medium">
-                        {heading}
-                      </th>
-                    ),
-                  )}
+                  {[
+                    'Provider',
+                    'Category',
+                    'Events',
+                    'Cost',
+                    'Billed credits',
+                  ].map((heading) => (
+                    <th key={heading} className="px-3 py-3 font-medium">
+                      {heading}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">

@@ -103,7 +103,12 @@ export const INTEGRATION_CATALOG: IntegrationDefinition[] = [
     monogram: 'Pl',
     verifiable: true,
     fields: [
-      { key: 'accountId', label: 'Auth ID', required: true, placeholder: 'MA…' },
+      {
+        key: 'accountId',
+        label: 'Auth ID',
+        required: true,
+        placeholder: 'MA…',
+      },
       KEY('Auth token'),
     ],
   },
@@ -244,7 +249,10 @@ export const INTEGRATION_CATALOG: IntegrationDefinition[] = [
     blurb: 'Human-sounding multilingual voices.',
     monogram: '11',
     verifiable: true,
-    fields: [KEY(), { key: 'accountId', label: 'Default voice ID', required: false }],
+    fields: [
+      KEY(),
+      { key: 'accountId', label: 'Default voice ID', required: false },
+    ],
   },
   {
     id: 'cartesia',
@@ -335,7 +343,12 @@ export const INTEGRATION_CATALOG: IntegrationDefinition[] = [
     monogram: 'Rz',
     verifiable: true,
     fields: [
-      { key: 'accountId', label: 'Key ID', required: true, placeholder: 'rzp_…' },
+      {
+        key: 'accountId',
+        label: 'Key ID',
+        required: true,
+        placeholder: 'rzp_…',
+      },
       KEY('Key secret'),
     ],
   },
@@ -501,7 +514,12 @@ export const INTEGRATION_CATALOG: IntegrationDefinition[] = [
     fields: [
       { key: 'baseUrl', label: 'Base URL', required: true },
       KEY('Bearer token'),
-      { key: 'webhookSecret', label: 'Signing secret', required: false, secret: true },
+      {
+        key: 'webhookSecret',
+        label: 'Signing secret',
+        required: false,
+        secret: true,
+      },
     ],
   },
   {
@@ -511,10 +529,7 @@ export const INTEGRATION_CATALOG: IntegrationDefinition[] = [
     blurb: 'Bring a calling API that is not in the catalog.',
     monogram: 'Wl',
     verifiable: false,
-    fields: [
-      { key: 'baseUrl', label: 'API base URL', required: true },
-      KEY(),
-    ],
+    fields: [{ key: 'baseUrl', label: 'API base URL', required: true }, KEY()],
   },
 ];
 

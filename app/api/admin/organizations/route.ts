@@ -52,7 +52,9 @@ export async function POST(request: Request) {
   if (auth.response) return auth.response;
   const db = getRawDb();
   const text = (key: string, max = 120) =>
-    typeof body[key] === 'string' ? (body[key] as string).trim().slice(0, max) : '';
+    typeof body[key] === 'string'
+      ? (body[key] as string).trim().slice(0, max)
+      : '';
 
   if (action === 'create') {
     const name = text('name', 80);
@@ -97,8 +99,13 @@ export async function POST(request: Request) {
       );
 
     const slugBase =
-      text('slug', 40).toLowerCase().replaceAll(/[^a-z0-9]+/g, '-') ||
-      name.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-').slice(0, 40);
+      text('slug', 40)
+        .toLowerCase()
+        .replaceAll(/[^a-z0-9]+/g, '-') ||
+      name
+        .toLowerCase()
+        .replaceAll(/[^a-z0-9]+/g, '-')
+        .slice(0, 40);
     let slug = slugBase.replace(/^-+|-+$/g, '') || 'workspace';
     const clash = await db
       .prepare(`SELECT id FROM organizations WHERE slug = ? LIMIT 1`)
@@ -261,13 +268,9 @@ export async function POST(request: Request) {
         { error: 'Platform admin not found.' },
         { status: 404 },
       );
-    await recordAudit(
-      auth.session,
-      'admin_role.changed',
-      'app_user',
-      userId,
-      { role },
-    );
+    await recordAudit(auth.session, 'admin_role.changed', 'app_user', userId, {
+      role,
+    });
     return NextResponse.json({ userId, role });
   }
 

@@ -28,7 +28,9 @@ try {
   });
   const text = await response.text();
   if (!response.ok) {
-    console.error(`job tick failed: HTTP ${response.status} ${text.slice(0, 400)}`);
+    console.error(
+      `job tick failed: HTTP ${response.status} ${text.slice(0, 400)}`,
+    );
     process.exit(1);
   }
   const payload = JSON.parse(text);

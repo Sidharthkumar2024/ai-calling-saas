@@ -1,7 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Loader2, MicOff, Pause, PhoneCall, PhoneOff, Play } from 'lucide-react';
+import {
+  Loader2,
+  MicOff,
+  Pause,
+  PhoneCall,
+  PhoneOff,
+  Play,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { useT } from '@/components/locale-provider';
@@ -372,7 +379,10 @@ export function CustomerDialer() {
         URL.revokeObjectURL(workletUrl);
       }
       const node = new AudioWorkletNode(capture, 'vaani-downsampler', {
-        processorOptions: { targetRate: TARGET_RATE, frameSamples: FRAME_SAMPLES },
+        processorOptions: {
+          targetRate: TARGET_RATE,
+          frameSamples: FRAME_SAMPLES,
+        },
       });
       workletRef.current = node;
       node.port.onmessage = (event) => {
@@ -383,7 +393,9 @@ export function CustomerDialer() {
         // does not read the gap as the caller hanging up.
         const silent = mutedRef.current || heldRef.current;
         for (const sample of samples)
-          binary += String.fromCharCode(pcmToMulaw(silent ? 0 : sample * 32768));
+          binary += String.fromCharCode(
+            pcmToMulaw(silent ? 0 : sample * 32768),
+          );
         socket.send(
           JSON.stringify({ event: 'media', media: { payload: btoa(binary) } }),
         );
@@ -438,7 +450,9 @@ export function CustomerDialer() {
         <p className="text-[9px] uppercase tracking-wider text-white/28">
           {t('screen.dialer.eyebrow')}
         </p>
-        <h1 className="mt-1 text-lg font-semibold">{t('screen.dialer.title')}</h1>
+        <h1 className="mt-1 text-lg font-semibold">
+          {t('screen.dialer.title')}
+        </h1>
         <p className="mt-1 text-[11px] text-white/40">
           {t('screen.dialer.description')}
         </p>
@@ -614,7 +628,10 @@ export function CustomerDialer() {
           {transport.warnings.length ? (
             <ul className="mt-3 space-y-1">
               {transport.warnings.map((warning) => (
-                <li key={warning.code} className="text-[10px] text-amber-200/80">
+                <li
+                  key={warning.code}
+                  className="text-[10px] text-amber-200/80"
+                >
                   {warning.message}
                 </li>
               ))}
@@ -629,7 +646,9 @@ export function CustomerDialer() {
 
       {turns.length ? (
         <section className="portal-panel p-5">
-          <h2 className="text-sm font-semibold">{t('dialer.liveTranscript')}</h2>
+          <h2 className="text-sm font-semibold">
+            {t('dialer.liveTranscript')}
+          </h2>
           <div className="mt-3 space-y-2">
             {turns.map((turn, index) => (
               <div key={index} className="space-y-1">
@@ -669,7 +688,9 @@ export function CustomerDialer() {
                 <span className="text-white/70">
                   {text(call.agent_name, 'unassigned')}
                 </span>
-                <span className="text-white/45">{text(call.to_number, '—')}</span>
+                <span className="text-white/45">
+                  {text(call.to_number, '—')}
+                </span>
                 <span className="text-white/45">
                   {Number(call.duration_seconds ?? 0)}s
                 </span>

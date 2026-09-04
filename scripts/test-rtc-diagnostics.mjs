@@ -30,16 +30,25 @@ ok(
 const relay = parseCandidate(
   'candidate:9 1 tcp 41819902 198.51.100.7 443 typ relay raddr 0.0.0.0 rport 0',
 );
-ok('relay over tcp parsed', relay?.type === 'relay' && relay.protocol === 'tcp');
+ok(
+  'relay over tcp parsed',
+  relay?.type === 'relay' && relay.protocol === 'tcp',
+);
 ok('garbage rejected', parseCandidate('not a candidate') === null);
 ok('empty rejected', parseCandidate('') === null);
-ok('truncated line rejected', parseCandidate('candidate:1 1 udp 21222') === null);
+ok(
+  'truncated line rejected',
+  parseCandidate('candidate:1 1 udp 21222') === null,
+);
 
 console.log('ICE classification:');
 const untested = classifyIceCandidates([
   'candidate:1 1 udp 2122260223 192.168.1.5 54321 typ host generation 0',
 ]);
-ok('no STUN configured → untested, not blocked', untested.verdict === 'untested');
+ok(
+  'no STUN configured → untested, not blocked',
+  untested.verdict === 'untested',
+);
 ok(
   'HONEST: udpEgress is null when nothing tested it, not false',
   untested.udpEgress === null,
@@ -89,7 +98,13 @@ const reports = [
     packetsLost: 5,
     jitter: 0.0032,
   },
-  { type: 'codec', id: 'C1', mimeType: 'audio/opus', clockRate: 48000, channels: 2 },
+  {
+    type: 'codec',
+    id: 'C1',
+    mimeType: 'audio/opus',
+    clockRate: 48000,
+    channels: 2,
+  },
   {
     type: 'candidate-pair',
     state: 'succeeded',
@@ -97,7 +112,10 @@ const reports = [
     currentRoundTripTime: 0.042,
   },
 ];
-const stats = summariseRtcStats(reports, { elapsedMs: 10000, scope: 'loopback' });
+const stats = summariseRtcStats(reports, {
+  elapsedMs: 10000,
+  scope: 'loopback',
+});
 ok('codec read from the matching codec stat', stats.codec === 'opus');
 ok('clock rate read', stats.clockRateHz === 48000);
 ok('bitrate = bytes×8 over elapsed', stats.sendBitrateKbps === 19.2);
@@ -110,7 +128,10 @@ ok(
   'HONEST: nothing measured returns null, never zero',
   empty.codec === null && empty.jitterMs === null && empty.lossPercent === null,
 );
-ok('bitrate needs elapsed time', summariseRtcStats(reports, {}).sendBitrateKbps === null);
+ok(
+  'bitrate needs elapsed time',
+  summariseRtcStats(reports, {}).sendBitrateKbps === null,
+);
 const wrongCodec = summariseRtcStats(
   [
     { type: 'outbound-rtp', kind: 'audio', codecId: 'C9', bytesSent: 100 },
@@ -148,7 +169,10 @@ const bad = summariseTransport({
 });
 ok('two mid-speech stalls counted as underruns', bad.underruns === 2);
 ok('worst gap is the biggest stall, not the average', bad.worstGapMs === 460);
-ok('underruns are named as the primary issue', bad.primaryIssue === 'underruns_present');
+ok(
+  'underruns are named as the primary issue',
+  bad.primaryIssue === 'underruns_present',
+);
 ok(
   'NOT DOUBLE-COUNTED: a stall inflates the underrun count, not the pacing figure',
   bad.pacingJitterMs === 0,
@@ -168,8 +192,14 @@ ok(
   'THE FALSE POSITIVE: a 4.3s thinking pause is not counted as a dropout',
   thinking.underruns === 0,
 );
-ok('the pause is still reported, as silence', thinking.longestSilenceMs === 4300);
-ok('a call that only paused to think stays excellent', thinking.band === 'excellent');
+ok(
+  'the pause is still reported, as silence',
+  thinking.longestSilenceMs === 4300,
+);
+ok(
+  'a call that only paused to think stays excellent',
+  thinking.band === 'excellent',
+);
 ok(
   'a long silence does not distort the pacing figure either',
   thinking.pacingJitterMs === 0,
@@ -197,26 +227,39 @@ const slow = summariseTransport({
   socketRttsMs: [520, 540, 500],
   durationMs: 4000,
 });
-ok('a slow socket is flagged even when pacing is clean', slow.primaryIssue === 'socket_rtt_severe');
+ok(
+  'a slow socket is flagged even when pacing is clean',
+  slow.primaryIssue === 'socket_rtt_severe',
+);
 ok('a slow socket is still usable, not poor', slow.band === 'good');
 
 console.log('ICE server validation:');
 const servers = normaliseIceServers([
   { urls: 'stun:stun.example.net:3478' },
-  { urls: ['turn:turn.example.net:443?transport=tcp'], username: 'u', credential: 'p' },
+  {
+    urls: ['turn:turn.example.net:443?transport=tcp'],
+    username: 'u',
+    credential: 'p',
+  },
   { urls: 'http://evil.example.net' },
   { urls: '' },
   'not an object',
   null,
 ]);
 ok('two valid servers kept', servers.length === 2);
-ok('turn credentials preserved', servers[1].username === 'u' && servers[1].credential === 'p');
+ok(
+  'turn credentials preserved',
+  servers[1].username === 'u' && servers[1].credential === 'p',
+);
 ok(
   'a non-ICE scheme is dropped, so no browser is pointed at http',
   !JSON.stringify(servers).includes('evil'),
 );
 ok('urls always normalised to an array', Array.isArray(servers[0].urls));
-ok('garbage input yields an empty list', normaliseIceServers('nope').length === 0);
+ok(
+  'garbage input yields an empty list',
+  normaliseIceServers('nope').length === 0,
+);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

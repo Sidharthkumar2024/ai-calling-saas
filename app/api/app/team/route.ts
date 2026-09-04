@@ -184,10 +184,16 @@ export async function PATCH(request: Request) {
         auth.session.userId,
       )
       .run();
-    await recordAudit(auth.session, 'team.role_changed', 'organization_member', body.memberId, {
-      from: target.role,
-      to: body.role,
-    });
+    await recordAudit(
+      auth.session,
+      'team.role_changed',
+      'organization_member',
+      body.memberId,
+      {
+        from: target.role,
+        to: body.role,
+      },
+    );
     return NextResponse.json({ updated: true });
   }
   if (body.action === 'remove' && body.memberId) {
@@ -220,9 +226,15 @@ export async function PATCH(request: Request) {
         .prepare('DELETE FROM auth_sessions WHERE user_id = ?')
         .bind(member.user_id),
     ]);
-    await recordAudit(auth.session, 'team.member_removed', 'organization_member', body.memberId, {
-      role: member.role,
-    });
+    await recordAudit(
+      auth.session,
+      'team.member_removed',
+      'organization_member',
+      body.memberId,
+      {
+        role: member.role,
+      },
+    );
     return NextResponse.json({ removed: true });
   }
   return NextResponse.json(

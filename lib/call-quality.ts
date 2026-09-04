@@ -52,7 +52,9 @@ export function medianOf(values: number[]) {
 
 /** Each metric costs points; the worst one is named as the primary issue. */
 export function scoreQuality(samples: QualitySamples): QualityVerdict {
-  const rtts = samples.rtts.filter((value) => Number.isFinite(value) && value >= 0);
+  const rtts = samples.rtts.filter(
+    (value) => Number.isFinite(value) && value >= 0,
+  );
   const rttMs = Math.round(medianOf(rtts));
   const jitterMs = Math.round(jitterOf(rtts));
   const lossPercent =
@@ -142,7 +144,13 @@ export function scoreQuality(samples: QualitySamples): QualityVerdict {
     Math.min(100, 100 - penalties.reduce((sum, item) => sum + item.cost, 0)),
   );
   const band: QualityBand =
-    score >= 85 ? 'excellent' : score >= 65 ? 'good' : score >= 40 ? 'fair' : 'poor';
+    score >= 85
+      ? 'excellent'
+      : score >= 65
+        ? 'good'
+        : score >= 40
+          ? 'fair'
+          : 'poor';
 
   return {
     score,

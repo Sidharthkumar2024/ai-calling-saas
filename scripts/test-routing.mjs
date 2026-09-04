@@ -191,7 +191,11 @@ ok(
   'queue priority beats idle time',
   selectAgent(
     [
-      agent({ id: 'primary', queuePriority: 10, lastAssignedAt: '2026-09-02T12:00:00Z' }),
+      agent({
+        id: 'primary',
+        queuePriority: 10,
+        lastAssignedAt: '2026-09-02T12:00:00Z',
+      }),
       agent({ id: 'backup', queuePriority: 200, lastAssignedAt: null }),
     ],
     { strategy: 'longest_idle', roleRank },
@@ -200,8 +204,18 @@ ok(
 
 console.log('queue selection:');
 const rules = [
-  { queueId: 'q_billing', matchType: 'skill', matchValue: 'billing', priority: 10 },
-  { queueId: 'q_punjabi', matchType: 'language', matchValue: 'pa-IN', priority: 20 },
+  {
+    queueId: 'q_billing',
+    matchType: 'skill',
+    matchValue: 'billing',
+    priority: 10,
+  },
+  {
+    queueId: 'q_punjabi',
+    matchType: 'language',
+    matchValue: 'pa-IN',
+    priority: 20,
+  },
   { queueId: 'q_default', matchType: 'skill', matchValue: '*', priority: 900 },
 ];
 ok(

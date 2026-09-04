@@ -45,7 +45,10 @@ export async function POST(request: Request) {
   const fromNumber = text('from') || text('From') || text('caller');
   if (!toNumber || !fromNumber)
     return NextResponse.json(
-      { error: 'Both the dialled number (to) and the caller (from) are required.' },
+      {
+        error:
+          'Both the dialled number (to) and the caller (from) are required.',
+      },
       { status: 400 },
     );
 

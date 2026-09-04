@@ -124,20 +124,14 @@ ok(
 ok(
   'any covering shift wins',
   agentOnShift(
-    [
-      { days: [1], startMinute: 540, endMinute: 1080 },
-      weekday,
-    ],
+    [{ days: [1], startMinute: 540, endMinute: 1080 }, weekday],
     at('2026-09-03T06:00:00Z'),
   ).onShift,
 );
 ok(
   'a break is reported ahead of an off day',
   agentOnShift(
-    [
-      { days: [1], startMinute: 540, endMinute: 1080 },
-      withBreak,
-    ],
+    [{ days: [1], startMinute: 540, endMinute: 1080 }, withBreak],
     at('2026-09-03T08:30:00Z'),
   ).reason === 'on_break',
 );

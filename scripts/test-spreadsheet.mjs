@@ -90,36 +90,39 @@ ok(
   (() => {
     const row = table.rows[1];
     // Row 3 has B and D only: name empty, phone in 1, notes in 3.
-    return row[0] === '' && row[1] === '919812345678' && row[3] === 'Amit & Sons';
+    return (
+      row[0] === '' && row[1] === '919812345678' && row[3] === 'Amit & Sons'
+    );
   })(),
 );
 ok(
   'an XML entity is decoded, not left escaped',
   table.rows[1][3] === 'Amit & Sons',
 );
-ok(
-  'an inline string cell is read',
-  table.rows[2][1] === '+91 98111 22333',
-);
+ok('an inline string cell is read', table.rows[2][1] === '+91 98111 22333');
 ok('non-ASCII text survives', table.rows[3][0] === 'सुनीता');
 
 console.log('format detection:');
 ok(
   'a ZIP is routed to the XLSX parser regardless of name',
-  (await parseSpreadsheet(
-    'contacts.txt',
-    workbook.buffer.slice(
-      workbook.byteOffset,
-      workbook.byteOffset + workbook.byteLength,
-    ),
-  )).format === 'xlsx',
+  (
+    await parseSpreadsheet(
+      'contacts.txt',
+      workbook.buffer.slice(
+        workbook.byteOffset,
+        workbook.byteOffset + workbook.byteLength,
+      ),
+    )
+  ).format === 'xlsx',
 );
 ok(
   'plain text named .csv is parsed as CSV',
-  (await parseSpreadsheet(
-    'x.csv',
-    new TextEncoder().encode('a,b\n1,2\n').buffer,
-  )).format === 'csv',
+  (
+    await parseSpreadsheet(
+      'x.csv',
+      new TextEncoder().encode('a,b\n1,2\n').buffer,
+    )
+  ).format === 'csv',
 );
 ok(
   'a file named .xlsx that is not a workbook is refused with a real reason',
@@ -148,15 +151,42 @@ ok(
 );
 
 console.log('phone normalisation:');
-ok('a ten-digit local number gets the country code', normalisePhone('9876543210').phone === '+919876543210');
-ok('spaces and dashes are stripped', normalisePhone('98765 43210').phone === '+919876543210');
-ok('an existing + is respected', normalisePhone('+14155552671').phone === '+14155552671');
-ok('a leading zero trunk code is dropped', normalisePhone('09876543210').phone === '+919876543210');
-ok('00 international prefix becomes +', normalisePhone('00919876543210').phone === '+919876543210');
-ok('an already-prefixed 91 number is left alone', normalisePhone('919876543210').phone === '+919876543210');
-ok('a different default country code is honoured', normalisePhone('5551234567', '1').phone === '+15551234567');
-ok('an empty cell is reported as missing', normalisePhone('').reason === 'missing');
-ok('letters are rejected', normalisePhone('not-a-number').reason === 'no_digits');
+ok(
+  'a ten-digit local number gets the country code',
+  normalisePhone('9876543210').phone === '+919876543210',
+);
+ok(
+  'spaces and dashes are stripped',
+  normalisePhone('98765 43210').phone === '+919876543210',
+);
+ok(
+  'an existing + is respected',
+  normalisePhone('+14155552671').phone === '+14155552671',
+);
+ok(
+  'a leading zero trunk code is dropped',
+  normalisePhone('09876543210').phone === '+919876543210',
+);
+ok(
+  '00 international prefix becomes +',
+  normalisePhone('00919876543210').phone === '+919876543210',
+);
+ok(
+  'an already-prefixed 91 number is left alone',
+  normalisePhone('919876543210').phone === '+919876543210',
+);
+ok(
+  'a different default country code is honoured',
+  normalisePhone('5551234567', '1').phone === '+15551234567',
+);
+ok(
+  'an empty cell is reported as missing',
+  normalisePhone('').reason === 'missing',
+);
+ok(
+  'letters are rejected',
+  normalisePhone('not-a-number').reason === 'no_digits',
+);
 ok(
   'a too-short number is rejected with its length',
   /implausible_length_5/.test(normalisePhone('12345').reason ?? ''),
@@ -170,7 +200,12 @@ console.log('column mapping:');
 ok(
   'obvious headers map themselves',
   (() => {
-    const m = suggestMapping(['Full Name', 'Mobile Number', 'Language', 'City']);
+    const m = suggestMapping([
+      'Full Name',
+      'Mobile Number',
+      'Language',
+      'City',
+    ]);
     return m.phone === 1 && m.name === 0 && m.language === 2;
   })(),
 );
@@ -178,7 +213,9 @@ ok(
   'a header is never mapped to two fields',
   (() => {
     const m = suggestMapping(['contact', 'contact']);
-    return m.phone === 0 && Object.values(m).filter((v) => v === 0).length === 1;
+    return (
+      m.phone === 0 && Object.values(m).filter((v) => v === 0).length === 1
+    );
   })(),
 );
 ok(

@@ -215,7 +215,10 @@ export function SupervisorMonitor({
           for (const sample of event.data as Float32Array)
             binary += String.fromCharCode(pcmToMulaw(sample * 32768));
           socket.send(
-            JSON.stringify({ event: 'media', media: { payload: btoa(binary) } }),
+            JSON.stringify({
+              event: 'media',
+              media: { payload: btoa(binary) },
+            }),
           );
         };
         capture.createMediaStreamSource(stream).connect(node);

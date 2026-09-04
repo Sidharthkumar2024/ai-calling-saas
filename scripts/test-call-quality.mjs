@@ -18,7 +18,10 @@ const clean = { rtts: [40, 42, 41, 39, 40], lossRatio: 0, micLevel: 0.3 };
 
 console.log('statistics:');
 ok('median of an odd list', medianOf([5, 1, 3]) === 3);
-ok('median of an even list averages the middle', medianOf([1, 2, 3, 4]) === 2.5);
+ok(
+  'median of an even list averages the middle',
+  medianOf([1, 2, 3, 4]) === 2.5,
+);
 ok('median of nothing is zero, not NaN', medianOf([]) === 0);
 ok('jitter of a steady line is zero', jitterOf([40, 40, 40]) === 0);
 ok('jitter grows with variation', jitterOf([10, 60, 10]) === 50);
@@ -76,7 +79,10 @@ ok(
     return v.score === 0 && v.primaryIssue === 'no_samples';
   })(),
 );
-ok('the score never goes below zero', scoreQuality({ rtts: [900, 950], lossRatio: 1, micLevel: 0 }).score === 0);
+ok(
+  'the score never goes below zero',
+  scoreQuality({ rtts: [900, 950], lossRatio: 1, micLevel: 0 }).score === 0,
+);
 
 console.log('microphone level:');
 ok(
@@ -139,7 +145,11 @@ ok(
   (() => {
     const r = evaluateReadiness({
       ...base,
-      quality: scoreQuality({ rtts: [250, 255], lossRatio: 0.02, micLevel: 0.3 }),
+      quality: scoreQuality({
+        rtts: [250, 255],
+        lossRatio: 0.02,
+        micLevel: 0.3,
+      }),
     });
     return r.state === 'warn' && r.reasons.length > 0;
   })(),

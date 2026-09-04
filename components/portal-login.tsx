@@ -213,9 +213,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                 ))}
               </div>
             </div>
-            <p className="text-xs text-white/35">
-              {t('login.localWorkspace')}
-            </p>
+            <p className="text-xs text-white/35">{t('login.localWorkspace')}</p>
           </section>
 
           <section className="flex min-h-[690px] items-center justify-center p-6 sm:p-10 lg:p-14">

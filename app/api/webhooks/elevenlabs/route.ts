@@ -248,7 +248,9 @@ async function handleTranscription(data: Record<string, unknown>) {
       organizationId: null,
     };
   const call = await db
-    .prepare(`SELECT id, organization_id FROM call_records WHERE id = ? LIMIT 1`)
+    .prepare(
+      `SELECT id, organization_id FROM call_records WHERE id = ? LIMIT 1`,
+    )
     .bind(callId)
     .first<{ id: string; organization_id: string }>();
   if (!call)

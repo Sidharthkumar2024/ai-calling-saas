@@ -27,10 +27,7 @@ const STORAGE_KEY = 'vaani.portal.locale';
 type LocaleContextValue = {
   locale: PortalLocale;
   setLocale: (locale: PortalLocale) => void;
-  t: (
-    key: TranslationKey,
-    values?: Record<string, string | number>,
-  ) => string;
+  t: (key: TranslationKey, values?: Record<string, string | number>) => string;
 };
 
 const LocaleContext = createContext<LocaleContextValue>({

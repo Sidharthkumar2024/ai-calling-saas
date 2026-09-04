@@ -122,7 +122,10 @@ export function selectAgent(
       return a.queuePriority - b.queuePriority;
     if (request.strategy === 'least_busy' && a.activeCalls !== b.activeCalls)
       return a.activeCalls - b.activeCalls;
-    if (request.strategy === 'longest_idle' || request.strategy === 'round_robin') {
+    if (
+      request.strategy === 'longest_idle' ||
+      request.strategy === 'round_robin'
+    ) {
       // Never assigned sorts first, then the least recently assigned.
       const aTime = a.lastAssignedAt ? Date.parse(a.lastAssignedAt) : 0;
       const bTime = b.lastAssignedAt ? Date.parse(b.lastAssignedAt) : 0;

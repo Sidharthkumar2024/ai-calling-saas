@@ -2,10 +2,7 @@
 /* oxlint-disable jsx-a11y/media-has-caption -- call transcripts and QA summaries are available beside authenticated recordings */
 
 import { useEffect, useState } from 'react';
-import {
-  SUPPORTED_LANGUAGES,
-  SUPPORTED_LANGUAGE_CODES,
-} from '@/lib/languages';
+import { SUPPORTED_LANGUAGES, SUPPORTED_LANGUAGE_CODES } from '@/lib/languages';
 import {
   Activity,
   AlertTriangle,
@@ -1030,9 +1027,7 @@ function CallDetail({
     unknown
   > | null;
   const turns = (detail?.turns ?? []) as Array<Record<string, unknown>>;
-  const transport = (detail?.transport ?? []) as Array<
-    Record<string, unknown>
-  >;
+  const transport = (detail?.transport ?? []) as Array<Record<string, unknown>>;
   const objections = (() => {
     try {
       const parsed = JSON.parse(str(summary?.objections_json, '[]')) as unknown;
@@ -1062,8 +1057,8 @@ function CallDetail({
             </h2>
             <p className="mt-1 text-[10px] text-white/40">
               {str(call.agent_name)} · {callTimestamp(call.started_at)} ·{' '}
-              {duration(call.duration_seconds)} ·{' '}
-              {str(call.latency_ms, '—')}ms avg
+              {duration(call.duration_seconds)} · {str(call.latency_ms, '—')}ms
+              avg
             </p>
           </div>
           <Button onClick={onClose} className="shrink-0">
@@ -1087,7 +1082,10 @@ function CallDetail({
                       {str(summary.summary)}
                     </p>
                     <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                      <Mini label={t('field.intent')} value={str(summary.intent, '—')} />
+                      <Mini
+                        label={t('field.intent')}
+                        value={str(summary.intent, '—')}
+                      />
                       <Mini
                         label={t('field.sentiment')}
                         value={str(summary.sentiment, '—')}
@@ -1135,7 +1133,10 @@ function CallDetail({
                     <Status value={str(review.status)} />
                   </div>
                   <div className="mt-3 grid gap-3 sm:grid-cols-5">
-                    <Mini label={t('field.overall')} value={str(review.overall_score)} />
+                    <Mini
+                      label={t('field.overall')}
+                      value={str(review.overall_score)}
+                    />
                     <Mini
                       label={t('field.resolution')}
                       value={str(review.resolution_score)}
@@ -1148,7 +1149,10 @@ function CallDetail({
                       label={t('field.natural')}
                       value={str(review.naturalness_score)}
                     />
-                    <Mini label={t('field.policy')} value={str(review.policy_score)} />
+                    <Mini
+                      label={t('field.policy')}
+                      value={str(review.policy_score)}
+                    />
                   </div>
                 </div>
               ) : null}
@@ -1162,7 +1166,8 @@ function CallDetail({
                     {t('field.audioPathNote')}
                   </p>
                   {transport.map((leg, legIndex) => {
-                    let warnings: Array<{ code?: string; message?: string }> = [];
+                    let warnings: Array<{ code?: string; message?: string }> =
+                      [];
                     try {
                       const parsed = JSON.parse(
                         str(leg.warnings_json, '[]'),
@@ -1387,7 +1392,10 @@ function LiveMonitor({ data }: { data: OperationsData }) {
             </p>
             <div className="mt-5 grid grid-cols-3 gap-2">
               <Mini label={t('field.agent')} value={str(call.agent_name)} />
-              <Mini label={t('field.latency')} value={`${str(call.latency_ms)}ms`} />
+              <Mini
+                label={t('field.latency')}
+                value={`${str(call.latency_ms)}ms`}
+              />
               <Mini label={t('field.sentiment')} value={str(call.sentiment)} />
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -1559,9 +1567,18 @@ function Analytics() {
         <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-6">
           <Mini label={t('field.calls')} value={String(totals.calls)} />
           <Mini label={t('field.leadsCreated')} value={String(totals.leads)} />
-          <Mini label={t('field.talkMinutes')} value={String(totals.totalMinutes)} />
-          <Mini label={t('field.resolution')} value={`${totals.resolutionRate}%`} />
-          <Mini label={t('field.transferred')} value={`${totals.transferRate}%`} />
+          <Mini
+            label={t('field.talkMinutes')}
+            value={String(totals.totalMinutes)}
+          />
+          <Mini
+            label={t('field.resolution')}
+            value={`${totals.resolutionRate}%`}
+          />
+          <Mini
+            label={t('field.transferred')}
+            value={`${totals.transferRate}%`}
+          />
           <Mini
             label={t('field.avgLatency')}
             value={
@@ -1719,10 +1736,22 @@ function Quality({ data }: { data: OperationsData }) {
               </span>
             </div>
             <div className="mt-5 grid grid-cols-4 gap-2">
-              <Mini label={t('field.resolution')} value={str(review.resolution_score)} />
-              <Mini label={t('field.knowledge')} value={str(review.knowledge_score)} />
-              <Mini label={t('field.natural')} value={str(review.naturalness_score)} />
-              <Mini label={t('field.policy')} value={str(review.policy_score)} />
+              <Mini
+                label={t('field.resolution')}
+                value={str(review.resolution_score)}
+              />
+              <Mini
+                label={t('field.knowledge')}
+                value={str(review.knowledge_score)}
+              />
+              <Mini
+                label={t('field.natural')}
+                value={str(review.naturalness_score)}
+              />
+              <Mini
+                label={t('field.policy')}
+                value={str(review.policy_score)}
+              />
             </div>
             <div className="mt-4 flex gap-2 text-[9px] text-white/35">
               <span className="rounded-lg bg-white/4 px-2 py-1">
@@ -1762,7 +1791,9 @@ function WorkspaceSettings({
       const parsed = JSON.parse(
         str(current.enabled_languages_json, '[]'),
       ) as unknown;
-      const codes = Array.isArray(parsed) ? parsed.map((item) => String(item)) : [];
+      const codes = Array.isArray(parsed)
+        ? parsed.map((item) => String(item))
+        : [];
       return codes.filter((code) => SUPPORTED_LANGUAGE_CODES.has(code));
     } catch {
       return [];
@@ -1851,7 +1882,9 @@ function WorkspaceSettings({
                 <option value="record_with_consent">
                   {t('settings.recording.consent')}
                 </option>
-                <option value="disabled">{t('settings.recording.disabled')}</option>
+                <option value="disabled">
+                  {t('settings.recording.disabled')}
+                </option>
                 <option value="always_record">
                   {t('settings.recording.always')}
                 </option>
@@ -1868,7 +1901,8 @@ function WorkspaceSettings({
             <div className="mt-3 flex flex-wrap gap-2">
               {SUPPORTED_LANGUAGES.map((item) => {
                 const isDefault = item.code === language;
-                const active = isDefault || enabledLanguages.includes(item.code);
+                const active =
+                  isDefault || enabledLanguages.includes(item.code);
                 return (
                   <button
                     key={item.code}
@@ -1984,7 +2018,11 @@ function Stats({ data }: { data: OperationsData }) {
         value={str(stats.total_calls, '0')}
         icon={PhoneCall}
       />
-      <Metric label={t('field.live')} value={str(stats.live_calls, '0')} icon={Radio} />
+      <Metric
+        label={t('field.live')}
+        value={str(stats.live_calls, '0')}
+        icon={Radio}
+      />
       <Metric
         label={t('field.avgDuration')}
         value={duration(stats.average_duration)}

@@ -9,7 +9,10 @@ const ok = (name, cond) => {
 };
 
 const SECRET = 'wsec_test_shared_secret';
-const BODY = JSON.stringify({ type: 'voice_removal_notice', data: { voice_id: 'v1' } });
+const BODY = JSON.stringify({
+  type: 'voice_removal_notice',
+  data: { voice_id: 'v1' },
+});
 
 async function sign(body, secret, timestamp) {
   const encoder = new TextEncoder();
@@ -66,7 +69,8 @@ ok(
 );
 ok(
   'the wrong secret is rejected',
-  !(await verifyElevenLabsSignature(`t=${t},v0=${good}`, BODY, 'wrong', now)).ok,
+  !(await verifyElevenLabsSignature(`t=${t},v0=${good}`, BODY, 'wrong', now))
+    .ok,
 );
 ok(
   'a signature over the body alone (no timestamp) is rejected',

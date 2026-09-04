@@ -5,105 +5,58 @@
 @custom-variant dark (&:is(.dark *));
 
 .portal-shell {
-  --portal-accent: #a8b7ff;
-  --ring: #a8b7ff;
-  background:
-    radial-gradient(
-      900px 520px at 72% -12%,
-      rgba(111, 132, 255, 0.13),
-      transparent 62%
-    ),
-    radial-gradient(
-      720px 420px at 15% 52%,
-      rgba(255, 255, 255, 0.035),
-      transparent 72%
-    ),
-    linear-gradient(180deg, #07090d 0%, #090b11 55%, #07090d 100%);
-}
-
-.portal-shell::before {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  content: '';
-  opacity: 0.2;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
-  background-size: 72px 72px;
-  mask-image: linear-gradient(to bottom, black, transparent 82%);
+  --portal-accent: #2563eb;
+  --ring: #2563eb;
+  background: var(--surface-muted);
+  color: var(--ink);
 }
 
 .portal-panel,
 .portal-stat {
   min-width: 0;
   position: relative;
-  border: 1px solid rgba(255, 255, 255, 0.085);
-  background: linear-gradient(
-    145deg,
-    rgba(255, 255, 255, 0.055),
-    rgba(255, 255, 255, 0.018)
-  );
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.045),
-    0 24px 70px -44px rgba(0, 0, 0, 0.95);
-  backdrop-filter: blur(24px);
-  border-radius: 18px;
+  border: 1px solid var(--hairline);
+  background: var(--surface);
+  /* §4: minimal shadows. One soft lift, not a stack. */
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  border-radius: 12px;
 }
 
 .portal-stat {
   padding: 1rem;
 }
 
-.portal-stat::after {
-  position: absolute;
-  inset: auto 14px 0 14px;
-  height: 1px;
-  content: '';
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(145, 167, 255, 0.4),
-    transparent
-  );
-}
-
 .portal-primary {
-  border: 1px solid rgba(255, 255, 255, 0.24) !important;
-  background: #f7f8fc !important;
-  color: #090b11 !important;
-  box-shadow: 0 16px 34px -20px rgba(255, 255, 255, 0.55);
+  border: 1px solid var(--primary) !important;
+  background: var(--primary) !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.24);
 }
 
 .portal-primary:hover {
-  background: #dfe5ff !important;
-}
-
-.portal-shell [class*='bg-[#0c1422]'],
-.portal-shell [class*='bg-[#0e1119]'] {
-  border-color: rgba(255, 255, 255, 0.085) !important;
-  background: linear-gradient(
-    145deg,
-    rgba(255, 255, 255, 0.052),
-    rgba(255, 255, 255, 0.016)
-  ) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 24px 70px -44px rgba(0, 0, 0, 0.95);
-  backdrop-filter: blur(24px);
-}
-
-.portal-shell [class*='bg-cyan-300'][class*='text-[#07101e]'] {
-  border: 1px solid rgba(255, 255, 255, 0.24) !important;
-  background: #f7f8fc !important;
-  color: #090b11 !important;
+  background: #1d4ed8 !important;
+  border-color: #1d4ed8 !important;
 }
 
 .portal-shell [data-slot='progress-indicator'] {
-  background: linear-gradient(90deg, #f4f7ff, #91a7ff) !important;
+  background: var(--primary) !important;
 }
 
 @theme inline {
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-strong: var(--surface-strong);
+  --color-hairline: var(--hairline);
+  --color-ink: var(--ink);
+  --color-ink-body: var(--ink-body);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-nav: var(--nav);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-success-text: var(--success-text);
+  --color-warning-text: var(--warning-text);
+  --color-danger-text: var(--danger-text);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: 'Geist', 'Geist Fallback', ui-sans-serif, system-ui, sans-serif;
@@ -148,73 +101,70 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/*
+ * §4 design system. White #FFFFFF, soft gray #F8FAFC, near-black #111827,
+ * primary blue #2563EB, success #16A34A, warning #D97706, destructive #DC2626.
+ * Neutrals between them are the slate ramp those three already sit on.
+ *
+ * These tokens existed before and were never reachable, because the root
+ * element hardcoded `dark`. They are the palette now.
+ */
 :root {
-  --background: oklch(0.985 0.006 255);
-  --foreground: oklch(0.22 0.027 259);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.027 259);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.027 259);
-  --primary: oklch(0.72 0.16 58);
-  --primary-foreground: oklch(0.18 0.027 255);
-  --secondary: oklch(0.95 0.012 254);
-  --secondary-foreground: oklch(0.26 0.03 257);
-  --muted: oklch(0.96 0.008 255);
-  --muted-foreground: oklch(0.51 0.027 256);
-  --accent: oklch(0.94 0.025 61);
-  --accent-foreground: oklch(0.24 0.028 255);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.9 0.014 255);
-  --input: oklch(0.9 0.014 255);
-  --ring: oklch(0.72 0.16 58);
-  --chart-1: oklch(0.72 0.16 58);
-  --chart-2: oklch(0.68 0.14 184);
-  --chart-3: oklch(0.65 0.16 268);
-  --chart-4: oklch(0.7 0.14 145);
-  --chart-5: oklch(0.71 0.14 23);
-  --radius: 0.7rem;
-  --sidebar: oklch(0.97 0.01 255);
-  --sidebar-foreground: oklch(0.22 0.027 259);
-  --sidebar-primary: oklch(0.72 0.16 58);
-  --sidebar-primary-foreground: oklch(0.18 0.027 255);
-  --sidebar-accent: oklch(0.93 0.02 255);
-  --sidebar-accent-foreground: oklch(0.22 0.027 259);
-  --sidebar-border: oklch(0.89 0.015 255);
-  --sidebar-ring: oklch(0.72 0.16 58);
-}
+  --surface: #ffffff;
+  --surface-muted: #f8fafc;
+  --surface-strong: #f1f5f9;
+  --hairline: #e2e8f0;
+  --ink: #111827;
+  --ink-body: #334155;
+  --ink-muted: #475569;
+  --ink-faint: #64748b;
+  /*
+   * §4 names the semantic colours for fills, borders and icons. Their text
+   * forms are one step darker: measured against white and against the muted
+   * surface, #16A34A and #D97706 fall under 4.5:1 at the label sizes this
+   * interface uses, so status *text* uses these and the §4 values stay for
+   * everything else.
+   */
+  --success-text: #15803d;
+  --warning-text: #b45309;
+  --danger-text: #b91c1c;
+  --nav: #101828;
 
-.dark {
-  --background: oklch(0.15 0.025 258);
-  --foreground: oklch(0.96 0.007 255);
-  --card: oklch(0.185 0.029 258);
-  --card-foreground: oklch(0.96 0.007 255);
-  --popover: oklch(0.205 0.03 258);
-  --popover-foreground: oklch(0.96 0.007 255);
-  --primary: oklch(0.76 0.16 58);
-  --primary-foreground: oklch(0.18 0.027 255);
-  --secondary: oklch(0.235 0.028 258);
-  --secondary-foreground: oklch(0.94 0.008 255);
-  --muted: oklch(0.225 0.027 258);
-  --muted-foreground: oklch(0.68 0.025 255);
-  --accent: oklch(0.255 0.035 258);
-  --accent-foreground: oklch(0.97 0.006 255);
-  --destructive: oklch(0.68 0.2 26);
-  --border: oklch(0.3 0.028 258 / 82%);
-  --input: oklch(0.32 0.029 258 / 88%);
-  --ring: oklch(0.76 0.16 58);
-  --chart-1: oklch(0.76 0.16 58);
-  --chart-2: oklch(0.72 0.15 184);
-  --chart-3: oklch(0.7 0.16 268);
-  --chart-4: oklch(0.74 0.15 145);
-  --chart-5: oklch(0.72 0.15 23);
-  --sidebar: oklch(0.13 0.025 258);
-  --sidebar-foreground: oklch(0.94 0.008 255);
-  --sidebar-primary: oklch(0.76 0.16 58);
-  --sidebar-primary-foreground: oklch(0.18 0.027 255);
-  --sidebar-accent: oklch(0.205 0.032 258);
-  --sidebar-accent-foreground: oklch(0.98 0.004 255);
-  --sidebar-border: oklch(0.25 0.03 258 / 78%);
-  --sidebar-ring: oklch(0.76 0.16 58);
+  --background: #f8fafc;
+  --foreground: #111827;
+  --card: #ffffff;
+  --card-foreground: #111827;
+  --popover: #ffffff;
+  --popover-foreground: #111827;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #334155;
+  --muted: #f1f5f9;
+  --muted-foreground: #475569;
+  --accent: #eff6ff;
+  --accent-foreground: #1d4ed8;
+  --destructive: #dc2626;
+  --success: #16a34a;
+  --warning: #d97706;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #2563eb;
+  --chart-1: #2563eb;
+  --chart-2: #16a34a;
+  --chart-3: #7c3aed;
+  --chart-4: #d97706;
+  --chart-5: #dc2626;
+  /* §4: 8-12px radius. */
+  --radius: 0.625rem;
+  --sidebar: #101828;
+  --sidebar-foreground: #e2e8f0;
+  --sidebar-primary: #2563eb;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1c2536;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #1f2a3c;
+  --sidebar-ring: #2563eb;
 }
 
 @layer base {
@@ -249,15 +199,16 @@
     );
   }
 
+  /* The grid was white-on-black; on a white ground it has to be ink-on-white. */
   .landing-grid {
     background-image:
       linear-gradient(
-        color-mix(in oklab, white 4%, transparent) 1px,
+        color-mix(in oklab, #111827 5%, transparent) 1px,
         transparent 1px
       ),
       linear-gradient(
         90deg,
-        color-mix(in oklab, white 4%, transparent) 1px,
+        color-mix(in oklab, #111827 5%, transparent) 1px,
         transparent 1px
       );
     background-size: 56px 56px;
@@ -452,4 +403,16 @@ html[lang='hi'] .uppercase {
 
 html[lang='hi'] [class*='tracking-'] {
   letter-spacing: normal;
+}
+
+/*
+ * Native <option> elements do not inherit the select's colour in every
+ * browser — with the dark theme gone they fell back to the platform grey
+ * (#808080), which measures 3.6:1 against the surface they sit on. Setting
+ * both explicitly is the only reliable fix; there is no styling hook inside
+ * the dropdown itself.
+ */
+option {
+  background-color: var(--surface);
+  color: var(--ink);
 }

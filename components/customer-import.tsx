@@ -59,12 +59,12 @@ function str(value: unknown, fallback = '') {
 
 const tone = (status: string) =>
   status === 'accepted'
-    ? 'text-emerald-200'
+    ? 'text-success-text'
     : status === 'duplicate'
-      ? 'text-amber-200'
+      ? 'text-warning-text'
       : status === 'suppressed'
-        ? 'text-sky-200'
-        : 'text-rose-200';
+        ? 'text-sky-700'
+        : 'text-danger-text';
 
 export function CustomerImport({
   campaigns,
@@ -189,21 +189,21 @@ export function CustomerImport({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <FileSpreadsheet className="size-4 text-[#afbcff]" />
+            <FileSpreadsheet className="size-4 text-primary" />
             {t('import.title')}
           </h2>
-          <p className="mt-1 text-[10px] leading-relaxed text-white/32">
+          <p className="mt-1 text-[10px] leading-relaxed text-ink-muted">
             {t('import.hint')}
           </p>
         </div>
-        <label className="flex items-center gap-2 text-[10px] text-white/45">
+        <label className="flex items-center gap-2 text-[10px] text-ink-muted">
           {t('import.countryCode')}
           <input
             value={countryCode}
             onChange={(event) =>
               setCountryCode(event.target.value.replace(/\D/g, '').slice(0, 4))
             }
-            className="w-16 rounded-lg border border-white/10 bg-white/4 px-2 py-1.5 text-[11px] text-white outline-none focus:border-white/25"
+            className="w-16 rounded-lg border border-hairline bg-surface-strong px-2 py-1.5 text-[11px] text-ink outline-none focus:border-hairline"
           />
         </label>
       </div>
@@ -217,17 +217,17 @@ export function CustomerImport({
             const file = event.target.files?.[0];
             if (file) void upload(file);
           }}
-          className="text-[11px] text-white/55 file:mr-3 file:rounded-lg file:border file:border-white/12 file:bg-white/6 file:px-3 file:py-1.5 file:text-[11px] file:text-white/80"
+          className="text-[11px] text-ink-body file:mr-3 file:rounded-lg file:border file:border-hairline file:bg-surface-strong file:px-3 file:py-1.5 file:text-[11px] file:text-ink"
         />
         {busy ? (
-          <span className="flex items-center gap-1.5 text-[10px] text-white/45">
+          <span className="flex items-center gap-1.5 text-[10px] text-ink-muted">
             <Loader2 className="size-3 animate-spin" /> {t('import.reading')}
           </span>
         ) : null}
       </div>
 
       {notice ? (
-        <p className="mt-3 rounded-lg border border-white/12 bg-white/[0.03] px-3 py-2 text-[11px] text-white/70">
+        <p className="mt-3 rounded-lg border border-hairline bg-surface-muted px-3 py-2 text-[11px] text-ink">
           {notice}
         </p>
       ) : null}
@@ -236,29 +236,33 @@ export function CustomerImport({
         <div className="mt-5 space-y-4">
           <div className="grid gap-2 sm:grid-cols-5">
             {[
-              [t('import.rows'), preview.totals.rows, 'text-white'],
+              [t('import.rows'), preview.totals.rows, 'text-ink'],
               [
                 t('import.accepted'),
                 preview.totals.accepted,
-                'text-emerald-200',
+                'text-success-text',
               ],
-              [t('import.rejected'), preview.totals.rejected, 'text-rose-200'],
+              [
+                t('import.rejected'),
+                preview.totals.rejected,
+                'text-danger-text',
+              ],
               [
                 t('import.duplicates'),
                 preview.totals.duplicates,
-                'text-amber-200',
+                'text-warning-text',
               ],
               [
                 t('import.suppressed'),
                 preview.totals.suppressed,
-                'text-sky-200',
+                'text-sky-700',
               ],
             ].map(([label, value, colour]) => (
               <div
                 key={String(label)}
-                className="rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5"
+                className="rounded-xl border border-hairline bg-surface-muted px-3 py-2.5"
               >
-                <p className="text-[9px] uppercase tracking-wider text-white/28">
+                <p className="text-[9px] uppercase tracking-wider text-ink-muted">
                   {String(label)}
                 </p>
                 <p className={`mt-1 text-base font-semibold ${String(colour)}`}>
@@ -268,26 +272,26 @@ export function CustomerImport({
             ))}
           </div>
           {preview.totals.truncated ? (
-            <p className="rounded-lg border border-amber-400/25 bg-amber-400/[0.07] px-3 py-2 text-[11px] text-amber-100">
+            <p className="rounded-lg border border-amber-400/25 bg-amber-400/[0.07] px-3 py-2 text-[11px] text-warning-text">
               {t('import.truncated')}
             </p>
           ) : null}
 
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-white/28">
+            <p className="text-[10px] uppercase tracking-wider text-ink-muted">
               {t('import.mapping')} · {preview.format.toUpperCase()}
             </p>
             <div className="mt-2 grid gap-2 sm:grid-cols-3">
               {FIELD_LABELS.map((field) => (
                 <label key={field.key} className="block">
-                  <span className="text-[10px] text-white/45">
+                  <span className="text-[10px] text-ink-muted">
                     {field.label}
                     {field.required ? ' *' : ''}
                   </span>
                   <select
                     value={preview.mapping[field.key] ?? ''}
                     onChange={(event) => remap(field.key, event.target.value)}
-                    className="mt-1 w-full rounded-lg border border-white/10 bg-white/4 px-2 py-1.5 text-[11px]"
+                    className="mt-1 w-full rounded-lg border border-hairline bg-surface-strong px-2 py-1.5 text-[11px]"
                   >
                     <option value="">— not mapped —</option>
                     {preview.headers.map((header, index) => (
@@ -302,22 +306,22 @@ export function CustomerImport({
           </div>
 
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-white/28">
+            <p className="text-[10px] uppercase tracking-wider text-ink-muted">
               {t('import.firstRows')}
             </p>
             <div className="mt-2 space-y-1">
               {preview.sample.map((row) => (
                 <div
                   key={row.rowNumber}
-                  className="flex flex-wrap items-center gap-2 rounded-lg border border-white/8 bg-white/[0.02] px-2.5 py-1.5 text-[11px]"
+                  className="flex flex-wrap items-center gap-2 rounded-lg border border-hairline bg-surface-muted px-2.5 py-1.5 text-[11px]"
                 >
-                  <span className="w-8 font-mono text-[9px] text-white/28">
+                  <span className="w-8 font-mono text-[9px] text-ink-muted">
                     {row.rowNumber}
                   </span>
                   <span className="font-mono text-[10px]">
                     {row.phone ?? '—'}
                   </span>
-                  <span className="text-white/55">{row.name || '—'}</span>
+                  <span className="text-ink-body">{row.name || '—'}</span>
                   <span className={`ml-auto text-[9px] ${tone(row.status)}`}>
                     {row.status}
                     {row.reason ? ` · ${row.reason}` : ''}
@@ -328,8 +332,8 @@ export function CustomerImport({
           </div>
 
           {rejected.length ? (
-            <details className="rounded-xl border border-white/8 bg-white/[0.02] p-3">
-              <summary className="cursor-pointer text-[11px] text-white/70">
+            <details className="rounded-xl border border-hairline bg-surface-muted p-3">
+              <summary className="cursor-pointer text-[11px] text-ink">
                 {rejected.length} row(s) will not be called — see why
               </summary>
               <div className="mt-2 space-y-1">
@@ -338,11 +342,11 @@ export function CustomerImport({
                     key={str(row.row_number)}
                     className="flex flex-wrap items-center gap-2 text-[10px]"
                   >
-                    <span className="w-8 font-mono text-white/28">
+                    <span className="w-8 font-mono text-ink-muted">
                       {str(row.row_number)}
                     </span>
                     <span className="font-mono">{str(row.phone, '—')}</span>
-                    <span className="text-white/45">{str(row.name, '—')}</span>
+                    <span className="text-ink-muted">{str(row.name, '—')}</span>
                     <span className={`ml-auto ${tone(str(row.status))}`}>
                       {str(row.status)} · {str(row.reason, 'no reason')}
                     </span>
@@ -356,7 +360,7 @@ export function CustomerImport({
             <select
               value={campaignId}
               onChange={(event) => setCampaignId(event.target.value)}
-              className="rounded-lg border border-white/10 bg-white/4 px-3 py-2 text-[11px]"
+              className="rounded-lg border border-hairline bg-surface-strong px-3 py-2 text-[11px]"
             >
               <option value="">{t('import.addToCampaign')}</option>
               {campaigns.map((item) => (
@@ -374,7 +378,7 @@ export function CustomerImport({
               Add {preview.totals.accepted} contact(s)
             </Button>
             {!preview.totals.accepted ? (
-              <span className="text-[10px] text-white/35">
+              <span className="text-[10px] text-ink-muted">
                 {t('import.nothingToAdd')}
               </span>
             ) : null}
@@ -384,28 +388,30 @@ export function CustomerImport({
 
       {jobs.length ? (
         <div className="mt-6">
-          <p className="text-[10px] uppercase tracking-wider text-white/28">
+          <p className="text-[10px] uppercase tracking-wider text-ink-muted">
             {t('import.recent')}
           </p>
           <div className="mt-2 space-y-1">
             {jobs.slice(0, 6).map((job) => (
               <div
                 key={str(job.id)}
-                className="flex flex-wrap items-center gap-2 rounded-lg border border-white/8 bg-white/[0.02] px-2.5 py-1.5 text-[10px]"
+                className="flex flex-wrap items-center gap-2 rounded-lg border border-hairline bg-surface-muted px-2.5 py-1.5 text-[10px]"
               >
-                <span className="text-white/70">{str(job.filename)}</span>
-                <span className="text-white/28">
+                <span className="text-ink">{str(job.filename)}</span>
+                <span className="text-ink-muted">
                   {str(job.format).toUpperCase()}
                 </span>
-                <span className="text-emerald-200">
+                <span className="text-success-text">
                   {str(job.accepted_rows)} accepted
                 </span>
                 {Number(job.rejected_rows ?? 0) ? (
-                  <span className="text-rose-200">
+                  <span className="text-danger-text">
                     {str(job.rejected_rows)} rejected
                   </span>
                 ) : null}
-                <span className="ml-auto text-white/28">{str(job.status)}</span>
+                <span className="ml-auto text-ink-muted">
+                  {str(job.status)}
+                </span>
               </div>
             ))}
           </div>

@@ -164,11 +164,11 @@ export function CustomerLeadCapture({
     return (
       <div className="grid min-h-[60vh] place-items-center">
         <div className="max-w-sm text-center">
-          <Globe2 className="mx-auto size-8 text-[#a8b7ff]" />
+          <Globe2 className="mx-auto size-8 text-primary" />
           <h1 className="mt-4 text-xl font-semibold">
             Create your first website form
           </h1>
-          <p className="mt-2 text-xs leading-5 text-white/38">
+          <p className="mt-2 text-xs leading-5 text-ink-muted">
             Design an animated popup, publish it and paste one script tag into
             any website.
           </p>
@@ -180,7 +180,9 @@ export function CustomerLeadCapture({
             {saving ? <Loader2 className="animate-spin" /> : <Sparkles />}{' '}
             Create form
           </Button>
-          {error ? <p className="mt-4 text-xs text-red-200">{error}</p> : null}
+          {error ? (
+            <p className="mt-4 text-xs text-danger-text">{error}</p>
+          ) : null}
         </div>
       </div>
     );
@@ -194,13 +196,13 @@ export function CustomerLeadCapture({
     <div className="space-y-6">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9eb0ff]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
             Lead capture studio
           </p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
             Build, preview and publish your callback popup
           </h1>
-          <p className="mt-2 max-w-3xl text-xs leading-5 text-white/38 sm:text-sm">
+          <p className="mt-2 max-w-3xl text-xs leading-5 text-ink-muted sm:text-sm">
             Every submission enters the tenant CRM with page attribution,
             consent-aware follow-up and AI scoring.
           </p>
@@ -210,7 +212,7 @@ export function CustomerLeadCapture({
             variant="outline"
             onClick={() => void save('save')}
             disabled={saving}
-            className="border-white/10 bg-transparent"
+            className="border-hairline bg-transparent"
           >
             {saving ? <Loader2 className="animate-spin" /> : <Save />} Save
             draft
@@ -228,12 +230,12 @@ export function CustomerLeadCapture({
         </div>
       </div>
       {notice ? (
-        <p className="rounded-xl border border-emerald-400/15 bg-emerald-400/5 px-4 py-3 text-xs text-emerald-100">
+        <p className="rounded-xl border border-emerald-400/15 bg-emerald-400/5 px-4 py-3 text-xs text-success-text">
           {notice}
         </p>
       ) : null}
       {error ? (
-        <p className="rounded-xl border border-red-400/15 bg-red-400/5 px-4 py-3 text-xs text-red-100">
+        <p className="rounded-xl border border-red-400/15 bg-red-400/5 px-4 py-3 text-xs text-danger-text">
           {error}
         </p>
       ) : null}
@@ -243,11 +245,11 @@ export function CustomerLeadCapture({
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-semibold">Popup settings</h2>
-              <p className="mt-1 text-[10px] text-white/32">
+              <p className="mt-1 text-[10px] text-ink-muted">
                 Version {selected.version} · {selected.status}
               </p>
             </div>
-            <Settings2 className="size-4 text-white/30" />
+            <Settings2 className="size-4 text-ink-muted" />
           </div>
           <div className="mt-5 space-y-4">
             <Field label="Form name">
@@ -266,7 +268,7 @@ export function CustomerLeadCapture({
               <textarea
                 value={settings.description}
                 onChange={(event) => update('description', event.target.value)}
-                className="min-h-20 w-full rounded-xl border border-white/9 bg-white/[0.03] p-3 text-xs outline-none focus:border-indigo-300/40"
+                className="min-h-20 w-full rounded-xl border border-hairline bg-surface-muted p-3 text-xs outline-none focus:border-indigo-300/40"
               />
             </Field>
             <Field label="Button text">
@@ -281,7 +283,7 @@ export function CustomerLeadCapture({
                   type="color"
                   value={settings.accent}
                   onChange={(event) => update('accent', event.target.value)}
-                  className="h-10 w-full rounded-lg border border-white/9 bg-transparent p-1"
+                  className="h-10 w-full rounded-lg border border-hairline bg-transparent p-1"
                 />
               </Field>
               <Field label="Background">
@@ -289,7 +291,7 @@ export function CustomerLeadCapture({
                   type="color"
                   value={settings.background}
                   onChange={(event) => update('background', event.target.value)}
-                  className="h-10 w-full rounded-lg border border-white/9 bg-transparent p-1"
+                  className="h-10 w-full rounded-lg border border-hairline bg-transparent p-1"
                 />
               </Field>
             </div>
@@ -301,7 +303,7 @@ export function CustomerLeadCapture({
                       key={placement}
                       type="button"
                       onClick={() => update('placement', placement)}
-                      className={`grid h-10 place-items-center rounded-lg border ${settings.placement === placement ? 'border-indigo-300/35 bg-indigo-300/10 text-indigo-100' : 'border-white/8 bg-white/[0.02] text-white/35'}`}
+                      className={`grid h-10 place-items-center rounded-lg border ${settings.placement === placement ? 'border-indigo-300/35 bg-indigo-300/10 text-indigo-700' : 'border-hairline bg-surface-muted text-ink-muted'}`}
                     >
                       {placement === 'bottom_left' ? (
                         <PanelLeft className="size-4" />
@@ -373,7 +375,7 @@ export function CustomerLeadCapture({
                 onChange={(event) => setDomains(event.target.value)}
                 placeholder="https://example.com, https://shop.example.com"
               />
-              <p className="mt-2 text-[9px] leading-4 text-white/26">
+              <p className="mt-2 text-[9px] leading-4 text-ink-muted">
                 Comma-separated exact origins. Leave empty only while testing
                 locally.
               </p>
@@ -386,7 +388,7 @@ export function CustomerLeadCapture({
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-sm font-semibold">Live preview</h2>
-                <p className="mt-1 text-[10px] text-white/32">
+                <p className="mt-1 text-[10px] text-ink-muted">
                   Desktop and mobile responsive · no lead is submitted here
                 </p>
               </div>
@@ -394,17 +396,17 @@ export function CustomerLeadCapture({
                 size="sm"
                 variant="outline"
                 onClick={() => setPreviewOpen((value) => !value)}
-                className="border-white/10 bg-transparent"
+                className="border-hairline bg-transparent"
               >
                 <Play /> Replay
               </Button>
             </div>
-            <div className="relative mt-5 min-h-[470px] overflow-hidden rounded-2xl border border-white/8 bg-[linear-gradient(135deg,#f7f7fb,#e9edf8)] p-7 text-[#121722]">
+            <div className="relative mt-5 min-h-[470px] overflow-hidden rounded-2xl border border-hairline bg-[linear-gradient(135deg,#f7f7fb,#e9edf8)] p-7 text-[#121722]">
               <div className="max-w-xl">
-                <div className="h-3 w-28 rounded-full bg-[#121722]/10" />
-                <div className="mt-4 h-8 w-3/4 rounded-lg bg-[#121722]/10" />
-                <div className="mt-3 h-3 w-2/3 rounded-full bg-[#121722]/8" />
-                <div className="mt-2 h-3 w-1/2 rounded-full bg-[#121722]/8" />
+                <div className="h-3 w-28 rounded-full bg-surface/10" />
+                <div className="mt-4 h-8 w-3/4 rounded-lg bg-surface/10" />
+                <div className="mt-3 h-3 w-2/3 rounded-full bg-surface/8" />
+                <div className="mt-2 h-3 w-1/2 rounded-full bg-surface/8" />
               </div>
               {previewOpen ? (
                 <Preview
@@ -415,7 +417,7 @@ export function CustomerLeadCapture({
                 <button
                   type="button"
                   onClick={() => setPreviewOpen(true)}
-                  className="absolute bottom-7 right-7 grid size-14 place-items-center rounded-full text-white shadow-2xl"
+                  className="absolute bottom-7 right-7 grid size-14 place-items-center rounded-full text-ink shadow-2xl"
                   style={{ background: settings.accent }}
                 >
                   <Megaphone className="size-5" />
@@ -431,19 +433,19 @@ export function CustomerLeadCapture({
                   <h2 className="text-sm font-semibold">
                     Install on your website
                   </h2>
-                  <p className="mt-1 text-[10px] text-white/32">
+                  <p className="mt-1 text-[10px] text-ink-muted">
                     Paste before the closing body tag
                   </p>
                 </div>
-                <Code2 className="size-4 text-cyan-200" />
+                <Code2 className="size-4 text-cyan-700" />
               </div>
-              <pre className="mt-4 overflow-x-auto rounded-xl border border-white/7 bg-black/25 p-4 font-mono text-[9px] leading-5 text-cyan-100/70">
+              <pre className="mt-4 overflow-x-auto rounded-xl border border-hairline bg-surface-muted p-4 font-mono text-[9px] leading-5 text-cyan-700">
                 {selected.embedScript}
               </pre>
               <Button
                 onClick={() => void copy(selected.embedScript)}
                 variant="outline"
-                className="mt-4 w-full border-white/10 bg-transparent"
+                className="mt-4 w-full border-hairline bg-transparent"
               >
                 <Clipboard /> Copy embed script
               </Button>
@@ -454,11 +456,11 @@ export function CustomerLeadCapture({
                   <h2 className="text-sm font-semibold">
                     Lead-source connections
                   </h2>
-                  <p className="mt-1 text-[10px] text-white/32">
+                  <p className="mt-1 text-[10px] text-ink-muted">
                     Meta, Google and website attribution
                   </p>
                 </div>
-                <Braces className="size-4 text-violet-200" />
+                <Braces className="size-4 text-violet-700" />
               </div>
               <div className="mt-4 space-y-2">
                 {sources.map((source) => (
@@ -470,23 +472,23 @@ export function CustomerLeadCapture({
                         ? void copy(selected.endpoint)
                         : onNavigate('integrations')
                     }
-                    className="flex w-full items-center gap-3 rounded-xl border border-white/7 bg-white/[0.02] p-3 text-left hover:bg-white/[0.04]"
+                    className="flex w-full items-center gap-3 rounded-xl border border-hairline bg-surface-muted p-3 text-left hover:bg-surface-strong"
                   >
-                    <span className="grid size-8 place-items-center rounded-lg bg-white/5">
-                      <Globe2 className="size-3.5 text-[#a8b7ff]" />
+                    <span className="grid size-8 place-items-center rounded-lg bg-surface-strong">
+                      <Globe2 className="size-3.5 text-primary" />
                     </span>
                     <span className="flex-1">
                       <span className="block text-[10px] font-medium">
                         {source.name}
                       </span>
-                      <span className="mt-1 block text-[8px] capitalize text-white/28">
+                      <span className="mt-1 block text-[8px] capitalize text-ink-muted">
                         {source.status.replaceAll('_', ' ')}
                       </span>
                     </span>
                     {source.status === 'connected' ? (
-                      <CheckCircle2 className="size-4 text-emerald-300" />
+                      <CheckCircle2 className="size-4 text-success-text" />
                     ) : (
-                      <ExternalLink className="size-4 text-white/25" />
+                      <ExternalLink className="size-4 text-ink-muted" />
                     )}
                   </button>
                 ))}
@@ -505,6 +507,34 @@ export function CustomerLeadCapture({
   );
 }
 
+/**
+ * Readable ink for a colour the customer chose.
+ *
+ * The preview paints `settings.background`, which the workspace picks and which
+ * defaults to near-black. Its text used to be hardcoded white — right for the
+ * default, wrong the moment anyone picked a light background — and the light
+ * re-skin turned it into dark ink, which was wrong for the default. Derive it
+ * instead, so the preview is honest for whatever colour is set.
+ */
+function readableInk(background: string) {
+  const hex = background.trim().replace('#', '');
+  const full =
+    hex.length === 3
+      ? hex
+          .split('')
+          .map((c) => c + c)
+          .join('')
+      : hex;
+  if (!/^[0-9a-f]{6}$/i.test(full)) return '#111827';
+  const [r, g, b] = [0, 2, 4].map(
+    (i) => parseInt(full.slice(i, i + 2), 16) / 255,
+  );
+  const lin = (v: number) =>
+    v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  const luminance = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  return luminance > 0.45 ? '#111827' : '#f8fafc';
+}
+
 function Preview({
   settings,
   onClose,
@@ -512,6 +542,7 @@ function Preview({
   settings: LeadFormSettings;
   onClose: () => void;
 }) {
+  const ink = readableInk(settings.background);
   const placement =
     settings.placement === 'bottom_left'
       ? 'bottom-5 left-5'
@@ -520,36 +551,39 @@ function Preview({
         : 'bottom-5 right-5';
   return (
     <div
-      className={`absolute w-[min(370px,calc(100%-24px))] rounded-[22px] border border-white/15 p-5 text-white shadow-2xl ${placement}`}
-      style={{ background: settings.background }}
+      className={`absolute w-[min(370px,calc(100%-24px))] rounded-[22px] border border-hairline p-5 shadow-2xl ${placement}`}
+      style={{ background: settings.background, color: ink }}
     >
       <button
         type="button"
         onClick={onClose}
-        className="float-right text-lg text-white/45"
+        className="float-right text-lg opacity-60"
       >
         ×
       </button>
       <Palette className="size-4" style={{ color: settings.accent }} />
       <h3 className="mt-4 text-lg font-semibold">{settings.title}</h3>
-      <p className="mt-2 text-[11px] leading-5 text-white/50">
+      <p className="mt-2 text-[11px] leading-5 opacity-75">
         {settings.description}
       </p>
       <div className="mt-4 grid gap-2">
         <input
           disabled
           placeholder="Name *"
-          className="h-10 rounded-xl border border-white/10 bg-white/[0.055] px-3 text-xs"
+          className="h-10 rounded-xl border border-current/15 bg-current/5 px-3 text-xs"
         />
         <input
           disabled
           placeholder="Phone *"
-          className="h-10 rounded-xl border border-white/10 bg-white/[0.055] px-3 text-xs"
+          className="h-10 rounded-xl border border-current/15 bg-current/5 px-3 text-xs"
         />
         <button
           type="button"
-          className="h-11 rounded-xl text-xs font-semibold text-[#080a0f]"
-          style={{ background: settings.accent }}
+          className="h-11 rounded-xl text-xs font-semibold"
+          style={{
+            background: settings.accent,
+            color: readableInk(settings.accent),
+          }}
         >
           {settings.buttonText}
         </button>
@@ -566,9 +600,9 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className="block text-[10px] text-white/42">
+    <label className="block text-[10px] text-ink-muted">
       {label}
-      <div className="mt-2 [&_input]:h-10 [&_input]:border-white/9 [&_input]:bg-white/[0.03] [&_input]:text-xs">
+      <div className="mt-2 [&_input]:h-10 [&_input]:border-hairline [&_input]:bg-surface-muted [&_input]:text-xs">
         {children}
       </div>
     </label>
@@ -586,12 +620,12 @@ function Select({
   options: Array<[string, string]>;
 }) {
   return (
-    <label className="block text-[10px] text-white/42">
+    <label className="block text-[10px] text-ink-muted">
       {label}
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 h-10 w-full rounded-lg border border-white/9 bg-[#111722] px-3 text-[10px] text-white"
+        className="mt-2 h-10 w-full rounded-lg border border-hairline bg-surface px-3 text-[10px] text-ink"
       >
         {options.map(([id, text]) => (
           <option key={id} value={id}>

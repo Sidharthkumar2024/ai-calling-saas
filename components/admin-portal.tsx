@@ -284,26 +284,26 @@ function AdminOverview({
     Number(stats.open_tickets ?? 0);
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[radial-gradient(circle_at_78%_20%,rgba(125,211,252,0.13),transparent_32%),radial-gradient(circle_at_15%_0%,rgba(167,139,250,0.14),transparent_35%),linear-gradient(145deg,#10141d_0%,#090b10_58%,#0d1118_100%)] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.28)] sm:p-7">
+      <section className="relative overflow-hidden rounded-[28px] border border-hairline bg-[radial-gradient(circle_at_78%_20%,rgba(125,211,252,0.13),transparent_32%),radial-gradient(circle_at_15%_0%,rgba(167,139,250,0.14),transparent_35%),linear-gradient(145deg,#ffffff_0%,#ffffff_58%,#ffffff_100%)] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.28)] sm:p-7">
         <div
           aria-hidden="true"
-          className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:56px_56px] [mask-image:linear-gradient(to_bottom,black,transparent_88%)]"
+          className="absolute inset-0 bg-[linear-gradient(rgba(17,24,39,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(17,24,39,0.05)_1px,transparent_1px)] bg-[size:56px_56px] [mask-image:linear-gradient(to_bottom,black,transparent_88%)]"
         />
         <div className="relative flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/15 bg-emerald-300/[0.055] px-3 py-1.5 text-[9px] font-medium uppercase tracking-[0.14em] text-emerald-200">
+              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/15 bg-emerald-300/[0.055] px-3 py-1.5 text-[9px] font-medium uppercase tracking-[0.14em] text-success-text">
                 <span className="size-1.5 animate-pulse rounded-full bg-emerald-300" />{' '}
                 Core operational
               </span>
-              <span className="text-[9px] uppercase tracking-[0.15em] text-white/28">
+              <span className="text-[9px] uppercase tracking-[0.15em] text-ink-muted">
                 Platform command center
               </span>
             </div>
             <h1 className="mt-5 max-w-3xl text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
               Operate every tenant, call and rupee from one control room.
             </h1>
-            <p className="mt-3 max-w-2xl text-xs leading-5 text-white/42 sm:text-sm">
+            <p className="mt-3 max-w-2xl text-xs leading-5 text-ink-muted sm:text-sm">
               Live capacity, provider readiness, commercial health and
               compliance reviews—without exposing tenant conversations or
               infrastructure secrets.
@@ -313,58 +313,58 @@ function AdminOverview({
             <Button
               variant="outline"
               onClick={() => onNavigate('platform_apis')}
-              className="border-white/12 bg-white/[0.035]"
+              className="border-hairline bg-surface-strong"
             >
               <ServerCog /> Provider control
             </Button>
             <Button
               onClick={() => void onRefresh()}
-              className="bg-white text-black hover:bg-white/90"
+              className="bg-primary text-primary-foreground hover:bg-[#1d4ed8]"
             >
               <RefreshCcw /> Refresh now
             </Button>
           </div>
         </div>
-        <div className="relative mt-7 grid gap-px overflow-hidden rounded-2xl border border-white/8 bg-white/8 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="relative mt-7 grid gap-px overflow-hidden rounded-2xl border border-hairline bg-surface-strong sm:grid-cols-2 xl:grid-cols-4">
           {[
             [
               'Live conversations',
               num(stats.live_calls),
               'PII-masked monitor',
               Radio,
-              'text-emerald-300',
+              'text-success-text',
             ],
             [
               'Action queue',
               num(attentionCount),
               'Reviews and incidents',
               Clock3,
-              'text-amber-200',
+              'text-warning-text',
             ],
             [
               'Provider readiness',
               `${connectedProviders}/${readiness.length}`,
               'Live-capable adapters',
               Network,
-              'text-cyan-200',
+              'text-cyan-700',
             ],
             [
               'Collected revenue',
               money(revenue.total),
               `${num(revenue.paid_invoices)} paid invoices`,
               WalletCards,
-              'text-violet-200',
+              'text-violet-700',
             ],
           ].map(([label, value, note, Icon, tone]) => (
-            <div key={String(label)} className="bg-[#0b0e14]/90 p-4">
+            <div key={String(label)} className="bg-surface p-4">
               <div className="flex items-center justify-between">
-                <p className="text-[9px] uppercase tracking-[0.13em] text-white/28">
+                <p className="text-[9px] uppercase tracking-[0.13em] text-ink-muted">
                   {String(label)}
                 </p>
                 <Icon className={`size-4 ${String(tone)}`} />
               </div>
               <p className="mt-3 text-xl font-semibold">{String(value)}</p>
-              <p className="mt-1 text-[9px] text-white/28">{String(note)}</p>
+              <p className="mt-1 text-[9px] text-ink-muted">{String(note)}</p>
             </div>
           ))}
         </div>
@@ -435,18 +435,21 @@ function AdminOverview({
             ].map(([label, status, progress]) => (
               <div key={String(label)}>
                 <div className="mb-2 flex items-center justify-between text-xs">
-                  <span className="text-white/68">{String(label)}</span>
+                  <span className="text-ink-body">{String(label)}</span>
                   <span
                     className={
                       status === 'Operational' || status === 'Connected'
-                        ? 'text-emerald-300'
-                        : 'text-[#a8b7ff]'
+                        ? 'text-success-text'
+                        : 'text-primary'
                     }
                   >
                     {String(status)}
                   </span>
                 </div>
-                <Progress value={Number(progress)} className="h-1 bg-white/6" />
+                <Progress
+                  value={Number(progress)}
+                  className="h-1 bg-surface-strong"
+                />
               </div>
             ))}
           </div>
@@ -454,10 +457,10 @@ function AdminOverview({
             type="button"
             aria-label="Open provider configuration and latency controls"
             onClick={() => onNavigate('platform_apis')}
-            className="mt-6 flex w-full items-center justify-between rounded-xl border border-white/8 bg-white/[0.025] p-4 text-left transition hover:bg-white/[0.045]"
+            className="mt-6 flex w-full items-center justify-between rounded-xl border border-hairline bg-surface-muted p-4 text-left transition hover:bg-surface-strong"
           >
             <div>
-              <p className="text-[10px] uppercase tracking-[0.16em] text-white/30">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-ink-muted">
                 P95 conversation latency
               </p>
               <p className="mt-2 text-2xl font-semibold">
@@ -465,13 +468,13 @@ function AdminOverview({
                   ? `${num(data.system.p95LatencyMs)} ms`
                   : 'Not measured'}
               </p>
-              <p className="mt-1 text-[10px] text-white/40">
+              <p className="mt-1 text-[10px] text-ink-muted">
                 {Number(data.system?.latencySampleSize ?? 0)
                   ? `Provider calls · last ${num(data.system?.latencySampleSize)} samples`
                   : 'No provider calls recorded yet'}
               </p>
             </div>
-            <ArrowRight className="size-4 text-white/30" />
+            <ArrowRight className="size-4 text-ink-muted" />
           </button>
         </Panel>
       </div>
@@ -518,18 +521,18 @@ function AdminOverview({
               ],
             ].map(([title, note, action, target]) => (
               <div key={title} className="flex items-center gap-3 py-4">
-                <span className="grid size-9 place-items-center rounded-xl bg-white/5">
-                  <Clock3 className="size-4 text-white/45" />
+                <span className="grid size-9 place-items-center rounded-xl bg-surface-strong">
+                  <Clock3 className="size-4 text-ink-muted" />
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium">{title}</p>
-                  <p className="mt-1 text-[10px] text-white/35">{note}</p>
+                  <p className="mt-1 text-[10px] text-ink-muted">{note}</p>
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => onNavigate(target)}
-                  className="border-white/10 bg-transparent text-[10px]"
+                  className="border-hairline bg-transparent text-[10px]"
                 >
                   {action}
                 </Button>
@@ -642,26 +645,26 @@ function TenantLifecycle() {
   const canSuspend = capabilities.includes('tenants.suspend');
 
   return (
-    <section className="rounded-2xl border border-white/8 bg-white/[0.02] p-5">
+    <section className="rounded-2xl border border-hairline bg-surface-muted p-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-[11px] font-semibold text-white/75">
+          <h2 className="text-[11px] font-semibold text-ink">
             Create and suspend workspaces
           </h2>
-          <p className="mt-1 text-[10px] text-white/32">
+          <p className="mt-1 text-[10px] text-ink-muted">
             Suspending pauses running campaigns, cancels queued jobs and blocks
             the workspace&apos;s API access immediately.
           </p>
         </div>
         {adminRole ? (
-          <span className="rounded-md bg-white/6 px-2 py-1 text-[9px] uppercase tracking-wide text-white/50">
+          <span className="rounded-md bg-surface-strong px-2 py-1 text-[9px] uppercase tracking-wide text-ink-body">
             your role: {adminRole.replaceAll('_', ' ')}
           </span>
         ) : null}
       </div>
 
       {notice ? (
-        <p className="mt-3 rounded-lg border border-white/12 bg-white/[0.03] px-3 py-2 text-[11px] text-white/70">
+        <p className="mt-3 rounded-lg border border-hairline bg-surface-muted px-3 py-2 text-[11px] text-ink">
           {notice}
         </p>
       ) : null}
@@ -672,7 +675,7 @@ function TenantLifecycle() {
             placeholder="Workspace name"
             value={form.name}
             onChange={(event) => setForm({ ...form, name: event.target.value })}
-            className="rounded-lg border border-white/10 bg-white/4 px-3 py-2 text-[11px] outline-none focus:border-white/25"
+            className="rounded-lg border border-hairline bg-surface-strong px-3 py-2 text-[11px] outline-none focus:border-hairline"
           />
           <input
             placeholder="Owner email"
@@ -680,7 +683,7 @@ function TenantLifecycle() {
             onChange={(event) =>
               setForm({ ...form, ownerEmail: event.target.value })
             }
-            className="rounded-lg border border-white/10 bg-white/4 px-3 py-2 text-[11px] outline-none focus:border-white/25"
+            className="rounded-lg border border-hairline bg-surface-strong px-3 py-2 text-[11px] outline-none focus:border-hairline"
           />
           <input
             placeholder="Owner name"
@@ -688,7 +691,7 @@ function TenantLifecycle() {
             onChange={(event) =>
               setForm({ ...form, ownerName: event.target.value })
             }
-            className="rounded-lg border border-white/10 bg-white/4 px-3 py-2 text-[11px] outline-none focus:border-white/25"
+            className="rounded-lg border border-hairline bg-surface-strong px-3 py-2 text-[11px] outline-none focus:border-hairline"
           />
           <Button
             disabled={busy === 'create' || !form.name || !form.ownerEmail}
@@ -711,7 +714,7 @@ function TenantLifecycle() {
           </Button>
         </div>
       ) : (
-        <p className="mt-4 text-[11px] text-white/35">
+        <p className="mt-4 text-[11px] text-ink-muted">
           Your admin role cannot create workspaces.
         </p>
       )}
@@ -723,27 +726,27 @@ function TenantLifecycle() {
           return (
             <div
               key={id}
-              className="flex flex-wrap items-center gap-2 rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5 text-[11px]"
+              className="flex flex-wrap items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2.5 text-[11px]"
             >
               <span className="font-medium">{textValue(row.name)}</span>
-              <span className="font-mono text-[9px] text-white/28">
+              <span className="font-mono text-[9px] text-ink-muted">
                 {textValue(row.slug)}
               </span>
               <span
                 className={`rounded-md px-2 py-0.5 text-[9px] uppercase tracking-wide ${
                   suspended
-                    ? 'bg-rose-400/12 text-rose-200'
-                    : 'bg-emerald-400/12 text-emerald-200'
+                    ? 'bg-rose-400/12 text-danger-text'
+                    : 'bg-emerald-400/12 text-success-text'
                 }`}
               >
                 {textValue(row.status)}
               </span>
-              <span className="text-[9px] text-white/32">
+              <span className="text-[9px] text-ink-muted">
                 {textValue(row.plan_name, 'no plan')} · {num(row.users)} users ·{' '}
                 {num(row.calls_30d)} calls/30d
               </span>
               {row.suspension_reason ? (
-                <span className="text-[9px] text-rose-200/70">
+                <span className="text-[9px] text-danger-text">
                   {textValue(row.suspension_reason)}
                 </span>
               ) : null}
@@ -769,7 +772,7 @@ function TenantLifecycle() {
                       onChange={(event) =>
                         setReason({ ...reason, [id]: event.target.value })
                       }
-                      className="w-44 rounded-lg border border-white/10 bg-white/4 px-2.5 py-1.5 text-[10px] outline-none focus:border-white/25"
+                      className="w-44 rounded-lg border border-hairline bg-surface-strong px-2.5 py-1.5 text-[10px] outline-none focus:border-hairline"
                     />
                     <Button
                       disabled={
@@ -805,7 +808,7 @@ function CustomersTable({ rows }: { rows: Record<string, unknown>[] }) {
       />
       <div className="mt-4 overflow-x-auto">
         <table className="w-full min-w-[720px] text-left text-xs">
-          <thead className="border-y border-white/8 text-[9px] uppercase tracking-[0.13em] text-white/28">
+          <thead className="border-y border-hairline text-[9px] uppercase tracking-[0.13em] text-ink-muted">
             <tr>
               <th className="px-3 py-3 font-medium">Organization</th>
               <th className="px-3 py-3 font-medium">Plan</th>
@@ -817,21 +820,21 @@ function CustomersTable({ rows }: { rows: Record<string, unknown>[] }) {
           </thead>
           <tbody className="divide-y divide-white/7">
             {rows.map((row) => (
-              <tr key={String(row.id)} className="hover:bg-white/[0.025]">
+              <tr key={String(row.id)} className="hover:bg-surface-muted">
                 <td className="px-3 py-4">
                   <p className="font-medium">{textValue(row.name)}</p>
-                  <p className="mt-1 text-[10px] text-white/32">
+                  <p className="mt-1 text-[10px] text-ink-muted">
                     {textValue(row.owner_email, 'No owner')}
                   </p>
                 </td>
-                <td className="px-3 py-4 text-white/60">
+                <td className="px-3 py-4 text-ink-body">
                   {textValue(row.plan_name, 'Free')}
                 </td>
-                <td className="px-3 py-4 font-mono text-amber-200">
+                <td className="px-3 py-4 font-mono text-warning-text">
                   {num(row.balance)}
                 </td>
-                <td className="px-3 py-4 text-white/60">{num(row.leads)}</td>
-                <td className="px-3 py-4 text-white/60">{num(row.numbers)}</td>
+                <td className="px-3 py-4 text-ink-body">{num(row.leads)}</td>
+                <td className="px-3 py-4 text-ink-body">{num(row.numbers)}</td>
                 <td className="px-3 py-4">
                   <Status value={textValue(row.status, 'active')} />
                 </td>
@@ -903,7 +906,7 @@ function CallOperations({ data }: { data: AdminPayload }) {
         {calls.length ? (
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[900px] text-left text-xs">
-              <thead className="border-y border-white/8 text-[9px] uppercase tracking-wider text-white/32">
+              <thead className="border-y border-hairline text-[9px] uppercase tracking-wider text-ink-muted">
                 <tr>
                   {[
                     'Workspace',
@@ -924,29 +927,29 @@ function CallOperations({ data }: { data: AdminPayload }) {
                 {calls.map((row) => (
                   <tr
                     key={textValue(row.id)}
-                    className="hover:bg-white/[0.025]"
+                    className="hover:bg-surface-muted"
                   >
                     <td className="px-3 py-3">
                       {textValue(row.organization_name)}
                     </td>
-                    <td className="px-3 py-3 text-white/60">
+                    <td className="px-3 py-3 text-ink-body">
                       {textValue(row.agent_name)}
                     </td>
-                    <td className="px-3 py-3 font-mono text-[10px] text-white/55">
+                    <td className="px-3 py-3 font-mono text-[10px] text-ink-body">
                       {textValue(row.to_number)}
                     </td>
                     <td className="px-3 py-3">
                       <Status value={textValue(row.status, 'unknown')} />
                     </td>
-                    <td className="px-3 py-3 text-white/55">
+                    <td className="px-3 py-3 text-ink-body">
                       {textValue(row.outcome)}
                     </td>
-                    <td className="px-3 py-3 text-white/55">
+                    <td className="px-3 py-3 text-ink-body">
                       {row.duration_seconds
                         ? `${num(row.duration_seconds)}s`
                         : '—'}
                     </td>
-                    <td className="px-3 py-3 text-white/55">
+                    <td className="px-3 py-3 text-ink-body">
                       {row.latency_ms ? `${num(row.latency_ms)} ms` : '—'}
                     </td>
                   </tr>
@@ -955,7 +958,7 @@ function CallOperations({ data }: { data: AdminPayload }) {
             </table>
           </div>
         ) : (
-          <p className="mt-4 text-xs text-white/40">
+          <p className="mt-4 text-xs text-ink-muted">
             No calls recorded yet. This screen fills in once calls run.
           </p>
         )}
@@ -990,13 +993,13 @@ function VoiceEngines({ data }: { data: AdminPayload }) {
           {readiness.map((entry) => (
             <div
               key={textValue(entry.adapter)}
-              className="flex items-center justify-between rounded-xl border border-white/8 bg-white/[0.02] p-3"
+              className="flex items-center justify-between rounded-xl border border-hairline bg-surface-muted p-3"
             >
               <div className="min-w-0">
                 <p className="truncate text-xs font-medium">
                   {textValue(entry.publicName)}
                 </p>
-                <p className="mt-1 text-[9px] text-white/32">
+                <p className="mt-1 text-[9px] text-ink-muted">
                   {textValue(entry.adapter)} ·{' '}
                   {entry.configured ? 'credentials present' : 'not configured'}
                 </p>
@@ -1005,7 +1008,7 @@ function VoiceEngines({ data }: { data: AdminPayload }) {
             </div>
           ))}
           {!readiness.length ? (
-            <p className="text-xs text-white/40">No providers registered.</p>
+            <p className="text-xs text-ink-muted">No providers registered.</p>
           ) : null}
         </div>
       </Panel>
@@ -1024,7 +1027,7 @@ function VoiceEngines({ data }: { data: AdminPayload }) {
               return (
                 <div
                   key={providerId}
-                  className="rounded-xl border border-white/8 bg-white/[0.02] p-4"
+                  className="rounded-xl border border-hairline bg-surface-muted p-4"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
@@ -1033,7 +1036,7 @@ function VoiceEngines({ data }: { data: AdminPayload }) {
                           ? textValue(ready.publicName)
                           : providerId.replace('provider_', '')}
                       </p>
-                      <p className="mt-1 text-[9px] text-white/32">
+                      <p className="mt-1 text-[9px] text-ink-muted">
                         {(entry.operations as string[] | undefined)?.join(
                           ' · ',
                         ) ?? '—'}
@@ -1041,7 +1044,7 @@ function VoiceEngines({ data }: { data: AdminPayload }) {
                     </div>
                     <Badge
                       variant="outline"
-                      className={`text-[9px] ${errorRate > 0.05 ? 'border-red-400/25 bg-red-400/10 text-red-200' : 'border-emerald-300/20 bg-emerald-300/8 text-emerald-200'}`}
+                      className={`text-[9px] ${errorRate > 0.05 ? 'border-red-400/25 bg-red-400/10 text-danger-text' : 'border-emerald-300/20 bg-emerald-300/8 text-success-text'}`}
                     >
                       {(errorRate * 100).toFixed(1)}% errors
                     </Badge>
@@ -1051,23 +1054,23 @@ function VoiceEngines({ data }: { data: AdminPayload }) {
                       <p className="text-sm font-semibold">
                         {num(entry.calls)}
                       </p>
-                      <p className="mt-1 text-[9px] text-white/32">calls</p>
+                      <p className="mt-1 text-[9px] text-ink-muted">calls</p>
                     </div>
                     <div>
                       <p className="text-sm font-semibold">
                         {num(entry.averageLatencyMs)}
-                        <span className="text-[9px] text-white/40"> ms</span>
+                        <span className="text-[9px] text-ink-muted"> ms</span>
                       </p>
-                      <p className="mt-1 text-[9px] text-white/32">average</p>
+                      <p className="mt-1 text-[9px] text-ink-muted">average</p>
                     </div>
                     <div>
                       <p className="text-sm font-semibold">
                         {entry.p95LatencyMs
                           ? `${num(entry.p95LatencyMs)}`
                           : '—'}
-                        <span className="text-[9px] text-white/40"> ms</span>
+                        <span className="text-[9px] text-ink-muted"> ms</span>
                       </p>
-                      <p className="mt-1 text-[9px] text-white/32">p95</p>
+                      <p className="mt-1 text-[9px] text-ink-muted">p95</p>
                     </div>
                   </div>
                 </div>
@@ -1075,7 +1078,7 @@ function VoiceEngines({ data }: { data: AdminPayload }) {
             })}
           </div>
         ) : (
-          <p className="mt-4 text-xs text-white/40">
+          <p className="mt-4 text-xs text-ink-muted">
             No provider calls recorded yet, so there is nothing to measure.
           </p>
         )}
@@ -1089,7 +1092,7 @@ function VoiceEngines({ data }: { data: AdminPayload }) {
           />
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[700px] text-left text-xs">
-              <thead className="border-y border-white/8 text-[9px] uppercase tracking-wider text-white/32">
+              <thead className="border-y border-hairline text-[9px] uppercase tracking-wider text-ink-muted">
                 <tr>
                   {[
                     'Provider',
@@ -1108,16 +1111,16 @@ function VoiceEngines({ data }: { data: AdminPayload }) {
                 {data.providerCosts.map((row, index) => (
                   <tr key={`${textValue(row.provider_id)}-${index}`}>
                     <td className="px-3 py-3">{textValue(row.provider_id)}</td>
-                    <td className="px-3 py-3 text-white/55">
+                    <td className="px-3 py-3 text-ink-body">
                       {textValue(row.category)}
                     </td>
-                    <td className="px-3 py-3 text-white/55">
+                    <td className="px-3 py-3 text-ink-body">
                       {num(row.events ?? row.event_count)}
                     </td>
-                    <td className="px-3 py-3 text-white/55">
+                    <td className="px-3 py-3 text-ink-body">
                       {num(row.provider_cost_micros ?? row.cost_micros)}
                     </td>
-                    <td className="px-3 py-3 text-white/55">
+                    <td className="px-3 py-3 text-ink-body">
                       {num(row.billed_credits)}
                     </td>
                   </tr>
@@ -1182,12 +1185,12 @@ function NumbersKyc({
         description={t('adminScreen.numbers_kyc.description')}
       />
       {message ? (
-        <div className="rounded-xl border border-emerald-300/15 bg-emerald-300/[0.035] p-3 text-xs text-emerald-100">
+        <div className="rounded-xl border border-emerald-300/15 bg-emerald-300/[0.035] p-3 text-xs text-success-text">
           {message}
         </div>
       ) : null}
       {error ? (
-        <div className="rounded-xl border border-red-300/15 bg-red-300/[0.035] p-3 text-xs text-red-100">
+        <div className="rounded-xl border border-red-300/15 bg-red-300/[0.035] p-3 text-xs text-danger-text">
           {error}
         </div>
       ) : null}
@@ -1224,7 +1227,7 @@ function NumbersKyc({
         />
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[1120px] text-left text-xs">
-            <thead className="border-y border-white/8 text-[9px] uppercase tracking-[0.13em] text-white/28">
+            <thead className="border-y border-hairline text-[9px] uppercase tracking-[0.13em] text-ink-muted">
               <tr>
                 {[
                   'Number',
@@ -1249,27 +1252,27 @@ function NumbersKyc({
                   <td className="px-3 py-4 font-mono">
                     {textValue(row.phone_number)}
                   </td>
-                  <td className="px-3 py-4 text-white/62">
+                  <td className="px-3 py-4 text-ink-body">
                     {textValue(row.organization_name)}
                   </td>
-                  <td className="px-3 py-4 text-white/48">
+                  <td className="px-3 py-4 text-ink-muted">
                     <p className="capitalize">
                       {textValue(row.provider_code, 'auto')}
                     </p>
-                    <p className="mt-1 text-[9px] text-white/25">
+                    <p className="mt-1 text-[9px] text-ink-muted">
                       {textValue(
                         row.connection_mode,
                         textValue(row.acquisition_type),
                       ).replaceAll('_', ' ')}
                     </p>
                   </td>
-                  <td className="max-w-48 px-3 py-4 text-white/48">
+                  <td className="max-w-48 px-3 py-4 text-ink-muted">
                     {textValue(row.business_use_case)}
                   </td>
-                  <td className="px-3 py-4 text-white/48">
+                  <td className="px-3 py-4 text-ink-muted">
                     {num(row.estimated_monthly_minutes)} min
                   </td>
-                  <td className="px-3 py-4 text-white/48">
+                  <td className="px-3 py-4 text-ink-muted">
                     {num(row.kyc_document_count)}
                   </td>
                   <td className="px-3 py-4">
@@ -1317,7 +1320,7 @@ function NumbersKyc({
                         }
                         size="sm"
                         variant="outline"
-                        className="border-white/10 bg-transparent"
+                        className="border-hairline bg-transparent"
                       >
                         Request changes
                       </Button>
@@ -1390,19 +1393,19 @@ function PlansBilling({
         action={
           <Button
             onClick={() => setShowPackage((current) => !current)}
-            className="bg-amber-300 text-[#17120a] hover:bg-amber-200"
+            className="bg-primary text-primary-foreground hover:bg-[#1d4ed8]"
           >
             <PackagePlus /> New credit package
           </Button>
         }
       />
       {message ? (
-        <div className="rounded-xl border border-emerald-300/15 bg-emerald-300/[0.035] p-3 text-xs text-emerald-100">
+        <div className="rounded-xl border border-emerald-300/15 bg-emerald-300/[0.035] p-3 text-xs text-success-text">
           {message}
         </div>
       ) : null}
       {error ? (
-        <div className="rounded-xl border border-red-300/15 bg-red-300/[0.035] p-3 text-xs text-red-100">
+        <div className="rounded-xl border border-red-300/15 bg-red-300/[0.035] p-3 text-xs text-danger-text">
           {error}
         </div>
       ) : null}
@@ -1411,19 +1414,19 @@ function PlansBilling({
           <div className="grid gap-4 md:grid-cols-[1fr_0.6fr_0.6fr_auto]">
             <label
               htmlFor="credit-package-name"
-              className="text-[10px] text-white/42"
+              className="text-[10px] text-ink-muted"
             >
               Package name
               <Input
                 id="credit-package-name"
                 value={packageName}
                 onChange={(event) => setPackageName(event.target.value)}
-                className="mt-2 border-white/8 bg-white/[0.025]"
+                className="mt-2 border-hairline bg-surface-muted"
               />
             </label>
             <label
               htmlFor="credit-package-credits"
-              className="text-[10px] text-white/42"
+              className="text-[10px] text-ink-muted"
             >
               Credits
               <Input
@@ -1433,12 +1436,12 @@ function PlansBilling({
                 onChange={(event) =>
                   setPackageCredits(Number(event.target.value))
                 }
-                className="mt-2 border-white/8 bg-white/[0.025]"
+                className="mt-2 border-hairline bg-surface-muted"
               />
             </label>
             <label
               htmlFor="credit-package-price"
-              className="text-[10px] text-white/42"
+              className="text-[10px] text-ink-muted"
             >
               Price in paise
               <Input
@@ -1448,13 +1451,13 @@ function PlansBilling({
                 onChange={(event) =>
                   setPackagePrice(Number(event.target.value))
                 }
-                className="mt-2 border-white/8 bg-white/[0.025]"
+                className="mt-2 border-hairline bg-surface-muted"
               />
             </label>
             <Button
               onClick={() => void createPackage()}
               disabled={busy}
-              className="self-end bg-white text-black hover:bg-white/90"
+              className="self-end bg-primary text-primary-foreground hover:bg-[#1d4ed8]"
             >
               {busy ? <Loader2 className="animate-spin" /> : <Save />} Create
             </Button>
@@ -1479,20 +1482,20 @@ function PlansBilling({
           {(data.creditPackages ?? []).map((item) => (
             <div
               key={textValue(item.id)}
-              className="rounded-xl border border-white/8 bg-white/[0.02] p-4"
+              className="rounded-xl border border-hairline bg-surface-muted p-4"
             >
               <div className="flex items-center justify-between">
-                <Coins className="size-4 text-amber-200" />
+                <Coins className="size-4 text-warning-text" />
                 <Status value={textValue(item.status)} />
               </div>
               <p className="mt-4 text-sm font-medium">{textValue(item.name)}</p>
               <p className="mt-2 text-xl font-semibold">
                 {num(item.credits)}{' '}
-                <span className="text-[10px] font-normal text-white/30">
+                <span className="text-[10px] font-normal text-ink-muted">
                   credits
                 </span>
               </p>
-              <p className="mt-1 text-[10px] text-white/38">
+              <p className="mt-1 text-[10px] text-ink-muted">
                 {money(item.price)}
               </p>
             </div>
@@ -1571,7 +1574,7 @@ function PlanCard({
   return (
     <Panel>
       <div className="flex items-center justify-between">
-        <Badge variant="outline" className="border-white/10 text-white/45">
+        <Badge variant="outline" className="border-hairline text-ink-muted">
           {textValue(plan.code)}
         </Badge>
         <Status value={draft.status} />
@@ -1579,7 +1582,7 @@ function PlanCard({
       {editing ? (
         <div className="mt-5 space-y-3">
           {error ? (
-            <p className="rounded-lg border border-red-300/15 bg-red-300/[0.035] p-2 text-[10px] text-red-100">
+            <p className="rounded-lg border border-red-300/15 bg-red-300/[0.035] p-2 text-[10px] text-danger-text">
               {error}
             </p>
           ) : null}
@@ -1629,14 +1632,14 @@ function PlanCard({
                 setDraft({ ...draft, concurrency: Number(value) })
               }
             />
-            <label className="text-[9px] text-white/35">
+            <label className="text-[9px] text-ink-muted">
               Status
               <select
                 value={draft.status}
                 onChange={(event) =>
                   setDraft({ ...draft, status: event.target.value })
                 }
-                className="mt-2 h-9 w-full rounded-lg border border-white/8 bg-[#121620] px-3 text-xs"
+                className="mt-2 h-9 w-full rounded-lg border border-hairline bg-surface px-3 text-xs"
               >
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
@@ -1647,14 +1650,14 @@ function PlanCard({
             <Button
               onClick={() => void save()}
               disabled={busy}
-              className="flex-1 bg-white text-black hover:bg-white/90"
+              className="flex-1 bg-primary text-primary-foreground hover:bg-[#1d4ed8]"
             >
               {busy ? <Loader2 className="animate-spin" /> : <Save />} Save plan
             </Button>
             <Button
               variant="outline"
               onClick={() => setEditing(false)}
-              className="border-white/10 bg-transparent"
+              className="border-hairline bg-transparent"
             >
               Cancel
             </Button>
@@ -1665,9 +1668,9 @@ function PlanCard({
           <h3 className="mt-5 text-xl font-semibold">{draft.name}</h3>
           <p className="mt-2 text-3xl font-semibold">
             {money(draft.monthlyPrice)}
-            <span className="text-xs font-normal text-white/35"> / month</span>
+            <span className="text-xs font-normal text-ink-muted"> / month</span>
           </p>
-          <div className="mt-5 space-y-2 text-xs text-white/52">
+          <div className="mt-5 space-y-2 text-xs text-ink-body">
             <p>{num(draft.includedCredits)} included credits</p>
             <p>
               {num(draft.maxAgents)} agents · {num(draft.maxNumbers)} numbers
@@ -1677,7 +1680,7 @@ function PlanCard({
           <Button
             onClick={() => setEditing(true)}
             variant="outline"
-            className="mt-6 w-full border-white/10 bg-transparent"
+            className="mt-6 w-full border-hairline bg-transparent"
           >
             Edit plan and limits
           </Button>
@@ -1699,13 +1702,13 @@ function PlanField({
   number?: boolean;
 }) {
   return (
-    <label className="text-[9px] text-white/35">
+    <label className="text-[9px] text-ink-muted">
       {label}
       <Input
         type={number ? 'number' : 'text'}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 h-9 border-white/8 bg-white/[0.025] text-xs"
+        className="mt-2 h-9 border-hairline bg-surface-muted text-xs"
       />
     </label>
   );
@@ -1758,7 +1761,7 @@ function TrialsCommerce({ data }: { data: AdminPayload }) {
         />
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[920px] text-left text-xs">
-            <thead className="border-y border-white/8 text-[9px] uppercase tracking-[0.13em] text-white/28">
+            <thead className="border-y border-hairline text-[9px] uppercase tracking-[0.13em] text-ink-muted">
               <tr>
                 {[
                   'Reference',
@@ -1779,26 +1782,26 @@ function TrialsCommerce({ data }: { data: AdminPayload }) {
             <tbody className="divide-y divide-white/7">
               {rows.map((row) => (
                 <tr key={textValue(row.id)}>
-                  <td className="px-3 py-4 font-mono text-amber-200">
+                  <td className="px-3 py-4 font-mono text-warning-text">
                     {textValue(row.reference_id)}
                   </td>
-                  <td className="px-3 py-4 text-white/62">
+                  <td className="px-3 py-4 text-ink-body">
                     {textValue(row.organization_name)}
                   </td>
-                  <td className="px-3 py-4 text-white/62">
+                  <td className="px-3 py-4 text-ink-body">
                     {textValue(row.customer_name)}
                   </td>
                   <td className="px-3 py-4">{money(row.amount)}</td>
-                  <td className="px-3 py-4 text-white/48">
+                  <td className="px-3 py-4 text-ink-muted">
                     {textValue(row.delivery_mode).replaceAll('_', ' ')}
                   </td>
-                  <td className="px-3 py-4 text-white/48">
+                  <td className="px-3 py-4 text-ink-muted">
                     {textValue(row.provider).replaceAll('_', ' ')}
                   </td>
                   <td className="px-3 py-4">
                     <Status value={textValue(row.status)} />
                   </td>
-                  <td className="px-3 py-4 text-[10px] text-white/32">
+                  <td className="px-3 py-4 text-[10px] text-ink-muted">
                     {formatDate(row.created_at)}
                   </td>
                 </tr>
@@ -1806,7 +1809,7 @@ function TrialsCommerce({ data }: { data: AdminPayload }) {
             </tbody>
           </table>
           {rows.length === 0 ? (
-            <p className="py-10 text-center text-xs text-white/30">
+            <p className="py-10 text-center text-xs text-ink-muted">
               No payment links yet.
             </p>
           ) : null}
@@ -1830,18 +1833,18 @@ function Integrations({ data }: { data: AdminPayload }) {
           <Panel key={`${textValue(item.type)}-${textValue(item.status)}`}>
             <div className="flex items-start gap-4">
               <span className="grid size-10 place-items-center rounded-xl bg-violet-400/10">
-                <Webhook className="size-4 text-violet-200" />
+                <Webhook className="size-4 text-violet-700" />
               </span>
               <div className="flex-1">
                 <p className="text-sm font-medium">{textValue(item.name)}</p>
-                <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-white/28">
+                <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-ink-muted">
                   {textValue(item.type).replaceAll('_', ' ')}
                 </p>
               </div>
               <Status value={textValue(item.status)} />
             </div>
-            <div className="mt-5 flex items-center justify-between rounded-xl bg-white/[0.025] p-3 text-xs">
-              <span className="text-white/35">Connected tenants</span>
+            <div className="mt-5 flex items-center justify-between rounded-xl bg-surface-muted p-3 text-xs">
+              <span className="text-ink-muted">Connected tenants</span>
               <span>{num(item.tenants)}</span>
             </div>
           </Panel>
@@ -1860,11 +1863,11 @@ function Integrations({ data }: { data: AdminPayload }) {
           ].map(([title, note, Icon]) => (
             <div
               key={String(title)}
-              className="rounded-xl border border-white/8 bg-white/[0.02] p-4"
+              className="rounded-xl border border-hairline bg-surface-muted p-4"
             >
-              <Icon className="size-4 text-amber-200" />
+              <Icon className="size-4 text-warning-text" />
               <p className="mt-4 text-xs font-medium">{String(title)}</p>
-              <p className="mt-1 text-[10px] text-white/32">{String(note)}</p>
+              <p className="mt-1 text-[10px] text-ink-muted">{String(note)}</p>
             </div>
           ))}
         </div>
@@ -2068,16 +2071,16 @@ function ProviderKeyCard({
   }
 
   return (
-    <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4">
+    <div className="rounded-xl border border-hairline bg-surface-muted p-4">
       <div className="flex items-center justify-between">
         <div className="min-w-0">
           <p className="text-sm font-medium">{provider.name}</p>
-          <p className="mt-1 text-[9px] text-white/32">{provider.note}</p>
+          <p className="mt-1 text-[9px] text-ink-muted">{provider.note}</p>
         </div>
         <Status value={hasKey ? 'key set' : 'not set'} />
       </div>
 
-      <label className="mt-4 block text-[9px] uppercase tracking-wider text-white/32">
+      <label className="mt-4 block text-[9px] uppercase tracking-wider text-ink-muted">
         API key {hasKey ? '(leave blank to keep current)' : ''}
       </label>
       <Input
@@ -2085,12 +2088,12 @@ function ProviderKeyCard({
         value={apiKey}
         onChange={(event) => setApiKey(event.target.value)}
         placeholder={hasKey ? '•••••••• saved' : 'Paste key'}
-        className="mt-1 h-9 border-white/10 bg-black/30 text-xs"
+        className="mt-1 h-9 border-hairline bg-surface-muted text-xs"
       />
 
       {provider.fields.map((field) => (
         <div key={field.k}>
-          <label className="mt-3 block text-[9px] uppercase tracking-wider text-white/32">
+          <label className="mt-3 block text-[9px] uppercase tracking-wider text-ink-muted">
             {field.label}
           </label>
           <Input
@@ -2102,7 +2105,7 @@ function ProviderKeyCard({
               }))
             }
             placeholder={field.placeholder}
-            className="mt-1 h-9 border-white/10 bg-black/30 text-xs"
+            className="mt-1 h-9 border-hairline bg-surface-muted text-xs"
           />
         </div>
       ))}
@@ -2111,7 +2114,7 @@ function ProviderKeyCard({
         <Button
           disabled={busy === 'save'}
           onClick={save}
-          className="h-8 bg-white text-[10px] text-black hover:bg-white/90"
+          className="h-8 bg-primary text-[10px] text-primary-foreground hover:bg-[#1d4ed8]"
         >
           {busy === 'save' ? <Loader2 className="animate-spin" /> : null} Save
         </Button>
@@ -2120,7 +2123,7 @@ function ProviderKeyCard({
             variant="outline"
             disabled={busy === 'voices'}
             onClick={fetchVoices}
-            className="h-8 border-white/12 bg-transparent text-[10px]"
+            className="h-8 border-hairline bg-transparent text-[10px]"
           >
             {busy === 'voices' ? (
               <Loader2 className="animate-spin" />
@@ -2135,23 +2138,25 @@ function ProviderKeyCard({
             variant="outline"
             disabled={busy === 'clear'}
             onClick={clear}
-            className="h-8 border-red-400/20 bg-transparent text-[10px] text-red-200"
+            className="h-8 border-red-400/20 bg-transparent text-[10px] text-danger-text"
           >
             Clear
           </Button>
         ) : null}
       </div>
 
-      {error ? <p className="mt-2 text-[10px] text-red-300">{error}</p> : null}
+      {error ? (
+        <p className="mt-2 text-[10px] text-danger-text">{error}</p>
+      ) : null}
       {notice ? (
-        <p className="mt-2 text-[10px] font-medium text-emerald-300">
+        <p className="mt-2 text-[10px] font-medium text-success-text">
           {notice}
         </p>
       ) : null}
 
       {voices.length ? (
-        <div className="mt-3 max-h-44 overflow-y-auto rounded-lg border border-white/8 bg-black/20 p-2">
-          <p className="mb-1 px-1 text-[9px] uppercase tracking-wider text-white/32">
+        <div className="mt-3 max-h-44 overflow-y-auto rounded-lg border border-hairline bg-surface-muted p-2">
+          <p className="mb-1 px-1 text-[9px] uppercase tracking-wider text-ink-muted">
             {voices.length} voices · tap to select
           </p>
           {voices.map((voice) => (
@@ -2161,22 +2166,22 @@ function ProviderKeyCard({
               onClick={() =>
                 setConfig((current) => ({ ...current, voiceId: voice.voiceId }))
               }
-              className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[11px] hover:bg-white/5 ${config.voiceId === voice.voiceId ? 'bg-white/[0.06] text-white' : 'text-white/70'}`}
+              className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[11px] hover:bg-surface-strong ${config.voiceId === voice.voiceId ? 'bg-surface-strong text-ink' : 'text-ink'}`}
             >
               <span className="truncate">
                 {voice.name}
                 {voice.category ? (
-                  <span className="ml-2 text-[9px] text-white/30">
+                  <span className="ml-2 text-[9px] text-ink-muted">
                     {voice.category}
                   </span>
                 ) : null}
               </span>
               {config.voiceId === voice.voiceId ? (
-                <span className="text-[9px] text-emerald-300">selected</span>
+                <span className="text-[9px] text-success-text">selected</span>
               ) : null}
             </button>
           ))}
-          <p className="mt-1 px-1 text-[8px] text-white/28">
+          <p className="mt-1 px-1 text-[8px] text-ink-muted">
             Selecting a voice fills the Voice ID — press Save to apply.
           </p>
         </div>
@@ -2231,14 +2236,14 @@ function PlatformApis({
             return (
               <div
                 key={key}
-                className="rounded-xl border border-white/8 bg-white/[0.02] p-4"
+                className="rounded-xl border border-hairline bg-surface-muted p-4"
               >
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium">
                       {textValue(provider.display_name)}
                     </p>
-                    <p className="mt-1 text-[9px] text-white/30">
+                    <p className="mt-1 text-[9px] text-ink-muted">
                       {textValue(provider.status).replaceAll('_', ' ')}
                     </p>
                   </div>
@@ -2262,7 +2267,7 @@ function PlatformApis({
                         key,
                       )
                     }
-                    className="border-white/10 bg-transparent text-[10px]"
+                    className="border-hairline bg-transparent text-[10px]"
                   >
                     {visible ? 'Hide' : 'Show'}
                   </Button>
@@ -2279,7 +2284,7 @@ function PlatformApis({
                         key,
                       )
                     }
-                    className="border-white/10 bg-transparent text-[10px]"
+                    className="border-hairline bg-transparent text-[10px]"
                   >
                     {busy === key ? (
                       <Loader2 className="animate-spin" />
@@ -2324,19 +2329,19 @@ function PlatformApis({
           ].map(([title, note, priority]) => (
             <div
               key={title}
-              className="rounded-xl border border-white/8 bg-white/[0.02] p-4"
+              className="rounded-xl border border-hairline bg-surface-muted p-4"
             >
               <div className="flex items-center justify-between">
-                <Network className="size-4 text-cyan-200" />
+                <Network className="size-4 text-cyan-700" />
                 <Badge
                   variant="outline"
-                  className="border-white/10 text-[8px] text-white/42"
+                  className="border-hairline text-[8px] text-ink-muted"
                 >
                   {priority}
                 </Badge>
               </div>
               <p className="mt-4 text-xs font-medium">{title}</p>
-              <p className="mt-2 text-[9px] leading-4 text-white/34">{note}</p>
+              <p className="mt-2 text-[9px] leading-4 text-ink-muted">{note}</p>
             </div>
           ))}
         </div>
@@ -2349,29 +2354,29 @@ function PlatformApis({
           return (
             <Panel key={id}>
               <div className="flex items-start justify-between">
-                <span className="grid size-10 place-items-center rounded-xl border border-white/10 bg-white/[0.04]">
-                  <ServerCog className="size-4 text-[#a8b7ff]" />
+                <span className="grid size-10 place-items-center rounded-xl border border-hairline bg-surface-strong">
+                  <ServerCog className="size-4 text-primary" />
                 </span>
                 <Status value={textValue(provider.health)} />
               </div>
               <h2 className="mt-5 text-sm font-semibold">
                 {textValue(provider.public_name)}
               </h2>
-              <p className="mt-1 text-[9px] uppercase tracking-wider text-white/25">
+              <p className="mt-1 text-[9px] uppercase tracking-wider text-ink-muted">
                 {textValue(provider.category)}
               </p>
-              <p className="mt-3 text-xs leading-5 text-white/38">
+              <p className="mt-3 text-xs leading-5 text-ink-muted">
                 {textValue(provider.usage_note)}
               </p>
-              <div className="mt-4 rounded-xl border border-white/7 bg-black/20 p-3">
-                <p className="text-[8px] uppercase tracking-wider text-white/25">
+              <div className="mt-4 rounded-xl border border-hairline bg-surface-muted p-3">
+                <p className="text-[8px] uppercase tracking-wider text-ink-muted">
                   Required environment secrets
                 </p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {required.map((item) => (
                     <code
                       key={item}
-                      className="rounded bg-white/5 px-2 py-1 text-[8px] text-white/65"
+                      className="rounded bg-surface-strong px-2 py-1 text-[8px] text-ink-body"
                     >
                       {item}
                     </code>
@@ -2392,7 +2397,7 @@ function PlatformApis({
                     id,
                   )
                 }
-                className="mt-4 w-full border-white/10 bg-transparent text-[10px]"
+                className="mt-4 w-full border-hairline bg-transparent text-[10px]"
               >
                 {busy === id ? (
                   <Loader2 className="animate-spin" />
@@ -2461,7 +2466,7 @@ function SupportDesk({
         description={t('adminScreen.support_tickets.description')}
       />
       {error ? (
-        <p className="rounded-lg border border-red-400/20 bg-red-400/5 px-3 py-2 text-[11px] text-red-200">
+        <p className="rounded-lg border border-red-400/20 bg-red-400/5 px-3 py-2 text-[11px] text-danger-text">
           {error}
         </p>
       ) : null}
@@ -2477,7 +2482,7 @@ function SupportDesk({
                   <h2 className="text-sm font-semibold">
                     {textValue(ticket.subject)}
                   </h2>
-                  <p className="mt-1 text-[9px] text-white/30">
+                  <p className="mt-1 text-[9px] text-ink-muted">
                     {textValue(ticket.organization_name)} ·{' '}
                     {textValue(ticket.creator_email)}
                   </p>
@@ -2488,9 +2493,9 @@ function SupportDesk({
                 {messages.map((message) => (
                   <div
                     key={textValue(message.id)}
-                    className={`rounded-xl border p-3 text-[10px] leading-5 ${message.sender_role === 'admin' ? 'border-violet-300/10 bg-violet-300/[0.035]' : 'border-white/7 bg-white/[0.02]'}`}
+                    className={`rounded-xl border p-3 text-[10px] leading-5 ${message.sender_role === 'admin' ? 'border-violet-300/10 bg-violet-300/[0.035]' : 'border-hairline bg-surface-muted'}`}
                   >
-                    <p className="mb-1 text-[8px] uppercase tracking-wider text-white/25">
+                    <p className="mb-1 text-[8px] uppercase tracking-wider text-ink-muted">
                       {textValue(message.sender_name)} ·{' '}
                       {textValue(message.sender_role)}
                     </p>
@@ -2508,14 +2513,14 @@ function SupportDesk({
                 }
                 rows={3}
                 placeholder="Write your reply to this workspace…"
-                className="mt-4 w-full rounded-lg border border-white/10 bg-black/30 p-2.5 text-[11px] text-white/80 outline-none placeholder:text-white/25 focus:border-white/20"
+                className="mt-4 w-full rounded-lg border border-hairline bg-surface-muted p-2.5 text-[11px] text-ink outline-none placeholder:text-ink-muted focus:border-hairline"
               />
               <div className="mt-2 flex gap-2">
                 <Button
                   variant="outline"
                   disabled={busy === textValue(ticket.id)}
                   onClick={() => act(textValue(ticket.id), 'ticket_reply')}
-                  className="flex-1 border-white/10 bg-transparent text-[9px]"
+                  className="flex-1 border-hairline bg-transparent text-[9px]"
                 >
                   Reply
                 </Button>
@@ -2595,20 +2600,20 @@ function SystemAudit({ data }: { data: AdminPayload }) {
               key={`${textValue(row.action)}-${index}`}
               className="flex items-start gap-3 py-4"
             >
-              <span className="mt-0.5 grid size-8 place-items-center rounded-lg bg-white/5">
-                <ShieldCheck className="size-3.5 text-white/42" />
+              <span className="mt-0.5 grid size-8 place-items-center rounded-lg bg-surface-strong">
+                <ShieldCheck className="size-3.5 text-ink-muted" />
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-medium">
                   {textValue(row.action).replaceAll('.', ' · ')}
                 </p>
-                <p className="mt-1 text-[10px] text-white/32">
+                <p className="mt-1 text-[10px] text-ink-muted">
                   {textValue(row.actor_name, 'System')} ·{' '}
                   {textValue(row.organization_name, 'Platform')} ·{' '}
                   {textValue(row.target_type)}
                 </p>
               </div>
-              <span className="text-[9px] text-white/25">
+              <span className="text-[9px] text-ink-muted">
                 {formatDate(row.created_at)}
               </span>
             </div>
@@ -2633,13 +2638,13 @@ function SectionHeader({
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9eb0ff]">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
           {eyebrow}
         </p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
           {title}
         </h1>
-        <p className="mt-2 max-w-3xl text-xs leading-5 text-white/38 sm:text-sm">
+        <p className="mt-2 max-w-3xl text-xs leading-5 text-ink-muted sm:text-sm">
           {description}
         </p>
       </div>
@@ -2662,15 +2667,15 @@ function Stat({
   return (
     <div className="portal-stat">
       <div className="flex items-center justify-between">
-        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-white/30">
+        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-ink-muted">
           {label}
         </p>
-        <Icon className="size-4 text-[#a8b7ff]" />
+        <Icon className="size-4 text-primary" />
       </div>
       <p className="mt-4 text-2xl font-semibold tracking-tight">
         {String(value)}
       </p>
-      <p className="mt-1 text-[10px] text-white/30">{note}</p>
+      <p className="mt-1 text-[10px] text-ink-muted">{note}</p>
     </div>
   );
 }
@@ -2697,7 +2702,7 @@ function PanelHeader({
   return (
     <div>
       <h2 className="text-sm font-semibold">{title}</h2>
-      <p className="mt-1 text-[10px] text-white/32">{description}</p>
+      <p className="mt-1 text-[10px] text-ink-muted">{description}</p>
     </div>
   );
 }
@@ -2716,7 +2721,7 @@ function Status({ value }: { value: string }) {
   );
   return (
     <span
-      className={`inline-flex rounded-full border px-2 py-1 text-[9px] capitalize ${positive ? 'border-emerald-400/15 bg-emerald-400/7 text-emerald-300' : warning ? 'border-amber-300/15 bg-amber-300/7 text-amber-200' : 'border-white/10 bg-white/5 text-white/45'}`}
+      className={`inline-flex rounded-full border px-2 py-1 text-[9px] capitalize ${positive ? 'border-emerald-400/15 bg-emerald-400/7 text-success-text' : warning ? 'border-amber-300/15 bg-amber-300/7 text-warning-text' : 'border-hairline bg-surface-strong text-ink-muted'}`}
     >
       {value.replaceAll('_', ' ')}
     </span>
@@ -2727,8 +2732,8 @@ function LoadingState() {
   return (
     <div className="grid min-h-[60vh] place-items-center">
       <div className="text-center">
-        <Loader2 className="mx-auto size-6 animate-spin text-amber-300" />
-        <p className="mt-3 text-xs text-white/35">
+        <Loader2 className="mx-auto size-6 animate-spin text-warning-text" />
+        <p className="mt-3 text-xs text-ink-muted">
           Loading platform control plane…
         </p>
       </div>
@@ -2738,11 +2743,11 @@ function LoadingState() {
 function ErrorState({ error, retry }: { error: string; retry: () => void }) {
   return (
     <div className="mx-auto mt-20 max-w-md rounded-2xl border border-red-400/15 bg-red-400/5 p-6 text-center">
-      <p className="text-sm text-red-100">{error}</p>
+      <p className="text-sm text-danger-text">{error}</p>
       <Button
         onClick={retry}
         variant="outline"
-        className="mt-4 border-white/10 bg-transparent"
+        className="mt-4 border-hairline bg-transparent"
       >
         <RefreshCcw /> Retry
       </Button>

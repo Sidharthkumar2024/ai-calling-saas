@@ -158,10 +158,10 @@ export function DistributionChart({
               className="size-1.5 rounded-full"
               style={{ background: colors[index % colors.length] }}
             />
-            <span className="min-w-0 flex-1 truncate capitalize text-white/44">
+            <span className="min-w-0 flex-1 truncate capitalize text-ink-muted">
               {item.name}
             </span>
-            <span className="font-mono text-white/78">{item.value}</span>
+            <span className="font-mono text-ink">{item.value}</span>
           </div>
         ))}
       </div>
@@ -233,8 +233,8 @@ function GlassTooltip({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="min-w-32 rounded-xl border border-white/12 bg-[#0a0d13]/95 p-3 shadow-2xl backdrop-blur-xl">
-      <p className="mb-2 text-[9px] uppercase tracking-wider text-white/35">
+    <div className="min-w-32 rounded-xl border border-hairline bg-surface p-3 shadow-2xl backdrop-blur-xl">
+      <p className="mb-2 text-[9px] uppercase tracking-wider text-ink-muted">
         {label}
       </p>
       {payload.map((item) => (
@@ -245,7 +245,7 @@ function GlassTooltip({
           <span style={{ color: item.color }} className="capitalize">
             {item.name}
           </span>
-          <span className="font-mono text-white">
+          <span className="font-mono text-ink">
             {primitiveText(item.value)}
           </span>
         </div>
@@ -256,7 +256,7 @@ function GlassTooltip({
 
 function ChartEmpty() {
   return (
-    <div className="grid min-h-[220px] place-items-center text-xs text-white/30">
+    <div className="grid min-h-[220px] place-items-center text-xs text-ink-muted">
       Waiting for production activity
     </div>
   );

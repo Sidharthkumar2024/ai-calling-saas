@@ -219,13 +219,13 @@ export function CustomerNumbers({
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-300/80">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-warning-text">
           Telephony onboarding
         </p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
           Connect, verify and activate a business number
         </h1>
-        <p className="mt-2 max-w-3xl text-xs leading-5 text-white/38 sm:text-sm">
+        <p className="mt-2 max-w-3xl text-xs leading-5 text-ink-muted sm:text-sm">
           Choose a managed Vaani number or import your own carrier route.
           Credentials stay encrypted, documents stay private, and calling
           remains locked until approval.
@@ -233,10 +233,10 @@ export function CustomerNumbers({
       </div>
 
       <div className="grid gap-4 2xl:grid-cols-[1.1fr_0.9fr]">
-        <section className="rounded-2xl border border-white/8 bg-[#0e1119] p-5">
+        <section className="rounded-2xl border border-hairline bg-surface p-5">
           {/* §15: numbers come from the workspace's own telephony account. The
               platform does not resell them, so there is no second mode. */}
-          <p className="rounded-xl bg-white/[0.035] px-3 py-2.5 text-[10px] text-white/55">
+          <p className="rounded-xl bg-surface-strong px-3 py-2.5 text-[10px] text-ink-body">
             Numbers come from your own telephony account. Vaani does not sell
             numbers — connect a Twilio, Exotel, Plivo or SIP number you already
             own.
@@ -248,15 +248,15 @@ export function CustomerNumbers({
                 key={provider.id}
                 type="button"
                 onClick={() => setProviderCode(provider.id)}
-                className={`rounded-xl border p-3 text-left transition ${providerCode === provider.id ? 'border-cyan-300/22 bg-cyan-300/[0.045]' : 'border-white/7 bg-white/[0.018] hover:bg-white/[0.035]'}`}
+                className={`rounded-xl border p-3 text-left transition ${providerCode === provider.id ? 'border-cyan-300/22 bg-cyan-300/[0.045]' : 'border-hairline bg-surface-muted hover:bg-surface-strong'}`}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium">{provider.name}</span>
                   <span
-                    className={`size-2 rounded-full ${providerCode === provider.id ? 'bg-cyan-300' : 'bg-white/15'}`}
+                    className={`size-2 rounded-full ${providerCode === provider.id ? 'bg-primary' : 'bg-surface-strong'}`}
                   />
                 </div>
-                <p className="mt-2 text-[9px] leading-4 text-white/32">
+                <p className="mt-2 text-[9px] leading-4 text-ink-muted">
                   {provider.note}
                 </p>
               </button>
@@ -292,8 +292,8 @@ export function CustomerNumbers({
                 placeholder="Stored only as a masked hint here"
               />
             </Field>
-            <div className="rounded-xl border border-violet-300/12 bg-violet-300/[0.03] p-3 text-[9px] leading-4 text-white/38">
-              <LockKeyhole className="mb-2 size-4 text-violet-200" />
+            <div className="rounded-xl border border-violet-300/12 bg-violet-300/[0.03] p-3 text-[9px] leading-4 text-ink-muted">
+              <LockKeyhole className="mb-2 size-4 text-violet-700" />
               API tokens are never stored in the number record. Add them in
               Integrations & API using encrypted secret storage.
             </div>
@@ -324,12 +324,12 @@ export function CustomerNumbers({
             </Field>
           </div>
           {error ? (
-            <div className="mt-4 rounded-xl border border-red-400/15 bg-red-400/5 p-3 text-[10px] text-red-100">
+            <div className="mt-4 rounded-xl border border-red-400/15 bg-red-400/5 p-3 text-[10px] text-danger-text">
               {error}
             </div>
           ) : null}
           {message ? (
-            <div className="mt-4 rounded-xl border border-emerald-400/15 bg-emerald-400/5 p-3 text-[10px] text-emerald-100">
+            <div className="mt-4 rounded-xl border border-emerald-400/15 bg-emerald-400/5 p-3 text-[10px] text-success-text">
               {message}
             </div>
           ) : null}
@@ -337,7 +337,7 @@ export function CustomerNumbers({
             <Button
               onClick={createNumber}
               disabled={loading}
-              className="flex-1 bg-amber-300 text-[#17120a] hover:bg-amber-200"
+              className="flex-1 bg-primary text-primary-foreground hover:bg-[#1d4ed8]"
             >
               {loading ? <Loader2 className="animate-spin" /> : <KeyRound />}
               Start ownership check
@@ -346,7 +346,7 @@ export function CustomerNumbers({
               type="button"
               variant="outline"
               onClick={() => onNavigate?.('integrations')}
-              className="flex-1 border-white/10 bg-transparent"
+              className="flex-1 border-hairline bg-transparent"
             >
               <LockKeyhole /> Secure provider credentials
             </Button>
@@ -355,9 +355,9 @@ export function CustomerNumbers({
           {verification ? (
             <div className="mt-5 rounded-xl border border-amber-300/15 bg-amber-300/[0.035] p-4">
               <p className="text-xs font-medium">Verify number ownership</p>
-              <p className="mt-1 text-[10px] text-white/36">
+              <p className="mt-1 text-[10px] text-ink-muted">
                 Local demo code:{' '}
-                <span className="font-mono text-amber-200">
+                <span className="font-mono text-warning-text">
                   {verification.demoCode ?? 'sent to the number'}
                 </span>
               </p>
@@ -376,7 +376,7 @@ export function CustomerNumbers({
                 <Button
                   onClick={verify}
                   disabled={loading}
-                  className="bg-white text-black hover:bg-white/90"
+                  className="bg-primary text-primary-foreground hover:bg-[#1d4ed8]"
                 >
                   Verify
                 </Button>
@@ -385,16 +385,16 @@ export function CustomerNumbers({
           ) : null}
         </section>
 
-        <section className="rounded-2xl border border-white/8 bg-[#0e1119] p-5">
+        <section className="rounded-2xl border border-hairline bg-surface p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="text-sm font-semibold">KYC document vault</h2>
-              <p className="mt-1 text-[10px] text-white/32">
+              <p className="mt-1 text-[10px] text-ink-muted">
                 Documents are checksum-verified and stored outside the
                 application database
               </p>
             </div>
-            <FileCheck2 className="size-5 text-emerald-300" />
+            <FileCheck2 className="size-5 text-success-text" />
           </div>
           <div className="mt-5 space-y-4">
             <Field label="Number request">
@@ -436,8 +436,8 @@ export function CustomerNumbers({
                 </option>
               </select>
             </Field>
-            <label className="block rounded-xl border border-dashed border-white/12 bg-white/[0.018] p-5 text-center text-[10px] text-white/38">
-              <FileUp className="mx-auto mb-3 size-5 text-cyan-200" />
+            <label className="block rounded-xl border border-dashed border-hairline bg-surface-muted p-5 text-center text-[10px] text-ink-muted">
+              <FileUp className="mx-auto mb-3 size-5 text-cyan-700" />
               <span>
                 {kycFile?.name || 'Choose PDF, JPEG or PNG · max 8 MB'}
               </span>
@@ -494,35 +494,35 @@ export function CustomerNumbers({
             ].map(([step, title, note, Icon]) => (
               <div
                 key={String(step)}
-                className="flex items-start gap-3 rounded-xl border border-white/7 bg-white/[0.02] p-3"
+                className="flex items-start gap-3 rounded-xl border border-hairline bg-surface-muted p-3"
               >
-                <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-white/5 text-[9px] text-white/55">
+                <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-surface-strong text-[9px] text-ink-body">
                   {String(step)}
                 </span>
                 <div className="flex-1">
                   <p className="text-xs font-medium">{String(title)}</p>
-                  <p className="mt-1 text-[9px] leading-4 text-white/32">
+                  <p className="mt-1 text-[9px] leading-4 text-ink-muted">
                     {String(note)}
                   </p>
                 </div>
-                <Icon className="size-4 text-white/24" />
+                <Icon className="size-4 text-ink-muted" />
               </div>
             ))}
           </div>
         </section>
       </div>
 
-      <section className="overflow-hidden rounded-2xl border border-white/8 bg-[#0e1119] p-5">
+      <section className="overflow-hidden rounded-2xl border border-hairline bg-surface p-5">
         <h2 className="text-sm font-semibold">
           Number inventory and activation state
         </h2>
-        <p className="mt-1 text-[10px] text-white/32">
+        <p className="mt-1 text-[10px] text-ink-muted">
           Provider routing is visible to workspace owners; voice-engine vendors
           remain private behind Vaani products.
         </p>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[1050px] text-left text-xs">
-            <thead className="border-y border-white/8 text-[9px] uppercase tracking-wider text-white/25">
+            <thead className="border-y border-hairline text-[9px] uppercase tracking-wider text-ink-muted">
               <tr>
                 {[
                   'Number',
@@ -545,30 +545,30 @@ export function CustomerNumbers({
               {numbers.map((number) => (
                 <tr key={number.id}>
                   <td className="px-3 py-4 font-mono">{number.phone_number}</td>
-                  <td className="px-3 py-4 text-white/48">
+                  <td className="px-3 py-4 text-ink-muted">
                     <p className="capitalize">
                       {(number.provider_code || 'auto').replaceAll('_', ' ')}
                     </p>
-                    <p className="mt-1 text-[9px] text-white/25">
+                    <p className="mt-1 text-[9px] text-ink-muted">
                       {(
                         number.connection_mode || number.acquisition_type
                       ).replaceAll('_', ' ')}{' '}
                       {number.provider_account_hint || ''}
                     </p>
                   </td>
-                  <td className="px-3 py-4 text-white/58">
+                  <td className="px-3 py-4 text-ink-body">
                     {number.assigned_agent_name || 'Unassigned'}
                   </td>
-                  <td className="px-3 py-4 text-white/48">
+                  <td className="px-3 py-4 text-ink-muted">
                     {number.business_use_case || '—'}
                   </td>
-                  <td className="px-3 py-4 text-white/48">
+                  <td className="px-3 py-4 text-ink-muted">
                     {Number(
                       number.estimated_monthly_minutes || 0,
                     ).toLocaleString('en-IN')}{' '}
                     min
                   </td>
-                  <td className="px-3 py-4 text-white/48">
+                  <td className="px-3 py-4 text-ink-muted">
                     {Number(number.kyc_document_count || 0)}
                   </td>
                   <td className="px-3 py-4">
@@ -598,9 +598,9 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className="block text-xs text-white/52">
+    <label className="block text-xs text-ink-body">
       {label}
-      <div className="mt-2 [&_.number-select]:h-10 [&_.number-select]:w-full [&_.number-select]:rounded-lg [&_.number-select]:border [&_.number-select]:border-white/8 [&_.number-select]:bg-[#121620] [&_.number-select]:px-3 [&_.number-select]:text-xs [&_input]:h-10 [&_input]:border-white/8 [&_input]:bg-white/[0.025]">
+      <div className="mt-2 [&_.number-select]:h-10 [&_.number-select]:w-full [&_.number-select]:rounded-lg [&_.number-select]:border [&_.number-select]:border-hairline [&_.number-select]:bg-surface [&_.number-select]:px-3 [&_.number-select]:text-xs [&_input]:h-10 [&_input]:border-hairline [&_input]:bg-surface-muted">
         {children}
       </div>
     </label>
@@ -621,7 +621,7 @@ function Status({ value }: { value: string }) {
   return (
     <Badge
       variant="outline"
-      className={`${positive ? 'border-emerald-400/15 text-emerald-300' : warning ? 'border-amber-300/15 text-amber-200' : 'border-white/10 text-white/42'} text-[8px]`}
+      className={`${positive ? 'border-emerald-400/15 text-success-text' : warning ? 'border-amber-300/15 text-warning-text' : 'border-hairline text-ink-muted'} text-[8px]`}
     >
       {value.replaceAll('_', ' ')}
     </Badge>

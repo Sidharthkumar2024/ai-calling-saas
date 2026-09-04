@@ -720,24 +720,24 @@ function CustomerOverview({
       />
       <section className="portal-panel overflow-hidden p-0">
         <div className="grid xl:grid-cols-[1.2fr_0.8fr]">
-          <div className="relative overflow-hidden border-b border-white/8 p-6 sm:p-7 xl:border-b-0 xl:border-r">
+          <div className="relative overflow-hidden border-b border-hairline p-6 sm:p-7 xl:border-b-0 xl:border-r">
             <div
               aria-hidden="true"
               className="absolute -right-16 -top-20 size-64 rounded-full bg-indigo-400/12 blur-3xl"
             />
             <div className="relative flex items-start justify-between gap-4">
               <div>
-                <div className="flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.18em] text-emerald-200/70">
+                <div className="flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.18em] text-success-text">
                   <span className="size-1.5 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,.8)]" />{' '}
                   Revenue pipeline live
                 </div>
-                <p className="mt-5 text-[10px] uppercase tracking-[0.14em] text-white/30">
+                <p className="mt-5 text-[10px] uppercase tracking-[0.14em] text-ink-muted">
                   Open pipeline value
                 </p>
-                <p className="mt-2 text-4xl font-semibold tracking-[-0.04em] text-white sm:text-5xl">
+                <p className="mt-2 text-4xl font-semibold tracking-[-0.04em] text-ink sm:text-5xl">
                   {money(stats.pipelineValue)}
                 </p>
-                <p className="mt-3 text-xs text-white/38">
+                <p className="mt-3 text-xs text-ink-muted">
                   {num(stats.opportunities)} active opportunities ·{' '}
                   {num(stats.qualified)} high-intent leads
                 </p>
@@ -758,7 +758,7 @@ function CustomerOverview({
                 onClick={() => onNavigate('lead_capture')}
                 size="sm"
                 variant="outline"
-                className="border-white/10 bg-white/[0.025]"
+                className="border-hairline bg-surface-muted"
               >
                 Capture leads
               </Button>
@@ -766,7 +766,7 @@ function CustomerOverview({
                 onClick={() => onNavigate('live_monitor')}
                 size="sm"
                 variant="outline"
-                className="border-white/10 bg-white/[0.025]"
+                className="border-hairline bg-surface-muted"
               >
                 Live monitor
               </Button>
@@ -776,26 +776,26 @@ function CustomerOverview({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold">System readiness</p>
-                <p className="mt-1 text-[10px] text-white/30">
+                <p className="mt-1 text-[10px] text-ink-muted">
                   Private provider adapters
                 </p>
               </div>
-              <Zap className="size-4 text-[#a8b7ff]" />
+              <Zap className="size-4 text-primary" />
             </div>
             <div className="mt-5 space-y-3">
               {(data.providerReadiness ?? []).slice(0, 5).map((provider) => (
                 <div
                   key={provider.adapter}
-                  className="flex items-center gap-3 rounded-xl border border-white/7 bg-white/[0.022] px-3 py-2.5"
+                  className="flex items-center gap-3 rounded-xl border border-hairline bg-surface-muted px-3 py-2.5"
                 >
                   <span
-                    className={`size-1.5 rounded-full ${provider.configured ? 'bg-emerald-300' : 'bg-amber-300'}`}
+                    className={`size-1.5 rounded-full ${provider.configured ? 'bg-emerald-300' : 'bg-primary'}`}
                   />
-                  <span className="min-w-0 flex-1 truncate text-[10px] text-white/55">
+                  <span className="min-w-0 flex-1 truncate text-[10px] text-ink-body">
                     {provider.publicName}
                   </span>
                   <span
-                    className={`text-[8px] uppercase tracking-wider ${provider.configured ? 'text-emerald-200' : 'text-amber-200'}`}
+                    className={`text-[8px] uppercase tracking-wider ${provider.configured ? 'text-success-text' : 'text-warning-text'}`}
                   >
                     {provider.configured ? 'connected' : 'sandbox'}
                   </span>
@@ -870,7 +870,7 @@ function CustomerOverview({
           />
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[700px] text-left text-xs">
-              <thead className="border-y border-white/8 text-[9px] uppercase tracking-wider text-white/25">
+              <thead className="border-y border-hairline text-[9px] uppercase tracking-wider text-ink-muted">
                 <tr>
                   {['Lead', 'Source', 'Score', 'Intent', 'Value', 'Stage'].map(
                     (h) => (
@@ -886,22 +886,22 @@ function CustomerOverview({
                   <tr key={lead.id}>
                     <td className="px-3 py-4">
                       <p className="font-medium">{lead.name}</p>
-                      <p className="mt-1 font-mono text-[9px] text-white/28">
+                      <p className="mt-1 font-mono text-[9px] text-ink-muted">
                         {lead.phone}
                       </p>
                     </td>
-                    <td className="px-3 py-4 text-white/48">
+                    <td className="px-3 py-4 text-ink-muted">
                       {lead.source_name}
                     </td>
                     <td className="px-3 py-4">
-                      <span className="rounded-lg border border-white/10 bg-white/6 px-2 py-1 font-mono text-white/80">
+                      <span className="rounded-lg border border-hairline bg-surface-strong px-2 py-1 font-mono text-ink">
                         {lead.score}
                       </span>
                     </td>
-                    <td className="px-3 py-4 text-white/48">
+                    <td className="px-3 py-4 text-ink-muted">
                       {String(lead.intent).replaceAll('_', ' ')}
                     </td>
-                    <td className="px-3 py-4 text-white/58">
+                    <td className="px-3 py-4 text-ink-body">
                       {money(lead.estimated_value)}
                     </td>
                     <td className="px-3 py-4">
@@ -921,20 +921,20 @@ function CustomerOverview({
           <div className="mt-4 space-y-4">
             {(data.sources ?? []).map((source) => (
               <div key={source.type} className="flex items-center gap-3">
-                <span className="grid size-9 place-items-center rounded-xl bg-white/5">
+                <span className="grid size-9 place-items-center rounded-xl bg-surface-strong">
                   {source.type === 'meta_ads' ? (
                     <Megaphone className="size-4 text-blue-300" />
                   ) : source.type === 'google_ads' ? (
-                    <BarChart3 className="size-4 text-amber-300" />
+                    <BarChart3 className="size-4 text-warning-text" />
                   ) : source.type === 'website_form' ? (
-                    <Globe2 className="size-4 text-cyan-300" />
+                    <Globe2 className="size-4 text-cyan-700" />
                   ) : (
-                    <Database className="size-4 text-violet-300" />
+                    <Database className="size-4 text-violet-700" />
                   )}
                 </span>
                 <div className="flex-1">
                   <p className="text-xs font-medium">{source.name}</p>
-                  <p className="mt-1 text-[9px] text-white/30">
+                  <p className="mt-1 text-[9px] text-ink-muted">
                     {source.status.replaceAll('_', ' ')}
                   </p>
                 </div>
@@ -945,7 +945,7 @@ function CustomerOverview({
           <Button
             onClick={() => onNavigate('lead_capture')}
             variant="outline"
-            className="mt-5 w-full border-white/10 bg-transparent"
+            className="mt-5 w-full border-hairline bg-transparent"
           >
             Manage lead capture
           </Button>
@@ -1003,7 +1003,7 @@ function Retargeting({
         }
       />
       {error ? (
-        <p className="rounded-xl border border-red-400/15 bg-red-400/5 p-3 text-xs text-red-100">
+        <p className="rounded-xl border border-red-400/15 bg-red-400/5 p-3 text-xs text-danger-text">
           {error}
         </p>
       ) : null}
@@ -1014,12 +1014,12 @@ function Retargeting({
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder="Audience name"
-              className="h-10 border-white/10 bg-white/[0.03]"
+              className="h-10 border-hairline bg-surface-muted"
             />
             <select
               value={destination}
               onChange={(event) => setDestination(event.target.value)}
-              className="h-10 rounded-lg border border-white/10 bg-[#111722] px-3 text-xs"
+              className="h-10 rounded-lg border border-hairline bg-surface px-3 text-xs"
             >
               <option value="meta_ads">Meta Ads</option>
               <option value="google_ads">Google Ads</option>
@@ -1053,20 +1053,20 @@ function Retargeting({
         {audiences.map((audience) => (
           <Panel key={audience.id}>
             <div className="flex items-center justify-between">
-              <Target className="size-4 text-[#a8b7ff]" />
+              <Target className="size-4 text-primary" />
               <Status value={audience.status} />
             </div>
             <h2 className="mt-5 text-sm font-semibold">{audience.name}</h2>
-            <p className="mt-2 min-h-10 text-xs leading-5 text-white/35">
+            <p className="mt-2 min-h-10 text-xs leading-5 text-ink-muted">
               Hashed identifiers only; revoked consent and booked outcomes are
               suppressed before sync.
             </p>
-            <div className="mt-5 flex items-end justify-between border-t border-white/7 pt-4">
+            <div className="mt-5 flex items-end justify-between border-t border-hairline pt-4">
               <div>
                 <p className="text-xl font-semibold">
                   {num(audience.eligible_count)}
                 </p>
-                <p className="text-[9px] text-white/28">eligible contacts</p>
+                <p className="text-[9px] text-ink-muted">eligible contacts</p>
               </div>
               <Button
                 size="sm"
@@ -1078,7 +1078,7 @@ function Retargeting({
                   )
                 }
                 disabled={Boolean(loading) || audience.status === 'syncing'}
-                className="border-white/10 bg-transparent"
+                className="border-hairline bg-transparent"
               >
                 <RefreshCcw
                   className={loading === audience.id ? 'animate-spin' : ''}
@@ -1091,7 +1091,7 @@ function Retargeting({
         {!audiences.length ? (
           <Panel>
             <p className="text-sm font-medium">No audiences yet</p>
-            <p className="mt-2 text-xs text-white/35">
+            <p className="mt-2 text-xs text-ink-muted">
               Build the first consent-aware Meta or Google audience.
             </p>
           </Panel>
@@ -1111,11 +1111,11 @@ function Retargeting({
             'CRM suppression',
           ].map((item, index) => (
             <div key={item} className="contents">
-              <div className="flex-1 rounded-xl border border-white/8 bg-white/[0.02] p-4 text-center text-xs">
+              <div className="flex-1 rounded-xl border border-hairline bg-surface-muted p-4 text-center text-xs">
                 {item}
               </div>
               {index < 4 ? (
-                <span className="text-center text-white/20">→</span>
+                <span className="text-center text-ink-muted">→</span>
               ) : null}
             </div>
           ))}
@@ -1139,13 +1139,13 @@ function Header({
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9eb0ff]">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
           {eyebrow}
         </p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
           {title}
         </h1>
-        <p className="mt-2 max-w-3xl text-xs leading-5 text-white/38 sm:text-sm">
+        <p className="mt-2 max-w-3xl text-xs leading-5 text-ink-muted sm:text-sm">
           {description}
         </p>
       </div>
@@ -1170,17 +1170,17 @@ function Metric({
 }) {
   const tones = {
     indigo:
-      'from-indigo-300 to-blue-300 text-indigo-200 bg-indigo-300/8 border-indigo-200/12',
-    cyan: 'from-cyan-300 to-sky-300 text-cyan-200 bg-cyan-300/8 border-cyan-200/12',
+      'from-indigo-300 to-blue-300 text-indigo-700 bg-indigo-300/8 border-indigo-200/12',
+    cyan: 'from-cyan-300 to-sky-300 text-cyan-700 bg-cyan-300/8 border-cyan-200/12',
     violet:
-      'from-violet-300 to-fuchsia-300 text-violet-200 bg-violet-300/8 border-violet-200/12',
+      'from-violet-300 to-fuchsia-300 text-violet-700 bg-violet-300/8 border-violet-200/12',
     emerald:
-      'from-emerald-300 to-teal-300 text-emerald-200 bg-emerald-300/8 border-emerald-200/12',
+      'from-emerald-300 to-teal-300 text-success-text bg-emerald-300/8 border-emerald-200/12',
   }[tone];
   return (
     <div className="portal-stat group overflow-hidden p-4">
       <div className="flex items-center justify-between">
-        <p className="text-[9px] font-medium uppercase tracking-[0.14em] text-white/34">
+        <p className="text-[9px] font-medium uppercase tracking-[0.14em] text-ink-muted">
           {label}
         </p>
         <span
@@ -1191,14 +1191,14 @@ function Metric({
       </div>
       <div className="mt-3 flex items-end justify-between gap-3">
         <div>
-          <p className="text-2xl font-semibold tracking-tight text-white/95">
+          <p className="text-2xl font-semibold tracking-tight text-ink">
             {value}
           </p>
-          <p className="mt-1 text-[9px] text-white/32">{note}</p>
+          <p className="mt-1 text-[9px] text-ink-muted">{note}</p>
         </div>
-        <ArrowUpRight className="mb-1 size-3.5 text-white/22" />
+        <ArrowUpRight className="mb-1 size-3.5 text-ink-muted" />
       </div>
-      <div className="mt-4 h-1 overflow-hidden rounded-full bg-white/5">
+      <div className="mt-4 h-1 overflow-hidden rounded-full bg-surface-strong">
         <div
           className={`h-full rounded-full bg-gradient-to-r ${tones.split(' ').slice(0, 2).join(' ')}`}
           style={{ width: `${Math.max(4, Math.min(100, progress))}%` }}
@@ -1222,7 +1222,7 @@ function PanelTitle({ title, note }: { title: string; note: string }) {
   return (
     <div>
       <h2 className="text-sm font-semibold">{title}</h2>
-      <p className="mt-1 text-[10px] text-white/32">{note}</p>
+      <p className="mt-1 text-[10px] text-ink-muted">{note}</p>
     </div>
   );
 }
@@ -1241,7 +1241,7 @@ function Status({ value }: { value: string }) {
   );
   return (
     <span
-      className={`inline-flex rounded-full border px-2 py-1 text-[9px] capitalize ${positive ? 'border-emerald-400/15 bg-emerald-400/7 text-emerald-300' : warning ? 'border-amber-300/15 bg-amber-300/7 text-amber-200' : 'border-white/10 bg-white/5 text-white/45'}`}
+      className={`inline-flex rounded-full border px-2 py-1 text-[9px] capitalize ${positive ? 'border-emerald-400/15 bg-emerald-400/7 text-success-text' : warning ? 'border-amber-300/15 bg-amber-300/7 text-warning-text' : 'border-hairline bg-surface-strong text-ink-muted'}`}
     >
       {value.replaceAll('_', ' ')}
     </span>
@@ -1251,8 +1251,8 @@ function Loading() {
   return (
     <div className="grid min-h-[60vh] place-items-center">
       <div className="text-center">
-        <Loader2 className="mx-auto size-6 animate-spin text-amber-300" />
-        <p className="mt-3 text-xs text-white/35">
+        <Loader2 className="mx-auto size-6 animate-spin text-warning-text" />
+        <p className="mt-3 text-xs text-ink-muted">
           Loading your revenue workspace…
         </p>
       </div>
@@ -1262,11 +1262,11 @@ function Loading() {
 function ErrorState({ error, retry }: { error: string; retry: () => void }) {
   return (
     <div className="mx-auto mt-20 max-w-md rounded-2xl border border-red-400/15 bg-red-400/5 p-6 text-center">
-      <p className="text-sm text-red-100">{error}</p>
+      <p className="text-sm text-danger-text">{error}</p>
       <Button
         onClick={retry}
         variant="outline"
-        className="mt-4 border-white/10 bg-transparent"
+        className="mt-4 border-hairline bg-transparent"
       >
         <RefreshCcw /> Retry
       </Button>

@@ -174,6 +174,49 @@ through a relay, or not at all; without it that verdict is "not tested" rather
 than a guess. The pre-call HTTP probe still says it is an HTTP probe. 47
 assertions.
 
+**Track B — the §4 light design system.** The portal, admin, landing page and
+docs are now white/soft-gray/near-black with a blue primary, per §4. The token
+layer already held a full light palette that was never reachable, because the
+root element hardcoded `dark`; the work was that components bypassed the tokens
+— 1,376 `white/NN` alpha utilities across 31 files plus ~150 hex literals.
+
+Swept through one published mapping rather than 1,376 separate decisions, based
+on the role each value played on a dark ground:
+
+| was | is | role |
+|---|---|---|
+| `border-white/*` | `border-hairline` `#E2E8F0` | hairline |
+| `bg-white/≤0.03` | `bg-surface-muted` `#F8FAFC` | page / recessed |
+| `bg-white/>0.03` | `bg-surface-strong` `#F1F5F9` | panel, hover, chip |
+| `text-white/≤48` | `text-ink-muted` `#475569` | muted |
+| `text-white/50-68` | `text-ink-body` `#334155` | body |
+| `text-white/≥70` | `text-ink` `#111827` | primary |
+| near-black `bg-[#…]` | `bg-surface` | panel |
+| solid amber/cyan fills | `bg-primary` `#2563EB` | primary action |
+
+Bare `text-white` was deliberately excluded: most of it sits on a chip that is
+explicitly dark and stays dark on a light page. The `.dark` block is gone —
+keeping a dead palette would invite half the interface to drift back into it.
+
+Verified by measuring, not by looking: a WCAG contrast pass over every rendered
+text node on **30 portal screens, 11 admin screens, the landing page and the
+docs, in both languages — 0 failures**. It found real problems on the way, and
+they are the reason the number is worth quoting:
+
+- §4's `#16A34A` and `#D97706` fall under 4.5:1 as *text* at the label sizes
+  this interface uses. The §4 values stay for fills, borders and icons;
+  `--success-text` / `--warning-text` / `--danger-text` are one step darker.
+- Native `<option>` elements do not inherit the select's colour and fell back to
+  the platform grey at 3.6:1.
+- The hero headline's gradient text was amber→pink→violet: on white the amber
+  end is nearly invisible, and no contrast checker can see it, because gradient
+  text is `color: transparent`.
+- The lead-capture widget preview paints a background the *customer* chooses.
+  Its text had always been hardcoded white — wrong the moment anyone picked a
+  light colour — and the sweep made it dark, wrong for the default. It now
+  derives a readable ink from whatever colour is set, which is more correct than
+  what was there before.
+
 **Track A — live defects (FINAL Master Architecture pass).** Nine findings from
 auditing all 40 sections against the code; the first three cost money today.
 

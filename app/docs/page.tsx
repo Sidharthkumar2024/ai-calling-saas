@@ -60,8 +60,8 @@ if (!timingSafeEqual(expected, signature.v1)) {
 
 export default function DocsPage() {
   return (
-    <main className="min-h-screen bg-[#090b11] text-white">
-      <header className="sticky top-0 z-40 border-b border-white/8 bg-[#090b11]/90 backdrop-blur-xl">
+    <main className="min-h-screen bg-surface-muted text-ink">
+      <header className="sticky top-0 z-40 border-b border-hairline bg-surface-muted/90 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-[1320px] items-center gap-4 px-4 sm:px-6">
           <Link href="/" className="flex items-center gap-3">
             <span className="grid size-9 place-items-center rounded-xl bg-amber-300 text-[#17120a]">
@@ -69,7 +69,7 @@ export default function DocsPage() {
             </span>
             <span>
               <span className="block text-sm font-semibold">Vaani</span>
-              <span className="block text-[9px] uppercase tracking-[0.18em] text-white/35">
+              <span className="block text-[9px] uppercase tracking-[0.18em] text-ink-muted">
                 Developer docs
               </span>
             </span>
@@ -77,13 +77,13 @@ export default function DocsPage() {
           <div className="ml-auto flex items-center gap-2">
             <Link
               href="/admin/login"
-              className="hidden rounded-lg px-3 py-2 text-xs text-white/45 hover:bg-white/5 hover:text-white sm:block"
+              className="hidden rounded-lg px-3 py-2 text-xs text-ink-muted hover:bg-surface-strong hover:text-ink sm:block"
             >
               Admin
             </Link>
             <Link
               href="/login"
-              className="inline-flex h-9 items-center gap-2 rounded-lg bg-white px-4 text-xs font-medium text-black hover:bg-white/90"
+              className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-xs font-medium text-primary-foreground hover:bg-[#1d4ed8]"
             >
               Open app <ArrowRight className="size-3.5" />
             </Link>
@@ -92,11 +92,11 @@ export default function DocsPage() {
       </header>
 
       <div className="mx-auto grid max-w-[1320px] lg:grid-cols-[230px_minmax(0,1fr)]">
-        <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] border-r border-white/8 px-4 py-8 lg:block">
-          <p className="px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-white/25">
+        <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] border-r border-hairline px-4 py-8 lg:block">
+          <p className="px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-ink-muted">
             Get started
           </p>
-          <nav className="mt-3 space-y-1 text-xs text-white/42">
+          <nav className="mt-3 space-y-1 text-xs text-ink-muted">
             {[
               ['Overview', '#overview'],
               ['Authentication', '#authentication'],
@@ -114,7 +114,7 @@ export default function DocsPage() {
               <a
                 key={href}
                 href={href}
-                className="block rounded-lg px-3 py-2 hover:bg-white/5 hover:text-white"
+                className="block rounded-lg px-3 py-2 hover:bg-surface-strong hover:text-ink"
               >
                 {label}
               </a>
@@ -124,13 +124,13 @@ export default function DocsPage() {
 
         <article className="min-w-0 px-4 py-12 sm:px-8 lg:px-12 lg:py-16">
           <section id="overview" className="scroll-mt-24">
-            <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/15 bg-amber-300/5 px-3 py-1.5 text-[10px] text-amber-200">
+            <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/15 bg-amber-300/5 px-3 py-1.5 text-[10px] text-warning-text">
               <BookOpenText className="size-3.5" /> API v1 · Localhost
             </span>
             <h1 className="mt-6 max-w-4xl text-4xl font-semibold leading-[1.02] tracking-[-0.05em] sm:text-6xl">
               Build lead-to-call workflows on Vaani.
             </h1>
-            <p className="mt-6 max-w-3xl text-base leading-7 text-white/48">
+            <p className="mt-6 max-w-3xl text-base leading-7 text-ink-muted">
               Capture leads, read wallet balance, receive signed call events and
               connect existing systems without exposing the voice and telephony
               providers behind Vaani.
@@ -171,9 +171,10 @@ export default function DocsPage() {
               ].map((scope) => (
                 <div
                   key={scope}
-                  className="flex items-center gap-2 rounded-xl border border-white/7 bg-white/[0.02] p-3 text-xs text-white/48"
+                  className="flex items-center gap-2 rounded-xl border border-hairline bg-surface-muted p-3 text-xs text-ink-muted"
                 >
-                  <CheckCircle2 className="size-3.5 text-emerald-300" /> {scope}
+                  <CheckCircle2 className="size-3.5 text-success-text" />{' '}
+                  {scope}
                 </div>
               ))}
             </div>
@@ -227,8 +228,8 @@ export default function DocsPage() {
               visible form fields to the endpoint.
             </p>
             <Code>{formExample}</Code>
-            <div className="mt-5 rounded-xl border border-amber-300/12 bg-amber-300/[0.035] p-4 text-xs leading-5 text-white/52">
-              <LockKeyhole className="mb-3 size-4 text-amber-200" />{' '}
+            <div className="mt-5 rounded-xl border border-amber-300/12 bg-amber-300/[0.035] p-4 text-xs leading-5 text-ink-body">
+              <LockKeyhole className="mb-3 size-4 text-warning-text" />{' '}
               Allowed-origin validation, payload limits and per-IP/per-form rate
               limits run before ingestion. Add CAPTCHA/risk scoring at the edge
               for a public high-volume campaign.
@@ -470,7 +471,7 @@ EXOTEL_CALLER_ID=...`}</Code>
           >
             <div className="rounded-2xl border border-violet-300/12 bg-violet-300/[0.035] p-5">
               <p className="text-sm font-medium">No fake vendor contract</p>
-              <p className="mt-2 text-xs leading-5 text-white/45">
+              <p className="mt-2 text-xs leading-5 text-ink-muted">
                 The current app stores a Willow/custom base URL, account ID and
                 encrypted API key, but deliberately does not send a test
                 request. The connector becomes active after you supply the
@@ -490,9 +491,9 @@ EXOTEL_CALLER_ID=...`}</Code>
               ].map((item) => (
                 <div
                   key={item}
-                  className="flex items-center gap-2 rounded-xl border border-white/7 bg-white/[0.02] p-3 text-xs text-white/48"
+                  className="flex items-center gap-2 rounded-xl border border-hairline bg-surface-muted p-3 text-xs text-ink-muted"
                 >
-                  <CheckCircle2 className="size-3.5 text-violet-200" /> {item}
+                  <CheckCircle2 className="size-3.5 text-violet-700" /> {item}
                 </div>
               ))}
             </div>
@@ -536,10 +537,12 @@ EXOTEL_CALLER_ID=...`}</Code>
               ].map(([title, note]) => (
                 <div
                   key={title}
-                  className="rounded-2xl border border-white/8 bg-[#0e1119] p-5"
+                  className="rounded-2xl border border-hairline bg-surface p-5"
                 >
                   <h3 className="text-sm font-medium">{title}</h3>
-                  <p className="mt-3 text-xs leading-5 text-white/38">{note}</p>
+                  <p className="mt-3 text-xs leading-5 text-ink-muted">
+                    {note}
+                  </p>
                 </div>
               ))}
             </div>
@@ -564,15 +567,15 @@ function DocSection({
   return (
     <section
       id={id}
-      className="scroll-mt-24 border-t border-white/8 py-12 first:border-t-0 sm:py-16"
+      className="scroll-mt-24 border-t border-hairline py-12 first:border-t-0 sm:py-16"
     >
-      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-300/75">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-warning-text">
         {eyebrow}
       </p>
       <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
         {title}
       </h2>
-      <div className="mt-5 space-y-5 text-sm leading-7 text-white/48 [&_code]:rounded [&_code]:bg-white/6 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[12px] [&_code]:text-cyan-100/70 [&_strong]:font-medium [&_strong]:text-white/75">
+      <div className="mt-5 space-y-5 text-sm leading-7 text-ink-muted [&_code]:rounded [&_code]:bg-surface-strong [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[12px] [&_code]:text-cyan-700 [&_strong]:font-medium [&_strong]:text-ink">
         {children}
       </div>
     </section>
@@ -591,12 +594,12 @@ function Endpoint({
   note: string;
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-white/8 bg-[#0e1119] p-4 sm:flex-row sm:items-center">
-      <span className="w-fit rounded-md bg-emerald-400/10 px-2 py-1 font-mono text-[9px] font-semibold text-emerald-300">
+    <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface p-4 sm:flex-row sm:items-center">
+      <span className="w-fit rounded-md bg-emerald-400/10 px-2 py-1 font-mono text-[9px] font-semibold text-success-text">
         {method}
       </span>
-      <code className="font-mono text-xs text-white/72">{path}</code>
-      <span className="text-[10px] text-white/28 sm:ml-auto">{note}</span>
+      <code className="font-mono text-xs text-ink">{path}</code>
+      <span className="text-[10px] text-ink-muted sm:ml-auto">{note}</span>
     </div>
   );
 }
@@ -610,12 +613,12 @@ function Info({
   value: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/8 bg-[#0e1119] p-4">
-      <Icon className="size-4 text-amber-200" />
-      <p className="mt-4 text-[9px] uppercase tracking-[0.14em] text-white/25">
+    <div className="rounded-2xl border border-hairline bg-surface p-4">
+      <Icon className="size-4 text-warning-text" />
+      <p className="mt-4 text-[9px] uppercase tracking-[0.14em] text-ink-muted">
         {label}
       </p>
-      <p className="mt-2 text-xs font-medium text-white/72">{value}</p>
+      <p className="mt-2 text-xs font-medium text-ink">{value}</p>
     </div>
   );
 }
@@ -632,21 +635,21 @@ function FlowCard({
 }) {
   return (
     <div
-      className={`rounded-2xl border p-5 ${recommended ? 'border-amber-300/18 bg-amber-300/[0.035]' : 'border-white/8 bg-[#0e1119]'}`}
+      className={`rounded-2xl border p-5 ${recommended ? 'border-amber-300/18 bg-amber-300/[0.035]' : 'border-hairline bg-surface'}`}
     >
       <div className="flex items-center justify-between">
-        <Icon className="size-4 text-amber-200" />
+        <Icon className="size-4 text-warning-text" />
         {recommended ? (
           <span className="rounded-full bg-amber-300 px-2 py-1 text-[8px] font-semibold text-black">
             Recommended
           </span>
         ) : null}
       </div>
-      <h3 className="mt-5 text-sm font-medium text-white/78">{title}</h3>
+      <h3 className="mt-5 text-sm font-medium text-ink">{title}</h3>
       <div className="mt-4 space-y-2">
         {points.map((point) => (
-          <div key={point} className="flex gap-2 text-xs text-white/42">
-            <CheckCircle2 className="mt-1 size-3 shrink-0 text-emerald-300" />{' '}
+          <div key={point} className="flex gap-2 text-xs text-ink-muted">
+            <CheckCircle2 className="mt-1 size-3 shrink-0 text-success-text" />{' '}
             {point}
           </div>
         ))}

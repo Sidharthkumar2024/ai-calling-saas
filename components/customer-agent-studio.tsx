@@ -193,12 +193,12 @@ export function CustomerAgentStudio({
 
   if (!draft || !selected) {
     return (
-      <div className="rounded-2xl border border-white/8 bg-[#0e1119] p-8 text-center">
-        <Bot className="mx-auto size-6 text-white/30" />
+      <div className="rounded-2xl border border-hairline bg-surface p-8 text-center">
+        <Bot className="mx-auto size-6 text-ink-muted" />
         <p className="mt-3 text-sm">No agent is configured.</p>
         <Button
           onClick={createAgent}
-          className="mt-5 bg-amber-300 text-black hover:bg-amber-200"
+          className="mt-5 bg-primary text-black hover:bg-[#1d4ed8]"
         >
           <Plus /> Create first agent
         </Button>
@@ -210,13 +210,13 @@ export function CustomerAgentStudio({
     <div className="space-y-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-300/80">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-warning-text">
             Build · Test · Publish
           </p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
             Agent Studio
           </h1>
-          <p className="mt-2 max-w-3xl text-xs leading-5 text-white/38 sm:text-sm">
+          <p className="mt-2 max-w-3xl text-xs leading-5 text-ink-muted sm:text-sm">
             Configure the conversation, intelligence, voice and actions, then
             test without making a phone call.
           </p>
@@ -224,7 +224,7 @@ export function CustomerAgentStudio({
         <div className="flex items-center gap-2">
           <Badge
             variant="outline"
-            className="h-9 gap-2 rounded-lg border-amber-300/15 bg-amber-300/5 px-3 text-amber-100"
+            className="h-9 gap-2 rounded-lg border-amber-300/15 bg-amber-300/5 px-3 text-warning-text"
           >
             <CircleDollarSign className="size-3.5" />{' '}
             {Number(data.wallet?.balance ?? 0).toLocaleString('en-IN')} credits
@@ -232,7 +232,7 @@ export function CustomerAgentStudio({
           <Button
             onClick={save}
             disabled={saving}
-            className="bg-amber-300 text-[#17120a] hover:bg-amber-200"
+            className="bg-primary text-primary-foreground hover:bg-[#1d4ed8]"
           >
             {saving ? <Loader2 className="animate-spin" /> : <Save />} Save
             agent
@@ -241,20 +241,20 @@ export function CustomerAgentStudio({
       </div>
 
       {error ? (
-        <div className="rounded-xl border border-red-400/15 bg-red-400/5 p-3 text-xs text-red-100">
+        <div className="rounded-xl border border-red-400/15 bg-red-400/5 p-3 text-xs text-danger-text">
           {error}
         </div>
       ) : null}
       {notice ? (
-        <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/5 p-3 text-xs text-emerald-100">
+        <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/5 p-3 text-xs text-success-text">
           {notice}
         </div>
       ) : null}
 
       <div className="grid gap-4 2xl:grid-cols-[230px_minmax(0,1fr)_430px]">
-        <aside className="rounded-2xl border border-white/8 bg-[#0e1119] p-3">
+        <aside className="rounded-2xl border border-hairline bg-surface p-3">
           <div className="flex items-center justify-between px-2 py-2">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/28">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
               Your agents
             </p>
             <Button
@@ -272,25 +272,25 @@ export function CustomerAgentStudio({
                 key={agent.id}
                 type="button"
                 onClick={() => setSelectedId(agent.id)}
-                className={`w-full rounded-xl border p-3 text-left transition-colors ${selected.id === agent.id ? 'border-amber-300/20 bg-amber-300/[0.045]' : 'border-white/6 bg-white/[0.015] hover:bg-white/[0.035]'}`}
+                className={`w-full rounded-xl border p-3 text-left transition-colors ${selected.id === agent.id ? 'border-amber-300/20 bg-amber-300/[0.045]' : 'border-hairline bg-surface-muted hover:bg-surface-strong'}`}
               >
                 <div className="flex items-start gap-3">
                   <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-violet-300/10">
-                    <Bot className="size-4 text-violet-200" />
+                    <Bot className="size-4 text-violet-700" />
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-xs font-medium">{agent.name}</p>
-                    <p className="mt-1 truncate text-[9px] capitalize text-white/30">
+                    <p className="mt-1 truncate text-[9px] capitalize text-ink-muted">
                       {agent.use_case.replaceAll('_', ' ')}
                     </p>
                   </div>
-                  <ChevronRight className="mt-2 size-3 text-white/20" />
+                  <ChevronRight className="mt-2 size-3 text-ink-muted" />
                 </div>
                 <div className="mt-3 flex items-center justify-between text-[9px]">
-                  <span className="rounded-full border border-emerald-400/12 bg-emerald-400/6 px-2 py-1 capitalize text-emerald-300">
+                  <span className="rounded-full border border-emerald-400/12 bg-emerald-400/6 px-2 py-1 capitalize text-success-text">
                     {agent.status}
                   </span>
-                  <span className="text-white/28">
+                  <span className="text-ink-muted">
                     ₹{(agent.cost_per_minute / 100).toFixed(2)}/min
                   </span>
                 </div>
@@ -298,46 +298,46 @@ export function CustomerAgentStudio({
             ))}
           </div>
           <div className="mt-4 rounded-xl border border-cyan-300/10 bg-cyan-300/[0.025] p-3">
-            <p className="text-[10px] font-medium text-cyan-100">
+            <p className="text-[10px] font-medium text-cyan-700">
               Trial safety
             </p>
-            <p className="mt-2 text-[9px] leading-4 text-white/34">
+            <p className="mt-2 text-[9px] leading-4 text-ink-muted">
               Text and browser voice work immediately. Phone calls stay locked
               until number verification and KYC.
             </p>
           </div>
         </aside>
 
-        <section className="min-w-0 rounded-2xl border border-white/8 bg-[#0e1119]">
-          <div className="flex flex-col gap-4 border-b border-white/8 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <section className="min-w-0 rounded-2xl border border-hairline bg-surface">
+          <div className="flex flex-col gap-4 border-b border-hairline p-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <Input
                 value={draft.name}
                 onChange={(event) =>
                   setDraft({ ...draft, name: event.target.value })
                 }
-                className="h-9 max-w-sm border-transparent bg-transparent px-0 text-lg font-semibold focus-visible:border-white/10"
+                className="h-9 max-w-sm border-transparent bg-transparent px-0 text-lg font-semibold focus-visible:border-hairline"
               />
-              <p className="mt-1 text-[10px] text-white/28">
+              <p className="mt-1 text-[10px] text-ink-muted">
                 Vaani Voice · India routing · customer-safe provider abstraction
               </p>
             </div>
-            <div className="rounded-xl border border-white/8 bg-white/[0.025] px-3 py-2 text-right">
-              <p className="text-[9px] text-white/28">Estimated live cost</p>
+            <div className="rounded-xl border border-hairline bg-surface-muted px-3 py-2 text-right">
+              <p className="text-[9px] text-ink-muted">Estimated live cost</p>
               <p className="mt-1 text-xs font-medium">
                 ₹{(selected.cost_per_minute / 100).toFixed(2)} / minute
               </p>
             </div>
           </div>
 
-          <div className="overflow-x-auto border-b border-white/8 p-2">
+          <div className="overflow-x-auto border-b border-hairline p-2">
             <div className="flex min-w-max gap-1">
               {studioTabs.map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => setTab(item.id)}
-                  className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-[10px] ${tab === item.id ? 'bg-white/8 text-white' : 'text-white/35 hover:bg-white/[0.035] hover:text-white/60'}`}
+                  className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-[10px] ${tab === item.id ? 'bg-surface-strong text-ink' : 'text-ink-muted hover:bg-surface-strong hover:text-ink-body'}`}
                 >
                   <item.icon className="size-3.5" />
                   {item.label}
@@ -408,21 +408,21 @@ function SettingsPanel({
                     },
                   })
                 }
-                className={`rounded-xl border p-4 text-left transition ${draft.useCase === preset.useCase ? 'border-cyan-300/20 bg-cyan-300/[0.04]' : 'border-white/7 bg-white/[0.015] hover:bg-white/[0.035]'}`}
+                className={`rounded-xl border p-4 text-left transition ${draft.useCase === preset.useCase ? 'border-cyan-300/20 bg-cyan-300/[0.04]' : 'border-hairline bg-surface-muted hover:bg-surface-strong'}`}
               >
                 <div className="flex items-center justify-between gap-3">
                   <span className="grid size-9 place-items-center rounded-xl bg-cyan-300/8">
-                    <BriefcaseBusiness className="size-4 text-cyan-100" />
+                    <BriefcaseBusiness className="size-4 text-cyan-700" />
                   </span>
                   <Badge
                     variant="outline"
-                    className="border-white/8 text-[8px] text-white/38"
+                    className="border-hairline text-[8px] text-ink-muted"
                   >
                     {preset.industry}
                   </Badge>
                 </div>
                 <p className="mt-3 text-xs font-medium">{preset.name}</p>
-                <p className="mt-2 text-[9px] leading-4 text-white/34">
+                <p className="mt-2 text-[9px] leading-4 text-ink-muted">
                   {preset.description}
                 </p>
               </button>
@@ -464,7 +464,7 @@ function SettingsPanel({
             ].map((token) => (
               <code
                 key={token}
-                className="rounded-lg bg-white/5 px-2 py-1 text-[9px] text-cyan-100/65"
+                className="rounded-lg bg-surface-strong px-2 py-1 text-[9px] text-cyan-700"
               >
                 {token}
               </code>
@@ -523,7 +523,7 @@ function SettingsPanel({
             </Field>
             <Field label="Knowledge grounding">
               <div className="input-static">
-                <CheckCircle2 className="size-4 text-emerald-300" /> Approved
+                <CheckCircle2 className="size-4 text-success-text" /> Approved
                 workspace sources only
               </div>
             </Field>
@@ -635,15 +635,15 @@ function SettingsPanel({
                     primaryLanguage: voice.language,
                   })
                 }
-                className={`rounded-xl border p-3 text-left ${draft.voiceName === voice.publicName ? 'border-violet-300/20 bg-violet-300/[0.04]' : 'border-white/7 bg-white/[0.015]'}`}
+                className={`rounded-xl border p-3 text-left ${draft.voiceName === voice.publicName ? 'border-violet-300/20 bg-violet-300/[0.04]' : 'border-hairline bg-surface-muted'}`}
               >
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-medium">{voice.publicName}</p>
-                  <span className="text-[8px] capitalize text-white/32">
+                  <span className="text-[8px] capitalize text-ink-muted">
                     {voice.style}
                   </span>
                 </div>
-                <p className="mt-2 text-[9px] text-white/34">
+                <p className="mt-2 text-[9px] text-ink-muted">
                   {voice.bestFor.join(' · ')}
                 </p>
               </button>
@@ -661,7 +661,7 @@ function SettingsPanel({
               );
             }}
             variant="outline"
-            className="mt-4 border-white/10 bg-transparent"
+            className="mt-4 border-hairline bg-transparent"
           >
             <Play /> Preview selected voice
           </Button>
@@ -704,11 +704,11 @@ function SettingsPanel({
           <div className="mt-5 rounded-xl border border-emerald-400/12 bg-emerald-400/[0.025] p-4">
             <div className="flex items-center justify-between">
               <span className="text-xs">Estimated turn latency</span>
-              <span className="font-mono text-sm text-emerald-300">
+              <span className="font-mono text-sm text-success-text">
                 0.42–0.78s
               </span>
             </div>
-            <div className="mt-3 h-1.5 rounded-full bg-white/6">
+            <div className="mt-3 h-1.5 rounded-full bg-surface-strong">
               <div className="h-full w-[68%] rounded-full bg-gradient-to-r from-emerald-400 to-amber-300" />
             </div>
           </div>
@@ -771,16 +771,16 @@ function SettingsPanel({
                       : [...draft.tools, id],
                   })
                 }
-                className={`rounded-xl border p-4 text-left ${draft.tools.includes(id) ? 'border-amber-300/18 bg-amber-300/[0.035]' : 'border-white/7 bg-white/[0.015]'}`}
+                className={`rounded-xl border p-4 text-left ${draft.tools.includes(id) ? 'border-amber-300/18 bg-amber-300/[0.035]' : 'border-hairline bg-surface-muted'}`}
               >
                 <div className="flex items-center justify-between">
-                  <SquareFunction className="size-4 text-amber-200" />
+                  <SquareFunction className="size-4 text-warning-text" />
                   <span
-                    className={`size-2 rounded-full ${draft.tools.includes(id) ? 'bg-emerald-300' : 'bg-white/15'}`}
+                    className={`size-2 rounded-full ${draft.tools.includes(id) ? 'bg-emerald-300' : 'bg-surface-strong'}`}
                   />
                 </div>
                 <p className="mt-4 text-xs font-medium">{title}</p>
-                <p className="mt-2 text-[9px] leading-4 text-white/34">
+                <p className="mt-2 text-[9px] leading-4 text-ink-muted">
                   {note}
                 </p>
               </button>
@@ -800,13 +800,13 @@ function SettingsPanel({
             {draft.extractions.map((item) => (
               <div
                 key={item}
-                className="flex items-center gap-3 rounded-xl border border-white/7 bg-white/[0.015] p-3"
+                className="flex items-center gap-3 rounded-xl border border-hairline bg-surface-muted p-3"
               >
-                <Code2 className="size-4 text-cyan-200" />
+                <Code2 className="size-4 text-cyan-700" />
                 <span className="flex-1 font-mono text-[10px]">{item}</span>
                 <Badge
                   variant="outline"
-                  className="border-white/8 text-[8px] text-white/35"
+                  className="border-hairline text-[8px] text-ink-muted"
                 >
                   string / number
                 </Badge>
@@ -831,11 +831,11 @@ function SettingsPanel({
           ].map(([title, note]) => (
             <div
               key={title}
-              className="rounded-xl border border-white/7 bg-white/[0.015] p-4"
+              className="rounded-xl border border-hairline bg-surface-muted p-4"
             >
               <p className="text-xs font-medium">{title}</p>
-              <p className="mt-2 text-[9px] leading-4 text-white/34">{note}</p>
-              <span className="mt-4 inline-flex rounded-full border border-amber-300/12 bg-amber-300/5 px-2 py-1 text-[8px] text-amber-200">
+              <p className="mt-2 text-[9px] leading-4 text-ink-muted">{note}</p>
+              <span className="mt-4 inline-flex rounded-full border border-amber-300/12 bg-amber-300/5 px-2 py-1 text-[8px] text-warning-text">
                 Publish gate
               </span>
             </div>
@@ -1715,20 +1715,20 @@ function TestConsole({
   );
 
   return (
-    <aside className="flex min-h-[720px] flex-col overflow-hidden rounded-2xl border border-white/8 bg-[#0e1119]">
-      <div className="border-b border-white/8 p-4">
+    <aside className="flex min-h-[720px] flex-col overflow-hidden rounded-2xl border border-hairline bg-surface">
+      <div className="border-b border-hairline p-4">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold">Test playground</p>
-            <p className="mt-1 text-[9px] text-white/30">
+            <p className="mt-1 text-[9px] text-ink-muted">
               No phone call required
             </p>
           </div>
-          <span className="rounded-full border border-emerald-400/12 bg-emerald-400/6 px-2 py-1 text-[8px] text-emerald-300">
+          <span className="rounded-full border border-emerald-400/12 bg-emerald-400/6 px-2 py-1 text-[8px] text-success-text">
             {credits} credits
           </span>
         </div>
-        <div className="mt-4 grid grid-cols-3 rounded-xl border border-white/7 bg-black/20 p-1">
+        <div className="mt-4 grid grid-cols-3 rounded-xl border border-hairline bg-surface-muted p-1">
           {[
             ['text', MessageCircleMore, 'Text'],
             ['browser_voice', Mic2, 'Browser'],
@@ -1740,7 +1740,7 @@ function TestConsole({
                 key={id as string}
                 type="button"
                 onClick={() => changeMode(id as typeof mode)}
-                className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[9px] ${mode === id ? 'bg-white/9 text-white' : 'text-white/32'}`}
+                className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[9px] ${mode === id ? 'bg-surface-strong text-ink' : 'text-ink-muted'}`}
               >
                 <ModeIcon className="size-3" />
                 {label as string}
@@ -1754,12 +1754,12 @@ function TestConsole({
         <div className="grid flex-1 place-items-center p-6">
           <div className="max-w-xs text-center">
             <span className="mx-auto grid size-14 place-items-center rounded-2xl border border-amber-300/12 bg-amber-300/5">
-              <PhoneCall className="size-5 text-amber-200" />
+              <PhoneCall className="size-5 text-warning-text" />
             </span>
             <h3 className="mt-5 text-base font-semibold">
               Phone test is publish-gated
             </h3>
-            <p className="mt-3 text-xs leading-5 text-white/38">
+            <p className="mt-3 text-xs leading-5 text-ink-muted">
               Verify your number, complete KYC and approve the calling use case.
               Until then, use browser voice for the same conversational response
               without placing a call.
@@ -1767,7 +1767,7 @@ function TestConsole({
             <Button
               type="button"
               onClick={() => changeMode('browser_voice')}
-              className="mt-5 bg-amber-300 text-black hover:bg-amber-200"
+              className="mt-5 bg-primary text-black hover:bg-[#1d4ed8]"
             >
               <Mic2 /> Use browser voice
             </Button>
@@ -1792,19 +1792,19 @@ function TestConsole({
               <div className="grid min-h-[420px] place-items-center">
                 <div className="max-w-xs text-center">
                   <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-gradient-to-br from-cyan-300/15 to-violet-300/15">
-                    <AudioLines className="size-6 text-cyan-100" />
+                    <AudioLines className="size-6 text-cyan-700" />
                   </span>
                   <h3 className="mt-5 text-base font-semibold">
                     Meet {agent.name}
                   </h3>
-                  <p className="mt-2 text-xs leading-5 text-white/38">
+                  <p className="mt-2 text-xs leading-5 text-ink-muted">
                     Start a text test for {businessName}. Each turn uses 10
                     trial credits and never calls a phone number.
                   </p>
                   <Button
                     type="button"
                     onClick={() => void startSession(mode)}
-                    className="mt-5 bg-white text-black hover:bg-white/90"
+                    className="mt-5 bg-primary text-primary-foreground hover:bg-[#1d4ed8]"
                   >
                     <WandSparkles /> Start test
                   </Button>
@@ -1817,14 +1817,14 @@ function TestConsole({
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[90%] ${message.role === 'user' ? 'rounded-2xl rounded-tr-md bg-amber-300 p-3 text-[#21190a]' : 'space-y-2'}`}
+                    className={`max-w-[90%] ${message.role === 'user' ? 'rounded-2xl rounded-tr-md bg-primary p-3 text-primary-foreground' : 'space-y-2'}`}
                   >
                     {message.role === 'assistant' ? (
-                      <div className="rounded-2xl rounded-tl-md bg-white/[0.055] p-3 text-xs leading-5 text-white/72">
-                        <div className="mb-2 flex items-center gap-2 text-[9px] text-violet-200">
+                      <div className="rounded-2xl rounded-tl-md bg-surface-strong p-3 text-xs leading-5 text-ink">
+                        <div className="mb-2 flex items-center gap-2 text-[9px] text-violet-700">
                           <Sparkles className="size-3" /> {agent.name}
                           {message.latencyMs ? (
-                            <span className="ml-auto font-mono text-white/25">
+                            <span className="ml-auto font-mono text-ink-muted">
                               {message.latencyMs}ms
                             </span>
                           ) : null}
@@ -1839,11 +1839,11 @@ function TestConsole({
                         {message.actions.map((action) => (
                           <div
                             key={`${message.id}-${action.type}`}
-                            className="flex items-center gap-2 rounded-xl border border-emerald-400/12 bg-emerald-400/[0.035] p-2.5 text-[9px] text-emerald-100"
+                            className="flex items-center gap-2 rounded-xl border border-emerald-400/12 bg-emerald-400/[0.035] p-2.5 text-[9px] text-success-text"
                           >
-                            <CheckCircle2 className="size-3.5 shrink-0 text-emerald-300" />
+                            <CheckCircle2 className="size-3.5 shrink-0 text-success-text" />
                             <span className="flex-1">{action.label}</span>
-                            <span className="rounded bg-white/5 px-1.5 py-0.5 text-[8px] text-white/35">
+                            <span className="rounded bg-surface-strong px-1.5 py-0.5 text-[8px] text-ink-muted">
                               preview
                             </span>
                           </div>
@@ -1855,13 +1855,13 @@ function TestConsole({
               ))
             )}
             {loading ? (
-              <div className="flex items-center gap-2 text-[10px] text-white/30">
+              <div className="flex items-center gap-2 text-[10px] text-ink-muted">
                 <Loader2 className="size-3.5 animate-spin" /> Vaani is
                 understanding the request…
               </div>
             ) : null}
           </div>
-          <div className="border-t border-white/8 p-4">
+          <div className="border-t border-hairline p-4">
             <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
               {suggested.map((item) => (
                 <button
@@ -1869,14 +1869,14 @@ function TestConsole({
                   type="button"
                   onClick={() => void sendMessage(item)}
                   disabled={loading}
-                  className="shrink-0 rounded-full border border-white/8 bg-white/[0.025] px-3 py-1.5 text-[8px] text-white/42 hover:bg-white/5"
+                  className="shrink-0 rounded-full border border-hairline bg-surface-muted px-3 py-1.5 text-[8px] text-ink-muted hover:bg-surface-strong"
                 >
                   {item}
                 </button>
               ))}
             </div>
             {error ? (
-              <p className="mb-3 rounded-lg bg-red-400/7 p-2 text-[9px] text-red-100">
+              <p className="mb-3 rounded-lg bg-red-400/7 p-2 text-[9px] text-danger-text">
                 {error}
               </p>
             ) : null}
@@ -1889,7 +1889,7 @@ function TestConsole({
                     void sendMessage();
                 }}
                 placeholder={`Reply to ${agent.name}…`}
-                className="h-10 border-white/8 bg-white/[0.025] text-xs"
+                className="h-10 border-hairline bg-surface-muted text-xs"
               />
               {mode === 'browser_voice' ? (
                 <Button
@@ -1900,7 +1900,7 @@ function TestConsole({
                     voiceActive ? stopVoice() : startListening(false)
                   }
                   disabled={loading && !voiceActive}
-                  className={`border-white/10 bg-transparent ${voiceActive ? 'text-red-300' : ''}`}
+                  className={`border-hairline bg-transparent ${voiceActive ? 'text-danger-text' : ''}`}
                   aria-label={
                     voiceActive ? 'End voice conversation' : 'Speak to agent'
                   }
@@ -1913,13 +1913,13 @@ function TestConsole({
                 size="icon"
                 onClick={() => void sendMessage()}
                 disabled={loading || !input.trim()}
-                className="bg-amber-300 text-black hover:bg-amber-200"
+                className="bg-primary text-black hover:bg-[#1d4ed8]"
                 aria-label="Send test message"
               >
                 <Send />
               </Button>
             </div>
-            <div className="mt-2 flex items-center justify-between text-[8px] text-white/24">
+            <div className="mt-2 flex items-center justify-between text-[8px] text-ink-muted">
               <span>10 credits / turn</span>
               <span className="flex items-center gap-1">
                 <Clock3 className="size-2.5" /> Sandbox actions only
@@ -1961,7 +1961,7 @@ function VoiceOrb({
           : 'Tap the orb to talk';
   const bars = [18, 34, 25, 46, 30, 54, 38, 48, 26, 40, 22];
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-white/8 bg-[radial-gradient(circle_at_50%_10%,rgba(129,140,248,0.13),transparent_38%),linear-gradient(180deg,#101522_0%,#090c12_100%)] px-5 py-8 text-center">
+    <section className="relative overflow-hidden rounded-3xl border border-hairline bg-[radial-gradient(circle_at_50%_10%,rgba(129,140,248,0.13),transparent_38%),linear-gradient(180deg,#ffffff_0%,#ffffff_100%)] px-5 py-8 text-center">
       <div
         aria-hidden="true"
         className="absolute inset-x-10 top-1/2 h-24 -translate-y-1/2 rounded-full bg-cyan-300/[0.045] blur-3xl"
@@ -2018,7 +2018,7 @@ function VoiceOrb({
               ))}
             </span>
           ) : (
-            <span className="relative z-10 grid size-16 place-items-center rounded-full bg-white/15 text-white shadow-lg ring-1 ring-white/30 backdrop-blur-md transition group-hover:bg-white/20">
+            <span className="relative z-10 grid size-16 place-items-center rounded-full bg-surface-strong text-ink shadow-lg ring-1 ring-white/30 backdrop-blur-md transition group-hover:bg-surface-strong">
               <Mic2 className="size-7" />
             </span>
           )}
@@ -2030,7 +2030,7 @@ function VoiceOrb({
             {agentName} · Voice playground
           </h3>
           <span
-            className={`rounded-full border px-2 py-1 text-[8px] ${pipelineMode === 'realtime' || pipelineMode === 'connected' || pipelineMode === 'instant' ? 'border-emerald-300/15 bg-emerald-300/7 text-emerald-200' : 'border-amber-300/15 bg-amber-300/7 text-amber-100'}`}
+            className={`rounded-full border px-2 py-1 text-[8px] ${pipelineMode === 'realtime' || pipelineMode === 'connected' || pipelineMode === 'instant' ? 'border-emerald-300/15 bg-emerald-300/7 text-success-text' : 'border-amber-300/15 bg-amber-300/7 text-warning-text'}`}
           >
             {pipelineMode === 'realtime'
               ? 'Realtime WebRTC'
@@ -2043,11 +2043,11 @@ function VoiceOrb({
                     : 'Browser fallback'}
           </span>
         </div>
-        <p aria-live="polite" className="mt-2 text-xs text-white/48">
+        <p aria-live="polite" className="mt-2 text-xs text-ink-muted">
           {interimTranscript || stateLabel}
         </p>
         {active ? (
-          <p className="mt-2 font-mono text-[10px] text-cyan-100/55">
+          <p className="mt-2 font-mono text-[10px] text-cyan-700">
             {formatElapsed(elapsed)} ·{' '}
             {pipelineMode === 'realtime'
               ? 'full-duplex audio'
@@ -2059,7 +2059,7 @@ function VoiceOrb({
             · interruption ready
           </p>
         ) : (
-          <p className="mt-2 text-[9px] text-white/28">
+          <p className="mt-2 text-[9px] text-ink-muted">
             Realtime mode streams microphone audio directly and supports natural
             interruption. No phone number is dialled.
           </p>
@@ -2131,7 +2131,7 @@ function SettingSection({
     <section>
       <div className="mb-5">
         <h2 className="text-sm font-semibold">{title}</h2>
-        <p className="mt-1 text-[10px] text-white/30">{note}</p>
+        <p className="mt-1 text-[10px] text-ink-muted">{note}</p>
       </div>
       {children}
     </section>
@@ -2145,9 +2145,9 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className="block text-xs text-white/48">
+    <label className="block text-xs text-ink-muted">
       {label}
-      <div className="mt-2 [&_.input-select]:h-10 [&_.input-select]:w-full [&_.input-select]:rounded-lg [&_.input-select]:border [&_.input-select]:border-white/8 [&_.input-select]:bg-[#121620] [&_.input-select]:px-3 [&_.input-select]:text-xs [&_.input-static]:flex [&_.input-static]:h-10 [&_.input-static]:items-center [&_.input-static]:gap-2 [&_.input-static]:rounded-lg [&_.input-static]:border [&_.input-static]:border-white/8 [&_.input-static]:bg-white/[0.025] [&_.input-static]:px-3 [&_.input-static]:text-[10px] [&_.input-static]:text-white/45 [&_input]:border-white/8 [&_input]:bg-white/[0.025] [&_textarea]:border-white/8 [&_textarea]:bg-white/[0.025]">
+      <div className="mt-2 [&_.input-select]:h-10 [&_.input-select]:w-full [&_.input-select]:rounded-lg [&_.input-select]:border [&_.input-select]:border-hairline [&_.input-select]:bg-surface [&_.input-select]:px-3 [&_.input-select]:text-xs [&_.input-static]:flex [&_.input-static]:h-10 [&_.input-static]:items-center [&_.input-static]:gap-2 [&_.input-static]:rounded-lg [&_.input-static]:border [&_.input-static]:border-hairline [&_.input-static]:bg-surface-muted [&_.input-static]:px-3 [&_.input-static]:text-[10px] [&_.input-static]:text-ink-muted [&_input]:border-hairline [&_input]:bg-surface-muted [&_textarea]:border-hairline [&_textarea]:bg-surface-muted">
         {children}
       </div>
     </label>

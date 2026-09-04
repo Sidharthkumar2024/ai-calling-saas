@@ -82,36 +82,36 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
     t(`${base}.${leaf}` as TranslationKey);
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#090b11] text-white">
-      <div className="border-b border-white/8 bg-[#0d1018] px-4 py-2 text-center text-[11px] text-white/65 sm:text-xs">
-        <span className="mr-2 inline-flex items-center gap-1.5 font-medium text-amber-300">
+    <main className="min-h-screen overflow-hidden bg-surface-muted text-ink">
+      <div className="border-b border-hairline bg-surface px-4 py-2 text-center text-[11px] text-ink-body sm:text-xs">
+        <span className="mr-2 inline-flex items-center gap-1.5 font-medium text-warning-text">
           <Sparkles className="size-3" /> {t('landing.banner.new')}
         </span>
         {t('landing.banner.text')}
       </div>
 
-      <header className="sticky top-0 z-50 border-b border-white/8 bg-[#090b11]/88 backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-hairline bg-surface-muted/88 backdrop-blur-xl">
         <div className="mx-auto flex h-[70px] max-w-[1240px] items-center justify-between px-4 sm:px-6">
           <a
             href="#top"
             className="flex items-center gap-3"
             aria-label={t('landing.home.aria')}
           >
-            <span className="grid size-9 place-items-center rounded-xl bg-amber-300 text-[#17120a] shadow-[0_10px_35px_-12px_#fcd34d]">
+            <span className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-[0_10px_35px_-12px_#fcd34d]">
               <Activity className="size-5" strokeWidth={2.4} />
             </span>
             <span>
               <span className="block text-[15px] font-semibold tracking-tight">
                 Vaani
               </span>
-              <span className="block text-[9px] font-semibold uppercase tracking-[0.2em] text-white/40">
+              <span className="block text-[9px] font-semibold uppercase tracking-[0.2em] text-ink-muted">
                 {t('landing.tagline')}
               </span>
             </span>
           </a>
 
           <nav
-            className="hidden items-center gap-7 text-xs text-white/60 lg:flex"
+            className="hidden items-center gap-7 text-xs text-ink-body lg:flex"
             aria-label={t('landing.nav.aria')}
           >
             {(
@@ -127,13 +127,13 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
             ).map(([href, key]) => (
               <a
                 key={href}
-                className="transition-colors hover:text-white"
+                className="transition-colors hover:text-ink"
                 href={href}
               >
                 {t(key)}
               </a>
             ))}
-            <Link className="transition-colors hover:text-white" href="/docs">
+            <Link className="transition-colors hover:text-ink" href="/docs">
               {t('landing.nav.apiDocs')}
             </Link>
           </nav>
@@ -149,7 +149,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                 onChange={(event) =>
                   setLocale(event.target.value as typeof locale)
                 }
-                className="rounded-full border border-white/12 bg-white/5 px-2.5 py-1.5 text-[11px] text-white/70 outline-none focus:border-white/30"
+                className="rounded-full border border-hairline bg-surface-strong px-2.5 py-1.5 text-[11px] text-ink outline-none focus:border-hairline"
               >
                 {PORTAL_LOCALES.map((option) => (
                   <option key={option.code} value={option.code}>
@@ -160,7 +160,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
             </label>
             <Button
               onClick={onEnterWorkspace}
-              className="h-9 rounded-full bg-white px-4 text-xs text-black hover:bg-white/90"
+              className="h-9 rounded-full bg-primary px-4 text-xs text-primary-foreground hover:bg-[#1d4ed8]"
             >
               {t('landing.openPlatform')} <ArrowRight className="size-3.5" />
             </Button>
@@ -174,7 +174,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
           <div>
             <Badge
               variant="outline"
-              className="mb-6 gap-2 rounded-full border-white/12 bg-white/5 px-3 py-1.5 text-[11px] text-white/75"
+              className="mb-6 gap-2 rounded-full border-hairline bg-surface-strong px-3 py-1.5 text-[11px] text-ink"
             >
               <span className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_12px_#34d399]" />
               {t('landing.hero.badge')}
@@ -185,31 +185,31 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
               </span>
               <span className="mt-2 block pb-[0.12em]">
                 {t('landing.hero.line2')}{' '}
-                <span className="bg-[linear-gradient(96deg,#fcd34d_0%,#fb9ec8_50%,#a78bfa_100%)] bg-clip-text text-transparent">
+                <span className="bg-[linear-gradient(96deg,#2563eb_0%,#7c3aed_52%,#db2777_100%)] bg-clip-text text-transparent">
                   {t('landing.hero.line2Accent')}
                 </span>
               </span>
               {/* Value-forward slogan: human-like AI conversation → revenue */}
             </h1>
-            <p className="mt-7 max-w-xl text-base leading-7 text-white/58 sm:text-lg">
+            <p className="mt-7 max-w-xl text-base leading-7 text-ink-body sm:text-lg">
               {t('landing.hero.sub')}
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Button
                 onClick={onEnterWorkspace}
                 size="lg"
-                className="h-12 rounded-full bg-amber-300 px-6 text-[#17120a] shadow-[0_14px_40px_-14px_#fcd34d] hover:bg-amber-200"
+                className="h-12 rounded-full bg-primary px-6 text-primary-foreground shadow-[0_14px_40px_-14px_#fcd34d] hover:bg-[#1d4ed8]"
               >
                 {t('landing.hero.cta')} <ArrowRight />
               </Button>
               <a
                 href="#workflow"
-                className="inline-flex h-12 items-center justify-center rounded-full border border-white/14 bg-white/4 px-6 text-sm font-medium text-white transition-colors hover:bg-white/8"
+                className="inline-flex h-12 items-center justify-center rounded-full border border-hairline bg-surface-strong px-6 text-sm font-medium text-ink transition-colors hover:bg-surface-strong"
               >
                 {t('landing.hero.secondary')}
               </a>
             </div>
-            <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-[11px] text-white/45">
+            <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-[11px] text-ink-muted">
               {(
                 [
                   'landing.hero.check1',
@@ -218,7 +218,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                 ] as TranslationKey[]
               ).map((key) => (
                 <span key={key} className="flex items-center gap-1.5">
-                  <Check className="size-3 text-emerald-400" /> {t(key)}
+                  <Check className="size-3 text-success-text" /> {t(key)}
                 </span>
               ))}
             </div>
@@ -232,12 +232,12 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
               ).map(([value, key]) => (
                 <div
                   key={key}
-                  className="rounded-2xl border border-white/8 bg-white/[0.025] p-3 backdrop-blur-xl"
+                  className="rounded-2xl border border-hairline bg-surface-muted p-3 backdrop-blur-xl"
                 >
-                  <p className="text-lg font-semibold tracking-tight text-white">
+                  <p className="text-lg font-semibold tracking-tight text-ink">
                     {value}
                   </p>
-                  <p className="mt-1 text-[9px] leading-4 text-white/34">
+                  <p className="mt-1 text-[9px] leading-4 text-ink-muted">
                     {t(key)}
                   </p>
                 </div>
@@ -247,22 +247,22 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
 
           <div className="relative">
             <div className="absolute -inset-5 rounded-[34px] bg-[linear-gradient(135deg,rgba(252,211,77,0.12),rgba(244,114,182,0.10),rgba(139,92,246,0.15),transparent)] blur-2xl" />
-            <div className="relative overflow-hidden rounded-[26px] border border-white/12 bg-[#10131c] shadow-2xl shadow-black/45">
-              <div className="flex items-center justify-between border-b border-white/8 px-4 py-3">
+            <div className="relative overflow-hidden rounded-[26px] border border-hairline bg-surface shadow-2xl shadow-black/45">
+              <div className="flex items-center justify-between border-b border-hairline px-4 py-3">
                 <div className="flex items-center gap-2">
-                  <span className="flex size-7 items-center justify-center rounded-lg bg-violet-400/12 text-violet-300">
+                  <span className="flex size-7 items-center justify-center rounded-lg bg-violet-400/12 text-violet-700">
                     <Sparkles className="size-3.5" />
                   </span>
                   <div>
                     <p className="text-xs font-medium">
                       Vaani Sara · {t('landing.demo.live')}
                     </p>
-                    <p className="text-[9px] text-white/38">
+                    <p className="text-[9px] text-ink-muted">
                       {t('landing.demo.context')}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 text-[10px] text-emerald-300">
+                <div className="flex items-center gap-1.5 text-[10px] text-success-text">
                   <span className="relative flex size-2">
                     <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-50" />
                     <span className="relative inline-flex size-2 rounded-full bg-emerald-400" />
@@ -272,42 +272,42 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
               </div>
 
               <div className="grid lg:grid-cols-[1fr_185px]">
-                <div className="min-w-0 border-b border-white/8 p-4 lg:border-b-0 lg:border-r">
-                  <div className="mb-5 flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.025] p-3">
-                    <div className="grid size-9 place-items-center rounded-full bg-cyan-300/12 text-xs font-semibold text-cyan-200">
+                <div className="min-w-0 border-b border-hairline p-4 lg:border-b-0 lg:border-r">
+                  <div className="mb-5 flex items-center gap-3 rounded-xl border border-hairline bg-surface-muted p-3">
+                    <div className="grid size-9 place-items-center rounded-full bg-cyan-300/12 text-xs font-semibold text-cyan-700">
                       AM
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-medium">
                         Aditi Mehra
                       </p>
-                      <p className="truncate text-[10px] text-white/38">
+                      <p className="truncate text-[10px] text-ink-muted">
                         {t('landing.demo.source')}
                       </p>
                     </div>
-                    <Badge className="border-0 bg-emerald-400/10 text-[9px] text-emerald-300">
+                    <Badge className="border-0 bg-emerald-400/10 text-[9px] text-success-text">
                       {t('landing.demo.highIntent')}
                     </Badge>
                   </div>
 
                   <div className="space-y-4 text-xs leading-5">
-                    <div className="max-w-[88%] rounded-2xl rounded-tl-md bg-white/[0.055] p-3 text-white/72">
+                    <div className="max-w-[88%] rounded-2xl rounded-tl-md bg-surface-strong p-3 text-ink">
                       Hi Aditi, मैं Sara बोल रही हूँ UrbanNest से. आपने Dwarka
                       Expressway project के बारे में enquiry की थी—क्या अभी दो मिनट
                       हैं?
                     </div>
-                    <div className="ml-auto max-w-[78%] rounded-2xl rounded-tr-md bg-amber-300 p-3 text-[#21190a]">
+                    <div className="ml-auto max-w-[78%] rounded-2xl rounded-tr-md bg-primary p-3 text-primary-foreground">
                       हाँ, 3 BHK देख रही हूँ. Budget करीब 2 crore है और possession
                       जल्दी चाहिए.
                     </div>
-                    <div className="max-w-[88%] rounded-2xl rounded-tl-md bg-white/[0.055] p-3 text-white/72">
+                    <div className="max-w-[88%] rounded-2xl rounded-tl-md bg-surface-strong p-3 text-ink">
                       Perfect. आपके budget में दो options match हो रहे हैं. मैं Saturday
                       11:30 का site visit reserve कर दूँ?
                     </div>
                   </div>
 
                   <div
-                    className="mt-6 flex h-9 items-end gap-1 rounded-xl border border-white/8 bg-black/20 px-3 py-2"
+                    className="mt-6 flex h-9 items-end gap-1 rounded-xl border border-hairline bg-surface-muted px-3 py-2"
                     aria-label={t('landing.demo.voiceAria')}
                   >
                     {[
@@ -325,19 +325,19 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
 
                 <div className="space-y-4 p-4">
                   <div>
-                    <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/35">
+                    <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
                       {t('landing.demo.leadScore')}
                     </p>
                     <div className="mt-2 flex items-end gap-2">
-                      <span className="font-mono text-3xl font-semibold text-emerald-300">
+                      <span className="font-mono text-3xl font-semibold text-success-text">
                         92
                       </span>
-                      <span className="mb-1 text-[10px] text-white/35">
+                      <span className="mb-1 text-[10px] text-ink-muted">
                         / 100
                       </span>
                     </div>
                   </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
+                  <div className="h-1.5 overflow-hidden rounded-full bg-surface-strong">
                     <div className="h-full w-[92%] rounded-full bg-[linear-gradient(90deg,#34d399,#fde68a)]" />
                   </div>
                   {(
@@ -353,28 +353,28 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                   ).map(([label, value]) => (
                     <div
                       key={label}
-                      className="flex items-center justify-between border-b border-white/7 pb-2 text-[10px]"
+                      className="flex items-center justify-between border-b border-hairline pb-2 text-[10px]"
                     >
-                      <span className="text-white/35">{label}</span>
-                      <span className="font-medium text-white/75">{value}</span>
+                      <span className="text-ink-muted">{label}</span>
+                      <span className="font-medium text-ink">{value}</span>
                     </div>
                   ))}
                   <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/8 p-3">
-                    <p className="flex items-center gap-1.5 text-[10px] font-medium text-emerald-300">
+                    <p className="flex items-center gap-1.5 text-[10px] font-medium text-success-text">
                       <CheckCircle2 className="size-3" />{' '}
                       {t('landing.demo.appointmentReady')}
                     </p>
-                    <p className="mt-1 text-[9px] leading-4 text-white/40">
+                    <p className="mt-1 text-[9px] leading-4 text-ink-muted">
                       {t('landing.demo.appointmentWhen')}
                       <br />
                       {t('landing.demo.crmOwner')}
                     </p>
                   </div>
                   <div className="rounded-xl border border-violet-300/15 bg-violet-300/[0.055] p-3">
-                    <p className="flex items-center gap-1.5 text-[10px] font-medium text-violet-200">
+                    <p className="flex items-center gap-1.5 text-[10px] font-medium text-violet-700">
                       <Zap className="size-3" /> {t('landing.demo.turnTaking')}
                     </p>
-                    <p className="mt-1 text-[9px] leading-4 text-white/40">
+                    <p className="mt-1 text-[9px] leading-4 text-ink-muted">
                       {t('landing.demo.duplex')}
                       <br />
                       {t('landing.demo.codeSwitch')}
@@ -389,7 +389,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
 
       <LandingAgentShowcase />
 
-      <section className="border-y border-white/8 bg-white/[0.018]">
+      <section className="border-y border-hairline bg-surface-muted">
         <div className="mx-auto grid max-w-[1240px] grid-cols-2 divide-x divide-y divide-white/8 px-4 sm:grid-cols-4 sm:px-6 lg:grid-cols-7 lg:divide-y-0">
           {[
             'Meta Lead Ads',
@@ -402,7 +402,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
           ].map((source) => (
             <div
               key={source}
-              className="flex h-20 items-center justify-center gap-2 px-3 text-center text-[11px] font-medium text-white/48"
+              className="flex h-20 items-center justify-center gap-2 px-3 text-center text-[11px] font-medium text-ink-muted"
             >
               <span className="size-1.5 rounded-full bg-amber-300/70" />{' '}
               {source}
@@ -413,42 +413,42 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
 
       <section
         id="workflow"
-        className="landing-lazy scroll-mt-24 border-b border-white/8 py-24 sm:py-28"
+        className="landing-lazy scroll-mt-24 border-b border-hairline py-24 sm:py-28"
       >
         <div className="mx-auto max-w-[1240px] px-4 sm:px-6">
           <div className="grid gap-8 lg:grid-cols-[0.75fr_1.25fr] lg:items-end">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-warning-text">
                 {t('landing.loop.eyebrow')}
               </p>
               <h2 className="mt-4 max-w-lg text-4xl font-semibold leading-[1.05] tracking-[-0.045em] sm:text-5xl">
                 {t('landing.loop.title')}
               </h2>
             </div>
-            <p className="max-w-2xl text-sm leading-6 text-white/48 lg:justify-self-end lg:text-base">
+            <p className="max-w-2xl text-sm leading-6 text-ink-muted lg:justify-self-end lg:text-base">
               {t('landing.loop.sub')}
             </p>
           </div>
 
-          <div className="mt-14 grid overflow-hidden rounded-2xl border border-white/10 bg-white/[0.018] md:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-14 grid overflow-hidden rounded-2xl border border-hairline bg-surface-muted md:grid-cols-2 xl:grid-cols-4">
             {revenueLoop.map((item, index) => (
               <div
                 key={item.step}
-                className="relative border-b border-white/8 p-6 last:border-b-0 md:[&:nth-child(odd)]:border-r xl:border-b-0 xl:border-r xl:last:border-r-0"
+                className="relative border-b border-hairline p-6 last:border-b-0 md:[&:nth-child(odd)]:border-r xl:border-b-0 xl:border-r xl:last:border-r-0"
               >
                 {index < revenueLoop.length - 1 ? (
-                  <ArrowRight className="absolute -right-3 top-8 z-10 hidden size-6 rounded-full border border-white/10 bg-[#11141c] p-1 text-white/35 xl:block" />
+                  <ArrowRight className="absolute -right-3 top-8 z-10 hidden size-6 rounded-full border border-hairline bg-surface p-1 text-ink-muted xl:block" />
                 ) : null}
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-[10px] text-white/28">
+                  <span className="font-mono text-[10px] text-ink-muted">
                     {item.step}
                   </span>
-                  <item.icon className="size-4 text-amber-300" />
+                  <item.icon className="size-4 text-warning-text" />
                 </div>
                 <h3 className="mt-8 text-base font-medium">
                   {sub(item.key, 'title')}
                 </h3>
-                <p className="mt-3 text-xs leading-5 text-white/42">
+                <p className="mt-3 text-xs leading-5 text-ink-muted">
                   {sub(item.key, 'description')}
                 </p>
               </div>
@@ -463,13 +463,13 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
       >
         <div className="mx-auto max-w-[1240px] px-4 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-700">
               {t('landing.product.eyebrow')}
             </p>
             <h2 className="mt-4 text-4xl font-semibold tracking-[-0.045em] sm:text-5xl">
               {t('landing.product.title')}
             </h2>
-            <p className="mt-5 text-sm leading-6 text-white/48">
+            <p className="mt-5 text-sm leading-6 text-ink-muted">
               {t('landing.product.sub')}
             </p>
           </div>
@@ -478,20 +478,20 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
             {capabilities.map((item, index) => (
               <article
                 key={item.key}
-                className={`group min-h-[230px] rounded-2xl border border-white/9 bg-[#10131b] p-5 transition-colors hover:border-white/18 hover:bg-[#131722] ${index === 0 || index === 7 ? 'sm:col-span-2' : ''}`}
+                className={`group min-h-[230px] rounded-2xl border border-hairline bg-surface p-5 transition-colors hover:border-hairline hover:bg-surface ${index === 0 || index === 7 ? 'sm:col-span-2' : ''}`}
               >
                 <div className="flex items-start justify-between">
-                  <span className="grid size-10 place-items-center rounded-xl border border-white/8 bg-white/[0.035] text-amber-300">
+                  <span className="grid size-10 place-items-center rounded-xl border border-hairline bg-surface-strong text-warning-text">
                     <item.icon className="size-4.5" />
                   </span>
-                  <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-white/28">
+                  <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-ink-muted">
                     {sub(item.key, 'meta')}
                   </span>
                 </div>
                 <h3 className="mt-10 text-lg font-medium tracking-tight">
                   {sub(item.key, 'title')}
                 </h3>
-                <p className="mt-3 max-w-md text-xs leading-5 text-white/42">
+                <p className="mt-3 max-w-md text-xs leading-5 text-ink-muted">
                   {sub(item.key, 'description')}
                 </p>
               </article>
@@ -502,12 +502,12 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
 
       <section
         id="solutions"
-        className="landing-lazy scroll-mt-24 border-y border-white/8 bg-[#0d1017] py-24 sm:py-28"
+        className="landing-lazy scroll-mt-24 border-y border-hairline bg-surface-muted py-24 sm:py-28"
       >
         <div className="mx-auto max-w-[1240px] px-4 sm:px-6">
           <div className="grid gap-10 lg:grid-cols-[310px_1fr]">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-success-text">
                 {t('landing.solutions.eyebrow')}
               </p>
               <h2 className="mt-4 text-4xl font-semibold tracking-[-0.045em]">
@@ -525,7 +525,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                     role="tab"
                     aria-selected={activeUseCase === index}
                     onClick={() => setActiveUseCase(index)}
-                    className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm transition-colors ${activeUseCase === index ? 'bg-white text-black' : 'text-white/48 hover:bg-white/5 hover:text-white'}`}
+                    className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm transition-colors ${activeUseCase === index ? 'bg-white text-black' : 'text-ink-muted hover:bg-surface-strong hover:text-ink'}`}
                   >
                     {t(story.key)}
                     <ArrowRight className="size-3.5" />
@@ -534,13 +534,13 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
               </div>
             </div>
 
-            <div className="rounded-[24px] border border-white/10 bg-[#11141d] p-6 sm:p-8 lg:p-10">
+            <div className="rounded-[24px] border border-hairline bg-surface p-6 sm:p-8 lg:p-10">
               <div className="flex flex-col gap-10 lg:flex-row lg:items-start lg:justify-between">
                 <div className="max-w-xl">
-                  <div className="grid size-12 place-items-center rounded-2xl bg-emerald-300/10 text-emerald-300">
+                  <div className="grid size-12 place-items-center rounded-2xl bg-emerald-300/10 text-success-text">
                     <CurrentStoryIcon className="size-5" />
                   </div>
-                  <p className="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300">
+                  <p className="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-success-text">
                     {sub(currentStory.key, 'eyebrow')}
                   </p>
                   <h3 className="mt-3 text-2xl font-medium leading-tight tracking-[-0.03em] sm:text-3xl">
@@ -550,16 +550,16 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                     {['point1', 'point2', 'point3'].map((leaf) => (
                       <li
                         key={leaf}
-                        className="flex gap-3 text-sm leading-6 text-white/52"
+                        className="flex gap-3 text-sm leading-6 text-ink-body"
                       >
-                        <CheckCircle2 className="mt-1 size-4 shrink-0 text-emerald-300" />
+                        <CheckCircle2 className="mt-1 size-4 shrink-0 text-success-text" />
                         {sub(currentStory.key, leaf)}
                       </li>
                     ))}
                   </ul>
                 </div>
-                <div className="w-full max-w-[255px] rounded-2xl border border-white/9 bg-black/25 p-5">
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/30">
+                <div className="w-full max-w-[255px] rounded-2xl border border-hairline bg-surface-muted p-5">
+                  <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-ink-muted">
                     {t('landing.solutions.liveOutcome')}
                   </p>
                   <p className="mt-5 text-lg font-medium leading-7">
@@ -576,10 +576,10 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                     ).map((key, index) => (
                       <div
                         key={key}
-                        className="flex items-center gap-2 text-[10px] text-white/45"
+                        className="flex items-center gap-2 text-[10px] text-ink-muted"
                       >
                         <span
-                          className={`size-1.5 rounded-full ${index < 3 ? 'bg-emerald-400' : 'bg-amber-300'}`}
+                          className={`size-1.5 rounded-full ${index < 3 ? 'bg-emerald-400' : 'bg-primary'}`}
                         />
                         {t(key)}
                       </div>
@@ -599,14 +599,14 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
         <div className="mx-auto max-w-[1240px] px-4 sm:px-6">
           <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-end">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">
                 {t('landing.engines.eyebrow')}
               </p>
               <h2 className="mt-4 text-4xl font-semibold leading-[1.05] tracking-[-0.045em] sm:text-5xl">
                 {t('landing.engines.title')}
               </h2>
             </div>
-            <p className="max-w-xl text-sm leading-6 text-white/48 lg:justify-self-end">
+            <p className="max-w-xl text-sm leading-6 text-ink-muted lg:justify-self-end">
               {t('landing.engines.sub')}
             </p>
           </div>
@@ -614,20 +614,20 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
             {VAANI_ENGINES.map((engine) => (
               <article
                 key={engine.name}
-                className="rounded-2xl border border-white/9 bg-white/[0.022] p-5"
+                className="rounded-2xl border border-hairline bg-surface-muted p-5"
               >
                 <div className="flex items-center gap-3">
-                  <span className="grid size-9 place-items-center rounded-xl bg-cyan-300/10 text-cyan-300">
+                  <span className="grid size-9 place-items-center rounded-xl bg-cyan-300/10 text-cyan-700">
                     <engine.icon className="size-4" />
                   </span>
                   <div>
                     <h3 className="text-sm font-medium">{engine.name}</h3>
-                    <p className="mt-0.5 text-[9px] uppercase tracking-[0.14em] text-white/28">
+                    <p className="mt-0.5 text-[9px] uppercase tracking-[0.14em] text-ink-muted">
                       {sub(engine.key, 'role')}
                     </p>
                   </div>
                 </div>
-                <p className="mt-6 text-xs leading-5 text-white/42">
+                <p className="mt-6 text-xs leading-5 text-ink-muted">
                   {sub(engine.key, 'description')}
                 </p>
               </article>
@@ -638,17 +638,17 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
 
       <section
         id="pricing"
-        className="landing-lazy scroll-mt-24 border-y border-white/8 bg-[#0d1017] py-24 sm:py-28"
+        className="landing-lazy scroll-mt-24 border-y border-hairline bg-surface-muted py-24 sm:py-28"
       >
         <div className="mx-auto max-w-[1240px] px-4 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-warning-text">
               {t('landing.pricing.eyebrow')}
             </p>
             <h2 className="mt-4 text-4xl font-semibold tracking-[-0.045em] sm:text-5xl">
               {t('landing.pricing.title')}
             </h2>
-            <p className="mt-5 text-sm leading-6 text-white/48">
+            <p className="mt-5 text-sm leading-6 text-ink-muted">
               {t('landing.pricing.sub')}
             </p>
           </div>
@@ -677,20 +677,20 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
             ).map((plan) => (
               <article
                 key={plan.key}
-                className={`relative rounded-2xl border p-6 ${plan.featured ? 'border-amber-300/30 bg-amber-300/[0.045]' : 'border-white/9 bg-white/[0.022]'}`}
+                className={`relative rounded-2xl border p-6 ${plan.featured ? 'border-amber-300/30 bg-amber-300/[0.045]' : 'border-hairline bg-surface-muted'}`}
               >
                 {plan.featured ? (
-                  <span className="absolute -top-3 left-6 rounded-full bg-amber-300 px-3 py-1 text-[9px] font-semibold uppercase tracking-wider text-[#17120a]">
+                  <span className="absolute -top-3 left-6 rounded-full bg-primary px-3 py-1 text-[9px] font-semibold uppercase tracking-wider text-primary-foreground">
                     {t('landing.pricing.recommended')}
                   </span>
                 ) : null}
                 <h3 className="text-lg font-medium">{t(plan.key)}</h3>
-                <p className="mt-2 text-xs text-white/38">
+                <p className="mt-2 text-xs text-ink-muted">
                   {sub(plan.key, 'note')}
                 </p>
                 <p className="mt-7 text-4xl font-semibold tracking-tight">
                   {plan.price}
-                  <span className="text-xs font-normal text-white/32">
+                  <span className="text-xs font-normal text-ink-muted">
                     {' '}
                     {t('landing.pricing.perMonth')}
                   </span>
@@ -699,9 +699,9 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                   {['f1', 'f2', 'f3', 'f4'].map((leaf) => (
                     <div
                       key={leaf}
-                      className="flex items-center gap-2 text-xs text-white/52"
+                      className="flex items-center gap-2 text-xs text-ink-body"
                     >
-                      <Check className="size-3.5 text-emerald-300" />{' '}
+                      <Check className="size-3.5 text-success-text" />{' '}
                       {sub(plan.key, leaf)}
                     </div>
                   ))}
@@ -709,14 +709,14 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                 {plan.slug === 'free' ? (
                   <Link
                     href="/signup"
-                    className="mt-8 inline-flex h-8 w-full items-center justify-center rounded-lg bg-white px-2.5 text-sm font-medium text-black transition-colors hover:bg-white/90"
+                    className="mt-8 inline-flex h-8 w-full items-center justify-center rounded-lg bg-primary px-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-[#1d4ed8]"
                   >
                     {t('landing.pricing.startFree')}
                   </Link>
                 ) : (
                   <Button
                     onClick={onEnterWorkspace}
-                    className={`mt-8 w-full ${plan.featured ? 'bg-amber-300 text-[#17120a] hover:bg-amber-200' : 'bg-white text-black hover:bg-white/90'}`}
+                    className={`mt-8 w-full ${plan.featured ? 'bg-primary text-primary-foreground hover:bg-[#1d4ed8]' : 'bg-primary text-primary-foreground hover:bg-[#1d4ed8]'}`}
                   >
                     {t('landing.pricing.choose', { plan: t(plan.key) })}
                   </Button>
@@ -729,20 +729,20 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
 
       <section
         id="security"
-        className="landing-lazy border-y border-white/8 bg-[#0d1017] py-20 sm:py-24"
+        className="landing-lazy border-y border-hairline bg-surface-muted py-20 sm:py-24"
       >
         <div className="mx-auto grid max-w-[1240px] gap-10 px-4 sm:px-6 lg:grid-cols-[1fr_1fr] lg:items-center">
           <div>
             <Badge
               variant="outline"
-              className="gap-2 rounded-full border-emerald-400/18 bg-emerald-400/7 text-emerald-300"
+              className="gap-2 rounded-full border-emerald-400/18 bg-emerald-400/7 text-success-text"
             >
               <ShieldCheck className="size-3.5" /> {t('landing.security.badge')}
             </Badge>
             <h2 className="mt-6 text-4xl font-semibold tracking-[-0.045em]">
               {t('landing.security.title')}
             </h2>
-            <p className="mt-5 max-w-xl text-sm leading-6 text-white/48">
+            <p className="mt-5 max-w-xl text-sm leading-6 text-ink-muted">
               {t('landing.security.sub')}
             </p>
           </div>
@@ -757,13 +757,13 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
             ).map(([SecurityIcon, key]) => (
               <div
                 key={key}
-                className="rounded-2xl border border-white/8 bg-white/[0.02] p-5"
+                className="rounded-2xl border border-hairline bg-surface-muted p-5"
               >
-                <SecurityIcon className="size-4 text-emerald-300" />
+                <SecurityIcon className="size-4 text-success-text" />
                 <h3 className="mt-6 text-sm font-medium">
                   {sub(key, 'title')}
                 </h3>
-                <p className="mt-2 text-xs leading-5 text-white/38">
+                <p className="mt-2 text-xs leading-5 text-ink-muted">
                   {sub(key, 'description')}
                 </p>
               </div>
@@ -774,22 +774,22 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
 
       <section className="py-20 sm:py-24">
         <div className="mx-auto max-w-[1240px] px-4 sm:px-6">
-          <div className="overflow-hidden rounded-[28px] border border-white/10 bg-[radial-gradient(circle_at_85%_10%,rgba(167,139,250,0.19),transparent_28%),radial-gradient(circle_at_10%_90%,rgba(252,211,77,0.14),transparent_30%),#12151e] px-6 py-12 sm:px-10 lg:flex lg:items-end lg:justify-between lg:px-14 lg:py-16">
+          <div className="overflow-hidden rounded-[28px] border border-hairline bg-[radial-gradient(circle_at_85%_10%,rgba(167,139,250,0.19),transparent_28%),radial-gradient(circle_at_10%_90%,rgba(252,211,77,0.14),transparent_30%),#ffffff] px-6 py-12 sm:px-10 lg:flex lg:items-end lg:justify-between lg:px-14 lg:py-16">
             <div className="max-w-2xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-warning-text">
                 {t('landing.cta.eyebrow')}
               </p>
               <h2 className="mt-5 text-4xl font-semibold leading-tight tracking-[-0.045em] sm:text-5xl">
                 {t('landing.cta.title')}
               </h2>
-              <p className="mt-5 text-sm leading-6 text-white/48">
+              <p className="mt-5 text-sm leading-6 text-ink-muted">
                 {t('landing.cta.sub')}
               </p>
             </div>
             <Button
               onClick={onEnterWorkspace}
               size="lg"
-              className="mt-8 h-12 rounded-full bg-white px-6 text-black hover:bg-white/90 lg:mt-0"
+              className="mt-8 h-12 rounded-full bg-primary px-6 text-primary-foreground hover:bg-[#1d4ed8] lg:mt-0"
             >
               {t('landing.cta.button')} <ArrowRight />
             </Button>
@@ -797,24 +797,24 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
         </div>
       </section>
 
-      <footer className="border-t border-white/8 py-8">
-        <div className="mx-auto flex max-w-[1240px] flex-col gap-5 px-4 text-[11px] text-white/32 sm:px-6 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-2 text-white/62">
-            <Activity className="size-4 text-amber-300" />
+      <footer className="border-t border-hairline py-8">
+        <div className="mx-auto flex max-w-[1240px] flex-col gap-5 px-4 text-[11px] text-ink-muted sm:px-6 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-2 text-ink-body">
+            <Activity className="size-4 text-warning-text" />
             <span className="font-medium">Vaani</span>
             <span>{t('landing.footer.tagline')}</span>
           </div>
           <div className="flex flex-wrap gap-5">
-            <Link href="/signup" className="hover:text-white">
+            <Link href="/signup" className="hover:text-ink">
               {t('landing.footer.createAccount')}
             </Link>
-            <Link href="/login" className="hover:text-white">
+            <Link href="/login" className="hover:text-ink">
               {t('landing.footer.customerLogin')}
             </Link>
-            <Link href="/admin/login" className="hover:text-white">
+            <Link href="/admin/login" className="hover:text-ink">
               {t('landing.footer.adminLogin')}
             </Link>
-            <Link href="/docs" className="hover:text-white">
+            <Link href="/docs" className="hover:text-ink">
               {t('landing.nav.apiDocs')}
             </Link>
             <span className="flex items-center gap-1.5">

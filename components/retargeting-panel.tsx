@@ -42,35 +42,35 @@ const segments = [
     count: '284',
     rule: 'Score ≥ 80 · no sale yet',
     action: 'Meta + Google',
-    tone: 'text-rose-300 bg-rose-400/10',
+    tone: 'text-danger-text bg-rose-400/10',
   },
   {
     name: 'No answer · retry',
     count: '611',
     rule: '2+ missed AI calls · 14 days',
     action: 'Meta awareness',
-    tone: 'text-amber-300 bg-amber-400/10',
+    tone: 'text-warning-text bg-amber-400/10',
   },
   {
     name: 'Price objection',
     count: '193',
     rule: 'Objection detected in transcript',
     action: 'Offer campaign',
-    tone: 'text-violet-300 bg-violet-400/10',
+    tone: 'text-violet-700 bg-violet-400/10',
   },
   {
     name: 'Booked · suppress',
     count: '96',
     rule: 'Active appointment exists',
     action: 'Exclude 30 days',
-    tone: 'text-emerald-300 bg-emerald-400/10',
+    tone: 'text-success-text bg-emerald-400/10',
   },
   {
     name: 'Won · upsell',
     count: '142',
     rule: 'Closed won · consent valid',
     action: 'Upsell audience',
-    tone: 'text-sky-300 bg-sky-400/10',
+    tone: 'text-sky-700 bg-sky-400/10',
   },
 ];
 
@@ -176,7 +176,7 @@ export function RetargetingPanel({
         <div className="flex flex-wrap items-center gap-2">
           <Badge
             variant="outline"
-            className="h-8 border-violet-400/20 bg-violet-400/8 px-3 text-violet-300"
+            className="h-8 border-violet-400/20 bg-violet-400/8 px-3 text-violet-700"
           >
             Phase 2 blueprint
           </Badge>
@@ -290,8 +290,8 @@ export function RetargetingPanel({
                         variant="outline"
                         className={
                           row[4] === 'Ready'
-                            ? 'border-emerald-400/20 bg-emerald-400/8 text-emerald-300'
-                            : 'border-amber-400/20 bg-amber-400/8 text-amber-300'
+                            ? 'border-emerald-400/20 bg-emerald-400/8 text-success-text'
+                            : 'border-amber-400/20 bg-amber-400/8 text-warning-text'
                         }
                       >
                         {row[4]}
@@ -322,7 +322,7 @@ export function RetargetingPanel({
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-xs font-medium">{source.name}</p>
                       <span
-                        className={`text-[10px] ${source.state === 'Ready' ? 'text-emerald-300' : 'text-amber-300'}`}
+                        className={`text-[10px] ${source.state === 'Ready' ? 'text-success-text' : 'text-warning-text'}`}
                       >
                         {source.state}
                       </span>
@@ -339,22 +339,22 @@ export function RetargetingPanel({
           <Card className="border-emerald-400/15">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <ShieldCheck className="size-4 text-emerald-300" /> Audience
+                <ShieldCheck className="size-4 text-success-text" /> Audience
                 guardrails
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-xs leading-5 text-muted-foreground">
               <p className="flex gap-2">
-                <CheckCircle2 className="mt-1 size-3 shrink-0 text-emerald-300" />
+                <CheckCircle2 className="mt-1 size-3 shrink-0 text-success-text" />
                 Sync only contacts with valid, source-specific marketing
                 consent.
               </p>
               <p className="flex gap-2">
-                <UserRoundCheck className="mt-1 size-3 shrink-0 text-emerald-300" />
+                <UserRoundCheck className="mt-1 size-3 shrink-0 text-success-text" />
                 Suppress booked, opted-out and recently converted contacts.
               </p>
               <p className="flex gap-2">
-                <Repeat2 className="mt-1 size-3 shrink-0 text-emerald-300" />
+                <Repeat2 className="mt-1 size-3 shrink-0 text-success-text" />
                 Cap frequency and record every membership change in an audit
                 log.
               </p>

@@ -95,25 +95,25 @@ const sourceDetails: Record<
     label: 'Meta Lead Ads',
     description: 'Facebook & Instagram instant forms',
     icon: Megaphone,
-    tone: 'bg-violet-400/12 text-violet-300',
+    tone: 'bg-violet-400/12 text-violet-700',
   },
   google_ads: {
     label: 'Google Ads',
     description: 'Search & lead form campaigns',
     icon: Search,
-    tone: 'bg-sky-400/12 text-sky-300',
+    tone: 'bg-sky-400/12 text-sky-700',
   },
   website_form: {
     label: 'Website forms',
     description: 'Popup and landing-page enquiries',
     icon: Globe2,
-    tone: 'bg-emerald-400/12 text-emerald-300',
+    tone: 'bg-emerald-400/12 text-success-text',
   },
   manual: {
     label: 'Manual / CSV',
     description: 'Imports and sales-team entries',
     icon: Upload,
-    tone: 'bg-amber-400/12 text-amber-300',
+    tone: 'bg-amber-400/12 text-warning-text',
   },
 };
 
@@ -447,7 +447,7 @@ export function LeadCapturePanel({
                     </div>
                     <Badge
                       variant="outline"
-                      className="border-amber-400/20 bg-amber-400/8 text-amber-300"
+                      className="border-amber-400/20 bg-amber-400/8 text-warning-text"
                     >
                       Credentials needed
                     </Badge>
@@ -528,7 +528,7 @@ export function LeadCapturePanel({
                     </TableCell>
                     <TableCell>
                       <span
-                        className={`font-mono text-sm font-semibold ${lead.score >= 75 ? 'text-emerald-300' : 'text-amber-300'}`}
+                        className={`font-mono text-sm font-semibold ${lead.score >= 75 ? 'text-success-text' : 'text-warning-text'}`}
                       >
                         {lead.score}/100
                       </span>
@@ -541,7 +541,7 @@ export function LeadCapturePanel({
                         variant="outline"
                         className={
                           lead.status === 'qualified'
-                            ? 'border-emerald-400/20 bg-emerald-400/8 text-emerald-300'
+                            ? 'border-emerald-400/20 bg-emerald-400/8 text-success-text'
                             : 'border-border text-muted-foreground'
                         }
                       >
@@ -572,7 +572,7 @@ export function LeadCapturePanel({
                     <p className="text-sm font-medium">{form.name}</p>
                     <Badge
                       variant="outline"
-                      className="border-emerald-400/20 bg-emerald-400/8 text-emerald-300"
+                      className="border-emerald-400/20 bg-emerald-400/8 text-success-text"
                     >
                       Active
                     </Badge>

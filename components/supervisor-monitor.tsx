@@ -239,7 +239,7 @@ export function SupervisorMonitor({
   return (
     <div className="mt-4 rounded-xl border border-sky-400/20 bg-sky-400/[0.05] p-3.5">
       <div className="flex flex-wrap items-center gap-2">
-        <p className="mr-auto text-[9px] uppercase tracking-wider text-sky-200/70">
+        <p className="mr-auto text-[9px] uppercase tracking-wider text-sky-700">
           {t('sup.title')}
           {mode ? ` · ${mode === 'duplex' ? 'joined' : mode}` : ''}
           {mode ? ` · ${frames} frames` : ''}
@@ -280,13 +280,13 @@ export function SupervisorMonitor({
           customer overhears coaching. */}
       <p
         className={`mt-2 text-[10px] leading-relaxed ${
-          mode === 'duplex' ? 'text-amber-200' : 'text-white/45'
+          mode === 'duplex' ? 'text-warning-text' : 'text-ink-muted'
         }`}
       >
         {mode ? t(AUDIENCE[mode]) : t('sup.choose')}
       </p>
       {notice ? (
-        <p className="mt-1.5 text-[10px] text-white/60">{notice}</p>
+        <p className="mt-1.5 text-[10px] text-ink-body">{notice}</p>
       ) : null}
     </div>
   );

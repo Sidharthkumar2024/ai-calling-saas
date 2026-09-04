@@ -55,24 +55,24 @@ export function CustomerTickets({
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-300/80">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-700">
           Customer support
         </p>
         <h1 className="mt-2 text-3xl font-semibold">Support tickets</h1>
-        <p className="mt-2 text-xs text-white/38">
+        <p className="mt-2 text-xs text-ink-muted">
           Raise an issue, follow the conversation and receive platform-admin
           responses inside your workspace.
         </p>
       </div>
       <div className="grid gap-4 xl:grid-cols-[0.75fr_1.25fr]">
-        <section className="rounded-2xl border border-white/8 bg-[#0c1422] p-5">
+        <section className="rounded-2xl border border-hairline bg-surface p-5">
           <div className="flex items-center gap-3">
             <span className="grid size-10 place-items-center rounded-xl bg-cyan-300/7">
-              <LifeBuoy className="size-4 text-cyan-200" />
+              <LifeBuoy className="size-4 text-cyan-700" />
             </span>
             <div>
               <h2 className="text-sm font-semibold">Open a ticket</h2>
-              <p className="text-[9px] text-white/30">
+              <p className="text-[9px] text-ink-muted">
                 Sent to the admin portal
               </p>
             </div>
@@ -82,19 +82,19 @@ export function CustomerTickets({
               value={subject}
               onChange={(event) => setSubject(event.target.value)}
               placeholder="Subject"
-              className="border-white/10 bg-white/[0.025]"
+              className="border-hairline bg-surface-muted"
             />
             <textarea
               value={message}
               onChange={(event) => setMessage(event.target.value)}
               placeholder="Describe the issue"
-              className="min-h-28 w-full rounded-xl border border-white/10 bg-white/[0.025] p-3 text-xs outline-none placeholder:text-white/25"
+              className="min-h-28 w-full rounded-xl border border-hairline bg-surface-muted p-3 text-xs outline-none placeholder:text-ink-muted"
             />
-            {error ? <p className="text-xs text-red-200">{error}</p> : null}
+            {error ? <p className="text-xs text-danger-text">{error}</p> : null}
             <Button
               onClick={create}
               disabled={loading || !subject.trim() || !message.trim()}
-              className="w-full bg-cyan-300 text-[#07101e] hover:bg-cyan-200"
+              className="w-full bg-primary text-[#07101e] hover:bg-cyan-200"
             >
               {loading ? <Loader2 className="animate-spin" /> : <Plus />}Create
               ticket
@@ -109,20 +109,20 @@ export function CustomerTickets({
             return (
               <section
                 key={String(ticket.id)}
-                className="rounded-2xl border border-white/8 bg-[#0c1422] p-5"
+                className="rounded-2xl border border-hairline bg-surface p-5"
               >
                 <div className="flex items-start gap-3">
-                  <MessageSquareText className="mt-0.5 size-4 text-cyan-200" />
+                  <MessageSquareText className="mt-0.5 size-4 text-cyan-700" />
                   <div className="flex-1">
                     <div className="flex items-center justify-between gap-3">
                       <h2 className="text-sm font-semibold">
                         {String(ticket.subject)}
                       </h2>
-                      <span className="rounded-full bg-white/5 px-2 py-1 text-[8px] capitalize text-white/45">
+                      <span className="rounded-full bg-surface-strong px-2 py-1 text-[8px] capitalize text-ink-muted">
                         {String(ticket.status).replaceAll('_', ' ')}
                       </span>
                     </div>
-                    <p className="mt-1 text-[9px] text-white/28">
+                    <p className="mt-1 text-[9px] text-ink-muted">
                       {String(ticket.category)} · {String(ticket.priority)}{' '}
                       priority
                     </p>
@@ -132,9 +132,9 @@ export function CustomerTickets({
                   {messages.map((item) => (
                     <div
                       key={String(item.id)}
-                      className={`rounded-xl border p-3 text-[10px] leading-5 ${item.sender_role === 'admin' ? 'border-cyan-300/10 bg-cyan-300/[0.035]' : 'border-white/7 bg-white/[0.02]'}`}
+                      className={`rounded-xl border p-3 text-[10px] leading-5 ${item.sender_role === 'admin' ? 'border-cyan-300/10 bg-cyan-300/[0.035]' : 'border-hairline bg-surface-muted'}`}
                     >
-                      <p className="mb-1 text-[8px] uppercase tracking-wider text-white/25">
+                      <p className="mb-1 text-[8px] uppercase tracking-wider text-ink-muted">
                         {String(item.sender_name)} · {String(item.sender_role)}
                       </p>
                       {String(item.message)}
@@ -145,7 +145,7 @@ export function CustomerTickets({
             );
           })}
           {!data.tickets.length ? (
-            <div className="grid min-h-56 place-items-center rounded-2xl border border-dashed border-white/10 text-xs text-white/30">
+            <div className="grid min-h-56 place-items-center rounded-2xl border border-dashed border-hairline text-xs text-ink-muted">
               No tickets yet.
             </div>
           ) : null}

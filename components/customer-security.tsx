@@ -80,26 +80,26 @@ export function CustomerSecurity() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-sm font-semibold">Account security</h2>
-          <p className="mt-1 text-[10px] text-white/32">
+          <p className="mt-1 text-[10px] text-ink-muted">
             Authenticator MFA and revocable HttpOnly sessions
           </p>
         </div>
-        <ShieldCheck className="size-4 text-[#a8b7ff]" />
+        <ShieldCheck className="size-4 text-primary" />
       </div>
       {!data ? (
-        <Loader2 className="mt-5 size-4 animate-spin text-white/35" />
+        <Loader2 className="mt-5 size-4 animate-spin text-ink-muted" />
       ) : (
         <div className="mt-5 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-          <div className="rounded-xl border border-white/7 bg-white/[0.025] p-4">
+          <div className="rounded-xl border border-hairline bg-surface-muted p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium">Authenticator app</p>
-                <p className="mt-1 text-[9px] text-white/32">
+                <p className="mt-1 text-[9px] text-ink-muted">
                   Required after password sign-in
                 </p>
               </div>
               <span
-                className={`rounded-full px-2 py-1 text-[9px] ${data.settings.mfa_enabled ? 'bg-emerald-400/8 text-emerald-300' : 'bg-white/5 text-white/42'}`}
+                className={`rounded-full px-2 py-1 text-[9px] ${data.settings.mfa_enabled ? 'bg-emerald-400/8 text-success-text' : 'bg-surface-strong text-ink-muted'}`}
               >
                 {data.settings.mfa_enabled ? 'Enabled' : 'Disabled'}
               </span>
@@ -109,7 +109,7 @@ export function CustomerSecurity() {
                 onClick={() => action({ action: 'mfa_begin' }, 'begin')}
                 disabled={loading === 'begin'}
                 variant="outline"
-                className="mt-4 border-white/10 bg-transparent"
+                className="mt-4 border-hairline bg-transparent"
               >
                 {loading === 'begin' ? (
                   <Loader2 className="animate-spin" />
@@ -121,7 +121,7 @@ export function CustomerSecurity() {
             ) : null}
             {secret ? (
               <div className="mt-4 space-y-3">
-                <div className="flex items-center gap-2 rounded-lg bg-black/20 p-3 font-mono text-[10px] text-white/65">
+                <div className="flex items-center gap-2 rounded-lg bg-surface-muted p-3 font-mono text-[10px] text-ink-body">
                   <span className="min-w-0 flex-1 break-all">{secret}</span>
                   <Button
                     size="sm"
@@ -139,7 +139,7 @@ export function CustomerSecurity() {
                     }
                     placeholder="6-digit code"
                     inputMode="numeric"
-                    className="h-10 border-white/10 bg-white/[0.03] font-mono"
+                    className="h-10 border-hairline bg-surface-muted font-mono"
                   />
                   <Button
                     onClick={() =>
@@ -160,31 +160,31 @@ export function CustomerSecurity() {
             ) : null}
             {recoveryCodes.length ? (
               <div className="mt-4 rounded-xl border border-amber-300/15 bg-amber-300/5 p-3">
-                <p className="text-[10px] font-medium text-amber-100">
+                <p className="text-[10px] font-medium text-warning-text">
                   Save these recovery codes once
                 </p>
-                <p className="mt-2 break-words font-mono text-[9px] leading-5 text-white/55">
+                <p className="mt-2 break-words font-mono text-[9px] leading-5 text-ink-body">
                   {recoveryCodes.join(' · ')}
                 </p>
               </div>
             ) : null}
           </div>
-          <div className="rounded-xl border border-white/7 bg-white/[0.025] p-4">
+          <div className="rounded-xl border border-hairline bg-surface-muted p-4">
             <p className="text-xs font-medium">Active sessions</p>
             <div className="mt-3 space-y-2">
               {data.sessions.map((session, index) => (
                 <div
                   key={session.id}
-                  className="flex items-center gap-3 rounded-lg border border-white/6 bg-black/10 p-3"
+                  className="flex items-center gap-3 rounded-lg border border-hairline bg-black/10 p-3"
                 >
-                  <span className="grid size-8 place-items-center rounded-lg bg-white/5">
-                    <LogOut className="size-3.5 text-white/35" />
+                  <span className="grid size-8 place-items-center rounded-lg bg-surface-strong">
+                    <LogOut className="size-3.5 text-ink-muted" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-mono text-[9px] text-white/55">
+                    <p className="truncate font-mono text-[9px] text-ink-body">
                       {session.id}
                     </p>
-                    <p className="mt-1 text-[8px] text-white/25">
+                    <p className="mt-1 text-[8px] text-ink-muted">
                       Expires {formatDate(session.expires_at)}
                     </p>
                   </div>
@@ -207,7 +207,9 @@ export function CustomerSecurity() {
                       )}
                     </Button>
                   ) : (
-                    <span className="text-[8px] text-emerald-300">Current</span>
+                    <span className="text-[8px] text-success-text">
+                      Current
+                    </span>
                   )}
                 </div>
               ))}
@@ -216,7 +218,7 @@ export function CustomerSecurity() {
         </div>
       )}
       {error ? (
-        <p className="mt-4 rounded-xl border border-red-400/15 bg-red-400/5 p-3 text-xs text-red-100">
+        <p className="mt-4 rounded-xl border border-red-400/15 bg-red-400/5 p-3 text-xs text-danger-text">
           {error}
         </p>
       ) : null}

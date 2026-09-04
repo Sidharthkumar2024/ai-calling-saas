@@ -133,32 +133,29 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
   }
 
   return (
-    <main className="min-h-screen bg-[#090b11] px-4 py-8 text-white sm:px-6">
+    <main className="min-h-screen bg-surface-muted px-4 py-8 text-ink sm:px-6">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_18%_10%,rgba(252,211,77,0.12),transparent_31%),radial-gradient(circle_at_82%_18%,rgba(124,58,237,0.16),transparent_32%)]" />
       <div className="relative mx-auto max-w-[1180px]">
         <div className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
-            <span className="grid size-10 place-items-center rounded-xl bg-amber-300 text-[#17120a]">
+            <span className="grid size-10 place-items-center rounded-xl bg-primary text-primary-foreground">
               <Activity className="size-5" />
             </span>
             <span>
               <span className="block text-sm font-semibold">Vaani</span>
-              <span className="block text-[9px] uppercase tracking-[0.18em] text-white/35">
+              <span className="block text-[9px] uppercase tracking-[0.18em] text-ink-muted">
                 Revenue Voice OS
               </span>
             </span>
           </Link>
-          <Link
-            href="/login"
-            className="text-xs text-white/45 hover:text-white"
-          >
-            Already have an account? <span className="text-white">Sign in</span>
+          <Link href="/login" className="text-xs text-ink-muted hover:text-ink">
+            Already have an account? <span className="text-ink">Sign in</span>
           </Link>
         </div>
 
-        <div className="mt-8 grid overflow-hidden rounded-[30px] border border-white/10 bg-[#0e1119]/95 shadow-2xl shadow-black/40 lg:grid-cols-[0.78fr_1.22fr]">
-          <aside className="border-b border-white/8 bg-white/[0.018] p-6 sm:p-8 lg:min-h-[700px] lg:border-b-0 lg:border-r lg:p-10">
-            <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/15 bg-amber-300/5 px-3 py-1.5 text-[10px] text-amber-200">
+        <div className="mt-8 grid overflow-hidden rounded-[30px] border border-hairline bg-surface/95 shadow-2xl shadow-black/40 lg:grid-cols-[0.78fr_1.22fr]">
+          <aside className="border-b border-hairline bg-surface-muted p-6 sm:p-8 lg:min-h-[700px] lg:border-b-0 lg:border-r lg:p-10">
+            <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/15 bg-amber-300/5 px-3 py-1.5 text-[10px] text-warning-text">
               <Sparkles className="size-3.5" />{' '}
               {inviteToken
                 ? `Team invitation · ${inviteRole.replaceAll('_', ' ') || 'checking'}`
@@ -167,7 +164,7 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
             <h1 className="mt-6 text-4xl font-semibold leading-tight tracking-[-0.045em]">
               Hear your first agent before making a phone call.
             </h1>
-            <p className="mt-4 text-sm leading-6 text-white/45">
+            <p className="mt-4 text-sm leading-6 text-ink-muted">
               Create a workspace, choose a use case and test the conversation
               over text or browser voice. A real phone number is required only
               when you publish.
@@ -176,20 +173,20 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
               {steps.map((item, index) => (
                 <div
                   key={item.label}
-                  className={`flex items-center gap-3 rounded-2xl border p-4 ${index === step ? 'border-amber-300/22 bg-amber-300/[0.045]' : index < step ? 'border-emerald-400/15 bg-emerald-400/[0.035]' : 'border-white/7 bg-white/[0.015]'}`}
+                  className={`flex items-center gap-3 rounded-2xl border p-4 ${index === step ? 'border-amber-300/22 bg-amber-300/[0.045]' : index < step ? 'border-emerald-400/15 bg-emerald-400/[0.035]' : 'border-hairline bg-surface-muted'}`}
                 >
                   <span
-                    className={`grid size-9 place-items-center rounded-xl ${index <= step ? 'bg-white/8 text-amber-200' : 'bg-white/[0.03] text-white/25'}`}
+                    className={`grid size-9 place-items-center rounded-xl ${index <= step ? 'bg-surface-strong text-warning-text' : 'bg-surface-muted text-ink-muted'}`}
                   >
                     {index < step ? (
-                      <Check className="size-4 text-emerald-300" />
+                      <Check className="size-4 text-success-text" />
                     ) : (
                       <item.icon className="size-4" />
                     )}
                   </span>
                   <div>
                     <p className="text-xs font-medium">{item.label}</p>
-                    <p className="mt-1 text-[9px] text-white/30">
+                    <p className="mt-1 text-[9px] text-ink-muted">
                       Step {index + 1} of 3
                     </p>
                   </div>
@@ -200,7 +197,7 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
 
           <section className="flex min-h-[620px] items-center justify-center p-6 sm:p-10 lg:p-14">
             <div className="w-full max-w-xl">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-300">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-warning-text">
                 Step {step + 1}
               </p>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight">
@@ -210,7 +207,7 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
                     ? 'Tell us about the business'
                     : 'Configure the first conversation'}
               </h2>
-              <p className="mt-2 text-sm leading-6 text-white/42">
+              <p className="mt-2 text-sm leading-6 text-ink-muted">
                 {step === 0
                   ? 'One owner account for your isolated workspace.'
                   : step === 1
@@ -275,8 +272,8 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
                         placeholder="+91 98765 43210"
                       />
                     </Field>
-                    <div className="rounded-2xl border border-cyan-300/12 bg-cyan-300/[0.035] p-4 text-xs leading-5 text-white/48">
-                      <ShieldCheck className="mb-2 size-4 text-cyan-200" />{' '}
+                    <div className="rounded-2xl border border-cyan-300/12 bg-cyan-300/[0.035] p-4 text-xs leading-5 text-ink-muted">
+                      <ShieldCheck className="mb-2 size-4 text-cyan-700" />{' '}
                       Trial agents cannot call arbitrary phone numbers.
                       Publishing requires number ownership verification,
                       business KYC and calling consent.
@@ -291,7 +288,7 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
                         onChange={(event) =>
                           update('useCase', event.target.value)
                         }
-                        className="h-11 w-full rounded-lg border border-white/10 bg-[#121620] px-3 text-sm"
+                        className="h-11 w-full rounded-lg border border-hairline bg-surface px-3 text-sm"
                       >
                         <option value="commerce_sales">
                           Product sales & payments
@@ -309,13 +306,13 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
                     </Field>
                     <Field label="Primary language">
                       <div className="relative">
-                        <Languages className="pointer-events-none absolute left-3 top-3.5 size-4 text-white/28" />
+                        <Languages className="pointer-events-none absolute left-3 top-3.5 size-4 text-ink-muted" />
                         <select
                           value={form.language}
                           onChange={(event) =>
                             update('language', event.target.value)
                           }
-                          className="h-11 w-full rounded-lg border border-white/10 bg-[#121620] pl-10 pr-3 text-sm"
+                          className="h-11 w-full rounded-lg border border-hairline bg-surface pl-10 pr-3 text-sm"
                         >
                           <option value="hinglish">Hinglish</option>
                           <option value="haryanvi">Haryanvi</option>
@@ -328,7 +325,7 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
                         </select>
                       </div>
                     </Field>
-                    <div className="rounded-2xl border border-white/8 bg-white/[0.025] p-4">
+                    <div className="rounded-2xl border border-hairline bg-surface-muted p-4">
                       <p className="text-xs font-medium">What happens next</p>
                       <div className="mt-3 grid gap-2 sm:grid-cols-2">
                         {[
@@ -339,9 +336,9 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
                         ].map((item) => (
                           <span
                             key={item}
-                            className="flex items-center gap-2 text-[10px] text-white/42"
+                            className="flex items-center gap-2 text-[10px] text-ink-muted"
                           >
-                            <Check className="size-3 text-emerald-300" />
+                            <Check className="size-3 text-success-text" />
                             {item}
                           </span>
                         ))}
@@ -352,7 +349,7 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
               </div>
 
               {error ? (
-                <div className="mt-5 rounded-xl border border-red-400/18 bg-red-400/7 p-3 text-xs text-red-100">
+                <div className="mt-5 rounded-xl border border-red-400/18 bg-red-400/7 p-3 text-xs text-danger-text">
                   {error}
                 </div>
               ) : null}
@@ -362,7 +359,7 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
                     type="button"
                     variant="outline"
                     onClick={() => setStep((current) => current - 1)}
-                    className="border-white/10 bg-transparent"
+                    className="border-hairline bg-transparent"
                   >
                     <ArrowLeft /> Back
                   </Button>
@@ -371,7 +368,7 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
                   type="button"
                   disabled={loading}
                   onClick={step === 2 ? createAccount : next}
-                  className="ml-auto bg-amber-300 text-[#17120a] hover:bg-amber-200"
+                  className="ml-auto bg-primary text-primary-foreground hover:bg-[#1d4ed8]"
                 >
                   {loading ? <Loader2 className="animate-spin" /> : null}
                   {loading
@@ -398,9 +395,9 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className="block text-xs font-medium text-white/58">
+    <label className="block text-xs font-medium text-ink-body">
       {label}
-      <div className="mt-2 [&_input]:h-11 [&_input]:border-white/10 [&_input]:bg-white/[0.025]">
+      <div className="mt-2 [&_input]:h-11 [&_input]:border-hairline [&_input]:bg-surface-muted">
         {children}
       </div>
     </label>

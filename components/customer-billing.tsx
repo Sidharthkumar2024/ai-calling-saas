@@ -107,23 +107,23 @@ export function CustomerBilling({
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-300/80">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-warning-text">
           Subscription and wallet
         </p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
           Billing, credits and invoices
         </h1>
-        <p className="mt-2 max-w-3xl text-xs leading-5 text-white/38 sm:text-sm">
+        <p className="mt-2 max-w-3xl text-xs leading-5 text-ink-muted sm:text-sm">
           Plan limits, top-ups, usage deductions and tax invoices stay on one
           auditable ledger.
         </p>
       </div>
       {data.paymentMode === 'local_sandbox' ? (
-        <div className="flex items-start gap-3 rounded-xl border border-cyan-300/12 bg-cyan-300/[0.035] p-4 text-xs text-cyan-50">
-          <ShieldCheck className="mt-0.5 size-4 shrink-0 text-cyan-200" />
+        <div className="flex items-start gap-3 rounded-xl border border-cyan-300/12 bg-cyan-300/[0.035] p-4 text-xs text-cyan-700">
+          <ShieldCheck className="mt-0.5 size-4 shrink-0 text-cyan-700" />
           <div>
             <p className="font-medium">Local sandbox billing is active</p>
-            <p className="mt-1 text-[10px] leading-4 text-white/38">
+            <p className="mt-1 text-[10px] leading-4 text-ink-muted">
               Checkout buttons simulate a successful payment, add credits and
               generate invoices locally. Add Stripe keys to use hosted checkout
               and signed webhooks.
@@ -132,67 +132,67 @@ export function CustomerBilling({
         </div>
       ) : null}
       {error ? (
-        <div className="rounded-xl border border-red-400/15 bg-red-400/5 p-3 text-xs text-red-100">
+        <div className="rounded-xl border border-red-400/15 bg-red-400/5 p-3 text-xs text-danger-text">
           {error}
         </div>
       ) : null}
       {message ? (
-        <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/5 p-3 text-xs text-emerald-100">
+        <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/5 p-3 text-xs text-success-text">
           {message}
         </div>
       ) : null}
       <div className="grid gap-4 xl:grid-cols-[0.7fr_1.3fr]">
-        <section className="rounded-2xl border border-white/8 bg-[linear-gradient(145deg,rgba(252,211,77,0.1),rgba(14,17,25,1)_55%)] p-5">
+        <section className="rounded-2xl border border-hairline bg-[linear-gradient(145deg,rgba(252,211,77,0.1),#ffffff_55%)] p-5">
           <div className="flex items-center justify-between">
             <span className="grid size-10 place-items-center rounded-xl bg-amber-300/12">
-              <WalletCards className="size-4 text-amber-200" />
+              <WalletCards className="size-4 text-warning-text" />
             </span>
             <Badge
               variant="outline"
-              className="border-emerald-400/15 text-[8px] text-emerald-300"
+              className="border-emerald-400/15 text-[8px] text-success-text"
             >
               {subscription.status || 'active'}
             </Badge>
           </div>
-          <p className="mt-8 text-[10px] uppercase tracking-[0.14em] text-white/30">
+          <p className="mt-8 text-[10px] uppercase tracking-[0.14em] text-ink-muted">
             Available credits
           </p>
           <p className="mt-2 text-4xl font-semibold">{num(wallet.balance)}</p>
           <div className="mt-5">
-            <div className="mb-2 flex justify-between text-[9px] text-white/30">
+            <div className="mb-2 flex justify-between text-[9px] text-ink-muted">
               <span>Low-balance alert</span>
               <span>{num(wallet.low_balance_threshold)}</span>
             </div>
             <Progress
               value={Math.min(100, Number(wallet.balance) / 300)}
-              className="h-1 bg-white/7"
+              className="h-1 bg-surface-strong"
             />
           </div>
-          <div className="mt-6 border-t border-white/8 pt-4">
+          <div className="mt-6 border-t border-hairline pt-4">
             <p className="text-xs font-medium">
               {subscription.name || 'Growth'} plan
             </p>
-            <p className="mt-1 text-[10px] text-white/32">
+            <p className="mt-1 text-[10px] text-ink-muted">
               Renews {formatDate(subscription.current_period_end)}
             </p>
           </div>
         </section>
-        <section className="rounded-2xl border border-white/8 bg-[#0e1119] p-5">
+        <section className="rounded-2xl border border-hairline bg-surface p-5">
           <h2 className="text-sm font-semibold">Instant credit top-up</h2>
-          <p className="mt-1 text-[10px] text-white/32">
+          <p className="mt-1 text-[10px] text-ink-muted">
             Credits are consumed by calling and AI usage
           </p>
           <div className="mt-5 grid gap-3 md:grid-cols-3">
             {(data.creditPackages ?? []).map((item) => (
               <div
                 key={item.id}
-                className="rounded-xl border border-white/8 bg-white/[0.02] p-4"
+                className="rounded-xl border border-hairline bg-surface-muted p-4"
               >
-                <Coins className="size-4 text-amber-200" />
+                <Coins className="size-4 text-warning-text" />
                 <p className="mt-4 text-lg font-semibold">
                   {num(item.credits)}
                 </p>
-                <p className="text-[9px] text-white/28">credits</p>
+                <p className="text-[9px] text-ink-muted">credits</p>
                 <p className="mt-4 text-sm font-medium">{money(item.amount)}</p>
                 <Button
                   onClick={() =>
@@ -203,7 +203,7 @@ export function CustomerBilling({
                   }
                   disabled={Boolean(loading)}
                   variant="outline"
-                  className="mt-4 w-full border-white/10 bg-transparent"
+                  className="mt-4 w-full border-hairline bg-transparent"
                 >
                   {loading === item.id ? (
                     <Loader2 className="animate-spin" />
@@ -227,19 +227,19 @@ export function CustomerBilling({
             return (
               <section
                 key={plan.id}
-                className={`rounded-2xl border p-5 ${current ? 'border-amber-300/25 bg-amber-300/[0.045]' : 'border-white/8 bg-[#0e1119]'}`}
+                className={`rounded-2xl border p-5 ${current ? 'border-amber-300/25 bg-amber-300/[0.045]' : 'border-hairline bg-surface'}`}
               >
                 <div className="flex items-center justify-between">
                   <p className="text-lg font-semibold">{plan.name}</p>
                   {current ? (
-                    <Badge className="bg-amber-300 text-[8px] text-[#17120a]">
+                    <Badge className="bg-primary text-[8px] text-primary-foreground">
                       Current
                     </Badge>
                   ) : null}
                 </div>
                 <p className="mt-3 text-3xl font-semibold">
                   {money(plan.monthly_price)}
-                  <span className="text-xs font-normal text-white/30">
+                  <span className="text-xs font-normal text-ink-muted">
                     {' '}
                     / mo
                   </span>
@@ -248,9 +248,9 @@ export function CustomerBilling({
                   {features.map((feature) => (
                     <div
                       key={feature}
-                      className="flex gap-2 text-[10px] text-white/48"
+                      className="flex gap-2 text-[10px] text-ink-muted"
                     >
-                      <Check className="size-3.5 text-emerald-300" /> {feature}
+                      <Check className="size-3.5 text-success-text" /> {feature}
                     </div>
                   ))}
                 </div>
@@ -259,7 +259,7 @@ export function CustomerBilling({
                     checkout({ purchaseType: 'plan', planId: plan.id }, plan.id)
                   }
                   disabled={current || Boolean(loading)}
-                  className={`mt-6 w-full ${current ? 'bg-white/6 text-white/35' : 'bg-amber-300 text-[#17120a] hover:bg-amber-200'}`}
+                  className={`mt-6 w-full ${current ? 'bg-surface-strong text-ink-muted' : 'bg-primary text-primary-foreground hover:bg-[#1d4ed8]'}`}
                 >
                   {loading === plan.id ? (
                     <Loader2 className="animate-spin" />
@@ -274,14 +274,14 @@ export function CustomerBilling({
         </div>
       </div>
 
-      <section className="overflow-hidden rounded-2xl border border-white/8 bg-[#0e1119] p-5">
+      <section className="overflow-hidden rounded-2xl border border-hairline bg-surface p-5">
         <h2 className="text-sm font-semibold">Invoices</h2>
-        <p className="mt-1 text-[10px] text-white/32">
+        <p className="mt-1 text-[10px] text-ink-muted">
           GST-ready invoice records and payment status
         </p>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-xs">
-            <thead className="border-y border-white/8 text-[9px] uppercase tracking-wider text-white/25">
+            <thead className="border-y border-hairline text-[9px] uppercase tracking-wider text-ink-muted">
               <tr>
                 {[
                   'Invoice',
@@ -307,13 +307,13 @@ export function CustomerBilling({
                   <td className="px-3 py-4 font-mono">
                     {invoice.invoice_number}
                   </td>
-                  <td className="px-3 py-4 text-white/42">
+                  <td className="px-3 py-4 text-ink-muted">
                     {formatDate(invoice.issued_at)}
                   </td>
-                  <td className="px-3 py-4 text-white/48">
+                  <td className="px-3 py-4 text-ink-muted">
                     {money(invoice.subtotal)}
                   </td>
-                  <td className="px-3 py-4 text-white/48">
+                  <td className="px-3 py-4 text-ink-muted">
                     {money(invoice.tax)}
                   </td>
                   <td className="px-3 py-4 font-medium">
@@ -322,7 +322,7 @@ export function CustomerBilling({
                   <td className="px-3 py-4">
                     <Badge
                       variant="outline"
-                      className="border-emerald-400/15 text-[8px] text-emerald-300"
+                      className="border-emerald-400/15 text-[8px] text-success-text"
                     >
                       {invoice.status}
                     </Badge>
@@ -350,7 +350,7 @@ export function CustomerBilling({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/8 bg-[#0e1119] p-5">
+      <section className="rounded-2xl border border-hairline bg-surface p-5">
         <h2 className="text-sm font-semibold">Credit ledger</h2>
         <div className="mt-4 divide-y divide-white/7">
           {(data.ledger ?? []).map((entry, index) => (
@@ -358,27 +358,27 @@ export function CustomerBilling({
               key={`${entry.created_at}-${index}`}
               className="flex items-center gap-3 py-3"
             >
-              <span className="grid size-8 place-items-center rounded-lg bg-white/5">
+              <span className="grid size-8 place-items-center rounded-lg bg-surface-strong">
                 {entry.amount >= 0 ? (
-                  <Coins className="size-3.5 text-emerald-300" />
+                  <Coins className="size-3.5 text-success-text" />
                 ) : (
-                  <CircleDollarSign className="size-3.5 text-amber-200" />
+                  <CircleDollarSign className="size-3.5 text-warning-text" />
                 )}
               </span>
               <div className="flex-1">
                 <p className="text-xs">{entry.description}</p>
-                <p className="mt-1 text-[9px] text-white/28">
+                <p className="mt-1 text-[9px] text-ink-muted">
                   {formatDate(entry.created_at)}
                 </p>
               </div>
               <div className="text-right">
                 <p
-                  className={`font-mono text-xs ${entry.amount >= 0 ? 'text-emerald-300' : 'text-amber-200'}`}
+                  className={`font-mono text-xs ${entry.amount >= 0 ? 'text-success-text' : 'text-warning-text'}`}
                 >
                   {entry.amount >= 0 ? '+' : ''}
                   {num(entry.amount)}
                 </p>
-                <p className="mt-1 text-[9px] text-white/25">
+                <p className="mt-1 text-[9px] text-ink-muted">
                   bal {num(entry.balance_after)}
                 </p>
               </div>

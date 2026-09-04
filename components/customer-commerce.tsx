@@ -126,13 +126,13 @@ export function CustomerCommerce({
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-300/80">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-warning-text">
             Conversation → action → revenue
           </p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
             AI commerce actions
           </h1>
-          <p className="mt-2 max-w-3xl text-xs leading-5 text-white/38 sm:text-sm">
+          <p className="mt-2 max-w-3xl text-xs leading-5 text-ink-muted sm:text-sm">
             When a customer asks for details or a payment link, Vaani can act
             immediately or remember the requested time.
           </p>
@@ -142,19 +142,19 @@ export function CustomerCommerce({
           variant="outline"
           onClick={() => void post({ action: 'run_due' })}
           disabled={loading}
-          className="border-white/10 bg-transparent"
+          className="border-hairline bg-transparent"
         >
           <Play /> Run due actions
         </Button>
       </div>
 
       {error ? (
-        <div className="rounded-xl border border-red-400/15 bg-red-400/5 p-3 text-xs text-red-100">
+        <div className="rounded-xl border border-red-400/15 bg-red-400/5 p-3 text-xs text-danger-text">
           {error}
         </div>
       ) : null}
       {notice ? (
-        <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/5 p-3 text-xs text-emerald-100">
+        <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/5 p-3 text-xs text-success-text">
           {notice}
         </div>
       ) : null}
@@ -191,17 +191,17 @@ export function CustomerCommerce({
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[0.88fr_1.12fr]">
-        <section className="rounded-2xl border border-white/8 bg-[#0e1119] p-5">
+        <section className="rounded-2xl border border-hairline bg-surface p-5">
           <div className="flex items-start justify-between">
             <div>
               <h2 className="text-sm font-semibold">
                 Simulate the call outcome
               </h2>
-              <p className="mt-1 text-[10px] text-white/32">
+              <p className="mt-1 text-[10px] text-ink-muted">
                 No real charge is made in sandbox mode
               </p>
             </div>
-            <Sparkles className="size-4 text-amber-200" />
+            <Sparkles className="size-4 text-warning-text" />
           </div>
           <div className="mt-5 space-y-4">
             <Field label="Customer name">
@@ -251,13 +251,13 @@ export function CustomerCommerce({
               />
             </Field>
             <Field label="Delivery instruction">
-              <div className="grid grid-cols-2 rounded-xl border border-white/8 bg-black/20 p-1">
+              <div className="grid grid-cols-2 rounded-xl border border-hairline bg-surface-muted p-1">
                 {(['instant', 'scheduled'] as const).map((item) => (
                   <button
                     key={item}
                     type="button"
                     onClick={() => setForm({ ...form, deliveryMode: item })}
-                    className={`rounded-lg px-3 py-2 text-[10px] capitalize ${form.deliveryMode === item ? 'bg-white/9 text-white' : 'text-white/35'}`}
+                    className={`rounded-lg px-3 py-2 text-[10px] capitalize ${form.deliveryMode === item ? 'bg-surface-strong text-ink' : 'text-ink-muted'}`}
                   >
                     {item === 'instant' ? 'Send now' : 'Send later'}
                   </button>
@@ -285,7 +285,7 @@ export function CustomerCommerce({
                   amount: Number(form.amount),
                 })
               }
-              className="w-full bg-amber-300 text-[#17120a] hover:bg-amber-200"
+              className="w-full bg-primary text-primary-foreground hover:bg-[#1d4ed8]"
             >
               {loading ? (
                 <Loader2 className="animate-spin" />
@@ -315,17 +315,17 @@ export function CustomerCommerce({
           </div>
         </section>
 
-        <section className="rounded-2xl border border-white/8 bg-[#0e1119] p-5">
+        <section className="rounded-2xl border border-hairline bg-surface p-5">
           <div className="flex items-start justify-between">
             <div>
               <h2 className="text-sm font-semibold">
                 How one sentence becomes revenue
               </h2>
-              <p className="mt-1 text-[10px] text-white/32">
+              <p className="mt-1 text-[10px] text-ink-muted">
                 “WhatsApp the details and send the payment link at 8 PM.”
               </p>
             </div>
-            <Workflow className="size-4 text-violet-200" />
+            <Workflow className="size-4 text-violet-700" />
           </div>
           <div className="mt-5 space-y-2">
             {[
@@ -362,14 +362,14 @@ export function CustomerCommerce({
             ].map(([step, title, note]) => (
               <div
                 key={step}
-                className="flex gap-3 rounded-xl border border-white/7 bg-white/[0.015] p-3"
+                className="flex gap-3 rounded-xl border border-hairline bg-surface-muted p-3"
               >
-                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-violet-300/8 font-mono text-[10px] text-violet-200">
+                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-violet-300/8 font-mono text-[10px] text-violet-700">
                   {step}
                 </span>
                 <div>
                   <p className="text-xs font-medium">{title}</p>
-                  <p className="mt-1 text-[9px] leading-4 text-white/34">
+                  <p className="mt-1 text-[9px] leading-4 text-ink-muted">
                     {note}
                   </p>
                 </div>
@@ -377,8 +377,8 @@ export function CustomerCommerce({
             ))}
           </div>
           <div className="mt-5 rounded-xl border border-cyan-300/12 bg-cyan-300/[0.025] p-4">
-            <ShieldCheck className="size-4 text-cyan-200" />
-            <p className="mt-3 text-[10px] leading-5 text-white/42">
+            <ShieldCheck className="size-4 text-cyan-700" />
+            <p className="mt-3 text-[10px] leading-5 text-ink-muted">
               The agent cannot invent a successful payment or WhatsApp delivery.
               CRM status changes only after the relevant provider tool or signed
               webhook confirms it.
@@ -387,16 +387,16 @@ export function CustomerCommerce({
         </section>
       </div>
 
-      <section className="overflow-hidden rounded-2xl border border-white/8 bg-[#0e1119] p-5">
+      <section className="overflow-hidden rounded-2xl border border-hairline bg-surface p-5">
         <div>
           <h2 className="text-sm font-semibold">Payment-link timeline</h2>
-          <p className="mt-1 text-[10px] text-white/32">
+          <p className="mt-1 text-[10px] text-ink-muted">
             Customer, schedule, provider and delivery status
           </p>
         </div>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[820px] text-left text-xs">
-            <thead className="border-y border-white/8 text-[9px] uppercase tracking-wider text-white/25">
+            <thead className="border-y border-hairline text-[9px] uppercase tracking-wider text-ink-muted">
               <tr>
                 {[
                   'Reference',
@@ -416,24 +416,24 @@ export function CustomerCommerce({
             <tbody className="divide-y divide-white/7">
               {paymentLinks.map((item) => (
                 <tr key={item.id}>
-                  <td className="px-3 py-4 font-mono text-[9px] text-white/45">
+                  <td className="px-3 py-4 font-mono text-[9px] text-ink-muted">
                     {item.reference_id}
                   </td>
                   <td className="px-3 py-4">
                     <p>{item.customer_name}</p>
-                    <p className="mt-1 font-mono text-[9px] text-white/28">
+                    <p className="mt-1 font-mono text-[9px] text-ink-muted">
                       {item.customer_phone}
                     </p>
                   </td>
                   <td className="px-3 py-4">{money(item.amount)}</td>
-                  <td className="px-3 py-4 text-white/42">
+                  <td className="px-3 py-4 text-ink-muted">
                     {item.delivery_mode === 'scheduled' && item.scheduled_for
                       ? new Date(item.scheduled_for).toLocaleString('en-IN', {
                           timeZone: 'Asia/Kolkata',
                         })
                       : 'Send now'}
                   </td>
-                  <td className="px-3 py-4 capitalize text-white/42">
+                  <td className="px-3 py-4 capitalize text-ink-muted">
                     {item.provider.replaceAll('_', ' ')}
                   </td>
                   <td className="px-3 py-4">
@@ -444,7 +444,7 @@ export function CustomerCommerce({
                       href={item.short_url}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-cyan-200 hover:underline"
+                      className="inline-flex items-center gap-1 text-cyan-700 hover:underline"
                     >
                       <Link2 className="size-3" /> Open
                     </a>
@@ -454,7 +454,7 @@ export function CustomerCommerce({
             </tbody>
           </table>
           {paymentLinks.length === 0 ? (
-            <div className="py-10 text-center text-xs text-white/30">
+            <div className="py-10 text-center text-xs text-ink-muted">
               No payment links yet.
             </div>
           ) : null}
@@ -476,15 +476,15 @@ function Metric({
   note: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/8 bg-[#0e1119] p-4">
+    <div className="rounded-2xl border border-hairline bg-surface p-4">
       <div className="flex items-center justify-between">
-        <p className="text-[9px] uppercase tracking-[0.12em] text-white/28">
+        <p className="text-[9px] uppercase tracking-[0.12em] text-ink-muted">
           {label}
         </p>
-        <Icon className="size-4 text-amber-200" />
+        <Icon className="size-4 text-warning-text" />
       </div>
       <p className="mt-4 text-2xl font-semibold">{value}</p>
-      <p className="mt-1 text-[9px] text-white/28">{note}</p>
+      <p className="mt-1 text-[9px] text-ink-muted">{note}</p>
     </div>
   );
 }
@@ -496,9 +496,9 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className="block text-xs text-white/48">
+    <label className="block text-xs text-ink-muted">
       {label}
-      <div className="mt-2 [&_input]:h-10 [&_input]:border-white/8 [&_input]:bg-white/[0.025]">
+      <div className="mt-2 [&_input]:h-10 [&_input]:border-hairline [&_input]:bg-surface-muted">
         {children}
       </div>
     </label>
@@ -507,14 +507,14 @@ function Field({
 function Connection({ label, value }: { label: string; value: string }) {
   const active = value === 'connected';
   return (
-    <div className="rounded-xl border border-white/7 bg-white/[0.015] p-3">
+    <div className="rounded-xl border border-hairline bg-surface-muted p-3">
       <div className="flex items-center gap-2">
         <span
-          className={`size-2 rounded-full ${active ? 'bg-emerald-300' : 'bg-amber-300'}`}
+          className={`size-2 rounded-full ${active ? 'bg-emerald-300' : 'bg-primary'}`}
         />
         <p className="text-[10px] font-medium">{label}</p>
       </div>
-      <p className="mt-2 text-[8px] capitalize text-white/28">
+      <p className="mt-2 text-[8px] capitalize text-ink-muted">
         {value.replaceAll('_', ' ')}
       </p>
     </div>
@@ -529,7 +529,7 @@ function Status({ value }: { value: string }) {
   );
   return (
     <span
-      className={`inline-flex rounded-full border px-2 py-1 text-[8px] capitalize ${positive ? 'border-emerald-400/15 bg-emerald-400/7 text-emerald-300' : warning ? 'border-amber-300/15 bg-amber-300/7 text-amber-200' : 'border-white/8 bg-white/5 text-white/40'}`}
+      className={`inline-flex rounded-full border px-2 py-1 text-[8px] capitalize ${positive ? 'border-emerald-400/15 bg-emerald-400/7 text-success-text' : warning ? 'border-amber-300/15 bg-amber-300/7 text-warning-text' : 'border-hairline bg-surface-strong text-ink-muted'}`}
     >
       {value.replaceAll('_', ' ')}
     </span>

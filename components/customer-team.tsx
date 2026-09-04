@@ -106,25 +106,25 @@ export function CustomerTeam({
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9eb0ff]">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
           Workspace access
         </p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
           Team and permissions
         </h1>
-        <p className="mt-2 max-w-3xl text-xs leading-5 text-white/38 sm:text-sm">
+        <p className="mt-2 max-w-3xl text-xs leading-5 text-ink-muted sm:text-sm">
           Invite operators and assign only the CRM, campaign or analytics access
           they need.
         </p>
       </div>
       <section className="portal-panel p-5">
         <div className="flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-xl border border-white/8 bg-white/5">
-            <UserPlus className="size-4 text-[#a8b7ff]" />
+          <span className="grid size-10 place-items-center rounded-xl border border-hairline bg-surface-strong">
+            <UserPlus className="size-4 text-primary" />
           </span>
           <div>
             <h2 className="text-sm font-semibold">Invite a teammate</h2>
-            <p className="mt-1 text-[10px] text-white/32">
+            <p className="mt-1 text-[10px] text-ink-muted">
               Invitation expires after seven days.
             </p>
           </div>
@@ -135,13 +135,13 @@ export function CustomerTeam({
             onChange={(event) => setEmail(event.target.value)}
             type="email"
             placeholder="teammate@company.com"
-            className="h-11 border-white/10 bg-white/[0.035]"
+            className="h-11 border-hairline bg-surface-strong"
           />
           <select
             aria-label="Invitation role"
             value={role}
             onChange={(event) => setRole(event.target.value)}
-            className="h-11 rounded-xl border border-white/10 bg-[#101522] px-3 text-xs text-white"
+            className="h-11 rounded-xl border border-hairline bg-surface px-3 text-xs text-ink"
           >
             {(data.roleCatalog ?? [])
               .filter((item) => item.id !== 'owner')
@@ -165,8 +165,8 @@ export function CustomerTeam({
           </Button>
         </div>
         {developmentToken ? (
-          <div className="mt-4 flex items-center gap-3 rounded-xl border border-[#9eb0ff]/15 bg-[#9eb0ff]/6 p-3 text-[10px] text-white/55">
-            <ShieldCheck className="size-4 shrink-0 text-[#a8b7ff]" />
+          <div className="mt-4 flex items-center gap-3 rounded-xl border border-[#9eb0ff]/15 bg-primary/6 p-3 text-[10px] text-ink-body">
+            <ShieldCheck className="size-4 shrink-0 text-primary" />
             <span className="min-w-0 flex-1 truncate font-mono">
               Local invite token: {developmentToken}
             </span>
@@ -180,7 +180,7 @@ export function CustomerTeam({
           </div>
         ) : null}
         {error ? (
-          <p className="mt-4 rounded-xl border border-red-400/15 bg-red-400/5 p-3 text-xs text-red-100">
+          <p className="mt-4 rounded-xl border border-red-400/15 bg-red-400/5 p-3 text-xs text-danger-text">
             {error}
           </p>
         ) : null}
@@ -189,15 +189,15 @@ export function CustomerTeam({
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-sm font-semibold">Active members</h2>
-            <p className="mt-1 text-[10px] text-white/32">
+            <p className="mt-1 text-[10px] text-ink-muted">
               {data.members.length} people in this isolated tenant
             </p>
           </div>
-          <UsersRound className="size-4 text-white/28" />
+          <UsersRound className="size-4 text-ink-muted" />
         </div>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-xs">
-            <thead className="border-y border-white/8 text-[9px] uppercase tracking-wider text-white/25">
+            <thead className="border-y border-hairline text-[9px] uppercase tracking-wider text-ink-muted">
               <tr>
                 <th className="px-3 py-3 font-medium">Member</th>
                 <th className="px-3 py-3 font-medium">Role</th>
@@ -211,7 +211,7 @@ export function CustomerTeam({
                 <tr key={member.id}>
                   <td className="px-3 py-4">
                     <p className="font-medium">{member.name || member.email}</p>
-                    <p className="mt-1 text-[9px] text-white/30">
+                    <p className="mt-1 text-[9px] text-ink-muted">
                       {member.email}
                     </p>
                   </td>
@@ -225,7 +225,7 @@ export function CustomerTeam({
                       onChange={(event) =>
                         updateMember(member.id, event.target.value)
                       }
-                      className="rounded-lg border border-white/9 bg-white/5 px-2 py-1.5 text-[10px]"
+                      className="rounded-lg border border-hairline bg-surface-strong px-2 py-1.5 text-[10px]"
                     >
                       {(data.roleCatalog ?? [])
                         .filter((item) => item.id !== 'owner')
@@ -236,10 +236,10 @@ export function CustomerTeam({
                         ))}
                     </select>
                   </td>
-                  <td className="px-3 py-4 capitalize text-emerald-300">
+                  <td className="px-3 py-4 capitalize text-success-text">
                     {member.status || 'invited'}
                   </td>
-                  <td className="px-3 py-4 text-white/42">
+                  <td className="px-3 py-4 text-ink-muted">
                     {formatDate(member.last_login_at)}
                   </td>
                   <td className="px-3 py-4 text-right">
@@ -269,33 +269,33 @@ export function CustomerTeam({
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-sm font-semibold">Permission matrix</h2>
-            <p className="mt-1 text-[10px] text-white/32">
+            <p className="mt-1 text-[10px] text-ink-muted">
               Your current role:{' '}
               {(data.access?.role ?? 'member').replaceAll('_', ' ')}
             </p>
           </div>
-          <ShieldCheck className="size-4 text-[#a8b7ff]" />
+          <ShieldCheck className="size-4 text-primary" />
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {(data.roleCatalog ?? []).map((item) => (
             <div
               key={item.id}
-              className="rounded-xl border border-white/7 bg-white/[0.02] p-4"
+              className="rounded-xl border border-hairline bg-surface-muted p-4"
             >
               <div className="flex items-center justify-between">
                 <p className="text-xs font-medium">{item.label}</p>
-                <span className="rounded-md bg-white/5 px-2 py-1 text-[8px] text-white/35">
+                <span className="rounded-md bg-surface-strong px-2 py-1 text-[8px] text-ink-muted">
                   {item.permissions.length} permissions
                 </span>
               </div>
-              <p className="mt-2 text-[9px] leading-4 text-white/34">
+              <p className="mt-2 text-[9px] leading-4 text-ink-muted">
                 {item.description}
               </p>
               <div className="mt-3 flex flex-wrap gap-1">
                 {item.permissions.map((permission) => (
                   <span
                     key={permission}
-                    className="rounded-md border border-white/7 px-1.5 py-1 text-[7px] text-white/35"
+                    className="rounded-md border border-hairline px-1.5 py-1 text-[7px] text-ink-muted"
                   >
                     {permission.replace('.', ' · ')}
                   </span>
@@ -312,10 +312,10 @@ export function CustomerTeam({
             {data.invitations.map((invite) => (
               <div
                 key={invite.id}
-                className="rounded-xl border border-white/7 bg-white/[0.025] p-4"
+                className="rounded-xl border border-hairline bg-surface-muted p-4"
               >
                 <p className="text-xs font-medium">{invite.email}</p>
-                <p className="mt-2 text-[9px] capitalize text-white/35">
+                <p className="mt-2 text-[9px] capitalize text-ink-muted">
                   {invite.role.replaceAll('_', ' ')} · expires{' '}
                   {formatDate(invite.expires_at)}
                 </p>

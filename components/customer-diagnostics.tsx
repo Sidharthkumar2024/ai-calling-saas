@@ -55,15 +55,15 @@ type TestResult = {
 };
 
 const bandTone: Record<string, string> = {
-  excellent: 'text-emerald-200',
-  good: 'text-emerald-200',
-  fair: 'text-amber-200',
-  poor: 'text-rose-200',
+  excellent: 'text-success-text',
+  good: 'text-success-text',
+  fair: 'text-warning-text',
+  poor: 'text-danger-text',
 };
 const stateTone: Record<string, string> = {
-  ready: 'border-emerald-400/35 bg-emerald-400/10 text-emerald-100',
-  warn: 'border-amber-400/30 bg-amber-400/10 text-amber-100',
-  blocked: 'border-rose-400/35 bg-rose-400/10 text-rose-100',
+  ready: 'border-emerald-400/35 bg-emerald-400/10 text-success-text',
+  warn: 'border-amber-400/30 bg-amber-400/10 text-warning-text',
+  blocked: 'border-rose-400/35 bg-rose-400/10 text-danger-text',
 };
 
 /**
@@ -466,13 +466,13 @@ export function CustomerDiagnostics() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-[9px] uppercase tracking-wider text-white/28">
+        <p className="text-[9px] uppercase tracking-wider text-ink-muted">
           {t('screen.diagnostics.eyebrow')}
         </p>
         <h1 className="mt-1 text-lg font-semibold">
           {t('screen.diagnostics.title')}
         </h1>
-        <p className="mt-1 text-[11px] text-white/40">
+        <p className="mt-1 text-[11px] text-ink-muted">
           {t('screen.diagnostics.description')}
           {policy?.requireDeviceTest
             ? ` This workspace requires a passing test within ${policy.validHours} hours before an agent can go available.`
@@ -481,26 +481,26 @@ export function CustomerDiagnostics() {
       </div>
 
       {notice ? (
-        <p className="rounded-lg border border-white/12 bg-white/[0.03] px-3 py-2 text-[11px] text-white/70">
+        <p className="rounded-lg border border-hairline bg-surface-muted px-3 py-2 text-[11px] text-ink">
           {notice}
         </p>
       ) : null}
 
       {!supported ? (
-        <p className="rounded-xl border border-rose-400/25 bg-rose-400/[0.07] px-3 py-2.5 text-[11px] text-rose-100">
+        <p className="rounded-xl border border-rose-400/25 bg-rose-400/[0.07] px-3 py-2.5 text-[11px] text-danger-text">
           {t('diag.unsupportedBrowser')}
         </p>
       ) : null}
 
       <section className="portal-panel p-5">
         <h2 className="flex items-center gap-2 text-sm font-semibold">
-          <Mic className="size-4 text-[#afbcff]" /> {t('diag.microphone')}
+          <Mic className="size-4 text-primary" /> {t('diag.microphone')}
         </h2>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <select
             value={inputId}
             onChange={(event) => setInputId(event.target.value)}
-            className="rounded-lg border border-white/10 bg-white/4 px-3 py-2 text-[11px]"
+            className="rounded-lg border border-hairline bg-surface-strong px-3 py-2 text-[11px]"
           >
             <option value="">{t('diag.systemDefault')}</option>
             {inputs.map((device) => (
@@ -517,25 +517,25 @@ export function CustomerDiagnostics() {
             {listening ? t('diag.stop') : t('diag.testMic')}
           </Button>
           {permission === 'granted' && !inputs[0]?.label ? (
-            <span className="text-[10px] text-white/35">
+            <span className="text-[10px] text-ink-muted">
               {t('diag.namesAfterPermission')}
             </span>
           ) : null}
         </div>
         <div className="mt-3">
-          <div className="h-2 w-full overflow-hidden rounded-full bg-white/8">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-surface-strong">
             <div
               className={`h-full transition-[width] duration-75 ${
                 meter > 92
                   ? 'bg-rose-400'
                   : meter < 6
-                    ? 'bg-white/25'
+                    ? 'bg-surface-strong'
                     : 'bg-emerald-400'
               }`}
               style={{ width: `${meter}%` }}
             />
           </div>
-          <p className="mt-1.5 text-[10px] text-white/35">
+          <p className="mt-1.5 text-[10px] text-ink-muted">
             {!listening
               ? t('diag.notListening')
               : meter < 6
@@ -549,13 +549,13 @@ export function CustomerDiagnostics() {
 
       <section className="portal-panel p-5">
         <h2 className="flex items-center gap-2 text-sm font-semibold">
-          <Volume2 className="size-4 text-[#afbcff]" /> {t('diag.speaker')}
+          <Volume2 className="size-4 text-primary" /> {t('diag.speaker')}
         </h2>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <select
             value={outputId}
             onChange={(event) => setOutputId(event.target.value)}
-            className="rounded-lg border border-white/10 bg-white/4 px-3 py-2 text-[11px]"
+            className="rounded-lg border border-hairline bg-surface-strong px-3 py-2 text-[11px]"
           >
             <option value="">{t('diag.systemDefault')}</option>
             {outputs.map((device) => (
@@ -580,13 +580,13 @@ export function CustomerDiagnostics() {
             {t('diag.rememberDevices')}
           </Button>
         </div>
-        <p className="mt-2 text-[10px] text-white/32">{t('diag.monoNote')}</p>
+        <p className="mt-2 text-[10px] text-ink-muted">{t('diag.monoNote')}</p>
       </section>
 
       <section className="portal-panel p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <Wifi className="size-4 text-[#afbcff]" /> {t('diag.readiness')}
+            <Wifi className="size-4 text-primary" /> {t('diag.readiness')}
           </h2>
           <Button
             className="portal-primary"
@@ -597,7 +597,7 @@ export function CustomerDiagnostics() {
             {t('diag.runFullTest')}
           </Button>
         </div>
-        <p className="mt-2 text-[10px] text-white/32">
+        <p className="mt-2 text-[10px] text-ink-muted">
           {t('diag.measuresNote')}
         </p>
 
@@ -634,9 +634,9 @@ export function CustomerDiagnostics() {
               ].map(([label, value, tone]) => (
                 <div
                   key={String(label)}
-                  className="rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5"
+                  className="rounded-xl border border-hairline bg-surface-muted px-3 py-2.5"
                 >
-                  <p className="text-[9px] uppercase tracking-wider text-white/28">
+                  <p className="text-[9px] uppercase tracking-wider text-ink-muted">
                     {String(label)}
                   </p>
                   <p className={`mt-1 text-sm font-semibold ${String(tone)}`}>
@@ -646,12 +646,12 @@ export function CustomerDiagnostics() {
               ))}
             </div>
             {webrtc ? (
-              <div className="rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5">
-                <p className="text-[9px] uppercase tracking-wider text-white/28">
+              <div className="rounded-xl border border-hairline bg-surface-muted px-3 py-2.5">
+                <p className="text-[9px] uppercase tracking-wider text-ink-muted">
                   {t('diag.webrtcTitle')}
                 </p>
                 {!webrtc.supported ? (
-                  <p className="mt-1.5 text-[11px] text-rose-200">
+                  <p className="mt-1.5 text-[11px] text-danger-text">
                     {webrtc.error}
                   </p>
                 ) : (
@@ -690,25 +690,23 @@ export function CustomerDiagnostics() {
                         ] as Array<[string, string]>
                       ).map(([label, value]) => (
                         <div key={label}>
-                          <p className="text-[9px] uppercase tracking-wider text-white/28">
+                          <p className="text-[9px] uppercase tracking-wider text-ink-muted">
                             {label}
                           </p>
-                          <p className="mt-0.5 text-[12px] text-white/75">
-                            {value}
-                          </p>
+                          <p className="mt-0.5 text-[12px] text-ink">{value}</p>
                         </div>
                       ))}
                     </div>
                     {webrtc.ice?.reason ? (
-                      <p className="mt-2 text-[10px] leading-relaxed text-white/40">
+                      <p className="mt-2 text-[10px] leading-relaxed text-ink-muted">
                         {webrtc.ice.reason}
                       </p>
                     ) : null}
-                    <p className="mt-2 text-[10px] leading-relaxed text-white/32">
+                    <p className="mt-2 text-[10px] leading-relaxed text-ink-muted">
                       {t('diag.webrtcScope')}
                     </p>
                     {webrtc.error ? (
-                      <p className="mt-1.5 text-[10px] text-amber-200/80">
+                      <p className="mt-1.5 text-[10px] text-warning-text">
                         {webrtc.error}
                       </p>
                     ) : null}
@@ -716,45 +714,43 @@ export function CustomerDiagnostics() {
                 )}
               </div>
             ) : null}
-            <p className="text-[10px] text-white/35">
+            <p className="text-[10px] text-ink-muted">
               Support code{' '}
-              <span className="font-mono text-white/70">
-                {result.supportCode}
-              </span>{' '}
-              — {t('diag.supportCodeNote')}
+              <span className="font-mono text-ink">{result.supportCode}</span> —{' '}
+              {t('diag.supportCodeNote')}
             </p>
           </div>
         ) : null}
 
         {runs.length ? (
           <div className="mt-5">
-            <p className="text-[10px] uppercase tracking-wider text-white/28">
+            <p className="text-[10px] uppercase tracking-wider text-ink-muted">
               {t('diag.recentTests')}
             </p>
             <div className="mt-2 space-y-1">
               {runs.slice(0, 5).map((run) => (
                 <div
                   key={String(run.id)}
-                  className="flex flex-wrap items-center gap-2 rounded-lg border border-white/8 bg-white/[0.02] px-2.5 py-1.5 text-[10px]"
+                  className="flex flex-wrap items-center gap-2 rounded-lg border border-hairline bg-surface-muted px-2.5 py-1.5 text-[10px]"
                 >
-                  <span className="font-mono text-white/70">
+                  <span className="font-mono text-ink">
                     {String(run.support_code)}
                   </span>
                   <span
                     className={
                       String(run.readiness) === 'blocked'
-                        ? 'text-rose-200'
+                        ? 'text-danger-text'
                         : String(run.readiness) === 'warn'
-                          ? 'text-amber-200'
-                          : 'text-emerald-200'
+                          ? 'text-warning-text'
+                          : 'text-success-text'
                     }
                   >
                     {String(run.readiness)}
                   </span>
-                  <span className="text-white/45">
+                  <span className="text-ink-muted">
                     {String(run.quality_score)}/100 · {String(run.rtt_ms)}ms
                   </span>
-                  <span className="ml-auto text-white/28">
+                  <span className="ml-auto text-ink-muted">
                     {String(run.created_at)}
                   </span>
                 </div>

@@ -69,27 +69,27 @@ export function PortalShell({
   }
 
   return (
-    <main className="portal-shell min-h-screen text-white lg:grid lg:grid-cols-[244px_minmax(0,1fr)]">
-      <aside className="sticky top-0 hidden h-screen border-r border-white/[0.07] bg-[#080a0f]/88 backdrop-blur-2xl lg:flex lg:flex-col">
+    <main className="portal-shell min-h-screen text-ink lg:grid lg:grid-cols-[244px_minmax(0,1fr)]">
+      <aside className="sticky top-0 hidden h-screen border-r border-hairline bg-surface-muted/88 backdrop-blur-2xl lg:flex lg:flex-col">
         <Link
           href="/"
-          className="flex h-[74px] items-center gap-3 border-b border-white/8 px-5"
+          className="flex h-[74px] items-center gap-3 border-b border-hairline px-5"
         >
-          <span className="grid size-9 place-items-center rounded-xl border border-white/20 bg-white text-black shadow-[0_12px_34px_-14px_rgba(255,255,255,.7)]">
+          <span className="grid size-9 place-items-center rounded-xl border border-hairline bg-white text-black shadow-[0_12px_34px_-14px_rgba(255,255,255,.7)]">
             <Activity className="size-5" />
           </span>
           <span>
             <span className="block text-sm font-semibold">Vaani</span>
-            <span className="block text-[9px] font-semibold uppercase tracking-[0.2em] text-white/35">
+            <span className="block text-[9px] font-semibold uppercase tracking-[0.2em] text-ink-muted">
               {mode === 'admin' ? 'Platform admin' : 'Revenue Voice OS'}
             </span>
           </span>
         </Link>
 
-        <div className="border-b border-white/8 p-3">
-          <div className="flex items-center gap-2.5 rounded-xl border border-white/8 bg-white/[0.035] p-2.5">
-            <Avatar className="size-8 border border-white/10">
-              <AvatarFallback className="bg-white/10 text-xs text-white/75">
+        <div className="border-b border-hairline p-3">
+          <div className="flex items-center gap-2.5 rounded-xl border border-hairline bg-surface-strong p-2.5">
+            <Avatar className="size-8 border border-hairline">
+              <AvatarFallback className="bg-surface-strong text-xs text-ink">
                 {(workspace || name).slice(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
@@ -97,11 +97,11 @@ export function PortalShell({
               <p className="truncate text-xs font-medium">
                 {workspace || 'Vaani Platform'}
               </p>
-              <p className="truncate text-[10px] text-white/35">
+              <p className="truncate text-[10px] text-ink-muted">
                 {mode === 'admin' ? 'Global control plane' : 'Growth workspace'}
               </p>
             </div>
-            <ChevronDown className="size-3.5 text-white/25" />
+            <ChevronDown className="size-3.5 text-ink-muted" />
           </div>
         </div>
 
@@ -111,7 +111,7 @@ export function PortalShell({
         >
           {groups.map((group, groupIndex) => (
             <div key={group.label} className={groupIndex ? 'mt-6' : ''}>
-              <p className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-white/28">
+              <p className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-ink-muted">
                 {group.translationKey ? t(group.translationKey) : group.label}
               </p>
               <div className="space-y-1">
@@ -122,12 +122,12 @@ export function PortalShell({
                     onClick={() => onNavigate(item.id)}
                     className={`flex h-9 w-full items-center gap-3 rounded-lg px-3 text-left text-xs transition-colors ${
                       active === item.id
-                        ? 'border border-white/[0.12] bg-white/[0.095] text-white shadow-[inset_0_1px_0_rgba(255,255,255,.08)]'
-                        : 'text-white/48 hover:bg-white/[0.045] hover:text-white/78'
+                        ? 'border border-hairline bg-surface-strong text-ink shadow-[inset_0_1px_0_rgba(255,255,255,.08)]'
+                        : 'text-ink-muted hover:bg-surface-strong hover:text-ink'
                     }`}
                   >
                     <item.icon
-                      className={`size-3.5 ${active === item.id ? 'text-[#afbcff]' : ''}`}
+                      className={`size-3.5 ${active === item.id ? 'text-primary' : ''}`}
                     />
                     <span className="flex-1">
                       {item.translationKey
@@ -135,7 +135,7 @@ export function PortalShell({
                         : item.label}
                     </span>
                     {item.badge ? (
-                      <span className="rounded-md border border-white/10 bg-white/[0.06] px-1.5 py-0.5 font-mono text-[9px] text-white/65">
+                      <span className="rounded-md border border-hairline bg-surface-strong px-1.5 py-0.5 font-mono text-[9px] text-ink-body">
                         {item.badge}
                       </span>
                     ) : null}
@@ -146,21 +146,21 @@ export function PortalShell({
           ))}
         </nav>
 
-        <div className="border-t border-white/8 p-3">
+        <div className="border-t border-hairline p-3">
           <div className="mb-2 flex items-center gap-2 rounded-lg px-2 py-2">
             <Avatar className="size-8">
-              <AvatarFallback className="bg-white/7 text-[10px]">
+              <AvatarFallback className="bg-surface-strong text-[10px]">
                 {name.slice(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
               <p className="truncate text-[11px] font-medium">{name}</p>
-              <p className="truncate text-[9px] text-white/32">{email}</p>
+              <p className="truncate text-[9px] text-ink-muted">{email}</p>
             </div>
             <button
               type="button"
               onClick={logout}
-              className="rounded-md p-2 text-white/35 hover:bg-white/5 hover:text-white"
+              className="rounded-md p-2 text-ink-muted hover:bg-surface-strong hover:text-ink"
               aria-label="Log out"
             >
               <LogOut className="size-3.5" />
@@ -170,7 +170,7 @@ export function PortalShell({
       </aside>
 
       <section className="min-w-0">
-        <header className="sticky top-0 z-40 flex h-[62px] items-center gap-3 border-b border-white/[0.07] bg-[#080a0f]/72 px-4 backdrop-blur-2xl sm:px-6">
+        <header className="sticky top-0 z-40 flex h-[62px] items-center gap-3 border-b border-hairline bg-surface-muted/72 px-4 backdrop-blur-2xl sm:px-6">
           <Button
             onClick={() => setMobileOpen((value) => !value)}
             variant="ghost"
@@ -185,13 +185,13 @@ export function PortalShell({
             <p className="truncate text-sm font-medium">
               {activeItem?.label ?? 'Overview'}
             </p>
-            <p className="hidden text-[10px] text-white/32 sm:block">
+            <p className="hidden text-[10px] text-ink-muted sm:block">
               {mode === 'admin' ? 'Vaani platform control plane' : workspace}
             </p>
           </div>
-          <div className="hidden w-56 items-center gap-2 rounded-lg border border-white/8 bg-white/[0.025] px-3 py-2 text-[10px] text-white/28 xl:flex">
+          <div className="hidden w-56 items-center gap-2 rounded-lg border border-hairline bg-surface-muted px-3 py-2 text-[10px] text-ink-muted xl:flex">
             <Search className="size-3.5" /> Search anything
-            <span className="ml-auto rounded border border-white/8 px-1.5 py-0.5">
+            <span className="ml-auto rounded border border-hairline px-1.5 py-0.5">
               ⌘K
             </span>
           </div>
@@ -199,15 +199,15 @@ export function PortalShell({
             <button
               type="button"
               onClick={() => onNavigate('billing')}
-              className="flex items-center gap-2 rounded-lg border border-white/8 bg-white/[0.035] px-3 py-2 text-[10px] text-white/68"
+              className="flex items-center gap-2 rounded-lg border border-hairline bg-surface-strong px-3 py-2 text-[10px] text-ink-body"
             >
-              <Coins className="size-3.5 text-[#afbcff]" />{' '}
+              <Coins className="size-3.5 text-primary" />{' '}
               {credits.toLocaleString('en-IN')}
             </button>
           ) : null}
           <Link
             href="/docs"
-            className="hidden items-center gap-2 rounded-lg px-2 py-2 text-[10px] text-white/42 hover:bg-white/5 hover:text-white sm:flex"
+            className="hidden items-center gap-2 rounded-lg px-2 py-2 text-[10px] text-ink-muted hover:bg-surface-strong hover:text-ink sm:flex"
           >
             <BookOpenText className="size-3.5" /> Docs
           </Link>
@@ -221,17 +221,17 @@ export function PortalShell({
               aria-expanded={notificationsOpen}
             >
               <Bell />
-              <span className="absolute right-1 top-1 size-1.5 rounded-full bg-[#91a7ff]" />
+              <span className="absolute right-1 top-1 size-1.5 rounded-full bg-primary" />
             </Button>
             {notificationsOpen ? (
-              <div className="absolute right-0 top-11 z-50 w-72 rounded-xl border border-white/12 bg-[#0b0f17]/98 p-4 shadow-2xl backdrop-blur-xl">
+              <div className="absolute right-0 top-11 z-50 w-72 rounded-xl border border-hairline bg-surface/98 p-4 shadow-2xl backdrop-blur-xl">
                 <p className="text-xs font-semibold">Notifications</p>
                 <div className="mt-3 space-y-2">
-                  <div className="rounded-lg border border-white/7 bg-white/[0.025] p-3">
-                    <p className="text-[10px] text-white/65">
+                  <div className="rounded-lg border border-hairline bg-surface-muted p-3">
+                    <p className="text-[10px] text-ink-body">
                       Workspace systems are healthy.
                     </p>
-                    <p className="mt-1 text-[8px] text-white/28">
+                    <p className="mt-1 text-[8px] text-ink-muted">
                       Provider readiness is shown on Overview.
                     </p>
                   </div>
@@ -241,7 +241,7 @@ export function PortalShell({
                       onNavigate(mode === 'admin' ? 'system_audit' : 'alerts');
                       setNotificationsOpen(false);
                     }}
-                    className="w-full rounded-lg border border-white/8 px-3 py-2 text-[9px] text-white/55 hover:bg-white/5"
+                    className="w-full rounded-lg border border-hairline px-3 py-2 text-[9px] text-ink-body hover:bg-surface-strong"
                   >
                     Open notification center
                   </button>
@@ -260,7 +260,7 @@ export function PortalShell({
               onChange={(event) =>
                 setLocale(event.target.value as typeof locale)
               }
-              className="rounded-lg border border-white/10 bg-white/4 px-2 py-1.5 text-[10px] text-white/65 outline-none focus:border-white/25"
+              className="rounded-lg border border-hairline bg-surface-strong px-2 py-1.5 text-[10px] text-ink-body outline-none focus:border-hairline"
             >
               {PORTAL_LOCALES.map((option) => (
                 <option key={option.code} value={option.code}>
@@ -271,14 +271,14 @@ export function PortalShell({
           </label>
           <Badge
             variant="outline"
-            className="hidden border-emerald-400/15 bg-emerald-400/6 text-[9px] text-emerald-300 sm:inline-flex"
+            className="hidden border-emerald-400/15 bg-emerald-400/6 text-[9px] text-success-text sm:inline-flex"
           >
             Core healthy
           </Badge>
         </header>
 
         <div
-          className={`${mobileOpen ? 'block' : 'hidden'} border-b border-white/8 bg-[#090b11]/90 px-3 py-2 backdrop-blur-xl lg:hidden`}
+          className={`${mobileOpen ? 'block' : 'hidden'} border-b border-hairline bg-surface-muted/90 px-3 py-2 backdrop-blur-xl lg:hidden`}
         >
           <div className="flex gap-1 overflow-x-auto">
             {groups
@@ -291,7 +291,7 @@ export function PortalShell({
                     onNavigate(item.id);
                     setMobileOpen(false);
                   }}
-                  className={`whitespace-nowrap rounded-lg px-3 py-2 text-[10px] ${active === item.id ? 'bg-white text-black' : 'text-white/48'}`}
+                  className={`whitespace-nowrap rounded-lg px-3 py-2 text-[10px] ${active === item.id ? 'bg-white text-black' : 'text-ink-muted'}`}
                 >
                   {item.translationKey ? t(item.translationKey) : item.label}
                 </button>

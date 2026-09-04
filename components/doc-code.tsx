@@ -22,11 +22,11 @@ export function DocCode({ children }: { children: string }) {
         type="button"
         onClick={copy}
         aria-label={copied ? 'Copied' : 'Copy code'}
-        className="absolute right-3 top-3 z-10 flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.06] px-2.5 py-1.5 text-[10px] text-white/55 opacity-0 backdrop-blur transition hover:bg-white/12 hover:text-white group-hover:opacity-100 focus-visible:opacity-100"
+        className="absolute right-3 top-3 z-10 flex items-center gap-1.5 rounded-lg border border-hairline bg-surface-strong px-2.5 py-1.5 text-[10px] text-ink-body opacity-0 backdrop-blur transition hover:bg-surface-strong hover:text-ink group-hover:opacity-100 focus-visible:opacity-100"
       >
         {copied ? (
           <>
-            <Check className="size-3 text-emerald-300" /> Copied
+            <Check className="size-3 text-success-text" /> Copied
           </>
         ) : (
           <>
@@ -34,7 +34,7 @@ export function DocCode({ children }: { children: string }) {
           </>
         )}
       </button>
-      <pre className="overflow-x-auto rounded-2xl border border-white/8 bg-black/30 p-5 font-mono text-[10px] leading-5 text-cyan-100/68">
+      <pre className="overflow-x-auto rounded-2xl border border-hairline bg-surface-muted p-5 font-mono text-[10px] leading-5 text-cyan-700">
         <code>{children}</code>
       </pre>
     </div>

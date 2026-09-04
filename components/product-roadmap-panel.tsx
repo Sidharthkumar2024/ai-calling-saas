@@ -45,10 +45,10 @@ type RoadmapModule = {
 };
 
 const statusTone: Record<DeliveryStatus, string> = {
-  'Backend ready': 'border-emerald-400/20 bg-emerald-400/8 text-emerald-300',
-  'Interactive demo': 'border-sky-400/20 bg-sky-400/8 text-sky-300',
-  'To build': 'border-amber-400/20 bg-amber-400/8 text-amber-300',
-  'Phase 2': 'border-violet-400/20 bg-violet-400/8 text-violet-300',
+  'Backend ready': 'border-emerald-400/20 bg-emerald-400/8 text-success-text',
+  'Interactive demo': 'border-sky-400/20 bg-sky-400/8 text-sky-700',
+  'To build': 'border-amber-400/20 bg-amber-400/8 text-warning-text',
+  'Phase 2': 'border-violet-400/20 bg-violet-400/8 text-violet-700',
   Later: 'border-border bg-muted/45 text-muted-foreground',
 };
 
@@ -190,7 +190,7 @@ const phases = [
     phase: 'Phase 1 · Commercial web core',
     timing: 'Now → launch',
     progress: 38,
-    tone: 'text-emerald-300',
+    tone: 'text-success-text',
     items: [
       'Production tenant auth, RBAC and onboarding',
       'Agent Studio + real telephony + durable callbacks',
@@ -202,7 +202,7 @@ const phases = [
     phase: 'Phase 2 · Growth + mobile',
     timing: 'After web launch',
     progress: 8,
-    tone: 'text-violet-300',
+    tone: 'text-violet-700',
     items: [
       'Always-on Meta and Google audience retargeting',
       'Android and iOS sales companion',
@@ -214,7 +214,7 @@ const phases = [
     phase: 'Phase 3 · Enterprise scale',
     timing: 'After product-market fit',
     progress: 0,
-    tone: 'text-sky-300',
+    tone: 'text-sky-700',
     items: [
       'SSO, advanced approvals and compliance exports',
       'Multi-region voice capacity and disaster recovery',
@@ -297,7 +297,7 @@ export function ProductRoadmapPanel({
         <div className="flex flex-wrap items-center gap-2">
           <Badge
             variant="outline"
-            className="h-8 border-amber-400/20 bg-amber-400/8 px-3 text-amber-300"
+            className="h-8 border-amber-400/20 bg-amber-400/8 px-3 text-warning-text"
           >
             White-label removed from scope
           </Badge>
@@ -403,7 +403,7 @@ export function ProductRoadmapPanel({
 
           <Card className="border-amber-400/18 bg-[linear-gradient(105deg,color-mix(in_oklab,var(--color-amber-400)_5%,var(--card)),var(--card)_62%)]">
             <CardContent className="flex flex-col gap-4 py-0 sm:flex-row sm:items-center">
-              <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-amber-400/10 text-amber-300">
+              <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-amber-400/10 text-warning-text">
                 <LockKeyhole className="size-5" />
               </div>
               <div className="flex-1">
@@ -460,7 +460,7 @@ export function ProductRoadmapPanel({
                 </CardHeader>
                 <CardContent className="grid gap-3 sm:grid-cols-2">
                   <div className="rounded-lg border border-border/75 bg-muted/30 p-3">
-                    <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-300">
+                    <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-success-text">
                       Available now
                     </p>
                     <p className="text-xs leading-5 text-muted-foreground">
@@ -468,7 +468,7 @@ export function ProductRoadmapPanel({
                     </p>
                   </div>
                   <div className="rounded-lg border border-border/75 bg-muted/30 p-3">
-                    <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-300">
+                    <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-warning-text">
                       Next production gate
                     </p>
                     <p className="text-xs leading-5 text-muted-foreground">
@@ -496,7 +496,7 @@ export function ProductRoadmapPanel({
                 <CardAction>
                   <Badge
                     variant="outline"
-                    className="border-violet-400/20 bg-violet-400/8 text-violet-300"
+                    className="border-violet-400/20 bg-violet-400/8 text-violet-700"
                   >
                     Phase 2
                   </Badge>
@@ -594,7 +594,7 @@ export function ProductRoadmapPanel({
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <CheckCircle2 className="size-4 text-emerald-300" /> Adopted
+                  <CheckCircle2 className="size-4 text-success-text" /> Adopted
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-xs leading-5 text-muted-foreground">
@@ -614,8 +614,8 @@ export function ProductRoadmapPanel({
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <UsersRound className="size-4 text-amber-300" /> Deliberately
-                  changed
+                  <UsersRound className="size-4 text-warning-text" />{' '}
+                  Deliberately changed
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-xs leading-5 text-muted-foreground">

@@ -287,7 +287,7 @@ function ResourceModule({
         />
       ) : null}
       {error ? (
-        <p className="rounded-xl border border-red-400/15 bg-red-400/5 p-3 text-xs text-red-100">
+        <p className="rounded-xl border border-red-400/15 bg-red-400/5 p-3 text-xs text-danger-text">
           {error}
         </p>
       ) : null}
@@ -304,25 +304,23 @@ function ResourceModule({
         {rows.map((row) => (
           <section
             key={str(row.id)}
-            className="rounded-2xl border border-white/8 bg-[#0c1422] p-5 shadow-[0_18px_50px_-38px_rgba(55,189,248,0.45)]"
+            className="rounded-2xl border border-hairline bg-surface p-5 shadow-[0_18px_50px_-38px_rgba(55,189,248,0.45)]"
           >
             <div className="flex items-start justify-between">
               <span className="grid size-10 place-items-center rounded-xl border border-cyan-300/10 bg-cyan-300/[0.055]">
-                <Icon className="size-4 text-cyan-200" />
+                <Icon className="size-4 text-cyan-700" />
               </span>
               <Status value={str(row.status, 'ready')} />
             </div>
             <h2 className="mt-5 text-sm font-semibold">{str(row.name)}</h2>
-            <p className="mt-2 min-h-10 text-[10px] leading-5 text-white/38">
+            <p className="mt-2 min-h-10 text-[10px] leading-5 text-ink-muted">
               {resourceDescription(module, row)}
             </p>
-            <div className="mt-5 grid grid-cols-2 gap-2 border-t border-white/7 pt-4 text-[9px] text-white/35">
+            <div className="mt-5 grid grid-cols-2 gap-2 border-t border-hairline pt-4 text-[9px] text-ink-muted">
               {resourceFacts(module, row).map(([label, value]) => (
                 <div key={label}>
                   <p>{label}</p>
-                  <p className="mt-1 text-xs font-medium text-white/70">
-                    {value}
-                  </p>
+                  <p className="mt-1 text-xs font-medium text-ink">{value}</p>
                 </div>
               ))}
             </div>
@@ -331,7 +329,7 @@ function ResourceModule({
                 variant="outline"
                 onClick={() => generate(str(row.id))}
                 disabled={Boolean(loading)}
-                className="mt-4 w-full border-white/10 bg-transparent text-[10px]"
+                className="mt-4 w-full border-hairline bg-transparent text-[10px]"
               >
                 {loading === str(row.id) ? (
                   <Loader2 className="animate-spin" />
@@ -349,7 +347,7 @@ function ResourceModule({
                   Boolean(loading) ||
                   str(row.status) === 'provider_test_pending'
                 }
-                className="mt-4 w-full border-white/10 bg-transparent text-[10px]"
+                className="mt-4 w-full border-hairline bg-transparent text-[10px]"
               >
                 {loading === str(row.id) ? (
                   <Loader2 className="animate-spin" />
@@ -371,7 +369,7 @@ function ResourceModule({
         />
       ) : null}
       {module === 'alerts' && data.incidents.length ? (
-        <section className="rounded-2xl border border-white/8 bg-[#0c1422] p-5">
+        <section className="rounded-2xl border border-hairline bg-surface p-5">
           <h2 className="text-sm font-semibold">Recent incidents</h2>
           <div className="mt-4 divide-y divide-white/7">
             {data.incidents.map((item) => (
@@ -379,7 +377,7 @@ function ResourceModule({
                 key={str(item.id)}
                 className="flex items-center gap-3 py-3 text-xs"
               >
-                <AlertTriangle className="size-4 text-amber-200" />
+                <AlertTriangle className="size-4 text-warning-text" />
                 <span className="flex-1">
                   {str(item.rule_name)} · current {str(item.current_value)}
                 </span>
@@ -486,8 +484,8 @@ function OperationsCreator({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto border border-white/10 bg-[#0b101a] p-0 text-white shadow-2xl sm:max-w-3xl">
-        <DialogHeader className="border-b border-white/8 px-6 py-5">
+      <DialogContent className="max-h-[90vh] overflow-y-auto border border-hairline bg-surface p-0 text-ink shadow-2xl sm:max-w-3xl">
+        <DialogHeader className="border-b border-hairline px-6 py-5">
           <DialogTitle>
             {module === 'campaigns'
               ? 'Create outbound campaign'
@@ -495,7 +493,7 @@ function OperationsCreator({
                 ? 'Register SIP trunk'
                 : 'Create workflow'}
           </DialogTitle>
-          <DialogDescription className="text-xs leading-5 text-white/38">
+          <DialogDescription className="text-xs leading-5 text-ink-muted">
             {module === 'campaigns'
               ? 'Configure the agent, workflow version, consent-aware contacts, retry policy and legal calling window.'
               : module === 'sip_trunks'
@@ -659,8 +657,8 @@ function OperationsCreator({
                   className="min-h-28"
                 />
               </CreatorField>
-              <p className="mt-2 flex items-center gap-2 text-[9px] text-white/30">
-                <ShieldCheck className="size-3 text-emerald-300" /> Duplicates
+              <p className="mt-2 flex items-center gap-2 text-[9px] text-ink-muted">
+                <ShieldCheck className="size-3 text-success-text" /> Duplicates
                 are removed; consent and suppression are checked again before
                 any call is queued.
               </p>
@@ -802,7 +800,7 @@ function OperationsCreator({
                   setWorkflow({ ...workflow, steps: event.target.value })
                 }
               />
-              <p className="mt-2 text-[9px] text-white/28">
+              <p className="mt-2 text-[9px] text-ink-muted">
                 Available: check_consent, update_crm, send_whatsapp,
                 create_payment_link, schedule_follow_up, sync_retargeting,
                 notify_human.
@@ -811,12 +809,12 @@ function OperationsCreator({
           </div>
         ) : null}
 
-        <DialogFooter className="m-0 border-white/8 bg-white/[0.025] px-6 py-4">
+        <DialogFooter className="m-0 border-hairline bg-surface-muted px-6 py-4">
           <Button
             type="button"
             variant="outline"
             onClick={() => setOpen(false)}
-            className="border-white/10 bg-transparent"
+            className="border-hairline bg-transparent"
           >
             Cancel
           </Button>
@@ -855,9 +853,9 @@ function CreatorField({
   children: React.ReactNode;
 }) {
   return (
-    <label className="block text-[10px] font-medium text-white/48">
+    <label className="block text-[10px] font-medium text-ink-muted">
       {label}
-      <div className="mt-2 [&_input]:h-10 [&_input]:border-white/9 [&_input]:bg-white/[0.035] [&_input]:text-xs [&_select]:h-10 [&_select]:w-full [&_select]:rounded-lg [&_select]:border [&_select]:border-white/9 [&_select]:bg-[#111827] [&_select]:px-3 [&_select]:text-xs [&_textarea]:border-white/9 [&_textarea]:bg-white/[0.035] [&_textarea]:text-xs">
+      <div className="mt-2 [&_input]:h-10 [&_input]:border-hairline [&_input]:bg-surface-strong [&_input]:text-xs [&_select]:h-10 [&_select]:w-full [&_select]:rounded-lg [&_select]:border [&_select]:border-hairline [&_select]:bg-surface [&_select]:px-3 [&_select]:text-xs [&_textarea]:border-hairline [&_textarea]:bg-surface-strong [&_textarea]:text-xs">
         {children}
       </div>
     </label>
@@ -875,10 +873,10 @@ function CallHistory({ data }: { data: OperationsData }) {
         description={t('screen.call_history.description')}
       />
       <Stats data={data} />
-      <section className="overflow-hidden rounded-2xl border border-white/8 bg-[#0c1422]">
+      <section className="overflow-hidden rounded-2xl border border-hairline bg-surface">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[980px] text-left text-xs">
-            <thead className="border-b border-white/8 bg-white/[0.02] text-[9px] uppercase tracking-wider text-white/28">
+            <thead className="border-b border-hairline bg-surface-muted text-[9px] uppercase tracking-wider text-ink-muted">
               <tr>
                 {[
                   'Customer',
@@ -906,13 +904,13 @@ function CallHistory({ data }: { data: OperationsData }) {
                     <p className="font-medium">
                       {str(call.customer_name, 'Unknown')}
                     </p>
-                    <p className="mt-1 font-mono text-[9px] text-white/28">
+                    <p className="mt-1 font-mono text-[9px] text-ink-muted">
                       {str(call.channel, 'phone') === 'playground'
                         ? 'browser test'
                         : str(call.to_number)}
                     </p>
                   </td>
-                  <td className="px-4 py-4 text-white/55">
+                  <td className="px-4 py-4 text-ink-body">
                     {str(call.agent_name)}
                   </td>
                   <td className="px-4 py-4">
@@ -921,8 +919,8 @@ function CallHistory({ data }: { data: OperationsData }) {
                     <span
                       className={`rounded-md px-2 py-1 text-[9px] uppercase tracking-wide ${
                         str(call.channel, 'phone') === 'playground'
-                          ? 'bg-sky-400/12 text-sky-200'
-                          : 'bg-white/6 text-white/45'
+                          ? 'bg-sky-400/12 text-sky-700'
+                          : 'bg-surface-strong text-ink-muted'
                       }`}
                     >
                       {str(call.channel, 'phone') === 'playground'
@@ -933,7 +931,7 @@ function CallHistory({ data }: { data: OperationsData }) {
                   <td className="px-4 py-4">
                     <Status value={str(call.status)} />
                   </td>
-                  <td className="px-4 py-4 text-white/55">
+                  <td className="px-4 py-4 text-ink-body">
                     {str(call.outcome).replaceAll('_', ' ')}
                   </td>
                   <td className="px-4 py-4">
@@ -949,12 +947,12 @@ function CallHistory({ data }: { data: OperationsData }) {
                       <button
                         type="button"
                         onClick={() => setOpenCallId(str(call.id))}
-                        className="rounded-lg border border-white/12 px-2.5 py-1.5 text-[10px] text-white/70 transition hover:border-white/25 hover:text-white"
+                        className="rounded-lg border border-hairline px-2.5 py-1.5 text-[10px] text-ink transition hover:border-hairline hover:text-ink"
                       >
                         {str(call.turn_count)} turns
                       </button>
                     ) : (
-                      <span className="text-white/25">No transcript</span>
+                      <span className="text-ink-muted">No transcript</span>
                     )}
                   </td>
                   <td className="px-4 py-4">
@@ -966,7 +964,7 @@ function CallHistory({ data }: { data: OperationsData }) {
                         src={`/api/app/recordings/${encodeURIComponent(str(call.id))}`}
                       />
                     ) : (
-                      <span className="text-white/25">
+                      <span className="text-ink-muted">
                         {str(call.channel, 'phone') === 'playground'
                           ? 'No audio captured'
                           : 'Recording unavailable'}
@@ -1046,16 +1044,16 @@ function CallDetail({
         onClick={onClose}
         className="absolute inset-0 cursor-default"
       />
-      <section className="relative flex h-full w-full max-w-2xl flex-col overflow-hidden rounded-none border border-white/10 bg-[#0b1220] sm:rounded-2xl">
-        <div className="flex items-start justify-between gap-4 border-b border-white/8 px-5 py-4">
+      <section className="relative flex h-full w-full max-w-2xl flex-col overflow-hidden rounded-none border border-hairline bg-surface sm:rounded-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-hairline px-5 py-4">
           <div>
-            <p className="text-[9px] uppercase tracking-wider text-white/28">
+            <p className="text-[9px] uppercase tracking-wider text-ink-muted">
               Call detail
             </p>
             <h2 className="mt-1 text-sm font-semibold">
               {str(call.customer_name, 'Unknown caller')}
             </h2>
-            <p className="mt-1 text-[10px] text-white/40">
+            <p className="mt-1 text-[10px] text-ink-muted">
               {str(call.agent_name)} · {callTimestamp(call.started_at)} ·{' '}
               {duration(call.duration_seconds)} · {str(call.latency_ms, '—')}ms
               avg
@@ -1066,19 +1064,21 @@ function CallDetail({
           </Button>
         </div>
         <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5">
-          {error ? <p className="text-[11px] text-rose-300">{error}</p> : null}
+          {error ? (
+            <p className="text-[11px] text-danger-text">{error}</p>
+          ) : null}
           {!detail && !error ? (
-            <p className="text-[11px] text-white/40">Loading…</p>
+            <p className="text-[11px] text-ink-muted">Loading…</p>
           ) : null}
           {detail ? (
             <>
-              <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4">
-                <p className="text-[9px] uppercase tracking-wider text-white/28">
+              <div className="rounded-xl border border-hairline bg-surface-muted p-4">
+                <p className="text-[9px] uppercase tracking-wider text-ink-muted">
                   Post-call intelligence
                 </p>
                 {summary ? (
                   <>
-                    <p className="mt-2 text-[12px] leading-relaxed text-white/80">
+                    <p className="mt-2 text-[12px] leading-relaxed text-ink">
                       {str(summary.summary)}
                     </p>
                     <div className="mt-3 grid gap-3 sm:grid-cols-3">
@@ -1096,23 +1096,23 @@ function CallDetail({
                       />
                     </div>
                     {objections.length ? (
-                      <p className="mt-3 text-[11px] text-white/55">
-                        <span className="text-white/32">Objections: </span>
+                      <p className="mt-3 text-[11px] text-ink-body">
+                        <span className="text-ink-muted">Objections: </span>
                         {objections.join(', ')}
                       </p>
                     ) : null}
                     {str(summary.next_action) ? (
-                      <p className="mt-2 text-[11px] text-white/55">
-                        <span className="text-white/32">Next action: </span>
+                      <p className="mt-2 text-[11px] text-ink-body">
+                        <span className="text-ink-muted">Next action: </span>
                         {str(summary.next_action)}
                       </p>
                     ) : null}
-                    <p className="mt-3 text-[9px] text-white/25">
+                    <p className="mt-3 text-[9px] text-ink-muted">
                       Generated by {str(summary.model, 'the configured model')}
                     </p>
                   </>
                 ) : (
-                  <p className="mt-2 text-[11px] text-white/45">
+                  <p className="mt-2 text-[11px] text-ink-muted">
                     {intelligence === 'queued'
                       ? 'Queued — runs on the next job tick.'
                       : intelligence === 'unavailable'
@@ -1125,9 +1125,9 @@ function CallDetail({
               </div>
 
               {review ? (
-                <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4">
+                <div className="rounded-xl border border-hairline bg-surface-muted p-4">
                   <div className="flex items-center justify-between">
-                    <p className="text-[9px] uppercase tracking-wider text-white/28">
+                    <p className="text-[9px] uppercase tracking-wider text-ink-muted">
                       AI quality review
                     </p>
                     <Status value={str(review.status)} />
@@ -1158,11 +1158,11 @@ function CallDetail({
               ) : null}
 
               {transport.length ? (
-                <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4">
-                  <p className="text-[9px] uppercase tracking-wider text-white/28">
+                <div className="rounded-xl border border-hairline bg-surface-muted p-4">
+                  <p className="text-[9px] uppercase tracking-wider text-ink-muted">
                     {t('field.audioPath')}
                   </p>
-                  <p className="mt-1 text-[10px] text-white/32">
+                  <p className="mt-1 text-[10px] text-ink-muted">
                     {t('field.audioPathNote')}
                   </p>
                   {transport.map((leg, legIndex) => {
@@ -1178,7 +1178,7 @@ function CallDetail({
                     }
                     return (
                       <div key={legIndex} className="mt-3">
-                        <p className="text-[10px] text-white/45">
+                        <p className="text-[10px] text-ink-muted">
                           {str(leg.leg_role, 'agent')} ·{' '}
                           {str(leg.transport, 'websocket')} ·{' '}
                           {str(leg.band, '—')} {str(leg.score)}/100
@@ -1239,7 +1239,7 @@ function CallDetail({
                             {warnings.map((warning, index) => (
                               <li
                                 key={`${legIndex}-${index}`}
-                                className="text-[10px] text-amber-200/80"
+                                className="text-[10px] text-warning-text"
                               >
                                 {str(warning.message)}
                               </li>
@@ -1253,7 +1253,7 @@ function CallDetail({
               ) : null}
 
               <div>
-                <p className="text-[9px] uppercase tracking-wider text-white/28">
+                <p className="text-[9px] uppercase tracking-wider text-ink-muted">
                   Transcript · {turns.length} turns
                 </p>
                 <div className="mt-3 space-y-2">
@@ -1275,17 +1275,17 @@ function CallDetail({
                         key={str(turn.turn_index)}
                         className={`rounded-xl border px-3 py-2.5 ${
                           isCustomer
-                            ? 'border-white/8 bg-white/[0.03]'
+                            ? 'border-hairline bg-surface-muted'
                             : 'border-emerald-400/15 bg-emerald-400/[0.05]'
                         }`}
                       >
-                        <div className="flex items-center justify-between text-[9px] uppercase tracking-wider text-white/28">
+                        <div className="flex items-center justify-between text-[9px] uppercase tracking-wider text-ink-muted">
                           <span>{isCustomer ? 'Customer' : 'Agent'}</span>
                           <span>
                             {turn.latency_ms ? `${str(turn.latency_ms)}ms` : ''}
                           </span>
                         </div>
-                        <p className="mt-1.5 text-[12px] leading-relaxed text-white/80">
+                        <p className="mt-1.5 text-[12px] leading-relaxed text-ink">
                           {str(turn.content)}
                         </p>
                         {tools.length ? (
@@ -1293,7 +1293,7 @@ function CallDetail({
                             {tools.map((tool, index) => (
                               <span
                                 key={`${str(turn.turn_index)}-${index}`}
-                                className="rounded-md bg-amber-400/12 px-2 py-1 text-[9px] text-amber-200"
+                                className="rounded-md bg-amber-400/12 px-2 py-1 text-[9px] text-warning-text"
                               >
                                 {str(tool.name).replaceAll('_', ' ')}
                               </span>
@@ -1357,15 +1357,15 @@ function LiveMonitor({ data }: { data: OperationsData }) {
         title={t('screen.live_monitor.title')}
         description={t('screen.live_monitor.description')}
         action={
-          <Button variant="outline" className="border-white/10 bg-transparent">
-            <Radio className="text-emerald-300" />
+          <Button variant="outline" className="border-hairline bg-transparent">
+            <Radio className="text-success-text" />
             {live.length} live
           </Button>
         }
       />
       <Stats data={data} />
       {notice ? (
-        <p className="rounded-lg border border-white/12 bg-white/[0.03] px-3 py-2 text-[11px] text-white/70">
+        <p className="rounded-lg border border-hairline bg-surface-muted px-3 py-2 text-[11px] text-ink">
           {notice}
         </p>
       ) : null}
@@ -1373,21 +1373,21 @@ function LiveMonitor({ data }: { data: OperationsData }) {
         {live.map((call) => (
           <section
             key={str(call.id)}
-            className="rounded-2xl border border-emerald-400/12 bg-[linear-gradient(145deg,rgba(52,211,153,0.055),rgba(12,20,34,1)_55%)] p-5"
+            className="rounded-2xl border border-emerald-400/12 bg-[linear-gradient(145deg,rgba(52,211,153,0.055),#ffffff_55%)] p-5"
           >
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-2 text-[10px] text-emerald-200">
+              <span className="flex items-center gap-2 text-[10px] text-success-text">
                 <span className="size-2 animate-pulse rounded-full bg-emerald-400" />{' '}
                 Live conversation
               </span>
-              <span className="font-mono text-[10px] text-white/35">
+              <span className="font-mono text-[10px] text-ink-muted">
                 {duration(call.duration_seconds)}
               </span>
             </div>
             <h2 className="mt-5 text-lg font-semibold">
               {str(call.customer_name)}
             </h2>
-            <p className="mt-2 text-xs leading-5 text-white/42">
+            <p className="mt-2 text-xs leading-5 text-ink-muted">
               {str(call.summary)}
             </p>
             <div className="mt-5 grid grid-cols-3 gap-2">
@@ -1402,7 +1402,7 @@ function LiveMonitor({ data }: { data: OperationsData }) {
               <Button
                 size="sm"
                 variant="outline"
-                className="border-white/10 bg-transparent text-[9px]"
+                className="border-hairline bg-transparent text-[9px]"
                 onClick={() => setOpenCallId(str(call.id))}
               >
                 <Headphones /> Transcript
@@ -1410,7 +1410,7 @@ function LiveMonitor({ data }: { data: OperationsData }) {
               <Button
                 size="sm"
                 variant="outline"
-                className="border-white/10 bg-transparent text-[9px]"
+                className="border-hairline bg-transparent text-[9px]"
                 onClick={() =>
                   setMonitorCallId(
                     monitorCallId === str(call.id) ? null : str(call.id),
@@ -1423,7 +1423,7 @@ function LiveMonitor({ data }: { data: OperationsData }) {
               <Button
                 size="sm"
                 variant="outline"
-                className="border-white/10 bg-transparent text-[9px]"
+                className="border-hairline bg-transparent text-[9px]"
                 disabled={busy === str(call.id)}
                 onClick={() => void takeOver(str(call.id))}
               >
@@ -1545,22 +1545,22 @@ function Analytics() {
             onClick={() => setDays(option)}
             className={`rounded-lg border px-3 py-1.5 text-[11px] transition ${
               days === option
-                ? 'border-white/30 bg-white/10 text-white'
-                : 'border-white/10 bg-white/4 text-white/55 hover:text-white/85'
+                ? 'border-hairline bg-surface-strong text-ink'
+                : 'border-hairline bg-surface-strong text-ink-body hover:text-ink'
             }`}
           >
             Last {option} days
           </button>
         ))}
         {payload ? (
-          <span className="text-[10px] text-white/28">
+          <span className="text-[10px] text-ink-muted">
             {payload.totals.calls} calls in window
           </span>
         ) : null}
       </div>
-      {error ? <p className="text-[11px] text-rose-300">{error}</p> : null}
+      {error ? <p className="text-[11px] text-danger-text">{error}</p> : null}
       {!payload && !error ? (
-        <p className="text-[11px] text-white/40">Loading aggregates…</p>
+        <p className="text-[11px] text-ink-muted">Loading aggregates…</p>
       ) : null}
 
       {totals ? (
@@ -1593,14 +1593,14 @@ function Analytics() {
           <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
             <section className="portal-panel p-5">
               <h2 className="text-sm font-semibold">Conversation trend</h2>
-              <p className="mt-1 text-[10px] text-white/32">
+              <p className="mt-1 text-[10px] text-ink-muted">
                 {payload.windowDays} days · calls, conversions and leads
               </p>
               <ActivityAreaChart data={payload.series} />
             </section>
             <section className="portal-panel p-5">
               <h2 className="text-sm font-semibold">Outcome distribution</h2>
-              <p className="mt-1 text-[10px] text-white/32">
+              <p className="mt-1 text-[10px] text-ink-muted">
                 Every recorded outcome in the window
               </p>
               <DistributionChart
@@ -1615,29 +1615,29 @@ function Analytics() {
           <div className="grid gap-4 xl:grid-cols-2">
             <section className="portal-panel p-5">
               <h2 className="text-sm font-semibold">Performance by language</h2>
-              <p className="mt-1 text-[10px] text-white/32">
+              <p className="mt-1 text-[10px] text-ink-muted">
                 A drop in one language is invisible in a blended average
               </p>
               <div className="mt-4 space-y-2">
                 {payload.byLanguage.length === 0 ? (
-                  <p className="text-[11px] text-white/35">
+                  <p className="text-[11px] text-ink-muted">
                     No calls in this window.
                   </p>
                 ) : null}
                 {payload.byLanguage.map((row) => (
                   <div
                     key={row.language}
-                    className="flex flex-wrap items-center gap-2 rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5 text-[11px]"
+                    className="flex flex-wrap items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2.5 text-[11px]"
                   >
                     <span className="font-medium">{row.label}</span>
-                    <span className="text-white/45">{row.calls} calls</span>
-                    <span className="text-white/45">
+                    <span className="text-ink-muted">{row.calls} calls</span>
+                    <span className="text-ink-muted">
                       {row.avgLatencyMs ? `${row.avgLatencyMs}ms` : '—'}
                     </span>
-                    <span className="text-white/45">
+                    <span className="text-ink-muted">
                       {row.transferred} transferred
                     </span>
-                    <span className="ml-auto text-[9px] text-white/32">
+                    <span className="ml-auto text-[9px] text-ink-muted">
                       {row.avgQuality ? `QA ${row.avgQuality}` : 'not reviewed'}
                     </span>
                   </div>
@@ -1646,26 +1646,26 @@ function Analytics() {
             </section>
             <section className="portal-panel p-5">
               <h2 className="text-sm font-semibold">Performance by agent</h2>
-              <p className="mt-1 text-[10px] text-white/32">
+              <p className="mt-1 text-[10px] text-ink-muted">
                 Calls, latency and resolved conversations
               </p>
               <div className="mt-4 space-y-2">
                 {payload.byAgent.length === 0 ? (
-                  <p className="text-[11px] text-white/35">
+                  <p className="text-[11px] text-ink-muted">
                     No calls in this window.
                   </p>
                 ) : null}
                 {payload.byAgent.map((row) => (
                   <div
                     key={row.agent}
-                    className="flex flex-wrap items-center gap-2 rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5 text-[11px]"
+                    className="flex flex-wrap items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2.5 text-[11px]"
                   >
                     <span className="font-medium">{row.agent}</span>
-                    <span className="text-white/45">{row.calls} calls</span>
-                    <span className="text-white/45">
+                    <span className="text-ink-muted">{row.calls} calls</span>
+                    <span className="text-ink-muted">
                       {row.avgLatencyMs ? `${row.avgLatencyMs}ms` : '—'}
                     </span>
-                    <span className="ml-auto text-[9px] text-white/32">
+                    <span className="ml-auto text-[9px] text-ink-muted">
                       {row.resolved} resolved
                     </span>
                   </div>
@@ -1720,18 +1720,18 @@ function Quality({ data }: { data: OperationsData }) {
         {data.qualityReviews.map((review) => (
           <section
             key={str(review.id)}
-            className="rounded-2xl border border-white/8 bg-[#0c1422] p-5"
+            className="rounded-2xl border border-hairline bg-surface p-5"
           >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold">
                   {str(review.customer_name)}
                 </p>
-                <p className="mt-1 text-[10px] text-white/30">
+                <p className="mt-1 text-[10px] text-ink-muted">
                   {str(review.outcome).replaceAll('_', ' ')}
                 </p>
               </div>
-              <span className="text-2xl font-semibold text-cyan-200">
+              <span className="text-2xl font-semibold text-cyan-700">
                 {str(review.overall_score)}
               </span>
             </div>
@@ -1753,11 +1753,11 @@ function Quality({ data }: { data: OperationsData }) {
                 value={str(review.policy_score)}
               />
             </div>
-            <div className="mt-4 flex gap-2 text-[9px] text-white/35">
-              <span className="rounded-lg bg-white/4 px-2 py-1">
+            <div className="mt-4 flex gap-2 text-[9px] text-ink-muted">
+              <span className="rounded-lg bg-surface-strong px-2 py-1">
                 Hallucinations {str(review.hallucination_count)}
               </span>
-              <span className="rounded-lg bg-white/4 px-2 py-1">
+              <span className="rounded-lg bg-surface-strong px-2 py-1">
                 Overlaps {str(review.overlap_count)}
               </span>
               <Status value={str(review.status)} />
@@ -1892,10 +1892,10 @@ function WorkspaceSettings({
             </Field>
           </div>
           <div className="mt-5">
-            <p className="text-[11px] font-semibold text-white/70">
+            <p className="text-[11px] font-semibold text-ink">
               {t('settings.languages.title')}
             </p>
-            <p className="mt-1 text-[10px] text-white/32">
+            <p className="mt-1 text-[10px] text-ink-muted">
               {t('settings.languages.hint')}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -1911,8 +1911,8 @@ function WorkspaceSettings({
                     onClick={() => toggleLanguage(item.code)}
                     className={`rounded-lg border px-3 py-1.5 text-[11px] transition ${
                       active
-                        ? 'border-emerald-400/40 bg-emerald-400/12 text-emerald-100'
-                        : 'border-white/10 bg-white/4 text-white/55 hover:text-white/80'
+                        ? 'border-emerald-400/40 bg-emerald-400/12 text-success-text'
+                        : 'border-hairline bg-surface-strong text-ink-body hover:text-ink'
                     } ${isDefault ? 'cursor-default opacity-80' : ''}`}
                   >
                     {item.label}
@@ -1953,7 +1953,7 @@ function WorkspaceSettings({
               />
             </Field>
           </div>
-          <label className="mt-4 flex items-center gap-2 text-[11px] text-white/70">
+          <label className="mt-4 flex items-center gap-2 text-[11px] text-ink">
             <input
               type="checkbox"
               checked={redact}
@@ -1970,14 +1970,14 @@ function WorkspaceSettings({
             {t('settings.saveButton')}
           </Button>
           {notice ? (
-            <p className="mt-3 text-[11px] text-white/55">{notice}</p>
+            <p className="mt-3 text-[11px] text-ink-body">{notice}</p>
           ) : null}
         </section>
         <section className="portal-panel p-5">
           <h2 className="text-sm font-semibold">
             {t('settings.compliance.title')}
           </h2>
-          <p className="mt-1 text-[10px] text-white/32">
+          <p className="mt-1 text-[10px] text-ink-muted">
             {t('settings.compliance.hint')}
           </p>
           <div className="mt-5 grid gap-3">
@@ -1997,7 +1997,7 @@ function WorkspaceSettings({
               value={String(compliance.kycDocuments.length)}
             />
           </div>
-          <p className="mt-4 text-[9px] leading-4 text-white/32">
+          <p className="mt-4 text-[9px] leading-4 text-ink-muted">
             Outbound call creation is rejected unless consent is valid, the
             number is not suppressed and at least 10 credits remain.
           </p>
@@ -2055,8 +2055,8 @@ function Metric({
       <span className="grid size-9 place-items-center rounded-xl border border-indigo-200/10 bg-indigo-300/[0.07] transition group-hover:border-indigo-200/20">
         <Icon className="size-[17px] text-[#bdc7ff]" />
       </span>
-      <p className="mt-3 text-2xl font-semibold text-white/95">{value}</p>
-      <p className="mt-1 text-[9px] font-medium uppercase tracking-wider text-white/34">
+      <p className="mt-3 text-2xl font-semibold text-ink">{value}</p>
+      <p className="mt-1 text-[9px] font-medium uppercase tracking-wider text-ink-muted">
         {label}
       </p>
     </section>
@@ -2076,13 +2076,13 @@ function Header({
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9eb0ff]">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
           {eyebrow}
         </p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
           {title}
         </h1>
-        <p className="mt-2 max-w-3xl text-xs leading-5 text-white/38">
+        <p className="mt-2 max-w-3xl text-xs leading-5 text-ink-muted">
           {description}
         </p>
       </div>
@@ -2097,7 +2097,7 @@ function Status({ value }: { value: string }) {
     );
   return (
     <span
-      className={`inline-flex rounded-full px-2 py-1 text-[8px] capitalize ${good ? 'bg-emerald-400/8 text-emerald-200' : 'bg-amber-300/8 text-amber-200'}`}
+      className={`inline-flex rounded-full px-2 py-1 text-[8px] capitalize ${good ? 'bg-emerald-400/8 text-success-text' : 'bg-amber-300/8 text-warning-text'}`}
     >
       {value.replaceAll('_', ' ')}
     </span>
@@ -2118,12 +2118,12 @@ function Mini({
   raw?: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-white/7 bg-white/[0.025] p-3">
-      <p className="text-[8px] uppercase tracking-wider text-white/25">
+    <div className="rounded-xl border border-hairline bg-surface-muted p-3">
+      <p className="text-[8px] uppercase tracking-wider text-ink-muted">
         {label}
       </p>
       <p
-        className={`mt-1 truncate text-[10px] font-medium text-white/65 ${raw ? '' : 'capitalize'}`}
+        className={`mt-1 truncate text-[10px] font-medium text-ink-body ${raw ? '' : 'capitalize'}`}
       >
         {value}
       </p>
@@ -2132,10 +2132,10 @@ function Mini({
 }
 function Empty({ icon: Icon, label }: { icon: typeof Bot; label: string }) {
   return (
-    <div className="grid min-h-56 place-items-center rounded-2xl border border-dashed border-white/10 bg-white/[0.015] text-center">
+    <div className="grid min-h-56 place-items-center rounded-2xl border border-dashed border-hairline bg-surface-muted text-center">
       <div>
-        <Icon className="mx-auto size-6 text-white/25" />
-        <p className="mt-3 text-xs text-white/35">{label}</p>
+        <Icon className="mx-auto size-6 text-ink-muted" />
+        <p className="mt-3 text-xs text-ink-muted">{label}</p>
       </div>
     </div>
   );
@@ -2148,9 +2148,9 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className="text-xs text-white/55">
+    <label className="text-xs text-ink-body">
       {label}
-      <div className="mt-2 [&_select]:h-11 [&_select]:w-full [&_select]:rounded-xl [&_select]:border [&_select]:border-white/10 [&_select]:bg-[#101a2b] [&_select]:px-3 [&_select]:text-xs">
+      <div className="mt-2 [&_select]:h-11 [&_select]:w-full [&_select]:rounded-xl [&_select]:border [&_select]:border-hairline [&_select]:bg-surface [&_select]:px-3 [&_select]:text-xs">
         {children}
       </div>
     </label>

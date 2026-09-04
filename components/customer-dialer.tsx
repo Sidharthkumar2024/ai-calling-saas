@@ -64,10 +64,10 @@ registerProcessor('vaani-downsampler', VaaniDownsampler);
 `;
 
 const bandTone: Record<string, string> = {
-  excellent: 'text-emerald-200',
-  good: 'text-emerald-200',
-  fair: 'text-amber-200',
-  poor: 'text-rose-200',
+  excellent: 'text-success-text',
+  good: 'text-success-text',
+  fair: 'text-warning-text',
+  poor: 'text-danger-text',
 };
 
 type Agent = { id: string; name: string; primary_language: string };
@@ -447,19 +447,19 @@ export function CustomerDialer() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-[9px] uppercase tracking-wider text-white/28">
+        <p className="text-[9px] uppercase tracking-wider text-ink-muted">
           {t('screen.dialer.eyebrow')}
         </p>
         <h1 className="mt-1 text-lg font-semibold">
           {t('screen.dialer.title')}
         </h1>
-        <p className="mt-1 text-[11px] text-white/40">
+        <p className="mt-1 text-[11px] text-ink-muted">
           {t('screen.dialer.description')}
         </p>
       </div>
 
       {gatewayReady === false ? (
-        <p className="rounded-xl border border-amber-400/25 bg-amber-400/[0.07] px-3 py-2.5 text-[11px] leading-relaxed text-amber-100">
+        <p className="rounded-xl border border-amber-400/25 bg-amber-400/[0.07] px-3 py-2.5 text-[11px] leading-relaxed text-warning-text">
           {t('dialer.gatewayMissing')}
           <span className="font-mono"> MEDIA_GATEWAY_SECRET </span> and
           <span className="font-mono"> MEDIA_GATEWAY_WS_URL</span>, and run
@@ -468,7 +468,7 @@ export function CustomerDialer() {
       ) : null}
 
       {notice ? (
-        <p className="rounded-lg border border-white/12 bg-white/[0.03] px-3 py-2 text-[11px] text-white/70">
+        <p className="rounded-lg border border-hairline bg-surface-muted px-3 py-2 text-[11px] text-ink">
           {notice}
         </p>
       ) : null}
@@ -476,12 +476,12 @@ export function CustomerDialer() {
       <section className="portal-panel p-5">
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="block">
-            <span className="text-[10px] text-white/45">AI agent</span>
+            <span className="text-[10px] text-ink-muted">AI agent</span>
             <select
               value={agentId}
               disabled={live}
               onChange={(event) => setAgentId(event.target.value)}
-              className="mt-1 w-full rounded-lg border border-white/10 bg-white/4 px-3 py-2 text-[11px]"
+              className="mt-1 w-full rounded-lg border border-hairline bg-surface-strong px-3 py-2 text-[11px]"
             >
               {agents.map((agent) => (
                 <option key={agent.id} value={agent.id}>
@@ -491,14 +491,14 @@ export function CustomerDialer() {
             </select>
           </label>
           <label className="block">
-            <span className="text-[10px] text-white/45">
+            <span className="text-[10px] text-ink-muted">
               {t('dialer.callerId')}
             </span>
             <select
               value={fromNumberId}
               disabled={live}
               onChange={(event) => setFromNumberId(event.target.value)}
-              className="mt-1 w-full rounded-lg border border-white/10 bg-white/4 px-3 py-2 text-[11px]"
+              className="mt-1 w-full rounded-lg border border-hairline bg-surface-strong px-3 py-2 text-[11px]"
             >
               <option value="">Not set</option>
               {numbers.map((number) => (
@@ -509,7 +509,7 @@ export function CustomerDialer() {
             </select>
           </label>
           <label className="block">
-            <span className="text-[10px] text-white/45">
+            <span className="text-[10px] text-ink-muted">
               {t('dialer.customerNumber')}
             </span>
             <input
@@ -517,11 +517,11 @@ export function CustomerDialer() {
               disabled={live}
               placeholder="+919876543210"
               onChange={(event) => setDestination(event.target.value)}
-              className="mt-1 w-full rounded-lg border border-white/10 bg-white/4 px-3 py-2 text-[11px]"
+              className="mt-1 w-full rounded-lg border border-hairline bg-surface-strong px-3 py-2 text-[11px]"
             />
           </label>
         </div>
-        <p className="mt-2 text-[10px] leading-relaxed text-white/32">
+        <p className="mt-2 text-[10px] leading-relaxed text-ink-muted">
           {t('dialer.carrierNote')}
         </p>
 
@@ -543,7 +543,7 @@ export function CustomerDialer() {
             </Button>
           ) : (
             <>
-              <span className="flex items-center gap-2 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-[11px] text-emerald-100">
+              <span className="flex items-center gap-2 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-[11px] text-success-text">
                 <span className="size-2 animate-pulse rounded-full bg-emerald-400" />
                 Live · {clock}
               </span>
@@ -575,7 +575,7 @@ export function CustomerDialer() {
           )}
         </div>
         {muted || held ? (
-          <p className="mt-2 text-[10px] text-amber-200/80">
+          <p className="mt-2 text-[10px] text-warning-text">
             {muted ? `${t('dialer.mutedNotice')} ` : ''}
             {held ? `${t('dialer.heldNotice')} ` : ''}
             {t('dialer.resumeHint')}
@@ -591,7 +591,7 @@ export function CustomerDialer() {
               {transport.band} · {transport.score}/100
             </span>
           </div>
-          <p className="mt-1 text-[10px] leading-relaxed text-white/32">
+          <p className="mt-1 text-[10px] leading-relaxed text-ink-muted">
             {t('dialer.audioPathNote')}
           </p>
           <dl className="mt-3 grid gap-2 sm:grid-cols-3">
@@ -616,12 +616,12 @@ export function CustomerDialer() {
             ).map(([label, value]) => (
               <div
                 key={label}
-                className="rounded-lg border border-white/8 bg-white/[0.02] px-2.5 py-2"
+                className="rounded-lg border border-hairline bg-surface-muted px-2.5 py-2"
               >
-                <dt className="text-[9px] uppercase tracking-wider text-white/28">
+                <dt className="text-[9px] uppercase tracking-wider text-ink-muted">
                   {label}
                 </dt>
-                <dd className="mt-0.5 text-[12px] text-white/80">{value}</dd>
+                <dd className="mt-0.5 text-[12px] text-ink">{value}</dd>
               </div>
             ))}
           </dl>
@@ -630,14 +630,14 @@ export function CustomerDialer() {
               {transport.warnings.map((warning) => (
                 <li
                   key={warning.code}
-                  className="text-[10px] text-amber-200/80"
+                  className="text-[10px] text-warning-text"
                 >
                   {warning.message}
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="mt-3 text-[10px] text-emerald-200/70">
+            <p className="mt-3 text-[10px] text-success-text">
               {t('dialer.audioHealthy')}
             </p>
           )}
@@ -652,19 +652,19 @@ export function CustomerDialer() {
           <div className="mt-3 space-y-2">
             {turns.map((turn, index) => (
               <div key={index} className="space-y-1">
-                <p className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-2 text-[12px] text-white/80">
-                  <span className="text-[9px] uppercase tracking-wider text-white/28">
+                <p className="rounded-xl border border-hairline bg-surface-muted px-3 py-2 text-[12px] text-ink">
+                  <span className="text-[9px] uppercase tracking-wider text-ink-muted">
                     {t('dialer.you')}{' '}
                   </span>
                   {turn.heard || '—'}
                 </p>
-                <p className="rounded-xl border border-emerald-400/15 bg-emerald-400/[0.05] px-3 py-2 text-[12px] text-white/80">
-                  <span className="text-[9px] uppercase tracking-wider text-emerald-200/60">
+                <p className="rounded-xl border border-emerald-400/15 bg-emerald-400/[0.05] px-3 py-2 text-[12px] text-ink">
+                  <span className="text-[9px] uppercase tracking-wider text-success-text">
                     {t('dialer.agentLabel')}{' '}
                   </span>
                   {turn.reply || '—'}
                   {turn.latency ? (
-                    <span className="mt-1 block text-[9px] text-white/28">
+                    <span className="mt-1 block text-[9px] text-ink-muted">
                       heard in {turn.latency.stt}ms · thought in{' '}
                       {turn.latency.llm}ms · spoke in {turn.latency.tts}ms
                     </span>
@@ -683,18 +683,18 @@ export function CustomerDialer() {
             {recent.slice(0, 6).map((call) => (
               <div
                 key={String(call.id)}
-                className="flex flex-wrap items-center gap-2 rounded-lg border border-white/8 bg-white/[0.02] px-2.5 py-1.5 text-[10px]"
+                className="flex flex-wrap items-center gap-2 rounded-lg border border-hairline bg-surface-muted px-2.5 py-1.5 text-[10px]"
               >
-                <span className="text-white/70">
+                <span className="text-ink">
                   {text(call.agent_name, 'unassigned')}
                 </span>
-                <span className="text-white/45">
+                <span className="text-ink-muted">
                   {text(call.to_number, '—')}
                 </span>
-                <span className="text-white/45">
+                <span className="text-ink-muted">
                   {Number(call.duration_seconds ?? 0)}s
                 </span>
-                <span className="ml-auto text-white/28">
+                <span className="ml-auto text-ink-muted">
                   {text(call.outcome) || text(call.status)}
                 </span>
               </div>

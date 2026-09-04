@@ -154,13 +154,13 @@ export function CustomerVoiceProfiles() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#afbcff]">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
           Voice profile engine
         </p>
         <h2 className="mt-2 text-2xl font-semibold tracking-tight">
           Male and female personas, language policy and voice lock
         </h2>
-        <p className="mt-2 max-w-2xl text-xs text-white/45">
+        <p className="mt-2 max-w-2xl text-xs text-ink-muted">
           A profile decides which voice speaks, which languages it is allowed to
           speak, and whether the voice may change mid-call. Locking a voice
           keeps the same identity even when the caller switches language.
@@ -168,21 +168,21 @@ export function CustomerVoiceProfiles() {
       </div>
 
       {error ? (
-        <p className="rounded-lg border border-red-400/20 bg-red-400/5 px-3 py-2 text-[11px] text-red-200">
+        <p className="rounded-lg border border-red-400/20 bg-red-400/5 px-3 py-2 text-[11px] text-danger-text">
           {error}
         </p>
       ) : null}
       {notice ? (
-        <p className="text-[11px] font-medium text-emerald-300">{notice}</p>
+        <p className="text-[11px] font-medium text-success-text">{notice}</p>
       ) : null}
 
       <div className="flex items-center justify-between">
-        <p className="text-xs text-white/45">
+        <p className="text-xs text-ink-muted">
           {loading ? 'Loading…' : `${profiles.length} voice profile(s)`}
         </p>
         <Button
           onClick={() => setShowForm((value) => !value)}
-          className="h-9 bg-white text-[11px] text-black hover:bg-white/90"
+          className="h-9 bg-primary text-[11px] text-primary-foreground hover:bg-[#1d4ed8]"
         >
           <Plus /> New voice profile
         </Button>
@@ -197,14 +197,14 @@ export function CustomerVoiceProfiles() {
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Arjun — Global (male)"
-                className="h-9 border-white/10 bg-black/30 text-xs"
+                className="h-9 border-hairline bg-surface-muted text-xs"
               />
             </Field>
             <Field label="Presentation">
               <select
                 value={presentation}
                 onChange={(event) => setPresentation(event.target.value)}
-                className="h-9 w-full rounded-md border border-white/10 bg-black/30 px-2 text-xs"
+                className="h-9 w-full rounded-md border border-hairline bg-surface-muted px-2 text-xs"
               >
                 <option value="female">Female</option>
                 <option value="male">Male</option>
@@ -214,7 +214,7 @@ export function CustomerVoiceProfiles() {
               <select
                 value={provider}
                 onChange={(event) => setProvider(event.target.value)}
-                className="h-9 w-full rounded-md border border-white/10 bg-black/30 px-2 text-xs"
+                className="h-9 w-full rounded-md border border-hairline bg-surface-muted px-2 text-xs"
               >
                 <option value="elevenlabs">ElevenLabs</option>
                 <option value="sarvam">Sarvam (Indian languages)</option>
@@ -233,7 +233,7 @@ export function CustomerVoiceProfiles() {
                     ? 'e.g. shubh'
                     : 'e.g. MF4J4IDTRo0AxOO4dpFR'
                 }
-                className="h-9 border-white/10 bg-black/30 font-mono text-[11px]"
+                className="h-9 border-hairline bg-surface-muted font-mono text-[11px]"
               />
             </Field>
             <Field label="Model (optional)">
@@ -241,14 +241,14 @@ export function CustomerVoiceProfiles() {
                 value={modelId}
                 onChange={(event) => setModelId(event.target.value)}
                 placeholder="eleven_flash_v2_5"
-                className="h-9 border-white/10 bg-black/30 text-xs"
+                className="h-9 border-hairline bg-surface-muted text-xs"
               />
             </Field>
             <Field label="Speaking rate">
               <select
                 value={rate}
                 onChange={(event) => setRate(event.target.value)}
-                className="h-9 w-full rounded-md border border-white/10 bg-black/30 px-2 text-xs"
+                className="h-9 w-full rounded-md border border-hairline bg-surface-muted px-2 text-xs"
               >
                 <option value="slow">Slow</option>
                 <option value="normal">Normal</option>
@@ -259,7 +259,7 @@ export function CustomerVoiceProfiles() {
               <select
                 value={style}
                 onChange={(event) => setStyle(event.target.value)}
-                className="h-9 w-full rounded-md border border-white/10 bg-black/30 px-2 text-xs"
+                className="h-9 w-full rounded-md border border-hairline bg-surface-muted px-2 text-xs"
               >
                 <option value="warm">Warm</option>
                 <option value="professional">Professional</option>
@@ -268,7 +268,7 @@ export function CustomerVoiceProfiles() {
               </select>
             </Field>
             <Field label="Voice lock">
-              <label className="flex h-9 items-center gap-2 text-xs text-white/60">
+              <label className="flex h-9 items-center gap-2 text-xs text-ink-body">
                 <input
                   type="checkbox"
                   checked={voiceLock}
@@ -279,7 +279,7 @@ export function CustomerVoiceProfiles() {
             </Field>
           </div>
 
-          <p className="mt-4 text-[9px] uppercase tracking-wider text-white/32">
+          <p className="mt-4 text-[9px] uppercase tracking-wider text-ink-muted">
             Allowed languages
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -296,7 +296,7 @@ export function CustomerVoiceProfiles() {
                         : [...current, code],
                     )
                   }
-                  className={`rounded-full border px-2.5 py-1 text-[10px] transition ${on ? 'border-white/20 bg-white/12 text-white' : 'border-white/8 text-white/45 hover:bg-white/5'}`}
+                  className={`rounded-full border px-2.5 py-1 text-[10px] transition ${on ? 'border-hairline bg-surface-strong text-ink' : 'border-hairline text-ink-muted hover:bg-surface-strong'}`}
                 >
                   {label}
                 </button>
@@ -308,7 +308,7 @@ export function CustomerVoiceProfiles() {
             <Button
               disabled={busy === 'create'}
               onClick={create}
-              className="h-9 bg-white text-[11px] text-black hover:bg-white/90"
+              className="h-9 bg-primary text-[11px] text-primary-foreground hover:bg-[#1d4ed8]"
             >
               {busy === 'create' ? <Loader2 className="animate-spin" /> : null}{' '}
               Create profile
@@ -316,7 +316,7 @@ export function CustomerVoiceProfiles() {
             <Button
               variant="outline"
               onClick={() => setShowForm(false)}
-              className="h-9 border-white/12 bg-transparent text-[11px]"
+              className="h-9 border-hairline bg-transparent text-[11px]"
             >
               Cancel
             </Button>
@@ -330,10 +330,10 @@ export function CustomerVoiceProfiles() {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <Mic2 className="size-3.5 text-[#afbcff]" />
+                  <Mic2 className="size-3.5 text-primary" />
                   <p className="truncate text-sm font-medium">{profile.name}</p>
                 </div>
-                <p className="mt-1 text-[10px] text-white/38">
+                <p className="mt-1 text-[10px] text-ink-muted">
                   {profile.presentation} · {profile.provider}
                   {profile.modelId ? ` · ${profile.modelId}` : ''}
                   {profile.hasVoiceId ? '' : ' · no voice id yet'}
@@ -341,14 +341,14 @@ export function CustomerVoiceProfiles() {
               </div>
               <Badge
                 variant="outline"
-                className={`text-[9px] ${profile.voiceLock ? 'border-amber-300/20 bg-amber-300/8 text-amber-200' : 'border-white/10 text-white/50'}`}
+                className={`text-[9px] ${profile.voiceLock ? 'border-amber-300/20 bg-amber-300/8 text-warning-text' : 'border-hairline text-ink-body'}`}
               >
                 {profile.voiceLock ? 'locked' : 'unlocked'}
               </Badge>
             </div>
 
             {profile.removalNoticeAt ? (
-              <p className="mt-3 rounded-lg border border-rose-400/25 bg-rose-400/[0.07] px-2.5 py-2 text-[10px] leading-relaxed text-rose-100">
+              <p className="mt-3 rounded-lg border border-rose-400/25 bg-rose-400/[0.07] px-2.5 py-2 text-[10px] leading-relaxed text-danger-text">
                 <strong>Voice scheduled for removal.</strong> The provider is
                 withdrawing this voice; agents using this profile will stop
                 speaking once it is gone. Pick a replacement voice id.
@@ -360,14 +360,14 @@ export function CustomerVoiceProfiles() {
               {profile.allowedLanguages.map((code) => (
                 <span
                   key={code}
-                  className="rounded-md border border-white/8 bg-white/[0.04] px-1.5 py-0.5 text-[9px] text-white/55"
+                  className="rounded-md border border-hairline bg-surface-strong px-1.5 py-0.5 text-[9px] text-ink-body"
                 >
                   {code}
                 </span>
               ))}
             </div>
 
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] text-white/40">
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] text-ink-muted">
               <span>rate: {profile.speakingRate}</span>
               <span>·</span>
               <span>style: {profile.style}</span>
@@ -388,7 +388,7 @@ export function CustomerVoiceProfiles() {
                       profile.voiceLock ? 'Voice unlocked' : 'Voice locked ✓',
                     );
                 }}
-                className="h-8 border-white/12 bg-transparent text-[10px]"
+                className="h-8 border-hairline bg-transparent text-[10px]"
               >
                 {profile.voiceLock ? <LockOpen /> : <Lock />}
                 {profile.voiceLock ? 'Unlock' : 'Lock voice'}
@@ -413,7 +413,7 @@ export function CustomerVoiceProfiles() {
                     );
                     if (ok) flash(`${agent.name} now uses ${profile.name} ✓`);
                   }}
-                  className="h-8 border-white/12 bg-transparent text-[10px]"
+                  className="h-8 border-hairline bg-transparent text-[10px]"
                 >
                   {agent.voice_profile_id === profile.id
                     ? `✓ ${agent.name}`
@@ -426,7 +426,7 @@ export function CustomerVoiceProfiles() {
       </div>
 
       {!loading && !profiles.length ? (
-        <p className="text-xs text-white/40">
+        <p className="text-xs text-ink-muted">
           No voice profiles yet. Create one and paste an ElevenLabs voice ID (or
           a Sarvam speaker) to give this agent its own persona.
         </p>
@@ -444,7 +444,7 @@ function Field({
 }) {
   return (
     <div>
-      <p className="mb-1 text-[9px] uppercase tracking-wider text-white/32">
+      <p className="mb-1 text-[9px] uppercase tracking-wider text-ink-muted">
         {label}
       </p>
       {children}

@@ -101,19 +101,19 @@ export function CustomerAgentDesk({ view }: { view: 'desk' | 'wallboard' }) {
 
   if (!data && !error)
     return (
-      <div className="flex items-center gap-2 text-[11px] text-white/45">
+      <div className="flex items-center gap-2 text-[11px] text-ink-muted">
         <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading queues…
       </div>
     );
   if (error && !data)
-    return <p className="text-[11px] text-rose-300">{error}</p>;
+    return <p className="text-[11px] text-danger-text">{error}</p>;
   const view_ = data!;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[9px] uppercase tracking-wider text-white/28">
+          <p className="text-[9px] uppercase tracking-wider text-ink-muted">
             {view === 'desk'
               ? t('screen.agent_desk.eyebrow')
               : t('screen.wallboard.eyebrow')}
@@ -123,19 +123,19 @@ export function CustomerAgentDesk({ view }: { view: 'desk' | 'wallboard' }) {
               ? t('screen.agent_desk.title')
               : t('screen.wallboard.title')}
           </h1>
-          <p className="mt-1 text-[11px] text-white/40">
+          <p className="mt-1 text-[11px] text-ink-muted">
             {view === 'desk'
               ? t('screen.agent_desk.description')
               : t('screen.wallboard.description')}
           </p>
         </div>
-        <div className="flex items-center gap-2 text-[10px] text-white/32">
+        <div className="flex items-center gap-2 text-[10px] text-ink-muted">
           <RefreshCw className="h-3 w-3" />
           {t('desk.refreshInterval', { seconds: POLL_MS / 1000 })}
         </div>
       </div>
       {notice ? (
-        <p className="rounded-lg border border-amber-400/25 bg-amber-400/8 px-3 py-2 text-[11px] text-amber-100">
+        <p className="rounded-lg border border-amber-400/25 bg-amber-400/8 px-3 py-2 text-[11px] text-warning-text">
           {notice}
         </p>
       ) : null}
@@ -151,8 +151,8 @@ export function CustomerAgentDesk({ view }: { view: 'desk' | 'wallboard' }) {
 
 function Tile({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-xl border border-white/8 bg-white/[0.02] p-3.5">
-      <p className="text-[9px] uppercase tracking-wider text-white/28">
+    <div className="rounded-xl border border-hairline bg-surface-muted p-3.5">
+      <p className="text-[9px] uppercase tracking-wider text-ink-muted">
         {label}
       </p>
       <p className="mt-1.5 text-lg font-semibold">{value}</p>
@@ -180,9 +180,9 @@ function AgentDeskView({
 
   if (!me)
     return (
-      <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-6">
+      <div className="rounded-2xl border border-hairline bg-surface-muted p-6">
         <p className="text-sm font-medium">{t('desk.notOnBench')}</p>
-        <p className="mt-2 text-[11px] leading-relaxed text-white/45">
+        <p className="mt-2 text-[11px] leading-relaxed text-ink-muted">
           {t('desk.notOnBenchHint')}
         </p>
       </div>
@@ -195,10 +195,10 @@ function AgentDeskView({
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center gap-2.5 rounded-2xl border border-white/8 bg-white/[0.02] p-4">
+      <div className="flex flex-wrap items-center gap-2.5 rounded-2xl border border-hairline bg-surface-muted p-4">
         <div className="mr-auto">
           <p className="text-[11px] font-medium">{str(me.name)}</p>
-          <p className="mt-0.5 text-[10px] text-white/40">
+          <p className="mt-0.5 text-[10px] text-ink-muted">
             {str(me.active_calls, '0')} of {str(me.max_concurrent_calls, '1')}{' '}
             {t('desk.slotsInUse')}
           </p>
@@ -217,8 +217,8 @@ function AgentDeskView({
             }
             className={`rounded-lg border px-3 py-1.5 text-[11px] capitalize transition ${
               availability === state
-                ? 'border-emerald-400/40 bg-emerald-400/12 text-emerald-100'
-                : 'border-white/10 bg-white/4 text-white/55 hover:text-white/85'
+                ? 'border-emerald-400/40 bg-emerald-400/12 text-success-text'
+                : 'border-hairline bg-surface-strong text-ink-body hover:text-ink'
             }`}
           >
             {state}
@@ -227,12 +227,12 @@ function AgentDeskView({
       </div>
 
       <section>
-        <h2 className="text-[11px] font-semibold text-white/70">
+        <h2 className="text-[11px] font-semibold text-ink">
           Waiting in your queues ({data.waiting.length})
         </h2>
         <div className="mt-3 space-y-2.5">
           {data.waiting.length === 0 ? (
-            <p className="text-[11px] text-white/35">
+            <p className="text-[11px] text-ink-muted">
               {t('desk.nothingWaiting')}
             </p>
           ) : null}
@@ -245,26 +245,26 @@ function AgentDeskView({
                 className={`rounded-xl border p-4 ${
                   waited > sla
                     ? 'border-rose-400/30 bg-rose-400/[0.06]'
-                    : 'border-white/8 bg-white/[0.02]'
+                    : 'border-hairline bg-surface-muted'
                 }`}
               >
-                <div className="flex flex-wrap items-center gap-2 text-[10px] text-white/40">
+                <div className="flex flex-wrap items-center gap-2 text-[10px] text-ink-muted">
                   <PhoneIncoming className="h-3 w-3" />
-                  <span className="rounded-md bg-white/6 px-2 py-0.5 uppercase tracking-wide">
+                  <span className="rounded-md bg-surface-strong px-2 py-0.5 uppercase tracking-wide">
                     {str(row.queue_slug, 'unrouted')}
                   </span>
                   <span>{str(row.reason).replaceAll('_', ' ')}</span>
-                  <span className={waited > sla ? 'text-rose-200' : ''}>
+                  <span className={waited > sla ? 'text-danger-text' : ''}>
                     waiting {waited}s
                     {waited > sla ? ` · SLA ${sla}s breached` : ''}
                   </span>
                 </div>
                 {str(row.ai_summary) ? (
-                  <p className="mt-2 text-[12px] leading-relaxed text-white/75">
+                  <p className="mt-2 text-[12px] leading-relaxed text-ink">
                     {str(row.ai_summary)}
                   </p>
                 ) : (
-                  <p className="mt-2 text-[11px] text-white/35">
+                  <p className="mt-2 text-[11px] text-ink-muted">
                     {t('desk.noSummary')}
                   </p>
                 )}
@@ -286,7 +286,7 @@ function AgentDeskView({
                     {t('desk.accept')}
                   </Button>
                   {availability !== 'online' ? (
-                    <span className="self-center text-[10px] text-white/32">
+                    <span className="self-center text-[10px] text-ink-muted">
                       {t('desk.goOnlineToAccept')}
                     </span>
                   ) : null}
@@ -298,25 +298,25 @@ function AgentDeskView({
       </section>
 
       <section>
-        <h2 className="text-[11px] font-semibold text-white/70">
+        <h2 className="text-[11px] font-semibold text-ink">
           Your active conversations ({mine.length})
         </h2>
         <div className="mt-3 space-y-2.5">
           {mine.length === 0 ? (
-            <p className="text-[11px] text-white/35">{t('desk.noActive')}</p>
+            <p className="text-[11px] text-ink-muted">{t('desk.noActive')}</p>
           ) : null}
           {mine.map((row) => (
             <article
               key={str(row.id)}
-              className="rounded-xl border border-white/8 bg-white/[0.02] p-4"
+              className="rounded-xl border border-hairline bg-surface-muted p-4"
             >
-              <div className="flex flex-wrap items-center gap-2 text-[10px] text-white/40">
-                <span className="rounded-md bg-white/6 px-2 py-0.5 uppercase tracking-wide">
+              <div className="flex flex-wrap items-center gap-2 text-[10px] text-ink-muted">
+                <span className="rounded-md bg-surface-strong px-2 py-0.5 uppercase tracking-wide">
                   {str(row.queue_slug, 'unrouted')}
                 </span>
                 <span>{str(row.status)}</span>
               </div>
-              <p className="mt-2 text-[12px] leading-relaxed text-white/75">
+              <p className="mt-2 text-[12px] leading-relaxed text-ink">
                 {str(row.ai_summary, 'No AI summary was attached.')}
               </p>
               <CopilotCard handoffId={str(row.id)} />
@@ -342,7 +342,7 @@ function AgentDeskView({
                     onChange={(event) =>
                       setWrapUp({ ...wrapUp, notes: event.target.value })
                     }
-                    className="w-full rounded-lg border border-white/10 bg-white/4 px-3 py-2 text-[11px]"
+                    className="w-full rounded-lg border border-hairline bg-surface-strong px-3 py-2 text-[11px]"
                   />
                   <div className="flex gap-2">
                     <Button
@@ -424,10 +424,10 @@ function WallboardView({
         <Tile label="Free capacity" value={Number(board.capacityFree ?? 0)} />
       </div>
 
-      <section className="overflow-hidden rounded-2xl border border-white/8 bg-[#0c1422]">
+      <section className="overflow-hidden rounded-2xl border border-hairline bg-surface">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[820px] text-left text-xs">
-            <thead className="border-b border-white/8 bg-white/[0.02] text-[9px] uppercase tracking-wider text-white/28">
+            <thead className="border-b border-hairline bg-surface-muted text-[9px] uppercase tracking-wider text-ink-muted">
               <tr>
                 {[
                   'Queue',
@@ -450,14 +450,14 @@ function WallboardView({
                 <tr key={str(queue.id)}>
                   <td className="px-4 py-3.5">
                     <p className="font-medium">{str(queue.name)}</p>
-                    <p className="mt-0.5 font-mono text-[9px] text-white/28">
+                    <p className="mt-0.5 font-mono text-[9px] text-ink-muted">
                       {str(queue.slug)}
                     </p>
                   </td>
-                  <td className="px-4 py-3.5 text-white/55">
+                  <td className="px-4 py-3.5 text-ink-body">
                     {str(queue.strategy).replaceAll('_', ' ')}
                   </td>
-                  <td className="px-4 py-3.5 text-white/55">
+                  <td className="px-4 py-3.5 text-ink-body">
                     {str(queue.required_skill, '—')}
                   </td>
                   <td className="px-4 py-3.5">{str(queue.member_count)}</td>
@@ -465,18 +465,18 @@ function WallboardView({
                     <span
                       className={
                         Number(queue.online_count ?? 0) > 0
-                          ? 'text-emerald-200'
-                          : 'text-rose-200'
+                          ? 'text-success-text'
+                          : 'text-danger-text'
                       }
                     >
                       {str(queue.online_count)}
                     </span>
                   </td>
                   <td className="px-4 py-3.5">{str(queue.waiting_count)}</td>
-                  <td className="px-4 py-3.5 text-white/55">
+                  <td className="px-4 py-3.5 text-ink-body">
                     {str(queue.sla_seconds)}s
                   </td>
-                  <td className="px-4 py-3.5 text-white/55">
+                  <td className="px-4 py-3.5 text-ink-body">
                     {str(queue.overflow_action).replaceAll('_', ' ')}
                   </td>
                 </tr>
@@ -487,24 +487,24 @@ function WallboardView({
       </section>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <section className="rounded-2xl border border-white/8 bg-white/[0.02] p-5">
-          <h2 className="text-[11px] font-semibold text-white/70">
+        <section className="rounded-2xl border border-hairline bg-surface-muted p-5">
+          <h2 className="text-[11px] font-semibold text-ink">
             {t('desk.supportBench')}
           </h2>
           <div className="mt-3 space-y-2">
             {data.agents.length === 0 ? (
-              <p className="text-[11px] text-white/35">
+              <p className="text-[11px] text-ink-muted">
                 {t('desk.noSupportAgents')}
               </p>
             ) : null}
             {data.agents.map((agent) => (
               <div
                 key={str(agent.id)}
-                className="flex flex-wrap items-center gap-2 rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5"
+                className="flex flex-wrap items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2.5"
               >
                 <div className="mr-auto">
                   <p className="text-[11px] font-medium">{str(agent.name)}</p>
-                  <p className="mt-0.5 text-[9px] text-white/32">
+                  <p className="mt-0.5 text-[9px] text-ink-muted">
                     {str(agent.role).replaceAll('_', ' ')} ·{' '}
                     {str(agent.active_calls)}/{str(agent.max_concurrent_calls)}{' '}
                     slots
@@ -524,8 +524,8 @@ function WallboardView({
                     }
                     className={`rounded-md border px-2 py-1 text-[9px] capitalize transition ${
                       str(agent.availability) === state
-                        ? 'border-emerald-400/40 bg-emerald-400/12 text-emerald-100'
-                        : 'border-white/10 text-white/45 hover:text-white/75'
+                        ? 'border-emerald-400/40 bg-emerald-400/12 text-success-text'
+                        : 'border-hairline text-ink-muted hover:text-ink'
                     }`}
                   >
                     {state}
@@ -536,16 +536,16 @@ function WallboardView({
           </div>
         </section>
 
-        <section className="rounded-2xl border border-white/8 bg-white/[0.02] p-5">
-          <h2 className="text-[11px] font-semibold text-white/70">
+        <section className="rounded-2xl border border-hairline bg-surface-muted p-5">
+          <h2 className="text-[11px] font-semibold text-ink">
             {t('desk.routingRules')}
           </h2>
-          <p className="mt-1 text-[10px] text-white/32">
+          <p className="mt-1 text-[10px] text-ink-muted">
             {t('desk.routingRulesHint')}
           </p>
           <div className="mt-3 space-y-2">
             {data.rules.length === 0 ? (
-              <p className="text-[11px] text-white/35">
+              <p className="text-[11px] text-ink-muted">
                 No routing rules, so handoffs use the queue named by the caller
                 only.
               </p>
@@ -553,15 +553,15 @@ function WallboardView({
             {data.rules.map((rule) => (
               <div
                 key={str(rule.id)}
-                className="flex items-center gap-2 rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5 text-[11px]"
+                className="flex items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2.5 text-[11px]"
               >
-                <span className="font-mono text-[9px] text-white/32">
+                <span className="font-mono text-[9px] text-ink-muted">
                   {str(rule.priority)}
                 </span>
-                <span className="text-white/70">
+                <span className="text-ink">
                   {str(rule.match_type)} = {str(rule.match_value)}
                 </span>
-                <span className="ml-auto rounded-md bg-white/6 px-2 py-0.5 text-[9px] uppercase tracking-wide text-white/55">
+                <span className="ml-auto rounded-md bg-surface-strong px-2 py-0.5 text-[9px] uppercase tracking-wide text-ink-body">
                   {str(rule.queue_slug, 'missing queue')}
                 </span>
               </div>
@@ -570,28 +570,30 @@ function WallboardView({
         </section>
       </div>
 
-      <section className="rounded-2xl border border-white/8 bg-white/[0.02] p-5">
-        <h2 className="text-[11px] font-semibold text-white/70">
+      <section className="rounded-2xl border border-hairline bg-surface-muted p-5">
+        <h2 className="text-[11px] font-semibold text-ink">
           {t('desk.recentlyWrapped')}
         </h2>
         <div className="mt-3 space-y-2">
           {data.recentHandoffs.length === 0 ? (
-            <p className="text-[11px] text-white/35">{t('desk.noneWrapped')}</p>
+            <p className="text-[11px] text-ink-muted">
+              {t('desk.noneWrapped')}
+            </p>
           ) : null}
           {data.recentHandoffs.map((row) => (
             <div
               key={str(row.id)}
-              className="rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5"
+              className="rounded-xl border border-hairline bg-surface-muted px-3 py-2.5"
             >
-              <div className="flex flex-wrap items-center gap-2 text-[10px] text-white/40">
-                <span className="rounded-md bg-white/6 px-2 py-0.5 uppercase tracking-wide">
+              <div className="flex flex-wrap items-center gap-2 text-[10px] text-ink-muted">
+                <span className="rounded-md bg-surface-strong px-2 py-0.5 uppercase tracking-wide">
                   {str(row.disposition, 'no disposition').replaceAll('_', ' ')}
                 </span>
                 <span>{str(row.agent_name, 'unassigned')}</span>
                 <span>{str(row.queue_slug, '—')}</span>
               </div>
               {str(row.disposition_notes) ? (
-                <p className="mt-1.5 text-[11px] text-white/60">
+                <p className="mt-1.5 text-[11px] text-ink-body">
                   {str(row.disposition_notes)}
                 </p>
               ) : null}
@@ -652,7 +654,7 @@ function CopilotCard({ handoffId }: { handoffId: string }) {
   return (
     <div className="mt-3 rounded-xl border border-sky-400/18 bg-sky-400/[0.05] p-3.5">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-[9px] uppercase tracking-wider text-sky-200/70">
+        <p className="text-[9px] uppercase tracking-wider text-sky-700">
           {t('desk.copilot')}
           {data?.turnCount ? ` · ${data.turnCount}` : ''}
         </p>
@@ -660,20 +662,20 @@ function CopilotCard({ handoffId }: { handoffId: string }) {
           type="button"
           disabled={loading}
           onClick={() => void fetchCopilot()}
-          className="rounded-md border border-white/12 px-2 py-1 text-[9px] text-white/60 transition hover:text-white/90"
+          className="rounded-md border border-hairline px-2 py-1 text-[9px] text-ink-body transition hover:text-ink"
         >
           {loading ? t('import.reading') : t('desk.refresh')}
         </button>
       </div>
 
       {!data && loading ? (
-        <p className="mt-2 text-[11px] text-white/40">
+        <p className="mt-2 text-[11px] text-ink-muted">
           {t('desk.copilotReading')}
         </p>
       ) : null}
 
       {data && !data.available ? (
-        <p className="mt-2 text-[11px] leading-relaxed text-white/45">
+        <p className="mt-2 text-[11px] leading-relaxed text-ink-muted">
           {data.reason === 'no_transcript_yet'
             ? 'Nothing has been said on this conversation yet.'
             : data.reason === 'no_conversation_linked'
@@ -687,8 +689,8 @@ function CopilotCard({ handoffId }: { handoffId: string }) {
       {data?.available ? (
         <div className="mt-2.5 space-y-2.5">
           {data.goal ? (
-            <p className="text-[11px] leading-relaxed text-white/75">
-              <span className="text-white/40">{t('desk.copilotGoal')} </span>
+            <p className="text-[11px] leading-relaxed text-ink">
+              <span className="text-ink-muted">{t('desk.copilotGoal')} </span>
               {data.goal}
             </p>
           ) : null}
@@ -697,7 +699,7 @@ function CopilotCard({ handoffId }: { handoffId: string }) {
               {data.risks.map((risk, index) => (
                 <li
                   key={`risk-${index}`}
-                  className="rounded-lg border border-amber-400/25 bg-amber-400/[0.07] px-2.5 py-1.5 text-[10px] text-amber-100"
+                  className="rounded-lg border border-amber-400/25 bg-amber-400/[0.07] px-2.5 py-1.5 text-[10px] text-warning-text"
                 >
                   {risk}
                 </li>
@@ -714,10 +716,10 @@ function CopilotCard({ handoffId }: { handoffId: string }) {
                     void navigator.clipboard?.writeText(line);
                     setCopied(index);
                   }}
-                  className="block w-full rounded-lg border border-white/10 bg-black/20 px-2.5 py-2 text-left text-[11px] leading-relaxed text-white/80 transition hover:border-white/25"
+                  className="block w-full rounded-lg border border-hairline bg-surface-muted px-2.5 py-2 text-left text-[11px] leading-relaxed text-ink transition hover:border-hairline"
                 >
                   {line}
-                  <span className="mt-1 block text-[9px] text-white/28">
+                  <span className="mt-1 block text-[9px] text-ink-muted">
                     {copied === index ? 'copied' : 'click to copy'}
                   </span>
                 </button>
@@ -725,18 +727,18 @@ function CopilotCard({ handoffId }: { handoffId: string }) {
             </div>
           ) : null}
           {data.facts.length ? (
-            <p className="text-[10px] leading-relaxed text-white/45">
-              <span className="text-white/30">{t('desk.copilotFacts')} </span>
+            <p className="text-[10px] leading-relaxed text-ink-muted">
+              <span className="text-ink-muted">{t('desk.copilotFacts')} </span>
               {data.facts.join(' · ')}
             </p>
           ) : null}
           {data.nextAction ? (
-            <p className="text-[10px] leading-relaxed text-white/45">
-              <span className="text-white/30">{t('desk.copilotNext')} </span>
+            <p className="text-[10px] leading-relaxed text-ink-muted">
+              <span className="text-ink-muted">{t('desk.copilotNext')} </span>
               {data.nextAction}
             </p>
           ) : null}
-          <p className="text-[9px] text-white/25">
+          <p className="text-[9px] text-ink-muted">
             {data.cached
               ? 'Cached for this transcript length'
               : 'Freshly generated'}

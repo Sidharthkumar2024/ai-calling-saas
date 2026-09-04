@@ -116,29 +116,29 @@ export function CustomerOrgStructure() {
 
   if (!data && !error)
     return (
-      <div className="flex items-center gap-2 text-[11px] text-white/45">
+      <div className="flex items-center gap-2 text-[11px] text-ink-muted">
         <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading org structure…
       </div>
     );
   if (error && !data)
-    return <p className="text-[11px] text-rose-300">{error}</p>;
+    return <p className="text-[11px] text-danger-text">{error}</p>;
   const org = data!;
 
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-[9px] uppercase tracking-wider text-white/28">
+        <p className="text-[9px] uppercase tracking-wider text-ink-muted">
           {t('screen.org_structure.eyebrow')}
         </p>
         <h1 className="mt-1 text-lg font-semibold">
           {t('screen.org_structure.title')}
         </h1>
-        <p className="mt-1 text-[11px] text-white/40">
+        <p className="mt-1 text-[11px] text-ink-muted">
           {t('screen.org_structure.description')}
         </p>
       </div>
       {notice ? (
-        <p className="rounded-lg border border-white/12 bg-white/[0.03] px-3 py-2 text-[11px] text-white/70">
+        <p className="rounded-lg border border-hairline bg-surface-muted px-3 py-2 text-[11px] text-ink">
           {notice}
         </p>
       ) : null}
@@ -172,9 +172,9 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-white/8 bg-white/[0.02] p-5">
-      <h2 className="text-[11px] font-semibold text-white/75">{title}</h2>
-      {hint ? <p className="mt-1 text-[10px] text-white/32">{hint}</p> : null}
+    <section className="rounded-2xl border border-hairline bg-surface-muted p-5">
+      <h2 className="text-[11px] font-semibold text-ink">{title}</h2>
+      {hint ? <p className="mt-1 text-[10px] text-ink-muted">{hint}</p> : null}
       <div className="mt-4">{children}</div>
     </section>
   );
@@ -184,7 +184,7 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className="w-full rounded-lg border border-white/10 bg-white/4 px-3 py-2 text-[11px] outline-none focus:border-white/25"
+      className="w-full rounded-lg border border-hairline bg-surface-strong px-3 py-2 text-[11px] outline-none focus:border-hairline"
     />
   );
 }
@@ -236,16 +236,16 @@ function BranchesAndTeams({
           </div>
           <div className="mt-3 space-y-2">
             {org.branches.length === 0 ? (
-              <p className="text-[11px] text-white/35">No branches yet.</p>
+              <p className="text-[11px] text-ink-muted">No branches yet.</p>
             ) : null}
             {org.branches.map((row) => (
               <div
                 key={str(row.id)}
-                className="flex items-center gap-2 rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5 text-[11px]"
+                className="flex items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2.5 text-[11px]"
               >
                 <span className="font-medium">{str(row.name)}</span>
-                <span className="text-white/35">{str(row.city, '—')}</span>
-                <span className="ml-auto text-[9px] text-white/32">
+                <span className="text-ink-muted">{str(row.city, '—')}</span>
+                <span className="ml-auto text-[9px] text-ink-muted">
                   {str(row.agent_count, '0')} agents
                 </span>
                 <button
@@ -258,7 +258,7 @@ function BranchesAndTeams({
                       'Branch removed.',
                     )
                   }
-                  className="text-white/30 transition hover:text-rose-300"
+                  className="text-ink-muted transition hover:text-danger-text"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
@@ -305,18 +305,18 @@ function BranchesAndTeams({
           </div>
           <div className="mt-3 space-y-2">
             {org.teams.length === 0 ? (
-              <p className="text-[11px] text-white/35">No teams yet.</p>
+              <p className="text-[11px] text-ink-muted">No teams yet.</p>
             ) : null}
             {org.teams.map((row) => (
               <div
                 key={str(row.id)}
-                className="flex items-center gap-2 rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5 text-[11px]"
+                className="flex items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2.5 text-[11px]"
               >
                 <span className="font-medium">{str(row.name)}</span>
-                <span className="text-white/35">
+                <span className="text-ink-muted">
                   {str(row.branch_name, 'unassigned')}
                 </span>
-                <span className="ml-auto text-[9px] text-white/32">
+                <span className="ml-auto text-[9px] text-ink-muted">
                   {str(row.member_count, '0')} members
                 </span>
               </div>
@@ -406,8 +406,8 @@ function Shifts({
             onClick={() => toggleDay(day)}
             className={`rounded-md border px-2.5 py-1 text-[10px] transition ${
               form.days.includes(day)
-                ? 'border-emerald-400/40 bg-emerald-400/12 text-emerald-100'
-                : 'border-white/10 text-white/45 hover:text-white/75'
+                ? 'border-emerald-400/40 bg-emerald-400/12 text-success-text'
+                : 'border-hairline text-ink-muted hover:text-ink'
             }`}
           >
             {label}
@@ -426,7 +426,7 @@ function Shifts({
 
       <div className="mt-4 space-y-2">
         {org.shifts.length === 0 ? (
-          <p className="text-[11px] text-white/35">
+          <p className="text-[11px] text-ink-muted">
             No shifts configured, so every agent is treated as always available.
           </p>
         ) : null}
@@ -438,23 +438,23 @@ function Shifts({
           return (
             <div
               key={str(row.id)}
-              className="flex flex-wrap items-center gap-2 rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5 text-[11px]"
+              className="flex flex-wrap items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2.5 text-[11px]"
             >
               <span className="font-medium">{str(row.agent_name)}</span>
-              <span className="text-white/55">
+              <span className="text-ink-body">
                 {str(row.start_label)}–{str(row.end_label)}
               </span>
-              <span className="text-[9px] text-white/32">
+              <span className="text-[9px] text-ink-muted">
                 {days.map((day) => DAY_LABELS[day]).join(' ')}
               </span>
               {row.break_start_minute !== null ? (
-                <span className="text-[9px] text-white/32">with break</span>
+                <span className="text-[9px] text-ink-muted">with break</span>
               ) : null}
               <span
                 className={`ml-auto rounded-md px-2 py-0.5 text-[9px] uppercase tracking-wide ${
                   covering
-                    ? 'bg-emerald-400/12 text-emerald-200'
-                    : 'bg-white/6 text-white/40'
+                    ? 'bg-emerald-400/12 text-success-text'
+                    : 'bg-surface-strong text-ink-muted'
                 }`}
               >
                 {covering
@@ -471,7 +471,7 @@ function Shifts({
                     'Shift removed.',
                   )
                 }
-                className="text-white/30 transition hover:text-rose-300"
+                className="text-ink-muted transition hover:text-danger-text"
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
@@ -598,28 +598,28 @@ function NumberRoutes({
 
       <div className="mt-4 space-y-2">
         {org.numberRoutes.length === 0 ? (
-          <p className="text-[11px] text-white/35">
+          <p className="text-[11px] text-ink-muted">
             No number routes yet. Inbound calls have nowhere defined to go.
           </p>
         ) : null}
         {org.numberRoutes.map((row) => (
           <div
             key={str(row.id)}
-            className="flex flex-wrap items-center gap-2 rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5 text-[11px]"
+            className="flex flex-wrap items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2.5 text-[11px]"
           >
             <span className="font-mono text-[10px]">
               {str(row.phone_number)}
             </span>
-            <span className="rounded-md bg-white/6 px-2 py-0.5 text-[9px] uppercase tracking-wide text-white/55">
+            <span className="rounded-md bg-surface-strong px-2 py-0.5 text-[9px] uppercase tracking-wide text-ink-body">
               {str(row.route_type)}
             </span>
-            <span className="text-white/70">
+            <span className="text-ink">
               →{' '}
               {str(row.queue_slug) ||
                 str(row.agent_name) ||
                 str(row.campaign_name, 'nothing')}
             </span>
-            <span className="text-[9px] text-white/32">
+            <span className="text-[9px] text-ink-muted">
               off hours: {str(row.off_hours_action)}
             </span>
             <button
@@ -632,7 +632,7 @@ function NumberRoutes({
                   'Route removed.',
                 )
               }
-              className="ml-auto text-white/30 transition hover:text-rose-300"
+              className="ml-auto text-ink-muted transition hover:text-danger-text"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
@@ -702,25 +702,25 @@ function Contacts({
       </div>
       <div className="mt-4 space-y-2">
         {org.contacts.length === 0 ? (
-          <p className="text-[11px] text-white/35">No contacts yet.</p>
+          <p className="text-[11px] text-ink-muted">No contacts yet.</p>
         ) : null}
         {org.contacts.slice(0, 25).map((row) => (
           <div
             key={str(row.id)}
-            className="flex flex-wrap items-center gap-2 rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5 text-[11px]"
+            className="flex flex-wrap items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2.5 text-[11px]"
           >
             <span className="font-medium">
               {str(row.full_name, 'Unnamed contact')}
             </span>
-            <span className="font-mono text-[10px] text-white/45">
+            <span className="font-mono text-[10px] text-ink-muted">
               {str(row.phone)}
             </span>
             {str(row.preferred_language) ? (
-              <span className="text-[9px] text-white/32">
+              <span className="text-[9px] text-ink-muted">
                 {str(row.preferred_language)}
               </span>
             ) : null}
-            <span className="ml-auto text-[9px] text-white/28">
+            <span className="ml-auto text-[9px] text-ink-muted">
               {str(row.lead_id) ? 'linked to a lead' : 'contact only'}
             </span>
           </div>

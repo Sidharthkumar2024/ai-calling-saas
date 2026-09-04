@@ -60,8 +60,8 @@ export type CrmActivity = {
 
 const stages = [
   { id: 'new', label: 'New', color: 'bg-slate-300' },
-  { id: 'ai_qualified', label: 'Qualified', color: 'bg-cyan-300' },
-  { id: 'hot_lead', label: 'Hot lead', color: 'bg-amber-300' },
+  { id: 'ai_qualified', label: 'Qualified', color: 'bg-primary' },
+  { id: 'hot_lead', label: 'Hot lead', color: 'bg-primary' },
   { id: 'proposal', label: 'Proposal', color: 'bg-violet-300' },
   { id: 'won', label: 'Won', color: 'bg-emerald-300' },
 ] as const;
@@ -209,13 +209,13 @@ export function CustomerCrm({
     <div className="space-y-6">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-300/80">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-warning-text">
             Advanced CRM
           </p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
             Revenue pipeline with AI context
           </h1>
-          <p className="mt-2 max-w-3xl text-xs leading-5 text-white/38 sm:text-sm">
+          <p className="mt-2 max-w-3xl text-xs leading-5 text-ink-muted sm:text-sm">
             Every ad lead, website form and call outcome becomes a scored
             opportunity, task and next-best action.
           </p>
@@ -224,7 +224,7 @@ export function CustomerCrm({
           <Button
             onClick={() => setImportOpen(true)}
             variant="outline"
-            className="border-white/10 bg-transparent"
+            className="border-hairline bg-transparent"
           >
             <Plus /> Import leads
           </Button>
@@ -261,35 +261,35 @@ export function CustomerCrm({
         />
       </div>
 
-      <div className="flex flex-col gap-3 rounded-2xl border border-white/8 bg-[#0e1119] p-3 sm:flex-row sm:items-center">
-        <div className="flex rounded-lg bg-white/[0.035] p-1">
+      <div className="flex flex-col gap-3 rounded-2xl border border-hairline bg-surface p-3 sm:flex-row sm:items-center">
+        <div className="flex rounded-lg bg-surface-strong p-1">
           {(['pipeline', 'activities'] as const).map((item) => (
             <button
               key={item}
               type="button"
               onClick={() => setView(item)}
-              className={`rounded-md px-3 py-2 text-[10px] font-medium capitalize ${view === item ? 'bg-white/9 text-white' : 'text-white/38'}`}
+              className={`rounded-md px-3 py-2 text-[10px] font-medium capitalize ${view === item ? 'bg-surface-strong text-ink' : 'text-ink-muted'}`}
             >
               {item}
             </button>
           ))}
         </div>
         <div className="relative flex-1 sm:max-w-sm">
-          <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-white/25" />
+          <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-ink-muted" />
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search name, phone, source or product"
-            className="h-9 border-white/8 bg-white/[0.025] pl-9 text-xs"
+            className="h-9 border-hairline bg-surface-muted pl-9 text-xs"
           />
         </div>
         <label className="relative">
-          <Filter className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-white/30" />
+          <Filter className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-ink-muted" />
           <select
             aria-label="Filter leads by source"
             value={sourceFilter}
             onChange={(event) => setSourceFilter(event.target.value)}
-            className="h-9 rounded-lg border border-white/10 bg-[#111722] pl-9 pr-7 text-[10px] text-white"
+            className="h-9 rounded-lg border border-hairline bg-surface pl-9 pr-7 text-[10px] text-ink"
           >
             <option value="all">Source · All</option>
             {Array.from(
@@ -308,7 +308,7 @@ export function CustomerCrm({
       {moveError ? (
         <p
           role="alert"
-          className="rounded-xl border border-red-400/15 bg-red-400/5 px-4 py-3 text-xs text-red-100"
+          className="rounded-xl border border-red-400/15 bg-red-400/5 px-4 py-3 text-xs text-danger-text"
         >
           {moveError}
         </p>
@@ -320,13 +320,13 @@ export function CustomerCrm({
           className="fixed inset-0 z-[80] m-0 grid size-full max-h-none max-w-none place-items-center border-0 bg-black/65 p-4 text-white backdrop-blur-sm"
           aria-label="Import leads"
         >
-          <section className="w-full max-w-2xl rounded-2xl border border-white/12 bg-[#0d121c] p-5 shadow-2xl">
+          <section className="w-full max-w-2xl rounded-2xl border border-hairline bg-surface p-5 shadow-2xl">
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-base font-semibold">
                   Import leads from CSV
                 </h2>
-                <p className="mt-1 text-[10px] text-white/35">
+                <p className="mt-1 text-[10px] text-ink-muted">
                   Up to 100 rows · required headers: name, phone
                 </p>
               </div>
@@ -342,13 +342,13 @@ export function CustomerCrm({
             <textarea
               value={importText}
               onChange={(event) => setImportText(event.target.value)}
-              className="mt-5 min-h-64 w-full rounded-xl border border-white/9 bg-black/20 p-4 font-mono text-[10px] leading-5 text-white/65 outline-none focus:border-indigo-300/35"
+              className="mt-5 min-h-64 w-full rounded-xl border border-hairline bg-surface-muted p-4 font-mono text-[10px] leading-5 text-ink-body outline-none focus:border-indigo-300/35"
             />
             <div className="mt-4 flex justify-end gap-2">
               <Button
                 variant="outline"
                 onClick={() => setImportOpen(false)}
-                className="border-white/10 bg-transparent"
+                className="border-hairline bg-transparent"
               >
                 Cancel
               </Button>
@@ -398,15 +398,15 @@ export function CustomerCrm({
                     event.preventDefault();
                     dropInto(stage.id);
                   }}
-                  className={`rounded-2xl border p-3 transition duration-200 ${dropStage === stage.id ? 'border-cyan-300/35 bg-cyan-300/[0.045] shadow-[0_0_0_1px_rgba(103,232,249,0.08)]' : 'border-white/8 bg-[#0c0f16]'}`}
+                  className={`rounded-2xl border p-3 transition duration-200 ${dropStage === stage.id ? 'border-cyan-300/35 bg-cyan-300/[0.045] shadow-[0_0_0_1px_rgba(103,232,249,0.08)]' : 'border-hairline bg-surface'}`}
                 >
                   <div className="mb-3 flex items-center gap-2 px-1">
                     <span className={`size-2 rounded-full ${stage.color}`} />
                     <h2 className="text-xs font-semibold">{stage.label}</h2>
-                    <span className="rounded-md bg-white/6 px-1.5 py-0.5 text-[9px] text-white/42">
+                    <span className="rounded-md bg-surface-strong px-1.5 py-0.5 text-[9px] text-ink-muted">
                       {stageLeads.length}
                     </span>
-                    <span className="ml-auto text-[9px] text-white/28">
+                    <span className="ml-auto text-[9px] text-ink-muted">
                       {money(value)}
                     </span>
                   </div>
@@ -424,26 +424,26 @@ export function CustomerCrm({
                           setDraggedLeadId('');
                           setDropStage('');
                         }}
-                        className={`group rounded-xl border bg-[#121620] p-3.5 shadow-lg shadow-black/10 transition duration-200 ${draggedLeadId === lead.id ? 'scale-[0.98] border-cyan-300/30 opacity-45' : 'border-white/8 hover:border-white/14'}`}
+                        className={`group rounded-xl border bg-surface p-3.5 shadow-lg shadow-black/10 transition duration-200 ${draggedLeadId === lead.id ? 'scale-[0.98] border-cyan-300/30 opacity-45' : 'border-hairline hover:border-hairline'}`}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex min-w-0 gap-2">
                             <GripVertical
                               aria-hidden="true"
-                              className="mt-0.5 size-3.5 shrink-0 cursor-grab text-white/18 transition group-hover:text-white/42 active:cursor-grabbing"
+                              className="mt-0.5 size-3.5 shrink-0 cursor-grab text-ink-muted transition group-hover:text-ink-muted active:cursor-grabbing"
                             />
                             <div className="min-w-0">
                               <p className="truncate text-xs font-medium">
                                 {lead.name}
                               </p>
-                              <p className="mt-1 truncate text-[9px] text-white/30">
+                              <p className="mt-1 truncate text-[9px] text-ink-muted">
                                 {lead.source_name} ·{' '}
                                 {lead.campaign_name || 'Organic'}
                               </p>
                             </div>
                           </div>
                           <span
-                            className={`grid size-8 shrink-0 place-items-center rounded-lg font-mono text-[10px] font-semibold ${lead.score >= 75 ? 'bg-amber-300/12 text-amber-200' : 'bg-cyan-300/10 text-cyan-200'}`}
+                            className={`grid size-8 shrink-0 place-items-center rounded-lg font-mono text-[10px] font-semibold ${lead.score >= 75 ? 'bg-amber-300/12 text-warning-text' : 'bg-cyan-300/10 text-cyan-700'}`}
                           >
                             {lead.score}
                           </span>
@@ -451,34 +451,34 @@ export function CustomerCrm({
                         <div className="mt-3 flex flex-wrap gap-1.5">
                           <Badge
                             variant="outline"
-                            className="border-white/8 bg-white/[0.025] text-[8px] text-white/45"
+                            className="border-hairline bg-surface-muted text-[8px] text-ink-muted"
                           >
                             {lead.intent.replaceAll('_', ' ')}
                           </Badge>
                           {lead.product_interest ? (
                             <Badge
                               variant="outline"
-                              className="max-w-[135px] truncate border-white/8 bg-white/[0.025] text-[8px] text-white/45"
+                              className="max-w-[135px] truncate border-hairline bg-surface-muted text-[8px] text-ink-muted"
                             >
                               {lead.product_interest}
                             </Badge>
                           ) : null}
                         </div>
                         <div className="mt-3 rounded-lg border border-violet-300/8 bg-violet-300/[0.035] p-2.5">
-                          <div className="flex items-center gap-1.5 text-[8px] font-semibold uppercase tracking-[0.12em] text-violet-200/65">
+                          <div className="flex items-center gap-1.5 text-[8px] font-semibold uppercase tracking-[0.12em] text-violet-700">
                             <Bot className="size-3" /> AI next action
                           </div>
-                          <p className="mt-1.5 line-clamp-2 text-[9px] leading-4 text-white/42">
+                          <p className="mt-1.5 line-clamp-2 text-[9px] leading-4 text-ink-muted">
                             {lead.next_action}
                           </p>
                         </div>
-                        <div className="mt-3 flex items-center justify-between border-t border-white/7 pt-3">
-                          <div className="flex gap-1.5 text-white/28">
+                        <div className="mt-3 flex items-center justify-between border-t border-hairline pt-3">
+                          <div className="flex gap-1.5 text-ink-muted">
                             <PhoneCall className="size-3" />
                             <Mail className="size-3" />
                           </div>
                           {stageIndex < stages.length - 1 ? (
-                            <label className="relative inline-flex items-center gap-1 text-[9px] text-amber-200">
+                            <label className="relative inline-flex items-center gap-1 text-[9px] text-warning-text">
                               <span className="sr-only">
                                 Move {lead.name} to another stage
                               </span>
@@ -489,13 +489,13 @@ export function CustomerCrm({
                                 onChange={(event) =>
                                   void move(lead, event.target.value)
                                 }
-                                className="appearance-none bg-transparent pr-4 text-right text-[9px] text-amber-200 outline-none disabled:opacity-40"
+                                className="appearance-none bg-transparent pr-4 text-right text-[9px] text-warning-text outline-none disabled:opacity-40"
                               >
                                 {stages.map((option) => (
                                   <option
                                     key={option.id}
                                     value={option.id}
-                                    className="bg-[#121620] text-white"
+                                    className="bg-surface text-ink"
                                   >
                                     {option.label}
                                   </option>
@@ -507,13 +507,13 @@ export function CustomerCrm({
                               />
                             </label>
                           ) : (
-                            <CheckCircle2 className="size-3.5 text-emerald-300" />
+                            <CheckCircle2 className="size-3.5 text-success-text" />
                           )}
                         </div>
                       </article>
                     ))}
                     {!stageLeads.length ? (
-                      <div className="grid min-h-28 place-items-center rounded-xl border border-dashed border-white/8 text-[9px] text-white/22">
+                      <div className="grid min-h-28 place-items-center rounded-xl border border-dashed border-hairline text-[9px] text-ink-muted">
                         Drop opportunities here
                       </div>
                     ) : null}
@@ -524,31 +524,31 @@ export function CustomerCrm({
           </div>
         </div>
       ) : (
-        <section className="rounded-2xl border border-white/8 bg-[#0e1119] p-5">
+        <section className="rounded-2xl border border-hairline bg-surface p-5">
           <div className="divide-y divide-white/7">
             {activities.map((activity) => (
               <div
                 key={activity.id}
                 className="flex gap-4 py-4 first:pt-0 last:pb-0"
               >
-                <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-white/5">
-                  <UserRound className="size-4 text-white/40" />
+                <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-surface-strong">
+                  <UserRound className="size-4 text-ink-muted" />
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium">{activity.subject}</p>
-                  <p className="mt-1 text-[10px] text-white/32">
+                  <p className="mt-1 text-[10px] text-ink-muted">
                     {activity.lead_name} · {activity.created_by || 'System'} ·{' '}
                     {formatDate(activity.created_at)}
                   </p>
                   {activity.notes ? (
-                    <p className="mt-2 line-clamp-2 text-[10px] leading-4 text-white/42">
+                    <p className="mt-2 line-clamp-2 text-[10px] leading-4 text-ink-muted">
                       {activity.notes}
                     </p>
                   ) : null}
                 </div>
                 <Badge
                   variant="outline"
-                  className="h-fit border-white/8 bg-white/[0.025] text-[8px] text-white/40"
+                  className="h-fit border-hairline bg-surface-muted text-[8px] text-ink-muted"
                 >
                   {activity.type.replaceAll('_', ' ')}
                 </Badge>
@@ -573,17 +573,17 @@ function Metric({
   icon: typeof Target;
 }) {
   return (
-    <div className="group rounded-2xl border border-white/8 bg-[#0e1119] p-4">
+    <div className="group rounded-2xl border border-hairline bg-surface p-4">
       <div className="flex items-center justify-between">
-        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-white/36">
+        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-ink-muted">
           {label}
         </p>
         <span className="grid size-9 place-items-center rounded-xl border border-amber-200/10 bg-amber-300/[0.065] transition group-hover:border-amber-200/20">
-          <Icon className="size-[17px] text-amber-200" />
+          <Icon className="size-[17px] text-warning-text" />
         </span>
       </div>
-      <p className="mt-3 text-2xl font-semibold text-white/95">{value}</p>
-      <p className="mt-1 text-[10px] text-white/34">{note}</p>
+      <p className="mt-3 text-2xl font-semibold text-ink">{value}</p>
+      <p className="mt-1 text-[10px] text-ink-muted">{note}</p>
     </div>
   );
 }

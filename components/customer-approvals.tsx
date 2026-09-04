@@ -77,10 +77,10 @@ type Refund = {
 };
 
 const RISK_STYLE: Record<string, string> = {
-  low: 'border-emerald-300/20 bg-emerald-300/8 text-emerald-200',
-  medium: 'border-amber-300/20 bg-amber-300/8 text-amber-200',
-  high: 'border-orange-400/20 bg-orange-400/8 text-orange-200',
-  restricted: 'border-red-400/25 bg-red-400/10 text-red-200',
+  low: 'border-emerald-300/20 bg-emerald-300/8 text-success-text',
+  medium: 'border-amber-300/20 bg-amber-300/8 text-warning-text',
+  high: 'border-orange-400/20 bg-orange-400/8 text-warning-text',
+  restricted: 'border-red-400/25 bg-red-400/10 text-danger-text',
 };
 
 function parseList(raw: string | null | undefined): string[] {
@@ -177,36 +177,36 @@ export function CustomerApprovals() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#afbcff]">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
           Approvals & human handoff
         </p>
         <h2 className="mt-2 text-2xl font-semibold tracking-tight">
           Manager approval console
         </h2>
-        <p className="mt-2 max-w-2xl text-xs text-white/45">
+        <p className="mt-2 max-w-2xl text-xs text-ink-muted">
           The AI never decides money actions. The policy engine classifies each
           request and anything above the AI&apos;s authority arrives here for a
           human decision. Your authority:{' '}
-          <span className="font-medium text-white/70">{myRole}</span>.
+          <span className="font-medium text-ink">{myRole}</span>.
         </p>
       </div>
 
       {error ? (
-        <p className="rounded-lg border border-red-400/20 bg-red-400/5 px-3 py-2 text-[11px] text-red-200">
+        <p className="rounded-lg border border-red-400/20 bg-red-400/5 px-3 py-2 text-[11px] text-danger-text">
           {error}
         </p>
       ) : null}
       {notice ? (
-        <p className="text-[11px] font-medium text-emerald-300">{notice}</p>
+        <p className="text-[11px] font-medium text-success-text">{notice}</p>
       ) : null}
 
       {/* Agent presence / queues */}
       <div className="portal-panel p-4">
         <div className="flex items-center gap-2">
-          <Headphones className="size-3.5 text-[#afbcff]" />
+          <Headphones className="size-3.5 text-primary" />
           <p className="text-sm font-medium">Agent presence</p>
         </div>
-        <p className="mt-1 text-[10px] text-white/38">
+        <p className="mt-1 text-[10px] text-ink-muted">
           Routing picks an online agent by skill, then language, then least
           busy. With nobody online the AI offers a callback instead of
           pretending to transfer.
@@ -215,12 +215,12 @@ export function CustomerApprovals() {
           {agents.map((agent) => (
             <div
               key={agent.id}
-              className="rounded-xl border border-white/8 bg-white/[0.02] p-3"
+              className="rounded-xl border border-hairline bg-surface-muted p-3"
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <p className="truncate text-xs font-medium">{agent.name}</p>
-                  <p className="mt-0.5 text-[9px] text-white/38">
+                  <p className="mt-0.5 text-[9px] text-ink-muted">
                     {agent.role} ·{' '}
                     {parseList(agent.skills_json).join(', ') || 'no skills'} ·{' '}
                     {parseList(agent.languages_json).join('/')} ·{' '}
@@ -229,7 +229,7 @@ export function CustomerApprovals() {
                 </div>
                 <Badge
                   variant="outline"
-                  className={`text-[9px] ${agent.availability === 'online' ? 'border-emerald-300/20 bg-emerald-300/8 text-emerald-200' : 'border-white/10 text-white/45'}`}
+                  className={`text-[9px] ${agent.availability === 'online' ? 'border-emerald-300/20 bg-emerald-300/8 text-success-text' : 'border-hairline text-ink-muted'}`}
                 >
                   {agent.availability}
                 </Badge>
@@ -251,7 +251,7 @@ export function CustomerApprovals() {
                       );
                       if (ok) flash(`${agent.name} → ${state}`);
                     }}
-                    className={`rounded-full border px-2 py-0.5 text-[9px] transition ${agent.availability === state ? 'border-white/20 bg-white/12 text-white' : 'border-white/8 text-white/45 hover:bg-white/5'}`}
+                    className={`rounded-full border px-2 py-0.5 text-[9px] transition ${agent.availability === state ? 'border-hairline bg-surface-strong text-ink' : 'border-hairline text-ink-muted hover:bg-surface-strong'}`}
                   >
                     {state}
                   </button>
@@ -260,7 +260,7 @@ export function CustomerApprovals() {
             </div>
           ))}
           {!agents.length && !loading ? (
-            <p className="text-[11px] text-white/40">
+            <p className="text-[11px] text-ink-muted">
               No support agents yet. Add agents to enable live transfer.
             </p>
           ) : null}
@@ -269,7 +269,7 @@ export function CustomerApprovals() {
 
       {/* Pending approval cards */}
       <div>
-        <p className="mb-2 text-xs font-medium text-white/70">
+        <p className="mb-2 text-xs font-medium text-ink">
           Pending approvals ({pending.length})
         </p>
         <div className="grid gap-3">
@@ -289,7 +289,7 @@ export function CustomerApprovals() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <ShieldAlert className="size-3.5 text-amber-200" />
+                      <ShieldAlert className="size-3.5 text-warning-text" />
                       <p className="text-sm font-medium">
                         {card.action} ·{' '}
                         {card.amount
@@ -297,26 +297,26 @@ export function CustomerApprovals() {
                           : 'no amount'}
                       </p>
                     </div>
-                    <p className="mt-1 text-[11px] text-white/55">
+                    <p className="mt-1 text-[11px] text-ink-body">
                       {card.case_summary || card.reason || 'No summary given.'}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     <Badge
                       variant="outline"
-                      className={`text-[9px] ${RISK_STYLE[card.risk_level] ?? 'border-white/10 text-white/50'}`}
+                      className={`text-[9px] ${RISK_STYLE[card.risk_level] ?? 'border-hairline text-ink-body'}`}
                     >
                       risk: {card.risk_level}
                     </Badge>
                     <Badge
                       variant="outline"
-                      className="border-white/10 text-[9px] text-white/55"
+                      className="border-hairline text-[9px] text-ink-body"
                     >
                       {card.policy_decision}
                     </Badge>
                     <Badge
                       variant="outline"
-                      className="border-white/10 text-[9px] text-white/40"
+                      className="border-hairline text-[9px] text-ink-muted"
                     >
                       policy v{card.policy_version}
                     </Badge>
@@ -344,7 +344,7 @@ export function CustomerApprovals() {
                     }))
                   }
                   placeholder="Decision reason (recorded in the audit trail)"
-                  className="mt-3 h-9 border-white/10 bg-black/30 text-xs"
+                  className="mt-3 h-9 border-hairline bg-surface-muted text-xs"
                 />
 
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -389,7 +389,7 @@ export function CustomerApprovals() {
                       );
                       if (ok) flash('Rejected');
                     }}
-                    className="h-8 border-red-400/25 bg-transparent text-[10px] text-red-200"
+                    className="h-8 border-red-400/25 bg-transparent text-[10px] text-danger-text"
                   >
                     <X /> Reject
                   </Button>
@@ -408,7 +408,7 @@ export function CustomerApprovals() {
                       );
                       if (ok) flash('Asked the AI to collect more information');
                     }}
-                    className="h-8 border-white/12 bg-transparent text-[10px]"
+                    className="h-8 border-hairline bg-transparent text-[10px]"
                   >
                     Ask AI for more info
                   </Button>
@@ -417,7 +417,7 @@ export function CustomerApprovals() {
             );
           })}
           {!pending.length && !loading ? (
-            <p className="text-[11px] text-white/40">
+            <p className="text-[11px] text-ink-muted">
               Nothing waiting for a human decision.
             </p>
           ) : null}
@@ -427,20 +427,18 @@ export function CustomerApprovals() {
       {/* Handoff queue */}
       <div className="portal-panel p-4">
         <div className="flex items-center gap-2">
-          <PhoneForwarded className="size-3.5 text-[#afbcff]" />
+          <PhoneForwarded className="size-3.5 text-primary" />
           <p className="text-sm font-medium">Handoff queue</p>
         </div>
         <div className="mt-3 space-y-2">
           {handoffs.slice(0, 8).map((row) => (
             <div
               key={row.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/7 bg-white/[0.02] px-3 py-2"
+              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-hairline bg-surface-muted px-3 py-2"
             >
               <div className="min-w-0">
-                <p className="truncate text-[11px] text-white/70">
-                  {row.reason}
-                </p>
-                <p className="mt-0.5 text-[9px] text-white/35">
+                <p className="truncate text-[11px] text-ink">{row.reason}</p>
+                <p className="mt-0.5 text-[9px] text-ink-muted">
                   {row.skill ? `skill: ${row.skill} · ` : ''}
                   {row.agent_name
                     ? `assigned: ${row.agent_name} (${row.agent_role})`
@@ -449,14 +447,14 @@ export function CustomerApprovals() {
               </div>
               <Badge
                 variant="outline"
-                className={`text-[9px] ${row.queue_status === 'assigned' ? 'border-emerald-300/20 bg-emerald-300/8 text-emerald-200' : 'border-amber-300/20 bg-amber-300/8 text-amber-200'}`}
+                className={`text-[9px] ${row.queue_status === 'assigned' ? 'border-emerald-300/20 bg-emerald-300/8 text-success-text' : 'border-amber-300/20 bg-amber-300/8 text-warning-text'}`}
               >
                 {row.queue_status ?? row.status}
               </Badge>
             </div>
           ))}
           {!handoffs.length && !loading ? (
-            <p className="text-[11px] text-white/40">No handoffs yet.</p>
+            <p className="text-[11px] text-ink-muted">No handoffs yet.</p>
           ) : null}
         </div>
       </div>
@@ -467,25 +465,25 @@ export function CustomerApprovals() {
           <p className="text-sm font-medium">Refund audit</p>
           <div className="mt-3 space-y-2">
             {refunds.map((row) => (
-              <div key={row.id} className="text-[11px] text-white/60">
+              <div key={row.id} className="text-[11px] text-ink-body">
                 ₹{row.amount.toLocaleString('en-IN')} ·{' '}
                 {row.order_reference ?? 'no reference'} ·{' '}
                 <span
                   className={
-                    row.confirmed_at ? 'text-emerald-300' : 'text-amber-200'
+                    row.confirmed_at ? 'text-success-text' : 'text-warning-text'
                   }
                 >
                   {row.status}
                   {row.confirmed_at ? '' : ' (awaiting provider)'}
                 </span>
-                <span className="text-white/30">
+                <span className="text-ink-muted">
                   {' '}
                   · policy v{row.policy_version} · {row.authorised_by}
                 </span>
               </div>
             ))}
             {!refunds.length && !loading ? (
-              <p className="text-[11px] text-white/40">No refunds yet.</p>
+              <p className="text-[11px] text-ink-muted">No refunds yet.</p>
             ) : null}
           </div>
         </div>
@@ -493,14 +491,16 @@ export function CustomerApprovals() {
           <p className="text-sm font-medium">Callbacks promised</p>
           <div className="mt-3 space-y-2">
             {callbacks.map((row) => (
-              <div key={row.id} className="text-[11px] text-white/60">
+              <div key={row.id} className="text-[11px] text-ink-body">
                 {row.customer_phone}
                 {row.requested_window ? ` · ${row.requested_window}` : ''} ·{' '}
-                <span className="text-amber-200">{row.status}</span>
+                <span className="text-warning-text">{row.status}</span>
               </div>
             ))}
             {!callbacks.length && !loading ? (
-              <p className="text-[11px] text-white/40">No callbacks pending.</p>
+              <p className="text-[11px] text-ink-muted">
+                No callbacks pending.
+              </p>
             ) : null}
           </div>
         </div>
@@ -511,15 +511,15 @@ export function CustomerApprovals() {
           <p className="text-sm font-medium">Decision history</p>
           <div className="mt-3 space-y-1.5">
             {history.slice(0, 10).map((row) => (
-              <p key={row.id} className="text-[11px] text-white/55">
+              <p key={row.id} className="text-[11px] text-ink-body">
                 {row.action} ₹{row.amount ?? 0} ·{' '}
                 <span
                   className={
                     row.status === 'approved'
-                      ? 'text-emerald-300'
+                      ? 'text-success-text'
                       : row.status === 'rejected'
-                        ? 'text-red-300'
-                        : 'text-amber-200'
+                        ? 'text-danger-text'
+                        : 'text-warning-text'
                   }
                 >
                   {row.status}
@@ -542,11 +542,11 @@ function Detail({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-white/7 bg-white/[0.02] p-2.5">
-      <p className="text-[9px] uppercase tracking-wider text-white/32">
+    <div className="rounded-lg border border-hairline bg-surface-muted p-2.5">
+      <p className="text-[9px] uppercase tracking-wider text-ink-muted">
         {label}
       </p>
-      <p className="mt-1 text-[10px] text-white/60">{children}</p>
+      <p className="mt-1 text-[10px] text-ink-body">{children}</p>
     </div>
   );
 }

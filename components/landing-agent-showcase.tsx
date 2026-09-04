@@ -83,7 +83,7 @@ export function LandingAgentShowcase() {
   return (
     <section
       id="agent-demos"
-      className="landing-lazy border-y border-white/8 bg-[#f6f7fb] py-20 text-[#101529] sm:py-28"
+      className="landing-lazy border-y border-hairline bg-[#f6f7fb] py-20 text-[#101529] sm:py-28"
     >
       <div className="mx-auto max-w-[1240px] px-4 sm:px-6">
         <div className="grid gap-8 xl:grid-cols-[0.82fr_1.18fr] xl:items-end">
@@ -117,16 +117,16 @@ export function LandingAgentShowcase() {
         <div className="mt-12 grid overflow-hidden rounded-[26px] border border-[#dfe2eb] bg-white shadow-[0_24px_80px_-48px_rgba(28,34,58,0.35)] xl:grid-cols-[0.88fr_1.12fr]">
           <div className="relative flex min-h-[400px] flex-col overflow-hidden border-b border-[#e4e7ef] bg-[radial-gradient(circle_at_50%_30%,rgba(103,232,249,0.23),transparent_26%),radial-gradient(circle_at_58%_34%,rgba(167,139,250,0.25),transparent_36%),#fbfcff] p-5 sm:min-h-[480px] sm:p-6 xl:min-h-[520px] xl:border-b-0 xl:border-r xl:p-8">
             <div className="flex items-center justify-between">
-              <span className="inline-flex items-center gap-2 rounded-full border border-[#dfe2eb] bg-white/80 px-3 py-1.5 text-[10px] font-medium text-[#596077]">
+              <span className="inline-flex items-center gap-2 rounded-full border border-[#dfe2eb] bg-surface-strong px-3 py-1.5 text-[10px] font-medium text-[#596077]">
                 <Icon className="size-3.5 text-[#6e58d8]" /> {t(example.key)}
               </span>
-              <span className="flex items-center gap-1.5 text-[9px] text-[#647089]">
+              <span className="flex items-center gap-1.5 text-[9px] text-[#5b6478]">
                 <span className="size-1.5 rounded-full bg-emerald-500" />{' '}
                 {t('showcase.sandboxLive')}
               </span>
             </div>
             <div className="my-auto">
-              <div className="mx-auto flex size-40 items-center justify-center rounded-full border border-[#dfe3f0] bg-white/60 shadow-[inset_0_0_60px_rgba(124,58,237,0.08)] sm:size-52 xl:size-60">
+              <div className="mx-auto flex size-40 items-center justify-center rounded-full border border-[#dfe3f0] bg-surface-strong shadow-[inset_0_0_60px_rgba(124,58,237,0.08)] sm:size-52 xl:size-60">
                 <div
                   className="flex h-24 w-40 items-center justify-center gap-1.5"
                   aria-label={t('showcase.voiceAria')}
@@ -144,12 +144,12 @@ export function LandingAgentShowcase() {
               </div>
               <div className="mt-8 text-center">
                 <p className="text-lg font-semibold">{example.agent}</p>
-                <p className="mt-1 text-xs text-[#7b8293]">
+                <p className="mt-1 text-xs text-[#5b6478]">
                   {example.language} · {t('showcase.playground')}
                 </p>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-2 text-center text-[9px] text-[#70778a]">
+            <div className="grid grid-cols-3 gap-2 text-center text-[9px] text-[#5b6478]">
               {(
                 [
                   'showcase.noCall',
@@ -159,7 +159,7 @@ export function LandingAgentShowcase() {
               ).map((key) => (
                 <div
                   key={key}
-                  className="rounded-xl border border-[#e1e4ed] bg-white/75 p-2.5"
+                  className="rounded-xl border border-[#e1e4ed] bg-surface-strong p-2.5"
                 >
                   {t(key)}
                 </div>
@@ -178,7 +178,7 @@ export function LandingAgentShowcase() {
             </div>
             <div className="mt-8 space-y-4">
               <div className="ml-auto max-w-[88%] rounded-2xl rounded-tr-md bg-[#18203a] p-4 text-sm leading-6 text-white">
-                <p className="mb-2 text-[9px] uppercase tracking-wider text-white/45">
+                <p className="mb-2 text-[9px] uppercase tracking-wider text-white/60">
                   {t('showcase.customer')}
                 </p>
                 {example.customer}
@@ -200,7 +200,7 @@ export function LandingAgentShowcase() {
                   <span className="flex-1">
                     {t(`${example.actionKey}.${leaf}` as TranslationKey)}
                   </span>
-                  <span className="rounded-full bg-white px-2 py-1 text-[8px] text-[#7a8293]">
+                  <span className="rounded-full bg-white px-2 py-1 text-[8px] text-[#5b6478]">
                     {t('showcase.preview')}
                   </span>
                 </div>

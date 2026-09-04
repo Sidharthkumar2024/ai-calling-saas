@@ -37,12 +37,12 @@ const STATUS_LABEL: Record<string, string> = {
 
 function statusTone(status: string) {
   if (status === 'connected')
-    return 'border-emerald-400/35 bg-emerald-400/10 text-emerald-100';
+    return 'border-emerald-400/35 bg-emerald-400/10 text-success-text';
   if (status === 'test_failed')
-    return 'border-rose-400/35 bg-rose-400/10 text-rose-100';
+    return 'border-rose-400/35 bg-rose-400/10 text-danger-text';
   if (status === 'stored_unverified')
-    return 'border-amber-400/30 bg-amber-400/10 text-amber-100';
-  return 'border-white/12 bg-white/5 text-white/60';
+    return 'border-amber-400/30 bg-amber-400/10 text-warning-text';
+  return 'border-hairline bg-surface-strong text-ink-body';
 }
 
 export function CustomerIntegrationMarketplace() {
@@ -203,21 +203,21 @@ export function CustomerIntegrationMarketplace() {
 
   if (!ready)
     return (
-      <div className="flex items-center gap-2 text-[11px] text-white/45">
+      <div className="flex items-center gap-2 text-[11px] text-ink-muted">
         <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading providers…
       </div>
     );
-  if (error) return <p className="text-[11px] text-rose-300">{error}</p>;
+  if (error) return <p className="text-[11px] text-danger-text">{error}</p>;
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[9px] uppercase tracking-wider text-white/28">
+          <p className="text-[9px] uppercase tracking-wider text-ink-muted">
             Bring your own providers
           </p>
           <h2 className="mt-1 text-sm font-semibold">Provider marketplace</h2>
-          <p className="mt-1 text-[11px] text-white/40">
+          <p className="mt-1 text-[11px] text-ink-muted">
             {connectedCount} verified · {storedCount} configured ·{' '}
             {catalog.length} available. Keys are encrypted per workspace.
           </p>
@@ -226,12 +226,12 @@ export function CustomerIntegrationMarketplace() {
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/30" />
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-muted" />
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Filter providers…"
-            className="w-56 rounded-lg border border-white/10 bg-white/4 py-2 pl-8 pr-3 text-[11px] outline-none focus:border-white/25"
+            className="w-56 rounded-lg border border-hairline bg-surface-strong py-2 pl-8 pr-3 text-[11px] outline-none focus:border-hairline"
           />
         </div>
         <button
@@ -239,8 +239,8 @@ export function CustomerIntegrationMarketplace() {
           onClick={() => setCategory(null)}
           className={`rounded-lg border px-3 py-1.5 text-[11px] transition ${
             category === null
-              ? 'border-white/30 bg-white/10 text-white'
-              : 'border-white/10 bg-white/4 text-white/55 hover:text-white/85'
+              ? 'border-hairline bg-surface-strong text-ink'
+              : 'border-hairline bg-surface-strong text-ink-body hover:text-ink'
           }`}
         >
           All
@@ -252,8 +252,8 @@ export function CustomerIntegrationMarketplace() {
             onClick={() => setCategory(item.id)}
             className={`rounded-lg border px-3 py-1.5 text-[11px] transition ${
               category === item.id
-                ? 'border-white/30 bg-white/10 text-white'
-                : 'border-white/10 bg-white/4 text-white/55 hover:text-white/85'
+                ? 'border-hairline bg-surface-strong text-ink'
+                : 'border-hairline bg-surface-strong text-ink-body hover:text-ink'
             }`}
           >
             {item.label}
@@ -262,14 +262,14 @@ export function CustomerIntegrationMarketplace() {
       </div>
 
       {notice ? (
-        <p className="rounded-lg border border-white/12 bg-white/[0.03] px-3 py-2 text-[11px] text-white/70">
+        <p className="rounded-lg border border-hairline bg-surface-muted px-3 py-2 text-[11px] text-ink">
           {notice}
         </p>
       ) : null}
 
       <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
         {visible.length === 0 ? (
-          <p className="text-[11px] text-white/35">
+          <p className="text-[11px] text-ink-muted">
             No provider matches that filter.
           </p>
         ) : null}
@@ -281,22 +281,22 @@ export function CustomerIntegrationMarketplace() {
               key={entry.id}
               className={`rounded-2xl border p-4 transition ${
                 isOpen
-                  ? 'border-white/25 bg-white/[0.04]'
-                  : 'border-white/8 bg-white/[0.02]'
+                  ? 'border-hairline bg-surface-strong'
+                  : 'border-hairline bg-surface-muted'
               }`}
             >
               <div className="flex items-start gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/6 text-[11px] font-semibold text-white/70">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-hairline bg-surface-strong text-[11px] font-semibold text-ink">
                   {entry.monogram}
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-[12px] font-semibold">{entry.label}</p>
-                    <span className="rounded-md bg-white/6 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-white/45">
+                    <span className="rounded-md bg-surface-strong px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-ink-muted">
                       {entry.category}
                     </span>
                   </div>
-                  <p className="mt-1 text-[10px] leading-relaxed text-white/40">
+                  <p className="mt-1 text-[10px] leading-relaxed text-ink-muted">
                     {entry.blurb}
                   </p>
                 </div>
@@ -313,7 +313,7 @@ export function CustomerIntegrationMarketplace() {
                 <div className="mt-4 space-y-2.5">
                   {entry.fields.map((field: CredentialField) => (
                     <label key={field.key} className="block">
-                      <span className="text-[10px] text-white/45">
+                      <span className="text-[10px] text-ink-muted">
                         {field.label}
                         {field.required ? '' : ' (optional)'}
                       </span>
@@ -325,16 +325,16 @@ export function CustomerIntegrationMarketplace() {
                         onChange={(event) =>
                           setForm({ ...form, [field.key]: event.target.value })
                         }
-                        className="mt-1 w-full rounded-lg border border-white/10 bg-white/4 px-3 py-2 text-[11px] outline-none focus:border-white/25"
+                        className="mt-1 w-full rounded-lg border border-hairline bg-surface-strong px-3 py-2 text-[11px] outline-none focus:border-hairline"
                       />
                       {field.hint ? (
-                        <span className="mt-1 block text-[9px] text-white/30">
+                        <span className="mt-1 block text-[9px] text-ink-muted">
                           {field.hint}
                         </span>
                       ) : null}
                     </label>
                   ))}
-                  <p className="text-[9px] leading-relaxed text-white/32">
+                  <p className="text-[9px] leading-relaxed text-ink-muted">
                     {entry.verifiable
                       ? 'Saved encrypted, then verified with a read-only call to the provider.'
                       : 'Saved encrypted. This provider has no read-only test endpoint, so it stays marked unverified until a real call uses it.'}
@@ -390,10 +390,10 @@ export function CustomerIntegrationMarketplace() {
 
       {unrecognised.length ? (
         <section className="rounded-2xl border border-amber-400/20 bg-amber-400/[0.04] p-4">
-          <h3 className="text-[11px] font-semibold text-amber-100">
+          <h3 className="text-[11px] font-semibold text-warning-text">
             Stored connections outside the catalog
           </h3>
-          <p className="mt-1 text-[10px] leading-relaxed text-amber-100/60">
+          <p className="mt-1 text-[10px] leading-relaxed text-warning-text">
             These hold an encrypted secret but no longer match a provider in the
             catalog, so nothing above can manage them. Disconnect any you no
             longer use.
@@ -402,12 +402,12 @@ export function CustomerIntegrationMarketplace() {
             {unrecognised.map((row) => (
               <div
                 key={row.id}
-                className="flex flex-wrap items-center gap-2 rounded-xl border border-white/8 bg-black/20 px-3 py-2.5 text-[11px]"
+                className="flex flex-wrap items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2.5 text-[11px]"
               >
-                <span className="font-mono text-[10px] text-white/70">
+                <span className="font-mono text-[10px] text-ink">
                   {row.type}
                 </span>
-                <span className="text-white/45">{row.name}</span>
+                <span className="text-ink-muted">{row.name}</span>
                 <span
                   className={`rounded-md border px-2 py-0.5 text-[9px] ${statusTone(row.status)}`}
                 >

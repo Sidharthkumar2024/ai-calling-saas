@@ -10,6 +10,7 @@ import {
 } from '@/lib/app-auth';
 import {
   allowedWhileRestricted,
+  graceDeadline,
   mfaRequirement,
   restrictionMessage,
 } from '@/lib/mfa-policy';
@@ -36,21 +37,46 @@ async function mfaGate(
   // The workspace role is read alongside, because `owner` and `admin` there
   // carry every permission in the product regardless of the account's app
   // role — an app-role check alone would miss a workspace admin.
-  const row = await getRawDb()
+  const db = getRawDb();
+  const row = await db
     .prepare(
-      `SELECT s.mfa_enabled AS mfaEnabled, m.role AS workspaceRole
+      `SELECT s.mfa_enabled AS mfaEnabled, s.mfa_grace_until AS graceUntil,
+              m.role AS workspaceRole
        FROM app_users u
        LEFT JOIN user_security_settings s ON s.user_id = u.id
        LEFT JOIN organization_members m ON m.user_id = u.id
        WHERE u.id = ? LIMIT 1`,
     )
     .bind(session.userId)
-    .first<{ mfaEnabled: number | null; workspaceRole: string | null }>();
+    .first<{
+      mfaEnabled: number | null;
+      graceUntil: string | null;
+      workspaceRole: string | null;
+    }>();
   const requirement = mfaRequirement({
     role: session.role,
     workspaceRole: row?.workspaceRole ?? null,
     mfaEnabled: Number(row?.mfaEnabled ?? 0) === 1,
+    graceUntil: row?.graceUntil ?? null,
   });
+  if (requirement === 'grace') {
+    // Start the clock the first time this account is seen needing it. Written
+    // once — the WHERE keeps a later request from pushing the deadline out and
+    // making the window last for ever.
+    if (!row?.graceUntil)
+      await db
+        .prepare(
+          `INSERT INTO user_security_settings (user_id, mfa_enabled, mfa_grace_until, updated_at)
+           VALUES (?, 0, ?, CURRENT_TIMESTAMP)
+           ON CONFLICT(user_id) DO UPDATE SET
+             mfa_grace_until = excluded.mfa_grace_until,
+             updated_at = CURRENT_TIMESTAMP
+           WHERE user_security_settings.mfa_grace_until IS NULL`,
+        )
+        .bind(session.userId, graceDeadline())
+        .run();
+    return null;
+  }
   if (requirement !== 'must_enrol') return null;
   const pathname = new URL(request.url).pathname;
   if (allowedWhileRestricted(pathname)) return null;

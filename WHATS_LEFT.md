@@ -117,6 +117,39 @@ work.
 
 ## Landed
 
+**Fixed the login lockout §14 caused.** Enforcing two-factor authentication
+retroactively broke sign-in on both sides, in two different ways.
+
+**The admin console looped.** `admin-portal.tsx` redirected to `/admin/login`
+on any 403 — so a platform admin signed in successfully, was refused,
+bounced back to sign-in, and round again for ever, with nothing on screen
+explaining why, because the credentials were correct. The identical loop had
+been found and fixed on the customer portal in the same commit that introduced
+enforcement; this screen was missed. It now recognises the `mfa_required` code
+and renders the enrolment panel.
+
+**And enforcement applied with no notice.** Switching it on shut out every
+existing privileged account the moment it deployed, mid-work. That is an outage
+the product inflicts on itself, not a security improvement. Privileged accounts
+now get a seven-day window, and it starts the first time the account is *seen*
+needing a second factor rather than at signup — an account created before the
+rule existed would otherwise have a window that expired long ago, which is the
+same lockout wearing a date.
+
+The window is written once. A later request cannot push the deadline out and
+make it last for ever, and a corrupt or unparseable deadline is treated as
+"never asked" rather than "expired", because the safe direction for a bad value
+is not to lock somebody out.
+
+Enforcement still happens: once the window closes, everything except enrolment,
+session and logout is refused.
+
+*Verified live on both sides:* admin and customer endpoints answer 200 inside
+the window, the window is recorded seven days out, an expired window returns
+the actionable 403, enrolment stays reachable throughout, and an expired
+deadline is not silently reset by the next request.
+
+
 **AI Business Manager — discovery and the evidence board (Blueprint §6, first
 slice).** §6 asks for business discovery, an evidence board showing
 "observations, source/evidence and confidence", a prioritised growth plan,

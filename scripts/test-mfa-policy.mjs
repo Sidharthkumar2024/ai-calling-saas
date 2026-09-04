@@ -1,10 +1,16 @@
 import assert from 'node:assert/strict';
 
 import {
+  MFA_GRACE_DAYS,
   allowedWhileRestricted,
+  graceDeadline,
+  graceMessage,
   mfaRequirement,
   restrictionMessage,
 } from '../lib/mfa-policy.ts';
+
+const past = new Date(Date.now() - 1000).toISOString();
+const future = new Date(Date.now() + 86_400_000).toISOString();
 
 let passed = 0;
 const check = (name, fn) => {
@@ -19,7 +25,11 @@ check('a platform admin without a second factor is restricted', () => {
   // Someone holding every capability in the product could work with a password
   // alone: enrolment existed and nothing required it.
   assert.equal(
-    mfaRequirement({ role: 'platform_admin', mfaEnabled: false }),
+    mfaRequirement({
+      role: 'platform_admin',
+      mfaEnabled: false,
+      graceUntil: past,
+    }),
     'must_enrol',
   );
 });
@@ -33,6 +43,7 @@ check('every admin sub-role counts, analyst included', () => {
         role: 'platform_admin',
         workspaceRole,
         mfaEnabled: false,
+        graceUntil: past,
       }),
       'must_enrol',
       String(workspaceRole),
@@ -41,7 +52,11 @@ check('every admin sub-role counts, analyst included', () => {
 
 check('a workspace owner is privileged', () => {
   assert.equal(
-    mfaRequirement({ role: 'customer_owner', mfaEnabled: false }),
+    mfaRequirement({
+      role: 'customer_owner',
+      mfaEnabled: false,
+      graceUntil: past,
+    }),
     'must_enrol',
   );
 });
@@ -54,6 +69,7 @@ check('a workspace admin is privileged whatever their app role', () => {
       role: 'customer_agent',
       workspaceRole: 'admin',
       mfaEnabled: false,
+      graceUntil: past,
     }),
     'must_enrol',
   );
@@ -108,6 +124,96 @@ check('an unknown role is not silently privileged', () => {
     mfaRequirement({ role: 'something_new', mfaEnabled: false }),
     'not_required',
   );
+});
+
+console.log('the grace window');
+
+check('an account never asked before gets a window, not a wall', () => {
+  // Switching enforcement on retroactively locks out every privileged account
+  // mid-work with no warning — an outage the product inflicts on itself, not a
+  // security improvement.
+  assert.equal(
+    mfaRequirement({ role: 'platform_admin', mfaEnabled: false }),
+    'grace',
+  );
+  assert.equal(
+    mfaRequirement({
+      role: 'platform_admin',
+      mfaEnabled: false,
+      graceUntil: null,
+    }),
+    'grace',
+  );
+});
+
+check('an unexpired window still lets them work', () => {
+  assert.equal(
+    mfaRequirement({
+      role: 'customer_owner',
+      mfaEnabled: false,
+      graceUntil: future,
+    }),
+    'grace',
+  );
+});
+
+check('an expired window restricts', () => {
+  assert.equal(
+    mfaRequirement({
+      role: 'customer_owner',
+      mfaEnabled: false,
+      graceUntil: past,
+    }),
+    'must_enrol',
+  );
+});
+
+check('enrolling ends it early whatever the window says', () => {
+  assert.equal(
+    mfaRequirement({
+      role: 'platform_admin',
+      mfaEnabled: true,
+      graceUntil: past,
+    }),
+    'satisfied',
+  );
+});
+
+check('an unprivileged role never enters the window at all', () => {
+  assert.equal(
+    mfaRequirement({
+      role: 'customer_agent',
+      workspaceRole: 'agent',
+      mfaEnabled: false,
+      graceUntil: null,
+    }),
+    'not_required',
+  );
+});
+
+check('a corrupt deadline is treated as never asked, not as expired', () => {
+  // The safe direction: a bad value must not lock somebody out.
+  for (const bad of ['', 'soon', '0000-13-45'])
+    assert.equal(
+      mfaRequirement({
+        role: 'platform_admin',
+        mfaEnabled: false,
+        graceUntil: bad,
+      }),
+      'grace',
+      bad,
+    );
+});
+
+check('the deadline is the configured number of days out', () => {
+  const now = Date.parse('2026-09-04T00:00:00.000Z');
+  const deadline = Date.parse(graceDeadline(now));
+  assert.equal((deadline - now) / 86_400_000, MFA_GRACE_DAYS);
+});
+
+check('the warning counts down in days', () => {
+  assert.match(graceMessage(future), /1 day\b/);
+  assert.match(graceMessage(future), /Settings/);
 });
 
 console.log('allowedWhileRestricted');

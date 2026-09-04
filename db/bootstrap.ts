@@ -1934,6 +1934,10 @@ async function bootstrap() {
   // noticed it was also being used as a health signal: `lookup_customer` read
   // as 13 calls and 0 successes while working correctly every time. This column
   // records what the call *was*, so a negative answer stops looking like a bug.
+  // §14's grace window. Recorded per account and started the first time the
+  // account is seen needing a second factor, so switching enforcement on does
+  // not lock out everybody who was mid-work when it deployed.
+  await ensureColumn(db, 'user_security_settings', 'mfa_grace_until', 'TEXT');
   await ensureColumn(db, 'agent_tool_calls', 'outcome_kind', 'TEXT');
   await db
     .prepare(

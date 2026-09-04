@@ -18,7 +18,26 @@
  * one readable list rather than a condition repeated at every route.
  */
 
-export type MfaRequirement = 'not_required' | 'satisfied' | 'must_enrol';
+export type MfaRequirement =
+  | 'not_required'
+  | 'satisfied'
+  | 'grace'
+  | 'must_enrol';
+
+/**
+ * How long a privileged account has to enrol before it is shut out.
+ *
+ * Turning enforcement on retroactively locks out every existing privileged
+ * account the moment it deploys, mid-work, with no warning — which is an
+ * outage the product inflicts on itself, not a security improvement. Real
+ * products give a window and say so. Enforcement still happens; it just does
+ * not happen at midnight to people who were never told.
+ *
+ * The clock starts when the account is first seen needing it, not at signup:
+ * an account created a year before this rule existed would otherwise have a
+ * window that expired long ago, which is the same lockout wearing a date.
+ */
+export const MFA_GRACE_DAYS = 7;
 
 /**
  * Customer roles that hold enough to warrant a second factor.
@@ -53,13 +72,35 @@ export function mfaRequirement(input: {
   role: string;
   workspaceRole?: string | null;
   mfaEnabled: boolean;
+  /** ISO timestamp when this account's window closes, if one was started. */
+  graceUntil?: string | null;
+  now?: number;
 }): MfaRequirement {
   const privileged =
     input.role === 'platform_admin' ||
     PRIVILEGED_APP_ROLES.has(input.role) ||
     PRIVILEGED_WORKSPACE_ROLES.has(String(input.workspaceRole ?? ''));
   if (!privileged) return 'not_required';
-  return input.mfaEnabled ? 'satisfied' : 'must_enrol';
+  if (input.mfaEnabled) return 'satisfied';
+  const until = Date.parse(String(input.graceUntil ?? ''));
+  // No window recorded yet means this account has never been asked. It gets
+  // one — the caller is responsible for persisting it.
+  if (!Number.isFinite(until)) return 'grace';
+  return (input.now ?? Date.now()) < until ? 'grace' : 'must_enrol';
+}
+
+/** When a window opened now would close. */
+export function graceDeadline(now: number = Date.now()): string {
+  return new Date(now + MFA_GRACE_DAYS * 24 * 60 * 60 * 1000).toISOString();
+}
+
+/** The warning shown while an account still has time. */
+export function graceMessage(graceUntil: string | null | undefined): string {
+  const until = Date.parse(String(graceUntil ?? ''));
+  const days = Number.isFinite(until)
+    ? Math.max(0, Math.ceil((until - Date.now()) / (24 * 60 * 60 * 1000)))
+    : MFA_GRACE_DAYS;
+  return `Your role requires two-factor authentication. You have ${days} day${days === 1 ? '' : 's'} to set it up in Settings › Security before access is restricted.`;
 }
 
 /**

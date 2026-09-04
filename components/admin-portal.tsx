@@ -30,6 +30,7 @@ import {
   Webhook,
 } from 'lucide-react';
 
+import { CustomerSecurity } from '@/components/customer-security';
 import { PortalShell, type PortalNavGroup } from '@/components/portal-shell';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -185,6 +186,7 @@ export function AdminPortal({ session }: { session: AdminSession }) {
   const [data, setData] = useState<AdminPayload>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [mfaRequired, setMfaRequired] = useState('');
   const loadedOnceRef = useRef(false);
 
   async function load() {
@@ -205,6 +207,20 @@ export function AdminPortal({ session }: { session: AdminSession }) {
         platformResponse.status === 401 ||
         platformResponse.status === 403
       ) {
+        // §14 restricts a platform admin with no second factor. Bouncing to
+        // the sign-in page loops for ever: the credentials are correct, so the
+        // login succeeds and the next request is refused again. This screen had
+        // the loop; the customer portal's equivalent was fixed and this one was
+        // missed.
+        const refusal = (await response.json().catch(() => ({}))) as {
+          error?: string;
+          code?: string;
+        };
+        if (refusal.code === 'mfa_required') {
+          setMfaRequired(refusal.error ?? '');
+          setLoading(false);
+          return;
+        }
         window.location.assign('/admin/login');
         return;
       }
@@ -235,6 +251,27 @@ export function AdminPortal({ session }: { session: AdminSession }) {
     const timer = window.setTimeout(() => void load(), 0);
     return () => window.clearTimeout(timer);
   }, []);
+
+  if (mfaRequired)
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-surface-muted px-6 py-10">
+        <section className="portal-panel max-w-md p-6 text-center">
+          <h1 className="text-sm font-semibold">
+            Two-factor authentication required
+          </h1>
+          <p className="mt-2 text-[11px] text-ink-body">{mfaRequired}</p>
+          <p className="mt-3 text-[10px] text-ink-muted">
+            Your password was accepted. This is the one step left before the
+            admin console opens.
+          </p>
+        </section>
+        {/* The security panel is on §14's allow-list precisely so it still
+            works when every other admin request is refused. */}
+        <div className="w-full max-w-2xl">
+          <CustomerSecurity />
+        </div>
+      </div>
+    );
 
   return (
     <PortalShell

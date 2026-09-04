@@ -114,6 +114,39 @@ and billing everywhere. Revisit once the core product has real usage.
 
 ## Landed
 
+**`tools_json` actually filters the tools the model receives (§7).** It had been
+decorative since the beginning: the agent studio's Actions tab wrote a list, the
+list was stored on every agent, and `generateVoiceAgentTurn` passed all fifteen
+tool definitions on every turn regardless. A workspace that switched "create
+payment link" off still had an agent that would take payments.
+
+Making it filter surfaced why it had never been noticed — **three of the seven
+options in the picker were not tools.** `send_email` and `create_ticket` had no
+definition and no handler at all, and `transfer_human` was a near-miss for
+`transfer_to_human`, so ticking "Transfer to human" wrote a name that matched
+nothing. Both agents in the live database carried the wrong one. Nothing read
+the list, so nothing ever failed.
+
+Naive filtering would therefore have removed the escalation path: `<action_safety>`
+orders the model to call `transfer_to_human` on the turn a caller asks for a
+person, and a workspace unticking it would have produced a prompt commanding a
+tool the model does not have. So `transfer_to_human`, `request_refund` and
+`end_call` are mandatory and not configurable, the picker now renders from the
+same list the server filters on, unknown names are dropped and reported,
+`transfer_human` is repaired rather than dropped, and a migration fixed the
+stored rows.
+
+**An empty selection means every tool, not none.** The column defaults to
+`'[]'`, so "nobody opened the picker" and "somebody deselected everything" are
+the same value in the database — and only one of those is plausible. Reading
+empty as none would have silently lobotomised every existing agent.
+
+The build-time audit now checks the picker's catalogue too, not just the two
+default lists — that omission is exactly what let `send_email` survive — and
+fails if a tool is implemented but neither selectable nor mandatory, since no
+agent could ever call it.
+
+
 **Notifications, animation and sound (§33).** The product had no notification
 surface at all — `components/ui/toast.tsx` existed with no importer anywhere in
 the repository, so a caller asking for a person, a payment landing or credits

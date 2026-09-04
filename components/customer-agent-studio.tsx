@@ -33,6 +33,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { AGENT_PRESETS } from '@/lib/agent-presets';
 import { VAANI_VOICES } from '@/lib/voice-catalog';
+import {
+  MANDATORY_TOOL_NAMES,
+  SELECTABLE_TOOLS,
+} from '@/lib/agent-tool-catalog';
 
 export type VoiceAgentRow = {
   id: string;
@@ -723,43 +727,14 @@ function SettingsPanel({
           note="The model requests an action; Vaani validates and executes it"
         >
           <div className="grid gap-3 sm:grid-cols-2">
-            {[
-              [
-                'send_whatsapp',
-                'Send WhatsApp',
-                'Approved product details and templates',
-              ],
-              [
-                'send_email',
-                'Send email',
-                'Fallback when the calling number is not on WhatsApp',
-              ],
-              [
-                'create_payment_link',
-                'Create payment link',
-                'Razorpay amount, expiry and customer mapping',
-              ],
-              [
-                'schedule_follow_up',
-                'Schedule follow-up',
-                'Remember “send it at 8 PM” safely',
-              ],
-              [
-                'book_appointment',
-                'Book appointment',
-                'Check availability and reserve a slot',
-              ],
-              [
-                'transfer_human',
-                'Transfer to human',
-                'Warm transfer with conversation summary',
-              ],
-              [
-                'create_ticket',
-                'Create support ticket',
-                'Priority, category and full conversation context',
-              ],
-            ].map(([id, title, note]) => (
+            {/*
+              Was seven hardcoded entries, three of which were not tools:
+              `send_email` and `create_ticket` had no definition or handler,
+              and `transfer_human` was a near-miss for `transfer_to_human`.
+              Now driven by SELECTABLE_TOOLS, so a checkbox and a tool cannot
+              drift apart again.
+            */}
+            {SELECTABLE_TOOLS.map(({ name: id, label: title, note }) => (
               <button
                 key={id}
                 type="button"
@@ -786,6 +761,12 @@ function SettingsPanel({
               </button>
             ))}
           </div>
+          <p className="mt-3 text-[10px] text-ink-muted">
+            Always available and not switchable:{' '}
+            {MANDATORY_TOOL_NAMES.join(', ').replaceAll('_', ' ')}. The agent is
+            instructed to escalate or end the call on the turn a caller asks, so
+            these cannot be turned off without making that instruction a lie.
+          </p>
         </SettingSection>
       </div>
     );

@@ -1,7 +1,7 @@
 import { getRawDb } from '@/db/index';
 import {
   executeAgentTool,
-  VAANI_AGENT_TOOLS,
+  toolsForAgent,
   type ToolContext,
 } from '@/lib/agent-tools';
 import { retrieveKnowledge } from '@/lib/knowledge-retrieval';
@@ -553,6 +553,11 @@ export async function generateVoiceAgentTurn(input: {
   messages: Array<{ role: 'user' | 'assistant'; content: string }>;
   /** Supplying this enables real business tool calling for the turn. */
   toolContext?: ToolContext;
+  /**
+   * The agent's `tools_json`. Absent or empty means every selectable tool —
+   * see `resolveToolSelection`, which explains why empty cannot mean none.
+   */
+  toolSelection?: unknown;
   /** LLM router decision for this turn. */
   modelOverride?: string | null;
 }) {
@@ -608,7 +613,12 @@ export async function generateVoiceAgentTurn(input: {
       system,
       messages,
       model: input.modelOverride ?? null,
-      ...(input.toolContext ? { tools: VAANI_AGENT_TOOLS } : {}),
+      // Was `VAANI_AGENT_TOOLS` — all fifteen, on every turn, whatever the
+      // workspace had selected. The picker wrote a list nothing read, so an
+      // action switched off in the studio was still available on the call.
+      ...(input.toolContext
+        ? { tools: toolsForAgent(input.toolSelection) }
+        : {}),
     });
     latencyMs += response.latencyMs;
     providerReference = response.id || providerReference;

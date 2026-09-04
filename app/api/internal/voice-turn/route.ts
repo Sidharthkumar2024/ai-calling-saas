@@ -77,7 +77,7 @@ async function runTurn(body: TurnRequest, callId: string) {
   const call = await db
     .prepare(`SELECT c.id, c.organization_id, c.agent_id, c.status,
         a.name AS agent_name, a.use_case, a.primary_language, a.system_prompt,
-        a.max_tokens, a.welcome_message, o.name AS business_name
+        a.max_tokens, a.welcome_message, a.tools_json, o.name AS business_name
       FROM call_records c
       LEFT JOIN voice_agents a ON a.id = c.agent_id
       INNER JOIN organizations o ON o.id = c.organization_id
@@ -94,6 +94,7 @@ async function runTurn(body: TurnRequest, callId: string) {
       system_prompt: string | null;
       max_tokens: number | null;
       welcome_message: string | null;
+      tools_json: string | null;
       business_name: string;
     }>();
   if (!call)
@@ -223,6 +224,8 @@ async function runTurn(body: TurnRequest, callId: string) {
     maxTokens: Number(call.max_tokens || 180),
     modelOverride: route.model,
     messages: ordered,
+    // The picker's selection now reaches the model instead of being ignored.
+    toolSelection: call.tools_json,
     toolContext: {
       organizationId,
       agentId: call.agent_id,

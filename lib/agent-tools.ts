@@ -14,6 +14,29 @@ import {
 } from '@/lib/object-store';
 import type { Filter } from '@/lib/object-engine';
 import { createOrder } from '@/lib/order-service';
+import { filterToolDefinitions } from '@/lib/agent-tool-catalog';
+
+/**
+ * The tool definitions to hand the model for one agent.
+ *
+ * This is the function that makes `tools_json` mean something. Before it, the
+ * picker in the agent studio wrote a list, the list was stored, and
+ * `generateVoiceAgentTurn` passed `VAANI_AGENT_TOOLS` — all of them — on every
+ * turn regardless. A workspace that switched an action off still had an agent
+ * that would take payments.
+ */
+export function toolsForAgent(raw: unknown): Array<Record<string, unknown>> {
+  return filterToolDefinitions(VAANI_AGENT_TOOLS, raw);
+}
+
+export {
+  MANDATORY_TOOL_NAMES,
+  SELECTABLE_TOOLS,
+  TOOL_ALIASES,
+  filterToolDefinitions,
+  resolveToolSelection,
+  type ToolSelection,
+} from '@/lib/agent-tool-catalog';
 
 export type ToolContext = {
   organizationId: string;

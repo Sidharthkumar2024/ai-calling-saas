@@ -1844,6 +1844,29 @@ async function bootstrap() {
         WHERE role = 'platform_admin' AND admin_role IS NULL`,
     )
     .run();
+  // `tools_json` was decorative until now: the studio wrote a list, the list
+  // was stored, and every turn handed the model all fifteen tools regardless.
+  // Making it filter is correct — and it turns the studio's typo into a real
+  // loss, because the picker wrote `transfer_human` and the tool is called
+  // `transfer_to_human`. Every agent in the product carries the wrong name, so
+  // it is repaired here rather than being read as "this workspace switched
+  // transfer off". `send_email` and `create_ticket` are dropped: they never had
+  // a definition or a handler, so there is no behaviour to keep.
+  await db
+    .prepare(
+      `UPDATE voice_agents
+         SET tools_json = replace(tools_json, '"transfer_human"', '"transfer_to_human"')
+       WHERE tools_json LIKE '%"transfer_human"%'`,
+    )
+    .run();
+  await db
+    .prepare(
+      `UPDATE voice_agents
+         SET tools_json = replace(
+               replace(tools_json, '"send_email",', ''), '"create_ticket",', '')
+       WHERE tools_json LIKE '%"send_email"%' OR tools_json LIKE '%"create_ticket"%'`,
+    )
+    .run();
   await ensureColumn(db, 'organizations', 'suspended_at', 'TEXT');
   await ensureColumn(db, 'organizations', 'suspension_reason', 'TEXT');
 
@@ -2187,7 +2210,7 @@ async function seedLocalDemo(db: D1Database) {
         'नमस्ते, मैं Sara बोल रही हूँ. क्या अभी दो मिनट बात कर सकते हैं?',
         'You are a concise multilingual revenue agent. Understand intent, explain the product, confirm consent, and use approved tools for WhatsApp, payment links, appointments, or human transfer.',
         'hi-IN', 'Vaani Tara', 'Vaani Sense Balanced', 20, 250, 250, 2,
-        '["send_whatsapp","create_payment_link","schedule_follow_up","book_appointment","transfer_human"]',
+        '["send_whatsapp","create_payment_link","schedule_follow_up","book_appointment","transfer_to_human"]',
         '["language","intent","product","amount","payment_timing","next_action"]',
         '{"inbound":true,"outbound":true,"voicemailDetection":true,"silenceTimeoutSeconds":15,"maxCallSeconds":300,"callingWindow":"10:00-19:00 Asia/Kolkata"}',
         55

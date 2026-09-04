@@ -128,7 +128,7 @@ export async function POST(request: Request) {
     }
     const session = await db
       .prepare(`SELECT s.id, s.agent_id, s.mode, a.name AS agent_name, a.use_case,
-          a.primary_language, a.system_prompt, a.max_tokens,
+          a.primary_language, a.system_prompt, a.max_tokens, a.tools_json,
           o.name AS business_name, w.balance
         FROM agent_test_sessions s
         INNER JOIN voice_agents a ON a.id = s.agent_id
@@ -145,6 +145,7 @@ export async function POST(request: Request) {
         primary_language: string;
         system_prompt: string;
         max_tokens: number;
+        tools_json: string | null;
         business_name: string;
         balance: number;
       }>();
@@ -262,6 +263,7 @@ export async function POST(request: Request) {
           })),
           { role: 'user' as const, content: message },
         ],
+        toolSelection: session.tools_json,
         // Real business tools: lookups, slots, bookings, links, WhatsApp, handoff.
         toolContext: {
           organizationId: auth.session.organizationId!,

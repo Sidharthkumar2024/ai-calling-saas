@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useState } from 'react';
 import {
   Activity,
-  Bell,
   BookOpenText,
   ChevronDown,
   Coins,
@@ -14,6 +13,7 @@ import {
   Search,
 } from 'lucide-react';
 
+import { NotificationBell } from '@/components/notification-center';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -61,7 +61,6 @@ export function PortalShell({
     .flatMap((group) => group.items)
     .find((item) => item.id === active);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   async function logout() {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -211,44 +210,7 @@ export function PortalShell({
           >
             <BookOpenText className="size-3.5" /> Docs
           </Link>
-          <div className="relative">
-            <Button
-              onClick={() => setNotificationsOpen((value) => !value)}
-              variant="ghost"
-              size="icon-sm"
-              className="relative"
-              aria-label="Notifications"
-              aria-expanded={notificationsOpen}
-            >
-              <Bell />
-              <span className="absolute right-1 top-1 size-1.5 rounded-full bg-primary" />
-            </Button>
-            {notificationsOpen ? (
-              <div className="absolute right-0 top-11 z-50 w-72 rounded-xl border border-hairline bg-surface/98 p-4 shadow-2xl backdrop-blur-xl">
-                <p className="text-xs font-semibold">Notifications</p>
-                <div className="mt-3 space-y-2">
-                  <div className="rounded-lg border border-hairline bg-surface-muted p-3">
-                    <p className="text-[10px] text-ink-body">
-                      Workspace systems are healthy.
-                    </p>
-                    <p className="mt-1 text-[8px] text-ink-muted">
-                      Provider readiness is shown on Overview.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onNavigate(mode === 'admin' ? 'system_audit' : 'alerts');
-                      setNotificationsOpen(false);
-                    }}
-                    className="w-full rounded-lg border border-hairline px-3 py-2 text-[9px] text-ink-body hover:bg-surface-strong"
-                  >
-                    Open notification center
-                  </button>
-                </div>
-              </div>
-            ) : null}
-          </div>
+          <NotificationBell />
           {/* Interface language is per person, not per workspace: two people in
               one workspace can want different languages, and the workspace
               setting already means which languages the AI may speak. */}

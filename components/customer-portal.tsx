@@ -579,7 +579,7 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
     data.overview.stats?.credits ?? data.billing.wallet?.balance ?? 0,
   );
   return (
-    <NotificationCenter>
+    <NotificationCenter section={active}>
       <CreditWatch credits={credits} />
       <PortalShell
         mode="customer"

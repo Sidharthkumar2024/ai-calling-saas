@@ -2,6 +2,11 @@ import assert from 'node:assert/strict';
 
 import {
   CREDIT_FLOOR,
+  TOAST_LIFETIME_MS,
+  dedupeKey,
+  inboxSummary,
+  requiresAcknowledgement,
+  toastLifetime,
   CREDIT_WARNING,
   DEFAULT_SOUND_PREFERENCES,
   NOTIFICATION_EVENTS,
@@ -244,6 +249,141 @@ check('an unchanged or unreadable balance says nothing', () => {
   assert.equal(creditAlert(100, 100), null);
   assert.equal(creditAlert(100, Number.NaN), null);
   assert.equal(creditAlert(Number.NaN, 5), null);
+});
+
+console.log('§3.2 acknowledgement and toast lifetime');
+
+check('the three events §3.2 names must be acknowledged', () => {
+  for (const event of ['payment_failed', 'transfer_failed', 'security_alert'])
+    assert.equal(requiresAcknowledgement(event), true, event);
+});
+
+check('a generic error is not one of them', () => {
+  // Most errors are a failed fetch that succeeds on retry. Demanding
+  // acknowledgement for every one teaches people to dismiss without reading,
+  // which is how the important ones get missed.
+  assert.equal(requiresAcknowledgement('error'), false);
+  assert.equal(requiresAcknowledgement('credit_low'), false);
+});
+
+check('a normal toast goes in about five seconds', () => {
+  // §3.2 says "~4-6 seconds".
+  assert.ok(TOAST_LIFETIME_MS >= 4000 && TOAST_LIFETIME_MS <= 6000);
+  assert.equal(toastLifetime('call_connected'), TOAST_LIFETIME_MS);
+  assert.equal(toastLifetime('credit_low'), TOAST_LIFETIME_MS);
+});
+
+check('an event needing acknowledgement never times out', () => {
+  // It used to get nine seconds and then vanish: long enough to annoy, short
+  // enough to miss, and wrong for exactly the events that matter.
+  assert.equal(toastLifetime('payment_failed'), null);
+  assert.equal(toastLifetime('transfer_failed'), null);
+  assert.equal(toastLifetime('security_alert'), null);
+});
+
+check('an unknown event still gets a finite lifetime', () => {
+  assert.equal(toastLifetime('nonsense'), TOAST_LIFETIME_MS);
+});
+
+console.log('dedupeKey');
+
+check('the same happening produces the same key from anywhere', () => {
+  // §3.2's "single event ID": two tabs, or a laptop and a phone, reporting one
+  // real event must collapse to one row and one toast.
+  assert.equal(
+    dedupeKey({ event: 'payment_success', subject: 'VAI-2026-0007' }),
+    dedupeKey({ event: 'payment_success', subject: 'VAI-2026-0007' }),
+  );
+});
+
+check('different subjects stay different events', () => {
+  assert.notEqual(
+    dedupeKey({ event: 'handoff_requested', subject: 'h1' }),
+    dedupeKey({ event: 'handoff_requested', subject: 'h2' }),
+  );
+});
+
+check('the same subject under different events stays distinct', () => {
+  assert.notEqual(
+    dedupeKey({ event: 'transfer_accepted', subject: 'h1' }),
+    dedupeKey({ event: 'transfer_failed', subject: 'h1' }),
+  );
+});
+
+check('an event with no subject still dedupes across tabs', () => {
+  // Nothing better is possible for a happening with no identity, and
+  // second-granularity is still enough to stop two tabs double-toasting.
+  const now = 1_788_000_000_000;
+  assert.equal(
+    dedupeKey({ event: 'call_connected', now }),
+    dedupeKey({ event: 'call_connected', now: now + 400 }),
+  );
+  assert.notEqual(
+    dedupeKey({ event: 'call_connected', now }),
+    dedupeKey({ event: 'call_connected', now: now + 3000 }),
+  );
+});
+
+check('a blank subject is treated as no subject', () => {
+  const now = 1_788_000_000_000;
+  assert.equal(
+    dedupeKey({ event: 'error', subject: '   ', now }),
+    dedupeKey({ event: 'error', subject: null, now }),
+  );
+});
+
+console.log('inboxSummary');
+
+const row = (over = {}) => ({
+  id: 'n1',
+  event: 'credit_low',
+  title: 'Credits low',
+  severity: 'warning',
+  requiresAck: false,
+  readAt: null,
+  acknowledgedAt: null,
+  createdAt: 't',
+  ...over,
+});
+
+check('the dot is dark when there is nothing to see', () => {
+  // It used to be a hardcoded span, lit whatever was happening — furniture
+  // rather than information.
+  assert.equal(inboxSummary([]).dot, 'none');
+  assert.equal(inboxSummary([row({ readAt: 't' })]).dot, 'none');
+});
+
+check('unread lights it', () => {
+  const summary = inboxSummary([row(), row({ id: 'n2', readAt: 't' })]);
+  assert.equal(summary.unread, 1);
+  assert.equal(summary.total, 2);
+  assert.equal(summary.dot, 'unread');
+});
+
+check('something waiting on a person outranks merely unread', () => {
+  const summary = inboxSummary([
+    row(),
+    row({ id: 'n2', event: 'payment_failed', requiresAck: true }),
+  ]);
+  assert.equal(summary.needsAcknowledgement, 1);
+  assert.equal(summary.dot, 'urgent');
+});
+
+check('an acknowledged critical event stops being urgent', () => {
+  const summary = inboxSummary([
+    row({
+      event: 'payment_failed',
+      requiresAck: true,
+      acknowledgedAt: 't',
+      readAt: 't',
+    }),
+  ]);
+  assert.equal(summary.needsAcknowledgement, 0);
+  assert.equal(summary.dot, 'none');
+});
+
+check('a missing list is empty, not a throw', () => {
+  assert.equal(inboxSummary(undefined).total, 0);
 });
 
 console.log(`\n${passed} assertions passed.`);

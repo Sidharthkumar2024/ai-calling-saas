@@ -22,6 +22,12 @@ export const NOTIFICATION_EVENTS = [
   'call_connected',
   'handoff_requested',
   'transfer_accepted',
+  // §3.2 names these three as the events that stay until acknowledged. They
+  // are separate from the generic 'error' precisely so that a failed payment
+  // cannot quietly time out after five seconds like a failed page load.
+  'payment_failed',
+  'transfer_failed',
+  'security_alert',
   'payment_success',
   'credit_low',
   'credit_added',
@@ -155,6 +161,39 @@ export const NOTIFICATION_SPECS: Record<NotificationEvent, NotificationSpec> = {
     motion: 'rise',
     severity: 'success',
   },
+  payment_failed: {
+    event: 'payment_failed',
+    title: 'A payment failed',
+    tone: [CHIME(520, 0, 200), CHIME(400, 220, 320)],
+    priority: 96,
+    motion: 'shake',
+    severity: 'error',
+  },
+  transfer_failed: {
+    event: 'transfer_failed',
+    title: 'A transfer to a person failed',
+    // The worst of these: a caller was told someone was coming.
+    tone: [
+      { frequency: 600, duration: 150, delay: 0, wave: 'triangle' },
+      { frequency: 460, duration: 150, delay: 190, wave: 'triangle' },
+      { frequency: 340, duration: 260, delay: 380, wave: 'triangle' },
+    ],
+    priority: 98,
+    motion: 'shake',
+    severity: 'error',
+  },
+  security_alert: {
+    event: 'security_alert',
+    title: 'Security event',
+    tone: [
+      { frequency: 700, duration: 120, delay: 0, wave: 'triangle' },
+      { frequency: 700, duration: 120, delay: 200, wave: 'triangle' },
+      { frequency: 520, duration: 260, delay: 400, wave: 'triangle' },
+    ],
+    priority: 99,
+    motion: 'shake',
+    severity: 'error',
+  },
   error: {
     event: 'error',
     title: 'Something failed',
@@ -167,6 +206,99 @@ export const NOTIFICATION_SPECS: Record<NotificationEvent, NotificationSpec> = {
     severity: 'error',
   },
 };
+
+/**
+ * Events that stay on screen until somebody acknowledges them (§3.2).
+ *
+ * "Payment failure, transfer failure, security issue may remain until
+ * acknowledged." The generic `error` is deliberately not one of them: most
+ * errors are a failed fetch that resolves on retry, and a product that demands
+ * acknowledgement for every one of those teaches people to dismiss without
+ * reading, which is how the important ones get missed.
+ */
+const MUST_ACKNOWLEDGE = new Set<NotificationEvent>([
+  'payment_failed',
+  'transfer_failed',
+  'security_alert',
+]);
+
+export function requiresAcknowledgement(event: NotificationEvent): boolean {
+  return MUST_ACKNOWLEDGE.has(event);
+}
+
+/**
+ * How long a toast stays (§3.2: "~4-6 seconds").
+ *
+ * `null` means it does not dismiss itself. Previously a high-priority event got
+ * nine seconds and then vanished regardless — long enough to be annoying,
+ * short enough to be missed, and wrong for exactly the events that matter.
+ */
+export const TOAST_LIFETIME_MS = 5000;
+
+export function toastLifetime(event: NotificationEvent): number | null {
+  if (!isNotificationEvent(event)) return TOAST_LIFETIME_MS;
+  if (requiresAcknowledgement(event)) return null;
+  return TOAST_LIFETIME_MS;
+}
+
+/**
+ * The single event ID §3.2 asks for.
+ *
+ * "If the same account is open in multiple browser tabs, use a single event ID
+ * to prevent duplicate toasts." A key built from the event and its subject is
+ * that ID: the same real-world happening produces the same key from any tab or
+ * device, the store rejects the duplicate, and only the writer that actually
+ * created the row shows a toast.
+ *
+ * `subject` must be the thing the event is about — a call id, an invoice
+ * number, a handoff id. Without one the event is only deduplicated within the
+ * same second, which is the best that can be done for something with no
+ * identity of its own, and is still enough to stop two tabs double-toasting.
+ */
+export function dedupeKey(input: {
+  event: NotificationEvent;
+  subject?: string | null;
+  /** Injectable so the fallback is testable. */
+  now?: number;
+}): string {
+  const subject = String(input.subject ?? '').trim();
+  if (subject) return `${input.event}:${subject}`;
+  const second = Math.floor((input.now ?? Date.now()) / 1000);
+  return `${input.event}:t${second}`;
+}
+
+export type InboxRow = {
+  id: string;
+  event: string;
+  title: string;
+  detail?: string | null;
+  severity: string;
+  requiresAck: boolean;
+  readAt?: string | null;
+  acknowledgedAt?: string | null;
+  createdAt: string;
+};
+
+/**
+ * What the bell should show.
+ *
+ * The dot used to be a hardcoded span that was lit whether or not anything had
+ * happened, which makes it furniture rather than information — after a week
+ * nobody looks at it.
+ */
+export function inboxSummary(rows: InboxRow[]) {
+  const list = rows ?? [];
+  const unread = list.filter((row) => !row.readAt);
+  const needsAck = list.filter((row) => row.requiresAck && !row.acknowledgedAt);
+  return {
+    total: list.length,
+    unread: unread.length,
+    needsAcknowledgement: needsAck.length,
+    // Lit only when there is something to see, and loud when something is
+    // waiting on a person rather than merely unread.
+    dot: needsAck.length > 0 ? 'urgent' : unread.length > 0 ? 'unread' : 'none',
+  } as const;
+}
 
 export type SoundPreferences = {
   muted: boolean;

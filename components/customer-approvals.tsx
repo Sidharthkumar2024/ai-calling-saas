@@ -140,6 +140,10 @@ export function CustomerApprovals() {
       if (arrived?.length)
         notify({
           event: 'handoff_requested',
+          // The handoff's own id is §3.2's single event ID: two people with
+          // this screen open see one notification between them, not two.
+          subject: arrived[0],
+          scope: 'workspace',
           detail:
             arrived.length === 1
               ? 'One caller is waiting for a person.'

@@ -98,6 +98,8 @@ export function CustomerBilling({
       );
       notify({
         event: 'payment_success',
+        subject: payload.invoiceNumber ?? undefined,
+        scope: 'workspace',
         detail: `Invoice ${payload.invoiceNumber ?? 'created'}.`,
       });
       await onChanged();
@@ -105,7 +107,15 @@ export function CustomerBilling({
       setError(
         caught instanceof Error ? caught.message : 'Unable to start checkout.',
       );
-      notify({ event: 'error', title: 'Checkout failed' });
+      // §3.2 names payment failure as an event that stays until somebody
+      // acknowledges it — a top-up that silently failed is how a workspace
+      // discovers it has no credits mid-campaign.
+      notify({
+        event: 'payment_failed',
+        title: 'Checkout failed',
+        scope: 'workspace',
+        detail: caught instanceof Error ? caught.message : undefined,
+      });
     } finally {
       setLoading('');
     }

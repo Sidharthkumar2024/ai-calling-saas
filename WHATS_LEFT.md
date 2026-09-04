@@ -117,6 +117,44 @@ work.
 
 ## Landed
 
+**Notification centre (Blueprint §3.2 — the section titled "Fix the Bug You
+Identified").** The bell in the portal shell was a placeholder: a dot that was
+lit whatever was happening, over the hardcoded sentence "Workspace systems are
+healthy", above a button labelled "Open notification center" that navigated to
+the alerts screen. There was no centre, no read state, and nothing stored — an
+event a person missed was gone.
+
+Each of §3.2's six rules, and what it took:
+
+- **Stored, not just shown.** A `notifications` table, because §3.2 wants read
+  state "consistent across tabs/devices" and `localStorage` is neither: a
+  notification read on a laptop would be unread on a phone.
+- **The single event ID.** Every event carries a dedupe key built from what it
+  is *about* — a call id, invoice number, handoff id. Two tabs (or two devices)
+  reporting one real event hit a unique index; the second insert returns no
+  row, so only the reporter that actually created it toasts. The database
+  decides it rather than the tabs trying to agree.
+- **Toast lifetime** is ~5s, inside §3.2's 4–6s. It used to be 5s for most
+  events and 9s for urgent ones — long enough to annoy, short enough to miss.
+- **Critical events stay.** Payment failure, transfer failure and security
+  events do not time out at all and carry an Acknowledge button that records
+  who cleared them. A generic `error` deliberately is *not* one of these:
+  demanding acknowledgement for every failed fetch teaches people to dismiss
+  without reading.
+- **No stale toast on navigation.** Changing section clears the toasts, except
+  the must-acknowledge ones — a failed payment does not stop mattering because
+  somebody switched tab.
+- **Read state** is central: mark one, mark all, and the dot is dark when
+  there is genuinely nothing to see, blue for unread, red when something is
+  waiting on a person.
+
+*Verified against the live database*, since the mechanism is the point: a
+second report of the same event returns nothing and stores one row; the list
+query floats an unacknowledged critical event above newer ones; a
+user-scoped notification is invisible to another member; and one member cannot
+acknowledge another's.
+
+
 **The agent is told who it is talking to.** The caller's phone number never
 reached the system prompt, on any call. So every tool taking a phone number got
 a guess — `agent_tool_calls` holds four invocations of `lookup_customer` with

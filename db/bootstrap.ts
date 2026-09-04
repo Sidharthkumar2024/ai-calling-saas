@@ -1022,6 +1022,41 @@ async function bootstrap() {
       model TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
+    // §3.2 asks for a notification centre, and names it a bug fix: the bell in
+    // the portal shell showed a permanently-lit unread dot over the hardcoded
+    // sentence "Workspace systems are healthy", and its "Open notification
+    // center" button navigated to the alerts screen. There was no centre, no
+    // read state, and nothing stored — so an event a person missed was gone.
+    //
+    // Stored server-side rather than per browser because §3.2 requires read
+    // state "consistent across tabs/devices", which localStorage cannot do.
+    db.prepare(`CREATE TABLE IF NOT EXISTS notifications (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      -- Null means the whole workspace sees it. A user id scopes it to one
+      -- person, so "your transfer was accepted" does not reach everybody.
+      user_id TEXT REFERENCES app_users(id) ON DELETE CASCADE,
+      event TEXT NOT NULL,
+      title TEXT NOT NULL,
+      detail TEXT,
+      severity TEXT DEFAULT 'info' NOT NULL,
+      -- §3.2: payment failure, transfer failure and security issues stay until
+      -- somebody acknowledges them rather than timing out unseen.
+      requires_ack INTEGER DEFAULT 0 NOT NULL,
+      -- The "single event ID" §3.2 asks for. One real-world event has one key,
+      -- so two tabs or two devices reporting it produce one row and one toast.
+      dedupe_key TEXT NOT NULL,
+      read_at TEXT,
+      acknowledged_at TEXT,
+      acknowledged_by TEXT REFERENCES app_users(id) ON DELETE SET NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_dedupe
+      ON notifications (organization_id, dedupe_key)`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_notifications_inbox
+      ON notifications (organization_id, created_at)`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_notifications_unread
+      ON notifications (organization_id, read_at)`),
     // §10's objection library. Objections have always been extracted per call
     // into summaries.objections_json and never read back; this is where they
     // accumulate into something a workspace can see and answer.

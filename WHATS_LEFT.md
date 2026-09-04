@@ -174,6 +174,44 @@ through a relay, or not at all; without it that verdict is "not tested" rather
 than a guess. The pre-call HTTP probe still says it is an HTTP probe. 47
 assertions.
 
+**Track D — money: rate cards, real metering, cost and margin (§13, §26-28),
+first pass.** The admin panel titled "Provider cost and margin" summed columns
+that were structurally always zero, because `recordUsage` wrote
+`units = 1, provider_cost_micros = 0, billed_credits = 0` on every single
+provider call. Metering existed as a table name.
+
+- **Versioned rate cards** (§13), seeded from the document's September 2026
+  figures with a `source` on every row saying exactly that — these are published
+  reference prices, not a negotiated quote and not a live feed. They are
+  versioned by effective date and never edited in place, so a call made last
+  month still prices at last month's rate rather than having its margin
+  rewritten whenever a provider changes its pricing. The same rows are §34's
+  model registry: what you configure per model and what you price per model are
+  the same thing.
+- **Real metering** (§27). Anthropic turns record the provider's own reported
+  input and output token counts; Sarvam speech records characters synthesised.
+  Verified live: 4,223 input tokens priced at $1/M → 4,223 micros → ₹350,509
+  micros at the recorded rate of 83, with the FX rate stored on the row.
+- **Multi-currency** (§26): currency spec with correct minor units, conversion
+  that carries the rate and markup it used, four rounding policies, and
+  `sell_price = cost / (1 - margin)`. A missing FX rate is an error, never a 1:1
+  guess — treating an unknown rate as parity would quietly bill a dollar as a
+  rupee.
+- **Unit economics** (§28): revenue and cost over the same 30 days in the same
+  currency, with gross profit and margin.
+
+The honest part, and the reason the numbers are worth reading: a zero that means
+"free" and a zero that means "we could not price this" are identical in a sum,
+and every zero the old code wrote was the second kind. Usage events now carry an
+`unpriced` flag, the 312 rows written before metering existed were backfilled as
+unpriced, and the panel says: *"312 usage events in this window had no rate
+card, so the cost above is a floor rather than a total and the margin is
+optimistic."* It would have read 100% margin without that line.
+
+Still to come on this track: per-workspace currency and price books end to end
+(the plumbing is in, the checkout and invoices still assume INR), invoice
+numbering and GST, and margin-floor alerts.
+
 **Track C — Universal Object Engine (§7-9), first pass.** A workspace defines
 its own objects and the agent reads real records. Before this there was no
 `products`, `catalog` or `inventory` table anywhere: what made Vaani *look*

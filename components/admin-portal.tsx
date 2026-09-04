@@ -37,6 +37,7 @@ import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { ActivityAreaChart, QueueBars } from '@/components/analytics-charts';
 import { useT } from '@/components/locale-provider';
+import { formatMoney } from '@/lib/currency';
 
 type AdminSession = { name: string; email: string };
 
@@ -61,6 +62,16 @@ type AdminPayload = {
   activitySeries?: Record<string, string | number>[];
   jobStats?: Record<string, string | number>[];
   providerCosts?: Record<string, unknown>[];
+  unitEconomics?: {
+    currency: string;
+    windowDays: number;
+    revenueMinor: number;
+    costMinor: number;
+    grossProfitMinor: number | null;
+    grossMargin: number | null;
+    unpricedEvents: number;
+    complete: boolean;
+  };
   compliance?: Record<string, number>;
   providerReadiness?: Record<string, unknown>[];
 };
@@ -1084,11 +1095,75 @@ function VoiceEngines({ data }: { data: AdminPayload }) {
         )}
       </Panel>
 
+      {data.unitEconomics ? (
+        <Panel>
+          <PanelHeader
+            title="Unit economics"
+            description="Revenue and provider cost over the same 30 days, in the same currency."
+          />
+          <div className="mt-4 grid gap-3 sm:grid-cols-4">
+            {(
+              [
+                [
+                  'Revenue',
+                  money(
+                    data.unitEconomics.revenueMinor,
+                    data.unitEconomics.currency,
+                  ),
+                ],
+                [
+                  'Provider cost',
+                  money(
+                    data.unitEconomics.costMinor,
+                    data.unitEconomics.currency,
+                  ),
+                ],
+                [
+                  'Gross profit',
+                  data.unitEconomics.grossProfitMinor === null
+                    ? 'not measured'
+                    : money(
+                        data.unitEconomics.grossProfitMinor,
+                        data.unitEconomics.currency,
+                      ),
+                ],
+                [
+                  'Gross margin',
+                  // null means no revenue in the window — which is not the
+                  // same fact as a zero margin, so it does not print as 0%.
+                  data.unitEconomics.grossMargin === null
+                    ? 'not measured'
+                    : `${(Number(data.unitEconomics.grossMargin) * 100).toFixed(1)}%`,
+                ],
+              ] as Array<[string, string]>
+            ).map(([label, value]) => (
+              <div
+                key={label}
+                className="rounded-xl border border-hairline bg-surface-muted p-3"
+              >
+                <p className="text-[9px] uppercase tracking-wider text-ink-muted">
+                  {label}
+                </p>
+                <p className="mt-1 text-lg font-semibold">{value}</p>
+              </div>
+            ))}
+          </div>
+          {!data.unitEconomics.complete ? (
+            <p className="mt-3 text-[10px] text-warning-text">
+              {num(data.unitEconomics.unpricedEvents)} usage events in this
+              window had no rate card, so the cost above is a floor rather than
+              a total and the margin is optimistic. Add the missing rate cards
+              to close the gap.
+            </p>
+          ) : null}
+        </Panel>
+      ) : null}
+
       {data.providerCosts?.length ? (
         <Panel>
           <PanelHeader
-            title="Provider cost and margin"
-            description="Recorded usage events by provider."
+            title="Provider cost by category"
+            description="Metered usage, priced from the rate card in force at the time of each call."
           />
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[700px] text-left text-xs">
@@ -1098,8 +1173,9 @@ function VoiceEngines({ data }: { data: AdminPayload }) {
                     'Provider',
                     'Category',
                     'Events',
+                    'Units',
                     'Cost',
-                    'Billed credits',
+                    'Unpriced',
                   ].map((heading) => (
                     <th key={heading} className="px-3 py-3 font-medium">
                       {heading}
@@ -1115,13 +1191,22 @@ function VoiceEngines({ data }: { data: AdminPayload }) {
                       {textValue(row.category)}
                     </td>
                     <td className="px-3 py-3 text-ink-body">
-                      {num(row.events ?? row.event_count)}
+                      {num(row.total)}
                     </td>
                     <td className="px-3 py-3 text-ink-body">
-                      {num(row.provider_cost_micros ?? row.cost_micros)}
+                      {num(row.units)}
                     </td>
                     <td className="px-3 py-3 text-ink-body">
-                      {num(row.billed_credits)}
+                      {money(Math.round(Number(row.cost_micros ?? 0) / 10_000))}
+                    </td>
+                    <td className="px-3 py-3">
+                      {Number(row.unpriced_events ?? 0) > 0 ? (
+                        <span className="text-warning-text">
+                          {num(row.unpriced_events)}
+                        </span>
+                      ) : (
+                        <span className="text-ink-muted">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -2757,12 +2842,8 @@ function ErrorState({ error, retry }: { error: string; retry: () => void }) {
 function num(value: unknown) {
   return Number(value ?? 0).toLocaleString('en-IN');
 }
-function money(value: unknown) {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0,
-  }).format(Number(value ?? 0) / 100);
+function money(value: unknown, currency = 'INR') {
+  return formatMoney(Math.round(Number(value ?? 0)), currency);
 }
 function formatDate(value: unknown) {
   const date = new Date(String(value));

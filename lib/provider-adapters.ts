@@ -4,6 +4,8 @@ import {
   VAANI_AGENT_TOOLS,
   type ToolContext,
 } from '@/lib/agent-tools';
+import { recordMeteredUsage } from '@/lib/metering';
+import type { UsageUnit } from '@/lib/rate-cards';
 import { decryptSecret } from '@/lib/security';
 import { sttProviderOrder, type SttProvider } from '@/lib/stt-router';
 
@@ -237,6 +239,11 @@ export async function synthesizeSpeech(input: {
     'tts',
     latencyMs,
     payload.request_id || null,
+    {
+      unit: 'characters',
+      units: input.text.slice(0, 2500).length,
+      model: 'bulbul:v3',
+    },
   );
   return {
     providerReference: payload.request_id || null,
@@ -464,13 +471,36 @@ export async function reasonWithTools(input: {
       payload.error?.message || `Reasoning failed (${response.status}).`,
     );
   const latencyMs = Date.now() - started;
+  // The provider reports what it charged for; nothing here has to estimate.
+  const usage = (payload.usage ?? {}) as {
+    input_tokens?: number;
+    output_tokens?: number;
+  };
   await recordUsage(
     input.organizationId,
     'provider_anthropic',
     'reasoning',
-    'messages',
+    'input_tokens',
     latencyMs,
     payload.id,
+    {
+      unit: 'input_tokens',
+      units: Number(usage.input_tokens ?? 0),
+      model,
+    },
+  );
+  await recordUsage(
+    input.organizationId,
+    'provider_anthropic',
+    'reasoning',
+    'output_tokens',
+    latencyMs,
+    payload.id,
+    {
+      unit: 'output_tokens',
+      units: Number(usage.output_tokens ?? 0),
+      model,
+    },
   );
   return { ...payload, latencyMs };
 }
@@ -1247,6 +1277,28 @@ function languageName(code: string) {
 
 export class ProviderConfigurationError extends Error {}
 
+/**
+ * Rate cards key on the provider's own name; usage events have always stored a
+ * `provider_<name>` row id. Mapped rather than renamed, so existing rows and
+ * the queries over them keep working.
+ */
+const RATE_PROVIDER: Record<string, string> = {
+  provider_sarvam: 'sarvam',
+  provider_elevenlabs: 'elevenlabs',
+  provider_anthropic: 'anthropic',
+  provider_openai: 'openai',
+  provider_telephony: 'twilio',
+  provider_whatsapp: 'whatsapp',
+};
+
+/**
+ * Records one provider call.
+ *
+ * This wrote `units = 1, provider_cost_micros = 0, billed_credits = 0` on every
+ * call — latency telemetry in a table called metering. Callers that can say
+ * what was actually consumed now pass it; the ones that cannot are recorded as
+ * **unpriced**, which is a different thing from free and is counted separately.
+ */
 async function recordUsage(
   organizationId: string,
   providerId: string,
@@ -1254,20 +1306,35 @@ async function recordUsage(
   operation: string,
   latencyMs: number,
   referenceId: string | null,
+  consumption?: { unit: UsageUnit; units: number; model?: string | null },
 ) {
-  await getRawDb()
-    .prepare(`INSERT INTO provider_usage_events
-    (id, organization_id, provider_id, category, operation, units, provider_cost_micros,
-     billed_credits, latency_ms, status, reference_id)
-    VALUES (?, ?, ?, ?, ?, 1, 0, 0, ?, 'success', ?)`)
-    .bind(
-      `usage_${crypto.randomUUID()}`,
-      organizationId,
-      providerId,
-      category,
-      operation,
-      latencyMs,
-      referenceId,
-    )
-    .run();
+  if (!consumption) {
+    await getRawDb()
+      .prepare(`INSERT INTO provider_usage_events
+      (id, organization_id, provider_id, category, operation, units, provider_cost_micros,
+       billed_credits, latency_ms, status, reference_id, unpriced)
+      VALUES (?, ?, ?, ?, ?, 0, 0, 0, ?, 'success', ?, 1)`)
+      .bind(
+        `usage_${crypto.randomUUID()}`,
+        organizationId,
+        providerId,
+        category,
+        operation,
+        latencyMs,
+        referenceId,
+      )
+      .run();
+    return;
+  }
+  await recordMeteredUsage({
+    organizationId,
+    provider: RATE_PROVIDER[providerId] ?? providerId,
+    model: consumption.model ?? null,
+    category,
+    operation,
+    unit: consumption.unit,
+    units: consumption.units,
+    latencyMs,
+    referenceId,
+  });
 }

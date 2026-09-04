@@ -1,4 +1,5 @@
 import { getRawDb } from './index';
+import { SEED_RATE_CARDS } from '@/lib/rate-cards';
 
 let bootstrapPromise: Promise<void> | null = null;
 
@@ -1180,6 +1181,47 @@ async function bootstrap() {
     db.prepare(
       `CREATE INDEX IF NOT EXISTS idx_entitlements_order ON entitlements (order_id)`,
     ),
+    // §13, §34: versioned provider rate cards, which double as the model
+    // registry. Never edited in place — a call made last month must still price
+    // at last month's rate, or margin history rewrites itself whenever a
+    // provider changes its pricing.
+    db.prepare(`CREATE TABLE IF NOT EXISTS provider_rate_cards (
+      id TEXT PRIMARY KEY NOT NULL,
+      provider TEXT NOT NULL,
+      model TEXT,
+      category TEXT NOT NULL,
+      unit TEXT NOT NULL,
+      price_micros INTEGER NOT NULL,
+      currency TEXT DEFAULT 'INR' NOT NULL,
+      effective_from TEXT NOT NULL,
+      effective_to TEXT,
+      /* Where the figure came from, so a reference is never mistaken for a quote. */
+      source TEXT,
+      notes TEXT,
+      created_by TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_rate_cards_lookup ON provider_rate_cards (provider, unit, effective_from)`,
+    ),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_rate_cards_version ON provider_rate_cards (provider, coalesce(model, ''), unit, effective_from)`,
+    ),
+    // §26: FX. A rate is stored with the day it applied, so a converted amount
+    // can be explained months later rather than silently re-derived at today's
+    // rate.
+    db.prepare(`CREATE TABLE IF NOT EXISTS fx_rates (
+      id TEXT PRIMARY KEY NOT NULL,
+      base_currency TEXT NOT NULL,
+      quote_currency TEXT NOT NULL,
+      rate REAL NOT NULL,
+      effective_from TEXT NOT NULL,
+      source TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_fx_pair ON fx_rates (base_currency, quote_currency, effective_from)`,
+    ),
     // §6: what the audio path actually did, per leg. Recorded from the leg's
     // own socket at the end of a call, so support can answer "why did that
     // call sound bad" with measurements instead of guesses.
@@ -1737,6 +1779,64 @@ async function bootstrap() {
   // The WebRTC capability probe's findings (§6), stored beside the HTTP
   // measurements rather than mixed into them: they answer different questions.
   await ensureColumn(db, 'device_test_runs', 'webrtc_json', 'TEXT');
+  // §26: the platform's base currency and each workspace's own.
+  await ensureColumn(db, 'organizations', 'currency', "TEXT DEFAULT 'INR'");
+  await ensureColumn(db, 'organization_settings', 'fx_markup_percent', 'REAL DEFAULT 0');
+  await ensureColumn(db, 'organization_settings', 'price_rounding', "TEXT DEFAULT 'none'");
+  // §27-28: what a usage event actually consumed and cost. `units` existed and
+  // was hardcoded to 1; the rest is what makes a margin figure possible.
+  await ensureColumn(db, 'provider_usage_events', 'model', 'TEXT');
+  await ensureColumn(db, 'provider_usage_events', 'unit', 'TEXT');
+  await ensureColumn(db, 'provider_usage_events', 'rate_card_id', 'TEXT');
+  await ensureColumn(db, 'provider_usage_events', 'cost_currency', 'TEXT');
+  await ensureColumn(db, 'provider_usage_events', 'base_cost_micros', 'INTEGER');
+  await ensureColumn(db, 'provider_usage_events', 'fx_rate', 'REAL');
+  // Distinguishes "this was free" from "we could not price it" — the old
+  // metering could only produce the second, and reported it as the first.
+  await ensureColumn(db, 'provider_usage_events', 'unpriced', 'INTEGER DEFAULT 0');
+  // Rows written before metering existed have no `unit` — the old code
+  // hardcoded units = 1 and cost = 0 for every provider call. They are unpriced
+  // by definition, and leaving them at the column default of 0 would report a
+  // 99.99% gross margin from a cost base that is almost entirely missing.
+  await db
+    .prepare(
+      `UPDATE provider_usage_events SET unpriced = 1
+        WHERE unit IS NULL AND coalesce(provider_cost_micros, 0) = 0`,
+    )
+    .run();
+  await ensureColumn(db, 'call_records', 'cost_micros', 'INTEGER');
+  // §26: an invoice records the rate it used, or its total cannot be audited.
+  await ensureColumn(db, 'invoices', 'fx_rate', 'REAL');
+  await ensureColumn(db, 'invoices', 'base_currency', 'TEXT');
+  await ensureColumn(db, 'invoices', 'base_total', 'INTEGER');
+
+  // §13: seed the reference rate cards once, so the cost engine has somewhere
+  // to start. They are versioned rows an operator edits, not constants —
+  // INSERT OR IGNORE means a hand-corrected price is never overwritten by a
+  // later boot.
+  for (const card of SEED_RATE_CARDS) {
+    await db
+      .prepare(
+        `INSERT OR IGNORE INTO provider_rate_cards
+          (id, provider, model, category, unit, price_micros, currency,
+           effective_from, source)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        `rate_${card.provider}_${card.model ?? 'any'}_${card.unit}`
+          .toLowerCase()
+          .replace(/[^a-z0-9_]/g, '_'),
+        card.provider,
+        card.model,
+        card.category,
+        card.unit,
+        card.priceMicros,
+        card.currency,
+        card.effectiveFrom,
+        card.source ?? null,
+      )
+      .run();
+  }
   // §15: nothing on the platform is 'platform_provided' any more — the rented
   // number path is gone, so a row still claiming it would describe a number
   // nobody owns.

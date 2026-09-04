@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { requireAdminCapability } from '@/lib/admin-rbac';
+import { grossMargin } from '@/lib/currency';
+import { BASE_CURRENCY } from '@/lib/metering';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +27,8 @@ export async function GET(request: Request) {
     activitySeries,
     jobStats,
     providerCosts,
+    revenueRow,
+    costRow,
     compliance,
   ] = await Promise.all([
     db
@@ -126,12 +130,37 @@ export async function GET(request: Request) {
         `SELECT status, count(*) AS value FROM background_jobs GROUP BY status ORDER BY value DESC`,
       )
       .all(),
+    // §28: cost by provider, in the base currency, with the two things a
+    // margin figure needs to be honest — how many events were metered, and how
+    // many could not be priced at all.
     db
-      .prepare(`SELECT provider_id, sum(provider_cost_micros) AS cost_micros,
+      .prepare(`SELECT provider_id, category,
+        sum(coalesce(base_cost_micros, 0)) AS cost_micros,
         sum(billed_credits) AS billed_credits, round(avg(latency_ms),0) AS latency_ms,
         sum(CASE WHEN status = 'success' THEN 1 ELSE 0 END) AS successful,
-        count(*) AS total FROM provider_usage_events GROUP BY provider_id`)
+        sum(CASE WHEN unpriced = 1 THEN 1 ELSE 0 END) AS unpriced_events,
+        sum(units) AS units,
+        count(*) AS total
+        FROM provider_usage_events GROUP BY provider_id, category
+        ORDER BY cost_micros DESC`)
       .all(),
+    // Revenue in the same window and the same currency, so the two can be
+    // divided. All-time revenue against this month's cost would be a margin
+    // figure that means nothing.
+    db
+      .prepare(`SELECT
+        coalesce(sum(CASE WHEN paid_at >= date('now','-30 days') THEN total ELSE 0 END), 0) AS revenue_30d,
+        coalesce(sum(total), 0) AS revenue_all
+        FROM invoices WHERE status = 'paid'`)
+      .first(),
+    db
+      .prepare(`SELECT
+        coalesce(sum(CASE WHEN created_at >= date('now','-30 days')
+          THEN coalesce(base_cost_micros, 0) ELSE 0 END), 0) AS cost_30d_micros,
+        sum(CASE WHEN unpriced = 1 AND created_at >= date('now','-30 days') THEN 1 ELSE 0 END) AS unpriced_30d,
+        count(*) AS events_all
+        FROM provider_usage_events`)
+      .first(),
     db
       .prepare(`SELECT
         (SELECT count(*) FROM consent_records WHERE status = 'granted') AS active_consents,
@@ -253,6 +282,36 @@ export async function GET(request: Request) {
     0.95,
   );
 
+  // --- Unit economics (§28) ------------------------------------------------
+  // Revenue and cost over the same 30 days, in the same currency, so the
+  // division means something. `complete` is the honest part: while any event in
+  // the window could not be priced, the cost is a floor rather than a total,
+  // and a margin computed from a floor would flatter itself.
+  const revenue30d = Number(
+    (revenueRow as { revenue_30d?: number } | null)?.revenue_30d ?? 0,
+  );
+  const cost30dMicros = Number(
+    (costRow as { cost_30d_micros?: number } | null)?.cost_30d_micros ?? 0,
+  );
+  const unpriced30d = Number(
+    (costRow as { unpriced_30d?: number } | null)?.unpriced_30d ?? 0,
+  );
+  // Costs are stored in micros of the base unit; revenue in minor units.
+  const cost30dMinor = Math.round(cost30dMicros / 10_000);
+  const margin = grossMargin(revenue30d, cost30dMinor);
+  const unitEconomics = {
+    currency: BASE_CURRENCY,
+    windowDays: 30,
+    revenueMinor: revenue30d,
+    costMinor: cost30dMinor,
+    grossProfitMinor: revenue30d ? revenue30d - cost30dMinor : null,
+    // null rather than 0 when there is no revenue: "no margin yet" and "zero
+    // margin" are different facts.
+    grossMargin: margin,
+    unpricedEvents: unpriced30d,
+    complete: unpriced30d === 0,
+  };
+
   return NextResponse.json({
     admin: { name: auth.session.name, email: auth.session.email },
     providerHealth,
@@ -269,6 +328,7 @@ export async function GET(request: Request) {
     activitySeries: activitySeries.results,
     jobStats: jobStats.results,
     providerCosts: providerCosts.results,
+    unitEconomics,
     compliance,
     system: {
       // 'api' is the one thing we can assert simply: this request was served.

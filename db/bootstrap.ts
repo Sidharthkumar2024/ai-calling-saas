@@ -1022,6 +1022,23 @@ async function bootstrap() {
       model TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
+    // §3.5: "Save named filter/view combinations by user/team." Per-person by
+    // default because a view is how somebody works, not a workspace setting;
+    // `shared` promotes one to the whole team.
+    db.prepare(`CREATE TABLE IF NOT EXISTS saved_lead_views (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      view TEXT DEFAULT 'kanban' NOT NULL,
+      filters_json TEXT DEFAULT '{}' NOT NULL,
+      shared INTEGER DEFAULT 0 NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_saved_views_name
+      ON saved_lead_views (organization_id, user_id, name)`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_saved_views_org
+      ON saved_lead_views (organization_id, shared)`),
     // §3.2 asks for a notification centre, and names it a bug fix: the bell in
     // the portal shell showed a permanently-lit unread dot over the hardcoded
     // sentence "Workspace systems are healthy", and its "Open notification

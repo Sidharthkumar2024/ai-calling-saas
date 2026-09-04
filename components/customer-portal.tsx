@@ -43,6 +43,7 @@ import {
 import {
   CustomerCrm,
   type LeadTimelineEvent,
+  type SavedLeadView,
   type CrmActivity,
   type CrmLead,
 } from '@/components/customer-crm';
@@ -161,6 +162,7 @@ export type CustomerData = {
     pipeline: CrmLead[];
     activities: CrmActivity[];
     timeline?: Record<string, LeadTimelineEvent[]>;
+    savedViews?: SavedLeadView[];
   };
   numbers: CustomerNumbersData;
   integrations: IntegrationsData;
@@ -417,7 +419,7 @@ const navPermissions: Record<string, string> = {
 
 const emptyData: CustomerData = {
   overview: {},
-  crm: { pipeline: [], activities: [], timeline: {} },
+  crm: { pipeline: [], activities: [], timeline: {}, savedViews: [] },
   numbers: { numbers: [] },
   integrations: { integrations: [] },
   apiKeys: { apiKeys: [] },
@@ -605,6 +607,7 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
               leads={data.crm.pipeline}
               activities={data.crm.activities}
               timeline={data.crm.timeline}
+              savedViews={data.crm.savedViews}
               onMove={moveLead}
               onChanged={load}
               onStartFollowUp={() => setActive('campaigns')}

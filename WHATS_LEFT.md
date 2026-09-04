@@ -117,6 +117,47 @@ work.
 
 ## Landed
 
+**CRM views, filters, saved views, bulk actions and deduplication (Blueprint
+§3.5).** The CRM had one view — a Kanban — a search box and a source dropdown.
+
+- **List/Table view with a one-click switch.** A board is the wrong shape for
+  two hundred leads: it hides everything below the fold of each column and
+  cannot be sorted or compared.
+- **Filters** across stage, owner, campaign, status, intent, score range and
+  capture date, combining as AND, with options built from the data. The search
+  this replaces could not find a lead by `9812345678` when the number was
+  stored as `+91 98123 45678`; digits in the query now match the number however
+  either side is punctuated.
+- **Saved views**, per person, promotable to the team.
+- **Bulk actions**: assign owner, move stage, export CSV, archive. Archive
+  rather than delete — a bulk delete behind one click on a multi-select is not
+  something to offer. The CSV neutralises values beginning `=`, `+`, `-` or `@`
+  so opening an export does not execute a formula.
+- **Deduplication and merge**, matched on phone (by its last ten digits, so
+  five ways of writing one number are one number) or email.
+
+Merging destroys one of two leads, so the planner reports what it cannot
+decide instead of choosing. A field the survivor lacks is filled from the
+duplicate; a field they genuinely disagree about is listed and left alone,
+because a merge that silently picks one of two email addresses is how a
+business loses the one it was actually reaching somebody on. The score is the
+best in the group, since a score is evidence accumulated from calls. History —
+activities, events, calls — moves to the survivor, and the merged lead is
+marked `merged`, never deleted.
+
+Two decisions worth naming. Duplicate groups are **not** chained transitively:
+a lead sharing a phone with one and an email with another is, transitively, all
+three people, and chaining is exactly how a shared family or office address
+merges strangers. And the pipeline query now excludes `merged` and `archived`
+leads — without that, both actions would do nothing a person could see, and the
+duplicate they had just merged would still be sitting there.
+
+*Found while verifying:* the planner reported `phone` as a conflict when the
+two leads held the same number written differently — contradicting the
+normalisation the duplicate detection is built on, and burying the real
+conflicts in noise. Comparison is now field-appropriate.
+
+
 **Notification centre (Blueprint §3.2 — the section titled "Fix the Bug You
 Identified").** The bell in the portal shell was a placeholder: a dot that was
 lit whatever was happening, over the hardcoded sentence "Workspace systems are

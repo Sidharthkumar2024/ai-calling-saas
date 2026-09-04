@@ -3,6 +3,17 @@
 
 import { useMemo, useState } from 'react';
 import {
+  EMPTY_FILTERS,
+  applyFilters,
+  filterOptions,
+  findDuplicates,
+  planMerge,
+  toCsv,
+  type LeadFilters,
+  type LeadRecord,
+  type LeadView,
+} from '@/lib/lead-views';
+import {
   ArrowRight,
   Bot,
   CalendarClock,
@@ -70,6 +81,7 @@ export function CustomerCrm({
   leads,
   activities,
   timeline,
+  savedViews,
   onMove,
   onChanged,
   onStartFollowUp,
@@ -78,11 +90,22 @@ export function CustomerCrm({
   activities: CrmActivity[];
   /** Score history per lead id, newest first. */
   timeline?: Record<string, LeadTimelineEvent[]>;
+  /** §3.5 saved views: this person's own, plus anything the team shared. */
+  savedViews?: SavedLeadView[];
   onMove: (lead: CrmLead, stage: string) => Promise<void>;
   onChanged: () => Promise<void>;
   onStartFollowUp: () => void;
 }) {
   const [view, setView] = useState<'pipeline' | 'activities'>('pipeline');
+  // §3.5: Kanban plus a List/Table view with a one-click switch. The CRM had
+  // only the board, which is the wrong shape for scanning two hundred leads or
+  // for comparing scores.
+  const [layout, setLayout] = useState<LeadView>('kanban');
+  const [filters, setFilters] = useState<LeadFilters>(EMPTY_FILTERS);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [showDuplicates, setShowDuplicates] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [viewName, setViewName] = useState('');
   const [query, setQuery] = useState('');
   const [moving, setMoving] = useState('');
   const [draggedLeadId, setDraggedLeadId] = useState('');
@@ -94,25 +117,61 @@ export function CustomerCrm({
     'name,phone,email,product\nAditi Mehra,+919876543210,aditi@example.com,Product demo',
   );
   const [importing, setImporting] = useState(false);
-  const filtered = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    const sourceRows =
-      sourceFilter === 'all'
-        ? leads
-        : leads.filter((lead) => lead.source_type === sourceFilter);
-    if (!normalized) return sourceRows;
-    return sourceRows.filter((lead) =>
-      [
-        lead.name,
-        lead.phone,
-        lead.email,
-        lead.source_name,
-        lead.product_interest,
-      ]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(normalized)),
-    );
-  }, [leads, query, sourceFilter]);
+  // One filter implementation, shared with the tests. The hand-rolled search
+  // this replaces could not find a lead by "9812345678" when the number was
+  // stored as "+91 98123 45678".
+  const active = useMemo(
+    () => ({ ...filters, query, sourceType: sourceFilter }),
+    [filters, query, sourceFilter],
+  );
+  const filtered = useMemo(
+    () => applyFilters(leads as LeadRecord[], active),
+    [leads, active],
+  );
+  const options = useMemo(() => filterOptions(leads as LeadRecord[]), [leads]);
+  // Duplicates are computed over every lead, not the filtered set: a filter
+  // that hides one half of a pair would hide the duplicate.
+  const duplicates = useMemo(
+    () => findDuplicates(leads as LeadRecord[]),
+    [leads],
+  );
+  const selectedLeads = useMemo(
+    () => filtered.filter((lead) => selected.has(lead.id)),
+    [filtered, selected],
+  );
+
+  async function bulk(body: Record<string, unknown>) {
+    setBulkBusy(true);
+    try {
+      const response = await fetch('/api/app/crm', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) {
+        const payload = (await response.json()) as { error?: string };
+        setMoveError(payload.error ?? 'That action did not complete.');
+        return;
+      }
+      setSelected(new Set());
+      await onChanged();
+    } catch {
+      setMoveError('That action did not complete.');
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  function exportSelected() {
+    const rows = selectedLeads.length ? selectedLeads : filtered;
+    const blob = new Blob([toCsv(rows)], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `leads-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
   const pipelineValue = leads.reduce(
     (sum, lead) => sum + Number(lead.estimated_value || 0),
     0,
@@ -308,6 +367,252 @@ export function CustomerCrm({
         </label>
       </div>
 
+      {/* §3.5: filters across the dimensions a salesperson actually narrows by,
+          a one-click Kanban/List switch, and named views they can come back to. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex rounded-lg border border-hairline bg-surface-muted p-0.5">
+          {(['kanban', 'list'] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              onClick={() => setLayout(option)}
+              className={`rounded-md px-2.5 py-1 text-[10px] capitalize ${
+                layout === option
+                  ? 'bg-surface text-ink shadow-sm'
+                  : 'text-ink-muted hover:text-ink'
+              }`}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+        {(
+          [
+            ['stage', 'Stage', options.stages],
+            ['owner', 'Owner', options.owners],
+            ['campaign', 'Campaign', options.campaigns],
+            ['status', 'Status', options.statuses],
+            ['intent', 'Intent', options.intents],
+          ] as const
+        ).map(([field, label, values]) => (
+          <span key={field}>
+            <select
+              aria-label={`Filter by ${label}`}
+              value={(filters[field] as string) ?? 'all'}
+              onChange={(event) =>
+                setFilters({ ...filters, [field]: event.target.value })
+              }
+              className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[10px] text-ink"
+            >
+              <option value="all">{`${label} · All`}</option>
+              {values.map((value) => (
+                <option key={value} value={value}>
+                  {value.replaceAll('_', ' ')}
+                </option>
+              ))}
+            </select>
+          </span>
+        ))}
+        <label className="flex items-center gap-1 text-[10px] text-ink-muted">
+          Score
+          <input
+            type="number"
+            min={0}
+            max={100}
+            aria-label="Minimum score"
+            value={filters.minScore ?? ''}
+            onChange={(event) =>
+              setFilters({
+                ...filters,
+                // Empty means "not set", which must not behave like zero.
+                minScore:
+                  event.target.value === '' ? null : Number(event.target.value),
+              })
+            }
+            className="h-8 w-14 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+          />
+        </label>
+        <label className="flex items-center gap-1 text-[10px] text-ink-muted">
+          From
+          <input
+            type="date"
+            aria-label="Captured from"
+            value={filters.capturedFrom ?? ''}
+            onChange={(event) =>
+              setFilters({
+                ...filters,
+                capturedFrom: event.target.value || null,
+              })
+            }
+            className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+          />
+        </label>
+        <button
+          type="button"
+          onClick={() => {
+            setFilters(EMPTY_FILTERS);
+            setQuery('');
+            setSourceFilter('all');
+          }}
+          className="text-[10px] text-ink-muted underline-offset-2 hover:underline"
+        >
+          Clear
+        </button>
+        <span className="text-[10px] text-ink-muted">
+          {filtered.length} of {leads.length}
+        </span>
+        {duplicates.length ? (
+          <button
+            type="button"
+            onClick={() => setShowDuplicates(!showDuplicates)}
+            className="ml-auto rounded-lg border border-amber-400/40 bg-amber-50 px-2.5 py-1 text-[10px] text-warning-text"
+          >
+            {duplicates.length} possible duplicate
+            {duplicates.length === 1 ? '' : 's'}
+          </button>
+        ) : null}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-1 text-[10px] text-ink-muted">
+          <span className="sr-only">Saved view</span>
+          <select
+            aria-label="Open a saved view"
+            value=""
+            onChange={(event) => {
+              const found = (savedViews ?? []).find(
+                (item) => item.id === event.target.value,
+              );
+              if (!found) return;
+              setFilters(found.filters as LeadFilters);
+              setLayout(found.view === 'list' ? 'list' : 'kanban');
+            }}
+            className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[10px] text-ink"
+          >
+            <option value="">Saved views…</option>
+            {(savedViews ?? []).map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+                {item.shared && !item.mine ? ' (team)' : ''}
+              </option>
+            ))}
+          </select>
+        </label>
+        <input
+          value={viewName}
+          onChange={(event) => setViewName(event.target.value)}
+          placeholder="Name this view"
+          aria-label="Name this view"
+          className="h-8 w-40 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+        />
+        <button
+          type="button"
+          disabled={!viewName.trim() || bulkBusy}
+          onClick={() =>
+            void bulk({
+              action: 'save_view',
+              name: viewName,
+              view: layout,
+              filters: { ...filters, query, sourceType: sourceFilter },
+            }).then(() => setViewName(''))
+          }
+          className="rounded-lg border border-hairline bg-surface-strong px-2.5 py-1 text-[10px] text-ink-body disabled:opacity-50"
+        >
+          Save view
+        </button>
+      </div>
+
+      {/* §3.5 bulk actions. Archive rather than delete: a bulk delete behind
+          one click on a multi-select is not something to offer. */}
+      {selected.size ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2">
+          <span className="text-[10px] font-medium">
+            {selected.size} selected
+          </span>
+          <select
+            aria-label="Assign an owner to the selected leads"
+            value=""
+            onChange={(event) =>
+              event.target.value &&
+              void bulk({
+                action: 'assign_owner',
+                leadIds: [...selected],
+                owner: event.target.value,
+              })
+            }
+            className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+          >
+            <option value="">Assign to…</option>
+            {options.owners.map((owner) => (
+              <option key={owner} value={owner}>
+                {owner}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Move the selected leads to a stage"
+            value=""
+            onChange={(event) =>
+              event.target.value &&
+              void bulk({
+                action: 'move_stage',
+                leadIds: [...selected],
+                stage: event.target.value,
+              })
+            }
+            className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+          >
+            <option value="">Move to…</option>
+            {stages.map((stage) => (
+              <option key={stage.id} value={stage.id}>
+                {stage.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={exportSelected}
+            className="rounded-lg border border-hairline bg-surface px-2.5 py-1 text-[10px] text-ink-body"
+          >
+            Export CSV
+          </button>
+          <button
+            type="button"
+            disabled={bulkBusy}
+            onClick={() =>
+              void bulk({ action: 'archive', leadIds: [...selected] })
+            }
+            className="rounded-lg border border-hairline bg-surface px-2.5 py-1 text-[10px] text-danger-text disabled:opacity-50"
+          >
+            Archive
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelected(new Set())}
+            className="text-[10px] text-ink-muted underline-offset-2 hover:underline"
+          >
+            Clear selection
+          </button>
+        </div>
+      ) : null}
+
+      {showDuplicates && duplicates.length ? (
+        <DuplicatePanel
+          groups={duplicates}
+          busy={bulkBusy}
+          onMerge={(primary, group) => {
+            const plan = planMerge(primary, group);
+            return bulk({
+              action: 'merge',
+              primaryId: plan.primaryId,
+              leadIds: [plan.primaryId, ...plan.mergedIds],
+              fill: plan.fill,
+              score: plan.score,
+            });
+          }}
+        />
+      ) : null}
+
       {moveError ? (
         <p
           role="alert"
@@ -368,7 +673,31 @@ export function CustomerCrm({
         </dialog>
       ) : null}
 
-      {view === 'pipeline' ? (
+      {view === 'pipeline' && layout === 'list' ? (
+        <LeadTable
+          leads={filtered}
+          selected={selected}
+          onToggle={(id) =>
+            setSelected((current) => {
+              const next = new Set(current);
+              if (next.has(id)) next.delete(id);
+              else next.add(id);
+              return next;
+            })
+          }
+          onToggleAll={() =>
+            setSelected((current) =>
+              current.size === filtered.length
+                ? new Set()
+                : new Set(filtered.map((lead) => lead.id)),
+            )
+          }
+          onMove={(lead, stage) => move(lead as CrmLead, stage)}
+          moving={moving}
+        />
+      ) : null}
+
+      {view === 'pipeline' && layout === 'kanban' ? (
         <div className="overflow-x-auto pb-2">
           <div className="grid min-w-[1260px] grid-cols-5 gap-3">
             {stages.map((stage, stageIndex) => {
@@ -706,6 +1035,209 @@ function ScoreChange({ event }: { event: LeadTimelineEvent }) {
           ))}
         </ul>
       ) : null}
+    </div>
+  );
+}
+
+export type SavedLeadView = {
+  id: string;
+  name: string;
+  view: string;
+  filters: Record<string, unknown>;
+  shared: boolean;
+  mine: boolean;
+};
+
+/**
+ * Possible duplicates, and the merge (§3.5).
+ *
+ * Shows what the merge will do before it does it. A merge destroys one of two
+ * leads, so a plan that silently resolved a disagreement — two different email
+ * addresses, say — would be how a business loses the address it was actually
+ * reaching somebody on. Conflicts are listed and block nothing except
+ * themselves: the merge still runs, and simply does not touch a field the two
+ * leads disagree about.
+ */
+function DuplicatePanel({
+  groups,
+  busy,
+  onMerge,
+}: {
+  groups: Array<{ on: 'phone' | 'email'; key: string; leads: LeadRecord[] }>;
+  busy: boolean;
+  onMerge: (primary: LeadRecord, group: LeadRecord[]) => Promise<void>;
+}) {
+  return (
+    <section className="portal-panel p-4">
+      <h2 className="text-sm font-semibold">Possible duplicates</h2>
+      <p className="mt-1 text-[10px] text-ink-muted">
+        Matched on phone or email. Choose which lead survives — its history
+        keeps everything from the others, and the highest score in the group is
+        kept.
+      </p>
+      <div className="mt-3 space-y-2">
+        {groups.map((group) => (
+          <div
+            key={`${group.on}-${group.key}`}
+            className="rounded-xl border border-hairline bg-surface-muted p-3"
+          >
+            <p className="text-[10px] text-ink-muted">
+              Same {group.on}: <span className="font-mono">{group.key}</span>
+            </p>
+            <div className="mt-2 space-y-1.5">
+              {group.leads.map((candidate) => {
+                const plan = planMerge(candidate, group.leads);
+                return (
+                  <div
+                    key={candidate.id}
+                    className="flex flex-wrap items-center gap-2 rounded-lg border border-hairline bg-surface px-2.5 py-2 text-[10px]"
+                  >
+                    <span className="font-medium">{candidate.name}</span>
+                    <span className="text-ink-muted">{candidate.phone}</span>
+                    {candidate.email ? (
+                      <span className="text-ink-muted">{candidate.email}</span>
+                    ) : null}
+                    <span className="text-ink-muted">
+                      score {candidate.score}
+                    </span>
+                    <span className="text-ink-muted">
+                      {candidate.captured_at.slice(0, 10)}
+                    </span>
+                    {plan.conflicts.length ? (
+                      <span
+                        className="text-[9px] text-warning-text"
+                        title={plan.conflicts
+                          .map((c) => `${c.field}: ${c.values.join(' vs ')}`)
+                          .join('; ')}
+                      >
+                        {plan.conflicts.length} field
+                        {plan.conflicts.length === 1 ? '' : 's'} disagree — left
+                        as they are
+                      </span>
+                    ) : null}
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void onMerge(candidate, group.leads)}
+                      className="ml-auto rounded-lg border border-hairline bg-surface-strong px-2 py-0.5 text-[9px] text-ink-body disabled:opacity-50"
+                    >
+                      Keep this one
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The List/Table view §3.5 asks for.
+ *
+ * A board is the wrong shape for two hundred leads: it hides everything below
+ * the fold of each column, and it cannot be sorted or compared. This is the
+ * same data as rows, with the selection checkboxes the bulk actions need.
+ */
+function LeadTable({
+  leads,
+  selected,
+  onToggle,
+  onToggleAll,
+  onMove,
+  moving,
+}: {
+  leads: LeadRecord[];
+  selected: Set<string>;
+  onToggle: (id: string) => void;
+  onToggleAll: () => void;
+  onMove: (lead: LeadRecord, stage: string) => Promise<void>;
+  moving: string;
+}) {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-hairline">
+      <table className="w-full min-w-[900px] text-[11px]">
+        <thead className="bg-surface-muted text-left text-[9px] uppercase tracking-wide text-ink-muted">
+          <tr>
+            <th className="px-3 py-2">
+              <input
+                type="checkbox"
+                aria-label="Select every lead in view"
+                checked={leads.length > 0 && selected.size === leads.length}
+                onChange={onToggleAll}
+              />
+            </th>
+            <th className="px-3 py-2">Lead</th>
+            <th className="px-3 py-2">Phone</th>
+            <th className="px-3 py-2">Score</th>
+            <th className="px-3 py-2">Stage</th>
+            <th className="px-3 py-2">Owner</th>
+            <th className="px-3 py-2">Source</th>
+            <th className="px-3 py-2">Next action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {leads.length === 0 ? (
+            <tr>
+              <td colSpan={8} className="px-3 py-6 text-center text-ink-muted">
+                No leads match these filters.
+              </td>
+            </tr>
+          ) : null}
+          {leads.map((lead) => (
+            <tr key={lead.id} className="border-t border-hairline">
+              <td className="px-3 py-2">
+                <input
+                  type="checkbox"
+                  aria-label={`Select ${lead.name}`}
+                  checked={selected.has(lead.id)}
+                  onChange={() => onToggle(lead.id)}
+                />
+              </td>
+              <td className="px-3 py-2">
+                <span className="font-medium">{lead.name}</span>
+                {lead.email ? (
+                  <span className="block text-[9px] text-ink-muted">
+                    {lead.email}
+                  </span>
+                ) : null}
+              </td>
+              <td className="px-3 py-2 font-mono text-[10px]">{lead.phone}</td>
+              <td className="px-3 py-2">
+                <span
+                  className={
+                    lead.score >= 75 ? 'text-warning-text' : 'text-ink-body'
+                  }
+                >
+                  {lead.score}
+                </span>
+              </td>
+              <td className="px-3 py-2">
+                <select
+                  aria-label={`Move ${lead.name} to another stage`}
+                  value={normalizeStage(lead.stage)}
+                  disabled={moving === lead.id}
+                  onChange={(event) => void onMove(lead, event.target.value)}
+                  className="h-7 rounded-lg border border-hairline bg-surface px-1.5 text-[10px]"
+                >
+                  {stages.map((stage) => (
+                    <option key={stage.id} value={stage.id}>
+                      {stage.label}
+                    </option>
+                  ))}
+                </select>
+              </td>
+              <td className="px-3 py-2 text-ink-body">{lead.owner}</td>
+              <td className="px-3 py-2 text-ink-muted">{lead.source_name}</td>
+              <td className="max-w-[220px] truncate px-3 py-2 text-ink-muted">
+                {lead.next_action}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

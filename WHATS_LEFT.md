@@ -117,6 +117,34 @@ work.
 
 ## Landed
 
+**The agent is told who it is talking to.** The caller's phone number never
+reached the system prompt, on any call. So every tool taking a phone number got
+a guess — `agent_tool_calls` holds four invocations of `lookup_customer` with
+the literal string `"incoming call"` as the phone. The model could not have
+done better; nothing had told it. The prompt now carries the number (inbound:
+`from_number`, outbound: `to_number`) with an instruction not to ask for it.
+
+*The first wording was too weak* — it said "pass this when a tool needs it" and
+the agent still asked the caller for their number. Rewritten to say the number
+is already known and must not be requested.
+
+**An admin can create a plan.** `plan_create` has existed in the API —
+capability-mapped, duplicate-checked and audited — and the admin screen only
+ever sent `plan_update`, so plans could be edited and never created. Plans are
+seeded only outside production, so a fresh production deploy had an empty
+`plans` table and no way to fill it: signup works (§3 removed that dependency),
+but **no workspace could ever complete onboarding and go live**, because going
+live requires a paid plan and there was no plan to buy. The plans section now
+has a create form, and says so explicitly when no plans exist.
+
+*Verified in one live call through the carrier simulator,* which proved three
+things at once: the agent called `lookup_customer` with `+919812345678` — the
+real `from_number` — rather than a guess; `tools_json` filtering works
+end-to-end, since the tool only became available once it was added to the
+agent's list; and the negative result was classified `answered_no` rather than
+counted as a failure.
+
+
 **Readers for data the product recorded and never showed.** A sweep for tables
 that real code writes and no real code reads found six. Two were false
 positives — `invoice_sequences` is read through its own UPSERT's `RETURNING`,

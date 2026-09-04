@@ -77,7 +77,8 @@ async function runTurn(body: TurnRequest, callId: string) {
   const call = await db
     .prepare(`SELECT c.id, c.organization_id, c.agent_id, c.status,
         a.name AS agent_name, a.use_case, a.primary_language, a.system_prompt,
-        a.max_tokens, a.welcome_message, a.tools_json, o.name AS business_name
+        a.max_tokens, a.welcome_message, a.tools_json, o.name AS business_name,
+        c.direction, c.from_number, c.to_number
       FROM call_records c
       LEFT JOIN voice_agents a ON a.id = c.agent_id
       INNER JOIN organizations o ON o.id = c.organization_id
@@ -96,6 +97,9 @@ async function runTurn(body: TurnRequest, callId: string) {
       welcome_message: string | null;
       tools_json: string | null;
       business_name: string;
+      direction: string;
+      from_number: string;
+      to_number: string;
     }>();
   if (!call)
     return NextResponse.json({ error: 'Call not found.' }, { status: 404 });
@@ -226,6 +230,11 @@ async function runTurn(body: TurnRequest, callId: string) {
     messages: ordered,
     // The picker's selection now reaches the model instead of being ignored.
     toolSelection: call.tools_json,
+    // On an inbound call the caller is `from_number`; on an outbound one it is
+    // whoever we dialled. Neither ever reached the prompt, so the model had to
+    // guess a phone number for every tool that takes one.
+    callerNumber:
+      call.direction === 'inbound' ? call.from_number : call.to_number,
     toolContext: {
       organizationId,
       agentId: call.agent_id,

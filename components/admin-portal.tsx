@@ -1565,6 +1565,27 @@ function PlansBilling({
           </div>
         </Panel>
       ) : null}
+      {/*
+        Creating a plan. The API has had `plan_create` — capability-mapped and
+        audited — and this screen only ever sent `plan_update`, so plans could
+        be edited and never created. Plans are seeded only outside production
+        (`db/bootstrap.ts`, behind NODE_ENV), which meant a fresh production
+        deploy had an empty `plans` table and no way to fill it: signup works,
+        but no workspace could complete onboarding and go live, because going
+        live requires a paid plan and there was no plan to buy.
+      */}
+      {(data.plans ?? []).length === 0 ? (
+        <Panel>
+          <PanelHeader
+            title="No plans exist yet"
+            description="A workspace cannot complete onboarding or go live until at least one plan exists"
+          />
+          <p className="mt-3 text-[11px] text-ink-body">
+            Plans are not seeded in production. Create the first one below.
+          </p>
+        </Panel>
+      ) : null}
+      <NewPlan onChanged={onChanged} />
       <div className="grid gap-4 xl:grid-cols-3">
         {(data.plans ?? []).map((plan) => (
           <PlanCard
@@ -1624,6 +1645,138 @@ function PlansBilling({
         />
       </div>
     </div>
+  );
+}
+
+function NewPlan({ onChanged }: { onChanged: () => Promise<void> }) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [draft, setDraft] = useState({
+    code: '',
+    name: '',
+    monthlyPrice: 999900,
+    includedCredits: 5000,
+    maxAgents: 3,
+    maxNumbers: 2,
+    concurrency: 5,
+    status: 'active',
+  });
+
+  async function create() {
+    setBusy(true);
+    setError('');
+    try {
+      const response = await fetch('/api/admin/platform', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'plan_create', ...draft }),
+      });
+      const payload = (await response.json()) as { error?: string };
+      // The server rejects a duplicate code with 409 and says which one, so
+      // that message is shown rather than replaced with something generic.
+      if (!response.ok)
+        throw new Error(payload.error || 'Unable to create plan.');
+      setOpen(false);
+      setDraft({ ...draft, code: '', name: '' });
+      await onChanged();
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : 'Unable to create plan.',
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!open)
+    return (
+      <Button
+        onClick={() => setOpen(true)}
+        className="self-start bg-primary text-primary-foreground hover:bg-[#1d4ed8]"
+      >
+        <Save /> Create a plan
+      </Button>
+    );
+
+  return (
+    <Panel>
+      <PanelHeader
+        title="Create a plan"
+        description="Code is permanent and becomes the plan id; everything else can be edited later"
+      />
+      {error ? (
+        <p className="mt-3 text-[11px] text-danger-text">{error}</p>
+      ) : null}
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <label htmlFor="new-plan-code" className="text-[10px] text-ink-muted">
+          Code
+          <Input
+            id="new-plan-code"
+            value={draft.code}
+            onChange={(event) =>
+              setDraft({ ...draft, code: event.target.value })
+            }
+            placeholder="growth"
+            className="mt-2 border-hairline bg-surface-muted"
+          />
+        </label>
+        <label htmlFor="new-plan-name" className="text-[10px] text-ink-muted">
+          Name
+          <Input
+            id="new-plan-name"
+            value={draft.name}
+            onChange={(event) =>
+              setDraft({ ...draft, name: event.target.value })
+            }
+            placeholder="Growth"
+            className="mt-2 border-hairline bg-surface-muted"
+          />
+        </label>
+        {(
+          [
+            ['monthlyPrice', 'Monthly price (paise)'],
+            ['includedCredits', 'Included credits'],
+            ['maxAgents', 'Max agents'],
+            ['maxNumbers', 'Max numbers'],
+            ['concurrency', 'Concurrency'],
+          ] as const
+        ).map(([field, label]) => (
+          <label
+            key={field}
+            htmlFor={`new-plan-${field}`}
+            className="text-[10px] text-ink-muted"
+          >
+            {label}
+            <Input
+              id={`new-plan-${field}`}
+              type="number"
+              value={draft[field]}
+              onChange={(event) =>
+                setDraft({ ...draft, [field]: Number(event.target.value) })
+              }
+              className="mt-2 border-hairline bg-surface-muted"
+            />
+          </label>
+        ))}
+      </div>
+      <div className="mt-4 flex gap-2">
+        <Button
+          onClick={() => void create()}
+          disabled={busy || !draft.code.trim() || !draft.name.trim()}
+          className="bg-primary text-primary-foreground hover:bg-[#1d4ed8]"
+        >
+          {busy ? <Loader2 className="animate-spin" /> : <Save />} Create plan
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => setOpen(false)}
+          className="border-hairline"
+        >
+          Cancel
+        </Button>
+      </div>
+    </Panel>
   );
 }
 

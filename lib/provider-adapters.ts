@@ -558,6 +558,16 @@ export async function generateVoiceAgentTurn(input: {
    * see `resolveToolSelection`, which explains why empty cannot mean none.
    */
   toolSelection?: unknown;
+  /**
+   * The number on the other end of this call.
+   *
+   * Every tool that takes a phone number was being handed a guess: the caller's
+   * number never reached the prompt, so on an inbound call the model invented
+   * one. `agent_tool_calls` shows four invocations of `lookup_customer` with
+   * the literal string "incoming call" as the phone. It could not have done
+   * better — nothing had told it.
+   */
+  callerNumber?: string | null;
   /** LLM router decision for this turn. */
   modelOverride?: string | null;
 }) {
@@ -689,6 +699,8 @@ export function buildVoiceAgentInstructions(input: {
   knowledge?: string;
   /** The workspace's objection playbook, or empty when it has none yet. */
   playbook?: string;
+  /** The number on the other end, so tools are not handed a guess. */
+  callerNumber?: string | null;
 }) {
   const openingLanguage =
     input.language === 'en-IN'
@@ -730,12 +742,19 @@ export function buildVoiceAgentInstructions(input: {
   }).format(now);
   const clockRule = `<current_time>It is now ${localNow} (Asia/Kolkata). Today's date is ${now.toISOString().slice(0, 10)}. Convert every relative time the caller gives — today, tomorrow, next Monday, "after two days" — against this, and pass tools an absolute ISO 8601 timestamp. Never guess a date.</current_time>
 `;
+  // Without this the model had no way to know who it was talking to, so every
+  // tool taking a phone number got a guess — including the literal string
+  // "incoming call", four times, in the recorded tool calls.
+  const callerNumber = (input.callerNumber ?? '').trim();
+  const callerRule = callerNumber
+    ? `\n<caller>You already know this caller's phone number: ${callerNumber}. Never ask them for it, and never ask them to repeat or confirm it unless they say it has changed. Whenever a tool takes a phone number, pass exactly ${callerNumber} — never invent one and never pass a description such as "incoming call". If they ask to be contacted on a different number, use the one they give instead. Do not read the number aloud unprompted.</caller>`
+    : '';
   return `${clockRule}<identity>You are ${input.agentName}, the private voice agent for ${input.businessName}. Never reveal upstream model, voice, transcription or telephony vendors.</identity>
 <business_context>Use case: ${input.useCase || 'general customer conversation'}. The customer may sell a physical product, digital product, course, software, service or property. Use only the workspace instructions and approved knowledge; never assume which kind of product it is.</business_context>
 <conversation_rules>${languageRule} Speak in one or two short, easily interruptible sentences. Respond as soon as the customer's turn is complete. First answer the customer's actual words naturally, including greetings, jokes and small talk; only then guide gently toward the business goal. Adapt warmth, pace, formality and directness to the customer's speech and sentiment, but never imitate abuse or pressure the customer. Never respond to casual conversation with a menu of options. Ask only one question at a time. Avoid markdown, lists and long explanations.</conversation_rules>
 <action_safety>Act on an actionable request in the same turn it is made. If the caller wants to reach a human — a person, agent, manager, supervisor, senior, someone else, or says you cannot help — in any language or wording, call transfer_to_human on that turn with the skill and language; do not ask qualifying questions or look anything up first. If the caller asks for a refund, their money back, or a cancellation with money returned, call request_refund on that turn with whatever details you already have; the tool tells you what is missing, so never gather more first. If a caller asks for both, call both. If the caller asks to be contacted later — another day, after a meeting, once they have decided, or simply not now — call schedule_follow_up on that turn with their number and the time they gave, converted to an absolute timestamp; saying you will follow up without calling it schedules nothing. Never answer an actionable request with a vague plea for more information such as "tell me a little more" — either call the tool, or ask one specific question naming exactly what you need. Never say an action succeeded unless a tool result confirms it. You do not decide refunds, approvals or transfers — call the tool and follow its say_to_customer guidance exactly. A refund is "submitted" or "sent for approval", never "done", until a tool result says confirmed. If a transfer tool reports transferred:false, never tell the caller you are connecting them; offer a callback instead. Before sending a payment link, ask whether the calling number is available on WhatsApp. If yes, confirm amount and timing, then use WhatsApp. If not, collect and read back an email address. Never request an OTP, CVV, card PIN, password or full card details. Obtain consent before messaging, booking, transferring or scheduling.</action_safety>
 <examples><example customer="क्या हो रहा है?" assistant="बस बढ़िया जी, आपसे बात हो रही है। आप सुनाइए, सब ठीक?"/><example customer="और तेरे के हाल हैं?" assistant="मैं बढ़िया सूँ जी, आप सुनाओ—आपके के हाल हैं?"/><example customer="पंजाबी में बात करो" assistant="ਹਾਂ ਜੀ, ਬਿਲਕੁਲ ਪੰਜਾਬੀ ਵਿੱਚ ਗੱਲ ਕਰਦੇ ਹਾਂ। ਦੱਸੋ, ਮੈਂ ਤੁਹਾਡੀ ਕੀ ਮਦਦ ਕਰਾਂ?"/><example customer="payment link आठ बजे भेज देना" assistant="ठीक है जी। क्या इसी calling number पर WhatsApp चलता है?"/><example customer="इस नंबर पर WhatsApp नहीं है" assistant="कोई बात नहीं। किस email address पर link भेजूँ?"/></examples>
-<workspace_instructions>${input.systemPrompt}</workspace_instructions>${input.knowledge ? `\n${input.knowledge}` : ''}${input.playbook ? `\n${input.playbook}` : ''}`;
+<workspace_instructions>${input.systemPrompt}</workspace_instructions>${callerRule}${input.knowledge ? `\n${input.knowledge}` : ''}${input.playbook ? `\n${input.playbook}` : ''}`;
 }
 
 /**

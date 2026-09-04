@@ -348,6 +348,50 @@
   animation: vaani-orb-breathe 1.5s ease-in-out infinite;
 }
 
+/*
+ * Thinking (§33).
+ *
+ * This state had no class at all: it fell through to the same empty string as
+ * idle, so an agent working on an answer looked like an agent doing nothing —
+ * during the one pause where a person most needs to know something is
+ * happening, and is most likely to talk over it or hang up.
+ *
+ * Deliberately not a faster or slower breathe. Listening and speaking are both
+ * breathing, and a third rate of the same motion reads as the same state at a
+ * different speed. Thinking contracts slightly and holds, the way attention
+ * turns inward, so it is legible as a different kind of activity rather than a
+ * different tempo of the same one.
+ */
+.vaani-orb--thinking {
+  animation: vaani-orb-consider 2.6s ease-in-out infinite;
+}
+
+.vaani-orb--thinking .vaani-orb__blob--a {
+  animation-duration: 4s;
+}
+.vaani-orb--thinking .vaani-orb__blob--b {
+  animation-duration: 5.5s;
+}
+.vaani-orb--thinking .vaani-orb__blob--c {
+  animation-duration: 3.2s;
+}
+
+@keyframes vaani-orb-consider {
+  0%,
+  100% {
+    transform: scale(0.985);
+    filter: saturate(0.9);
+  }
+  35% {
+    transform: scale(0.96);
+    filter: saturate(1.15);
+  }
+  60% {
+    transform: scale(0.97);
+    filter: saturate(1.05);
+  }
+}
+
 .vaani-orb--speaking .vaani-orb__blob--a {
   animation-duration: 7s;
 }
@@ -378,6 +422,196 @@
   .vaani-orb,
   .vaani-orb__blob {
     animation: none !important;
+  }
+}
+
+/*
+ * Notification motion (§33).
+ *
+ * Each event moves in a way that matches what happened, so an operator watching
+ * from across a desk can tell a payment from a problem before reading the
+ * words. The reduced-motion variants are at the bottom of this block.
+ */
+.vaani-notify--pulse-ring,
+.vaani-notify--rise,
+.vaani-notify--settle,
+.vaani-notify--burst,
+.vaani-notify--drain,
+.vaani-notify--shake,
+.vaani-notify--fade {
+  animation-fill-mode: both;
+}
+
+/* Ringing: a travelling ring, repeating for as long as the phone rings. */
+.vaani-notify--pulse-ring {
+  animation: vaani-notify-ring 1.6s ease-out infinite;
+}
+
+/* Something arrived and is good: rises into place. */
+.vaani-notify--rise {
+  animation: vaani-notify-rise 0.42s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* A transfer completed: comes to rest rather than bouncing. */
+.vaani-notify--settle {
+  animation: vaani-notify-settle 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Money landed. The one event allowed to be pleased with itself. */
+.vaani-notify--burst {
+  animation: vaani-notify-burst 0.65s cubic-bezier(0.22, 1.4, 0.36, 1);
+}
+
+/* Credits running down: sinks, because it is the thing that stops the calls. */
+.vaani-notify--drain {
+  animation: vaani-notify-drain 0.7s ease-out;
+}
+
+/*
+ * Needs a person, or failed. Small and horizontal on purpose: a large or
+ * vertical shake is a vestibular trigger, and this is the alert most likely to
+ * fire while someone is already under pressure.
+ */
+.vaani-notify--shake {
+  animation: vaani-notify-shake 0.4s ease-in-out;
+}
+
+.vaani-notify--fade {
+  animation: vaani-notify-fade 0.3s ease-out;
+}
+
+@keyframes vaani-notify-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(37, 99, 235, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+  }
+}
+
+@keyframes vaani-notify-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes vaani-notify-settle {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px) scale(1.02);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(2px) scale(1);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes vaani-notify-burst {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.045);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes vaani-notify-drain {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(3px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes vaani-notify-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-4px);
+  }
+  45% {
+    transform: translateX(4px);
+  }
+  70% {
+    transform: translateX(-2px);
+  }
+}
+
+@keyframes vaani-notify-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/*
+ * Reduced motion, properly (§33).
+ *
+ * The two custom animations above already honoured this. Everything Tailwind
+ * generates did not — `animate-spin`, `animate-pulse`, `animate-ping` and
+ * `animate-bounce` are used throughout the portal and kept turning regardless.
+ *
+ * These are not set to `animation: none`. A spinner is often the only evidence
+ * that a request is still in flight, and freezing it mid-rotation says the page
+ * has hung — replacing information with a lie rather than removing motion. So
+ * rotation, travel and bounce become a slow opacity fade, which still reads as
+ * "working" without moving anything across the visual field.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .animate-spin,
+  .animate-ping,
+  .animate-bounce {
+    animation: vaani-quiet-activity 1.8s ease-in-out infinite !important;
+    transform: none !important;
+  }
+
+  .animate-pulse {
+    animation: vaani-quiet-activity 2.4s ease-in-out infinite !important;
+  }
+
+  .vaani-notify--pulse-ring,
+  .vaani-notify--rise,
+  .vaani-notify--settle,
+  .vaani-notify--burst,
+  .vaani-notify--drain,
+  .vaani-notify--shake {
+    animation: vaani-notify-fade 0.3s ease-out !important;
+  }
+}
+
+@keyframes vaani-quiet-activity {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
   }
 }
 

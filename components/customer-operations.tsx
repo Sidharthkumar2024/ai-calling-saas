@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { SUPPORTED_LANGUAGE_CODES, languagesForRegion } from '@/lib/languages';
+import { SoundSettings } from '@/components/notification-center';
 import {
   Activity,
   AlertTriangle,
@@ -2118,6 +2119,17 @@ function WorkspaceSettings({
                 </div>
               </div>
             ))}
+          </div>
+          <div className="mt-5">
+            <p className="text-[11px] font-semibold text-ink">
+              Notification sound
+            </p>
+            <p className="mt-1 text-[10px] text-ink-muted">
+              Plays for ringing, transfers, payments and credit warnings (§33)
+            </p>
+            <div className="mt-3">
+              <SoundSettings />
+            </div>
           </div>
           <div className="mt-5 grid gap-5 sm:grid-cols-3">
             <Field label={t('field.recordingRetention')}>

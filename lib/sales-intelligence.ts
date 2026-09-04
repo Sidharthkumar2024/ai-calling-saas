@@ -185,13 +185,6 @@ function nextActionFor(status: Rescore['status'], signals: CallSignals) {
 }
 
 /**
- * Canonical key for an objection, so the library counts one thing once.
- *
- * "It's too expensive", "too expensive" and "Too expensive!" are the same
- * objection, and a library that lists them separately is a list rather than a
- * library.
- */
-/**
  * The wording a human reads, cleaned of machine formatting.
  *
  * The extraction model is asked for the caller's own phrasing and sometimes
@@ -209,6 +202,13 @@ export function objectionLabel(text: string): string {
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }
 
+/**
+ * Canonical key for an objection, so the library counts one thing once.
+ *
+ * "It's too expensive", "too expensive" and "Too expensive!" are the same
+ * objection, and a library that lists them separately is a list rather than a
+ * library.
+ */
 export function objectionKey(text: string): string {
   const cleaned = String(text ?? '')
     .toLowerCase()

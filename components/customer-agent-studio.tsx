@@ -1984,7 +1984,11 @@ function VoiceOrb({
               ? 'vaani-orb--speaking'
               : state === 'listening'
                 ? 'vaani-orb--listening'
-                : ''
+                : state === 'thinking'
+                  ? // Had no class at all, so a deliberating agent looked
+                    // identical to an idle one (§33).
+                    'vaani-orb--thinking'
+                  : ''
           }`}
         >
           <span

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useNotifications } from '@/components/notification-center';
 import {
   Check,
   CircleDollarSign,
@@ -64,6 +65,7 @@ export function CustomerBilling({
   data: BillingData;
   onChanged: () => Promise<void>;
 }) {
+  const { notify } = useNotifications();
   const [loading, setLoading] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -94,11 +96,16 @@ export function CustomerBilling({
       setMessage(
         `Local sandbox purchase complete. Invoice ${payload.invoiceNumber ?? 'created'} generated; no real money was charged.`,
       );
+      notify({
+        event: 'payment_success',
+        detail: `Invoice ${payload.invoiceNumber ?? 'created'}.`,
+      });
       await onChanged();
     } catch (caught) {
       setError(
         caught instanceof Error ? caught.message : 'Unable to start checkout.',
       );
+      notify({ event: 'error', title: 'Checkout failed' });
     } finally {
       setLoading('');
     }

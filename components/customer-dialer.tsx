@@ -10,6 +10,7 @@ import {
   Play,
 } from 'lucide-react';
 
+import { useNotifications } from '@/components/notification-center';
 import { Button } from '@/components/ui/button';
 import { useT } from '@/components/locale-provider';
 import {
@@ -109,6 +110,7 @@ function mulawToPcm(byte: number) {
 }
 
 export function CustomerDialer() {
+  const { notify } = useNotifications();
   const t = useT();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [numbers, setNumbers] = useState<NumberRow[]>([]);
@@ -269,6 +271,9 @@ export function CustomerDialer() {
     setTransport(null);
     metricsRef.current = { framesSent: 0, arrivals: [], rtts: [], openedAt: 0 };
     setState('connecting');
+    // §33: the dialer showed a word changing in a corner and made no sound, so
+    // a call placed from another tab rang entirely unnoticed.
+    notify({ event: 'ringing', detail: 'Connecting the call…' });
     try {
       const response = await fetch('/api/app/dialer', {
         method: 'POST',
@@ -318,6 +323,7 @@ export function CustomerDialer() {
         );
         metricsRef.current.openedAt = Date.now();
         setState('live');
+        notify({ event: 'call_connected' });
       };
       socket.onmessage = (message) => {
         const frame = JSON.parse(String(message.data)) as {
@@ -409,6 +415,12 @@ export function CustomerDialer() {
           ? 'Microphone access was refused, so the call cannot carry your voice.'
           : 'The call could not be connected.',
       );
+      notify({
+        event: 'error',
+        title: 'The call could not be connected',
+        detail:
+          name === 'NotAllowedError' ? 'Microphone access was refused.' : '',
+      });
       teardown();
       setState('idle');
     }

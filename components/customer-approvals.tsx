@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNotifications } from '@/components/notification-center';
+import { newlyArrived } from '@/lib/notifications';
 import {
   BadgeCheck,
   Headphones,
@@ -95,6 +97,9 @@ function parseList(raw: string | null | undefined): string[] {
 export function CustomerApprovals() {
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [handoffs, setHandoffs] = useState<Handoff[]>([]);
+  const { notify } = useNotifications();
+  const seenHandoffs = useRef<Set<string> | null>(null);
+  const acceptedHandoffs = useRef<Set<string> | null>(null);
   const [agents, setAgents] = useState<AgentRow[]>([]);
   const [callbacks, setCallbacks] = useState<Callback[]>([]);
   const [refunds, setRefunds] = useState<Refund[]>([]);
@@ -110,7 +115,7 @@ export function CustomerApprovals() {
     window.setTimeout(() => setNotice(''), 3000);
   }
 
-  async function load() {
+  const load = useCallback(async () => {
     try {
       const response = await fetch('/api/app/approvals', { cache: 'no-store' });
       const payload = (await response.json()) as {
@@ -124,7 +129,30 @@ export function CustomerApprovals() {
       };
       if (!response.ok) throw new Error(payload.error ?? 'Unable to load.');
       setApprovals(payload.approvals ?? []);
-      setHandoffs(payload.handoffs ?? []);
+      const incoming = payload.handoffs ?? [];
+      // §33: a caller asking for a person appeared silently in a list that
+      // repolls, so nobody learned about it unless they were already watching
+      // this screen. Edge-triggered — the queue is not news, an arrival is.
+      const waiting = incoming
+        .filter((row) => row.status !== 'closed' && row.status !== 'completed')
+        .map((row) => row.id);
+      const arrived = newlyArrived(seenHandoffs.current, waiting);
+      if (arrived?.length)
+        notify({
+          event: 'handoff_requested',
+          detail:
+            arrived.length === 1
+              ? 'One caller is waiting for a person.'
+              : `${arrived.length} callers are waiting for a person.`,
+        });
+      const accepted = incoming
+        .filter((row) => row.status === 'accepted')
+        .map((row) => row.id);
+      const newlyAccepted = newlyArrived(acceptedHandoffs.current, accepted);
+      if (newlyAccepted?.length) notify({ event: 'transfer_accepted' });
+      seenHandoffs.current = new Set(waiting);
+      acceptedHandoffs.current = new Set(accepted);
+      setHandoffs(incoming);
       setAgents(payload.agents ?? []);
       setCallbacks(payload.callbacks ?? []);
       setRefunds(payload.refunds ?? []);
@@ -135,12 +163,14 @@ export function CustomerApprovals() {
     } finally {
       setLoading(false);
     }
-  }
+    // `notify` is memoised by the provider, so this stays a stable identity and
+    // the poll below does not restart on every render.
+  }, [notify]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [load]);
 
   async function send(body: Record<string, unknown>, key: string) {
     setBusy(key);

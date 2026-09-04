@@ -114,6 +114,39 @@ and billing everywhere. Revisit once the core product has real usage.
 
 ## Landed
 
+**Notifications, animation and sound (§33).** The product had no notification
+surface at all — `components/ui/toast.tsx` existed with no importer anywhere in
+the repository, so a caller asking for a person, a payment landing or credits
+running out reached an operator only if they were already on the right screen
+and refreshed it. There is now an event vocabulary with a synthesised chime and
+a distinct animation each: ringing, connected, handoff requested, transfer
+accepted, payment received, credits low, credits added, error. Pitch carries
+meaning — rising for things that went well, falling for things that need
+attention — so the two can be told apart without looking.
+
+Sounds are generated through Web Audio rather than shipped as files: nothing to
+load, nothing to license, and no notification that has to finish a network
+request before it can tell you something. Mute and volume persist per browser.
+**Muting the sound does not mute the message** — the toast still appears.
+
+Every alert is edge-triggered. A live surface repolls, so "a handoff is
+waiting" is true on every tick; what earns a sound is the arrival. A rule that
+chimed while a condition held would be muted permanently within a day.
+
+The `thinking` voice state finally has its own animation. It had no class at
+all and fell through to the same empty string as `idle`, so an agent working on
+an answer looked like an agent doing nothing — during the exact pause where a
+caller is most likely to talk over it or hang up. Deliberately not another
+breathing rate: listening and speaking are both breathing, and a third tempo of
+the same motion reads as the same state, faster.
+
+`prefers-reduced-motion` now covers Tailwind's `animate-spin`, `animate-pulse`,
+`animate-ping` and `animate-bounce`, which had kept moving while the two custom
+animations honoured it. They are not set to `animation: none`: a frozen spinner
+says the page has hung, which replaces information with a lie. They become a
+slow opacity fade that still reads as "working".
+
+
 **Global languages (§11).** French, Spanish, Chinese and Japanese join the
 catalog, and the catalog is now the only language vocabulary in the product —
 the STT router's own list of Indian codes and a `languageName` map inside the

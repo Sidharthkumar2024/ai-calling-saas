@@ -75,6 +75,10 @@ import { CustomerApprovals } from '@/components/customer-approvals';
 import { CustomerVoiceProfiles } from '@/components/customer-voice-profiles';
 import { PortalShell, type PortalNavGroup } from '@/components/portal-shell';
 import {
+  CreditWatch,
+  NotificationCenter,
+} from '@/components/notification-center';
+import {
   CustomerOperations,
   type OperationsData,
   type OperationsModule,
@@ -570,127 +574,132 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
     data.overview.stats?.credits ?? data.billing.wallet?.balance ?? 0,
   );
   return (
-    <PortalShell
-      mode="customer"
-      active={active}
-      groups={visibleGroups}
-      onNavigate={setActive}
-      name={session.name}
-      email={`${session.email} · ${session.workspaceRole.replaceAll('_', ' ')}`}
-      workspace={session.organizationName}
-      credits={credits}
-    >
-      <div className="mx-auto max-w-[1500px] p-4 sm:p-6 lg:p-8">
-        {loading ? (
-          <Loading />
-        ) : error ? (
-          <ErrorState error={error} retry={load} />
-        ) : null}
-        {!loading && !error && active === 'overview' ? (
-          <CustomerOverview data={data.overview} onNavigate={setActive} />
-        ) : null}
-        {!loading && !error && active === 'crm' ? (
-          <CustomerCrm
-            leads={data.crm.pipeline}
-            activities={data.crm.activities}
-            onMove={moveLead}
-            onChanged={load}
-            onStartFollowUp={() => setActive('campaigns')}
-          />
-        ) : null}
-        {!loading && !error && active === 'agents' ? (
-          <CustomerAgentStudio
-            data={data.agents}
-            businessName={session.organizationName}
-            onChanged={load}
-          />
-        ) : null}
-        {!loading &&
-        !error &&
-        [
-          'campaigns',
-          'sip_trunks',
-          'knowledge',
-          'workflows',
-          'graph_agents',
-          'call_history',
-          'live_monitor',
-          'analytics',
-          'quality',
-          'alerts',
-          'reports',
-        ].includes(active) ? (
-          <CustomerOperations
-            module={active as OperationsModule}
-            data={data.operations}
-            onChanged={load}
-          />
-        ) : null}
-        {!loading && !error && active === 'voice_profiles' ? (
-          <CustomerVoiceProfiles />
-        ) : null}
-        {!loading && !error && active === 'numbers' ? (
-          <CustomerNumbers
-            data={data.numbers}
-            onChanged={load}
-            onNavigate={setActive}
-          />
-        ) : null}
-        {!loading && !error && active === 'lead_capture' ? (
-          <CustomerLeadCapture
-            data={data.leadForms}
-            sources={data.overview.sources ?? []}
-            onChanged={load}
-            onNavigate={setActive}
-          />
-        ) : null}
-        {!loading && !error && active === 'retargeting' ? (
-          <Retargeting data={data.retargeting} onChanged={load} />
-        ) : null}
-        {!loading && !error && active === 'commerce' ? (
-          <CustomerCommerce data={data.commerce} onChanged={load} />
-        ) : null}
-        {!loading && !error && active === 'integrations' ? (
-          <CustomerIntegrations
-            apiKeys={data.apiKeys}
-            webhooks={data.webhooks}
-            onChanged={load}
-          />
-        ) : null}
-        {!loading && !error && active === 'billing' ? (
-          <CustomerBilling data={data.billing} onChanged={load} />
-        ) : null}
-        {!loading && !error && active === 'team' ? (
-          <CustomerTeam data={data.team} onChanged={load} />
-        ) : null}
-        {!loading && !error && active === 'org_structure' ? (
-          <CustomerOrgStructure />
-        ) : null}
-        {!loading && !error && active === 'dialer' ? <CustomerDialer /> : null}
-        {!loading && !error && active === 'diagnostics' ? (
-          <CustomerDiagnostics />
-        ) : null}
-        {!loading && !error && active === 'agent_desk' ? (
-          <CustomerAgentDesk view="desk" />
-        ) : null}
-        {!loading && !error && active === 'wallboard' ? (
-          <CustomerAgentDesk view="wallboard" />
-        ) : null}
-        {!loading && !error && active === 'approvals' ? (
-          <CustomerApprovals />
-        ) : null}
-        {!loading && !error && active === 'tickets' ? (
-          <CustomerTickets data={data.tickets} onChanged={load} />
-        ) : null}
-        {!loading && !error && active === 'settings' ? (
-          <CustomerOperations
-            module="settings"
-            data={data.operations}
-            onChanged={load}
-          />
-        ) : null}
-      </div>
-    </PortalShell>
+    <NotificationCenter>
+      <CreditWatch credits={credits} />
+      <PortalShell
+        mode="customer"
+        active={active}
+        groups={visibleGroups}
+        onNavigate={setActive}
+        name={session.name}
+        email={`${session.email} · ${session.workspaceRole.replaceAll('_', ' ')}`}
+        workspace={session.organizationName}
+        credits={credits}
+      >
+        <div className="mx-auto max-w-[1500px] p-4 sm:p-6 lg:p-8">
+          {loading ? (
+            <Loading />
+          ) : error ? (
+            <ErrorState error={error} retry={load} />
+          ) : null}
+          {!loading && !error && active === 'overview' ? (
+            <CustomerOverview data={data.overview} onNavigate={setActive} />
+          ) : null}
+          {!loading && !error && active === 'crm' ? (
+            <CustomerCrm
+              leads={data.crm.pipeline}
+              activities={data.crm.activities}
+              onMove={moveLead}
+              onChanged={load}
+              onStartFollowUp={() => setActive('campaigns')}
+            />
+          ) : null}
+          {!loading && !error && active === 'agents' ? (
+            <CustomerAgentStudio
+              data={data.agents}
+              businessName={session.organizationName}
+              onChanged={load}
+            />
+          ) : null}
+          {!loading &&
+          !error &&
+          [
+            'campaigns',
+            'sip_trunks',
+            'knowledge',
+            'workflows',
+            'graph_agents',
+            'call_history',
+            'live_monitor',
+            'analytics',
+            'quality',
+            'alerts',
+            'reports',
+          ].includes(active) ? (
+            <CustomerOperations
+              module={active as OperationsModule}
+              data={data.operations}
+              onChanged={load}
+            />
+          ) : null}
+          {!loading && !error && active === 'voice_profiles' ? (
+            <CustomerVoiceProfiles />
+          ) : null}
+          {!loading && !error && active === 'numbers' ? (
+            <CustomerNumbers
+              data={data.numbers}
+              onChanged={load}
+              onNavigate={setActive}
+            />
+          ) : null}
+          {!loading && !error && active === 'lead_capture' ? (
+            <CustomerLeadCapture
+              data={data.leadForms}
+              sources={data.overview.sources ?? []}
+              onChanged={load}
+              onNavigate={setActive}
+            />
+          ) : null}
+          {!loading && !error && active === 'retargeting' ? (
+            <Retargeting data={data.retargeting} onChanged={load} />
+          ) : null}
+          {!loading && !error && active === 'commerce' ? (
+            <CustomerCommerce data={data.commerce} onChanged={load} />
+          ) : null}
+          {!loading && !error && active === 'integrations' ? (
+            <CustomerIntegrations
+              apiKeys={data.apiKeys}
+              webhooks={data.webhooks}
+              onChanged={load}
+            />
+          ) : null}
+          {!loading && !error && active === 'billing' ? (
+            <CustomerBilling data={data.billing} onChanged={load} />
+          ) : null}
+          {!loading && !error && active === 'team' ? (
+            <CustomerTeam data={data.team} onChanged={load} />
+          ) : null}
+          {!loading && !error && active === 'org_structure' ? (
+            <CustomerOrgStructure />
+          ) : null}
+          {!loading && !error && active === 'dialer' ? (
+            <CustomerDialer />
+          ) : null}
+          {!loading && !error && active === 'diagnostics' ? (
+            <CustomerDiagnostics />
+          ) : null}
+          {!loading && !error && active === 'agent_desk' ? (
+            <CustomerAgentDesk view="desk" />
+          ) : null}
+          {!loading && !error && active === 'wallboard' ? (
+            <CustomerAgentDesk view="wallboard" />
+          ) : null}
+          {!loading && !error && active === 'approvals' ? (
+            <CustomerApprovals />
+          ) : null}
+          {!loading && !error && active === 'tickets' ? (
+            <CustomerTickets data={data.tickets} onChanged={load} />
+          ) : null}
+          {!loading && !error && active === 'settings' ? (
+            <CustomerOperations
+              module="settings"
+              data={data.operations}
+              onChanged={load}
+            />
+          ) : null}
+        </div>
+      </PortalShell>
+    </NotificationCenter>
   );
 }
 

@@ -36,7 +36,8 @@ for (const file of DEFAULT_LISTS) {
     const entries = [...block[1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
     if (!entries.length) continue;
     if (!entries.some((entry) => implemented.has(entry))) continue;
-    for (const entry of entries) if (!declared.has(entry)) declared.set(entry, file);
+    for (const entry of entries)
+      if (!declared.has(entry)) declared.set(entry, file);
   }
 }
 
@@ -46,7 +47,8 @@ const report = (message) => {
   console.error(`  ❌ ${message}`);
 };
 
-if (!implemented.size) report('no tool definitions were found — the parser is wrong');
+if (!implemented.size)
+  report('no tool definitions were found — the parser is wrong');
 if (!declared.size)
   report('no default tool list was found — the parser is wrong, not the code');
 

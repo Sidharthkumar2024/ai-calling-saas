@@ -235,9 +235,28 @@ could not be priced: a floor alert that cannot fire because half the cost is
 missing is worse than no alert. Unknown metrics and not-yet-measurable ones are
 now reported separately, since one is a mistake to fix and the other is routine.
 
-Still to come on this track: per-workspace currency end to end (the plumbing and
-the FX table are in, and invoices carry their currency, but the Stripe checkout
-still requests INR), and country price books.
+**Per-workspace currency and country price books (§26), end to end.** Plans and
+packages are stored once in the base currency; what a workspace pays comes from
+one resolver that everything charging money now calls. A price book entry is an
+explicit decision and beats any arithmetic — a rounded conversion is not a
+pricing strategy — and when nobody has set one, the price is converted, marked
+`derived`, and explained as *"it moves with the exchange rate"*, because a
+converted price is provisional in a way a set one is not.
+
+Two real bugs came out of testing it:
+
+- **The Stripe checkout requested `inr` for every customer in the world**, and
+  the sandbox path skipped pricing altogether. A workspace switched to USD was
+  billed **₹999 as $999** — the base-currency figure charged as dollars, exactly
+  what the resolver exists to prevent. The price is now resolved *before* the
+  branch, so neither path can go around it. Verified: the same package then
+  billed $12.04 converted, $15.00 with a US price book entry, and back to
+  ₹999.00 with CGST+SGST on an Indian GSTIN.
+- **Psychological rounding behaved as a price rise.** The first rule turned ₹150
+  into ₹199 and the second turned $12.04 into $19 — a third and a half added to
+  a price by a rounding policy nobody meant that way. It now steps by ten and
+  gives up entirely when reaching a 9 would lift the price by more than 5%.
+
 
 **Track C — Universal Object Engine (§7-9), first pass.** A workspace defines
 its own objects and the agent reads real records. Before this there was no

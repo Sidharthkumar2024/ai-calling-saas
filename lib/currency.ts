@@ -107,10 +107,15 @@ export type Rounding = 'none' | 'nearest' | 'up' | 'psychological';
 /**
  * Applies the workspace's rounding policy to a converted price.
  *
- * `psychological` rounds up to the next `…99` in the major unit, which is what
- * a price book usually wants — a converted 1,247 becoming 1,299 rather than
- * 1,247.
+ * `psychological` rounds *up* to the next major unit ending in 9 — 1,247
+ * becomes 1,249, not 1,247. Two guards, both learned by watching it misbehave:
+ * it steps by ten rather than to the next hundred-minus-one, because that rule
+ * reads well on 1,247 → 1,299 and turns 150 into 199; and it gives up entirely
+ * when reaching a 9 would raise the price by more than 5%, because on a small
+ * amount it would — $12.04 → $19 is a rounding policy behaving as a price rise
+ * nobody agreed to.
  */
+const PSYCHOLOGICAL_MAX_LIFT = 0.05;
 export function applyRounding(
   minorAmount: number,
   code: string,
@@ -122,8 +127,10 @@ export function applyRounding(
   if (rounding === 'up') return Math.ceil(minorAmount / scale) * scale;
   // psychological
   const major = Math.ceil(minorAmount / scale);
-  const target = major % 100 <= 99 ? Math.ceil(major / 100) * 100 - 1 : major;
-  return Math.max(target, major) * scale;
+  if (major % 10 === 9) return major * scale;
+  const target = Math.ceil((major + 1) / 10) * 10 - 1;
+  const lift = major > 0 ? (target - major) / major : 1;
+  return (lift > PSYCHOLOGICAL_MAX_LIFT ? major : target) * scale;
 }
 
 export type ConversionInput = {

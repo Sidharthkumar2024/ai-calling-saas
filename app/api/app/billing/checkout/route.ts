@@ -5,6 +5,7 @@ import { getRawDb } from '@/db/index';
 import { applyCreditPurchase, applyPlanPurchase } from '@/lib/billing';
 import { recordAudit } from '@/lib/demo-seed';
 import { requireCustomerPermission } from '@/lib/customer-rbac';
+import { priceForWorkspace } from '@/lib/workspace-pricing';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +25,20 @@ export async function POST(request: Request) {
   // credit packs for free. It is keyed on the environment, never on whether a
   // key happens to be configured.
   const sandboxAllowed = process.env.NODE_ENV !== 'production';
+  // §26: what this workspace pays, in its own currency. The Stripe session used
+  // to request `inr` for every customer in the world, whatever they had been
+  // quoted.
+  const priced = async (
+    productType: 'plan' | 'credit_package',
+    productId: string,
+    baseAmountMinor: number,
+  ) =>
+    priceForWorkspace({
+      organizationId,
+      productType,
+      productId,
+      baseAmountMinor,
+    });
   const paymentsUnconfigured = () =>
     NextResponse.json(
       {
@@ -47,11 +62,29 @@ export async function POST(request: Request) {
         { status: 404 },
       );
     }
+    // Resolved before the branch, not inside it. Doing this only on the Stripe
+    // path meant the sandbox charged the base-currency figure whatever the
+    // workspace's currency was — a ₹999 package billed as $999.
+    const price = await priced(
+      'credit_package',
+      selectedPackage.id,
+      selectedPackage.amount,
+    );
+    if (!price.ok)
+      return NextResponse.json(
+        {
+          error:
+            'This package has no price in your billing currency, and no exchange rate is configured to derive one.',
+          reason: price.reason,
+        },
+        { status: 409 },
+      );
+
     if (!stripeKey && sandboxAllowed) {
       const result = await applyCreditPurchase({
         organizationId,
         credits: selectedPackage.credits,
-        amount: selectedPackage.amount,
+        amount: price.amountMinor,
         description: `${selectedPackage.name} local sandbox top-up`,
         sandbox: true,
       });
@@ -79,7 +112,8 @@ export async function POST(request: Request) {
       organizationId,
       mode: 'payment',
       name: selectedPackage.name,
-      amount: selectedPackage.amount,
+      amount: price.amountMinor,
+      currency: price.currency,
       metadata: {
         purchaseType: 'credits',
         credits: String(selectedPackage.credits),
@@ -104,13 +138,25 @@ export async function POST(request: Request) {
       }>();
     if (!plan)
       return NextResponse.json({ error: 'Plan not found.' }, { status: 404 });
+    // Resolved before the branch, for the same reason as the credits path.
+    const price = await priced('plan', plan.id, plan.monthly_price);
+    if (!price.ok)
+      return NextResponse.json(
+        {
+          error:
+            'This plan has no price in your billing currency, and no exchange rate is configured to derive one.',
+          reason: price.reason,
+        },
+        { status: 409 },
+      );
+
     // A genuinely free plan needs no gateway, so it settles locally in any
     // environment; a priced plan without a gateway is refused above.
     if (plan.monthly_price === 0 || (!stripeKey && sandboxAllowed)) {
       const result = await applyPlanPurchase({
         organizationId,
         planId: plan.id,
-        amount: plan.monthly_price,
+        amount: price.amountMinor,
         sandbox: true,
       });
       await recordAudit(
@@ -134,7 +180,8 @@ export async function POST(request: Request) {
       organizationId,
       mode: 'subscription',
       name: `${plan.name} plan`,
-      amount: plan.monthly_price,
+      amount: price.amountMinor,
+      currency: price.currency,
       metadata: {
         purchaseType: 'plan',
         planId: plan.id,
@@ -153,6 +200,7 @@ export async function POST(request: Request) {
 async function createStripeSession(input: {
   request: Request;
   stripeKey: string;
+  currency?: string;
   email: string;
   organizationId: string;
   mode: 'payment' | 'subscription';
@@ -172,7 +220,7 @@ async function createStripeSession(input: {
       {
         quantity: 1,
         price_data: {
-          currency: 'inr',
+          currency: (input.currency ?? 'INR').toLowerCase(),
           unit_amount: input.amount,
           product_data: { name: input.name },
           recurring,

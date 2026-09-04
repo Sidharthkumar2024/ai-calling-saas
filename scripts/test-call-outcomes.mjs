@@ -29,7 +29,10 @@ ok(
     normaliseOutcome('in_progress') === UNKNOWN_OUTCOME &&
     normaliseOutcome('dialing') === UNKNOWN_OUTCOME,
 );
-ok('an abandoned call is incomplete', normaliseOutcome('abandoned') === 'incomplete');
+ok(
+  'an abandoned call is incomplete',
+  normaliseOutcome('abandoned') === 'incomplete',
+);
 ok(
   'older names map onto the current ones',
   normaliseOutcome('callback') === 'callback_scheduled' &&
@@ -42,12 +45,23 @@ ok(
 );
 ok(
   'free prose from the model becomes incomplete',
-  normaliseOutcome('Incomplete - appointment not confirmed, property type not specified') ===
-    'incomplete',
+  normaliseOutcome(
+    'Incomplete - appointment not confirmed, property type not specified',
+  ) === 'incomplete',
 );
-ok('empty and null become unknown', normaliseOutcome('') === UNKNOWN_OUTCOME && normaliseOutcome(null) === UNKNOWN_OUTCOME);
-ok('case and padding are tolerated', normaliseOutcome('  Resolved  ') === 'resolved');
-ok('a valid outcome passes through untouched', normaliseOutcome('not_interested') === 'not_interested');
+ok(
+  'empty and null become unknown',
+  normaliseOutcome('') === UNKNOWN_OUTCOME &&
+    normaliseOutcome(null) === UNKNOWN_OUTCOME,
+);
+ok(
+  'case and padding are tolerated',
+  normaliseOutcome('  Resolved  ') === 'resolved',
+);
+ok(
+  'a valid outcome passes through untouched',
+  normaliseOutcome('not_interested') === 'not_interested',
+);
 
 console.log('conversions:');
 ok(

@@ -1207,6 +1207,23 @@ async function bootstrap() {
     db.prepare(
       `CREATE UNIQUE INDEX IF NOT EXISTS idx_rate_cards_version ON provider_rate_cards (provider, coalesce(model, ''), unit, effective_from)`,
     ),
+    // §26: country price books. An entry here is an explicit pricing decision
+    // and beats any conversion — a rounded conversion is not a strategy.
+    db.prepare(`CREATE TABLE IF NOT EXISTS price_books (
+      id TEXT PRIMARY KEY NOT NULL,
+      product_type TEXT NOT NULL,
+      product_id TEXT NOT NULL,
+      /* Empty means "any country using this currency". */
+      country TEXT DEFAULT '' NOT NULL,
+      currency TEXT NOT NULL,
+      amount_minor INTEGER NOT NULL,
+      active INTEGER DEFAULT 1 NOT NULL,
+      created_by TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_price_books_entry ON price_books (product_type, product_id, country, currency)`,
+    ),
     // §26: FX. A rate is stored with the day it applied, so a converted amount
     // can be explained months later rather than silently re-derived at today's
     // rate.

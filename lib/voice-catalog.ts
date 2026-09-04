@@ -130,6 +130,61 @@ export const VAANI_VOICES: VaaniVoice[] = [
     previewText:
       'Hello, this is Noor. I am here to make the next step simple for you.',
   },
+  // §11's global languages. Personas exist here so the voice browser is not
+  // empty for a workspace that has just enabled French or Japanese — these are
+  // presentation only; which engine actually speaks a language is decided by
+  // `lib/tts-router.ts` from the catalog in `lib/languages.ts`.
+  {
+    id: 'vaani_camille_fr',
+    publicName: 'Vaani Camille',
+    language: 'fr-FR',
+    languageLabel: 'French',
+    country: 'FR',
+    countryLabel: 'France',
+    style: 'consultative',
+    presentation: 'feminine',
+    bestFor: ['Sales', 'Support', 'Appointments'],
+    previewText:
+      'Bonjour, je suis Camille. Dites-moi comment je peux vous aider aujourd’hui.',
+  },
+  {
+    id: 'vaani_mateo_es',
+    publicName: 'Vaani Mateo',
+    language: 'es-ES',
+    languageLabel: 'Spanish',
+    country: 'ES',
+    countryLabel: 'Spain',
+    style: 'friendly',
+    presentation: 'masculine',
+    bestFor: ['Sales', 'Commerce', 'Reactivation'],
+    previewText:
+      'Hola, soy Mateo. Cuénteme qué necesita y lo resolvemos ahora mismo.',
+  },
+  {
+    id: 'vaani_lin_zh',
+    publicName: 'Vaani Lin',
+    language: 'zh-CN',
+    languageLabel: 'Chinese (Mandarin)',
+    country: 'CN',
+    countryLabel: 'China',
+    style: 'calm',
+    presentation: 'feminine',
+    bestFor: ['Support', 'Commerce', 'Appointments'],
+    previewText: '您好，我是小琳。请问有什么可以帮您的？',
+  },
+  {
+    id: 'vaani_haruto_ja',
+    publicName: 'Vaani Haruto',
+    language: 'ja-JP',
+    languageLabel: 'Japanese',
+    country: 'JP',
+    countryLabel: 'Japan',
+    style: 'supportive',
+    presentation: 'masculine',
+    bestFor: ['Support', 'Appointments', 'Real estate'],
+    previewText:
+      'こんにちは、ハルトと申します。本日はどのようなご用件でしょうか。',
+  },
   {
     id: 'vaani_utsav_in_hi',
     publicName: 'Vaani Utsav',

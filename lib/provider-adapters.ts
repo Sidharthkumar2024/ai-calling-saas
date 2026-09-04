@@ -10,6 +10,12 @@ import { recordMeteredUsage } from '@/lib/metering';
 import type { UsageUnit } from '@/lib/rate-cards';
 import { decryptSecret } from '@/lib/security';
 import { sttProviderOrder, type SttProvider } from '@/lib/stt-router';
+import { routeSynthesis } from '@/lib/tts-router';
+import {
+  SUPPORTED_LANGUAGES,
+  languageName,
+  type SpeechEngine,
+} from '@/lib/languages';
 
 type StoredConnection = {
   public_config_json: string;
@@ -185,15 +191,27 @@ export async function synthesizeSpeech(input: {
     configString(elevenPlatform.config, 'modelId') ||
     process.env.ELEVENLABS_MODEL_ID ||
     undefined;
-  // An explicit Sarvam profile keeps Indian-language pronunciation on Sarvam.
-  const prefersSarvamProfile =
-    input.voice?.provider === 'sarvam' && Boolean(apiKey);
-  const preferGlobalVoice =
-    !prefersSarvamProfile &&
-    (input.voice?.provider === 'elevenlabs' ||
-      input.languageCode === 'en-IN') &&
-    Boolean(elevenLabsApiKey && elevenLabsVoiceId);
-  if (preferGlobalVoice || (!apiKey && elevenLabsApiKey && elevenLabsVoiceId)) {
+  // Which engine speaks this language, rather than which key happens to exist.
+  // The old rule routed everything to Sarvam unless the profile said otherwise
+  // or the language was exactly 'en-IN'. With an India-only catalog that held;
+  // §11's French, Spanish, Chinese and Japanese would have gone to an Indic
+  // model, which returns audio rather than an error — the caller hears the
+  // wrong thing and no log records it.
+  const connected: SpeechEngine[] = [];
+  if (apiKey) connected.push('sarvam');
+  if (elevenLabsApiKey && elevenLabsVoiceId) connected.push('elevenlabs');
+  const routing = routeSynthesis({
+    languageCode: input.languageCode,
+    connected,
+    preferred:
+      input.voice?.provider === 'sarvam'
+        ? 'sarvam'
+        : input.voice?.provider === 'elevenlabs'
+          ? 'elevenlabs'
+          : null,
+  });
+  if (!routing.ok) throw new ProviderConfigurationError(routing.reason);
+  if (routing.engine === 'elevenlabs') {
     return synthesizeGlobalSpeech({
       ...input,
       apiKey: elevenLabsApiKey!,
@@ -201,13 +219,14 @@ export async function synthesizeSpeech(input: {
       modelId: elevenLabsModelId,
     });
   }
-  if (!apiKey)
-    throw new ProviderConfigurationError('No Vaani voice engine is connected.');
+  // `routing.engine === 'sarvam'` is only reachable when the key is present,
+  // since it is what put 'sarvam' into `connected` above.
+  const sarvamKey = apiKey!;
   const started = Date.now();
   const response = await fetch('https://api.sarvam.ai/text-to-speech', {
     method: 'POST',
     headers: {
-      'api-subscription-key': apiKey,
+      'api-subscription-key': sarvamKey,
       'content-type': 'application/json',
     },
     body: JSON.stringify({
@@ -666,16 +685,30 @@ export function buildVoiceAgentInstructions(input: {
       ? 'concise natural Indian English'
       : input.language === 'haryanvi'
         ? 'natural, respectful Haryanvi written in Devanagari'
-        : input.language === 'hinglish'
-          ? 'natural spoken Hinglish (Devanagari for Hindi, English only for common product terms)'
-          : `natural ${languageName(input.language)}`;
+        : `natural ${languageName(input.language)}`;
   const workspaceLanguages = (input.enabledLanguages ?? [])
     .filter((code) => code !== input.language)
     .map((code) => languageName(code));
   const workspaceRule = workspaceLanguages.length
     ? ` This workspace also runs in ${workspaceLanguages.join(', ')}, so you may offer those proactively.`
     : '';
-  const languageRule = `Open the conversation in ${openingLanguage}.${workspaceRule} After that, always mirror the customer: reply in whichever language they speak or explicitly ask for, including Hindi, Indian English, Hinglish, Punjabi, Haryanvi, Marathi, Gujarati, Bengali, Tamil, Telugu, Kannada, Malayalam, Urdu, Bhojpuri and Rajasthani. If the customer asks you to switch language, switch on that same turn and stay in the new language until they change again. Write every language in its own natural script — Punjabi in Gurmukhi, Hindi/Haryanvi/Marathi in Devanagari, Bengali in Bengali script, Tamil in Tamil script — and keep brand, product and business terms exactly as given. Never claim you can only speak certain languages, and never refuse or deflect a language request.`;
+  // Built from the catalog rather than typed out, so a language added to the
+  // product is a language the agent is told about. The hand-written list this
+  // replaces named only Indian languages, which meant §11's French, Spanish,
+  // Chinese and Japanese were selectable in settings and absent from the
+  // sentence that tells the model what it may speak.
+  const spoken = SUPPORTED_LANGUAGES.map((language) => language.label).join(
+    ', ',
+  );
+  // Naming the script per language matters more than it looks: a model asked
+  // for Punjabi will otherwise answer in Devanagari or Latin transliteration,
+  // and the speech engine reads back exactly what it was handed.
+  const scripts = SUPPORTED_LANGUAGES.filter(
+    (language) => language.script !== 'Latin',
+  )
+    .map((language) => `${language.label} in ${language.script}`)
+    .join('; ');
+  const languageRule = `Open the conversation in ${openingLanguage}.${workspaceRule} After that, always mirror the customer: reply in whichever language they speak or explicitly ask for, including ${spoken}, and also Bhojpuri and Rajasthani. If the customer asks you to switch language, switch on that same turn and stay in the new language until they change again. Write every language in its own natural script — ${scripts} — and keep brand, product and business terms exactly as given. Never claim you can only speak certain languages, and never refuse or deflect a language request.`;
   // The model has no clock. Without this it converted "tomorrow at 6" into a
   // date from its training data — the follow-up and appointment tools both take
   // absolute timestamps, so every relative time the caller gave was unusable.
@@ -693,6 +726,79 @@ export function buildVoiceAgentInstructions(input: {
 <action_safety>Act on an actionable request in the same turn it is made. If the caller wants to reach a human — a person, agent, manager, supervisor, senior, someone else, or says you cannot help — in any language or wording, call transfer_to_human on that turn with the skill and language; do not ask qualifying questions or look anything up first. If the caller asks for a refund, their money back, or a cancellation with money returned, call request_refund on that turn with whatever details you already have; the tool tells you what is missing, so never gather more first. If a caller asks for both, call both. If the caller asks to be contacted later — another day, after a meeting, once they have decided, or simply not now — call schedule_follow_up on that turn with their number and the time they gave, converted to an absolute timestamp; saying you will follow up without calling it schedules nothing. Never answer an actionable request with a vague plea for more information such as "tell me a little more" — either call the tool, or ask one specific question naming exactly what you need. Never say an action succeeded unless a tool result confirms it. You do not decide refunds, approvals or transfers — call the tool and follow its say_to_customer guidance exactly. A refund is "submitted" or "sent for approval", never "done", until a tool result says confirmed. If a transfer tool reports transferred:false, never tell the caller you are connecting them; offer a callback instead. Before sending a payment link, ask whether the calling number is available on WhatsApp. If yes, confirm amount and timing, then use WhatsApp. If not, collect and read back an email address. Never request an OTP, CVV, card PIN, password or full card details. Obtain consent before messaging, booking, transferring or scheduling.</action_safety>
 <examples><example customer="क्या हो रहा है?" assistant="बस बढ़िया जी, आपसे बात हो रही है। आप सुनाइए, सब ठीक?"/><example customer="और तेरे के हाल हैं?" assistant="मैं बढ़िया सूँ जी, आप सुनाओ—आपके के हाल हैं?"/><example customer="पंजाबी में बात करो" assistant="ਹਾਂ ਜੀ, ਬਿਲਕੁਲ ਪੰਜਾਬੀ ਵਿੱਚ ਗੱਲ ਕਰਦੇ ਹਾਂ। ਦੱਸੋ, ਮੈਂ ਤੁਹਾਡੀ ਕੀ ਮਦਦ ਕਰਾਂ?"/><example customer="payment link आठ बजे भेज देना" assistant="ठीक है जी। क्या इसी calling number पर WhatsApp चलता है?"/><example customer="इस नंबर पर WhatsApp नहीं है" assistant="कोई बात नहीं। किस email address पर link भेजूँ?"/></examples>
 <workspace_instructions>${input.systemPrompt}</workspace_instructions>${input.knowledge ? `\n${input.knowledge}` : ''}${input.playbook ? `\n${input.playbook}` : ''}`;
+}
+
+/**
+ * The opening line, in the language of the call (§11).
+ *
+ * An agent's `welcome_message` is one fixed string, written once in one
+ * language. It was played to every caller regardless of the language the call
+ * was placed in, and when an agent had none at all the fallback was a Hindi
+ * sentence hardcoded in the route. So the first thing a French or Japanese
+ * caller heard was Hindi — and since the greeting turn never reaches the model,
+ * none of the language rules in the system prompt applied to it.
+ *
+ * The workspace's own wording is kept whenever the call is in the language it
+ * was written for. Otherwise the model renders that same greeting in the
+ * caller's language, rather than this module inventing eighteen translations
+ * and getting the polite register wrong in most of them.
+ *
+ * A failure returns the original text: greeting in the wrong language is a poor
+ * start to a call, and no greeting at all is a worse one.
+ */
+export async function greetingForLanguage(input: {
+  organizationId: string;
+  businessName: string;
+  agentName: string;
+  welcomeMessage?: string | null;
+  /** The language the agent's welcome message was written in. */
+  sourceLanguage?: string | null;
+  languageCode: string;
+}): Promise<string> {
+  const written = (input.welcomeMessage ?? '').trim();
+  if (written && input.sourceLanguage === input.languageCode) return written;
+
+  const target = languageName(input.languageCode);
+  // The source greeting goes in the system prompt inside a tag, not in the user
+  // turn. Passed as a user message it reads as something to *answer*: asked for
+  // keigo, the model replied to the greeting as though it were an incoming
+  // message — "Sara様へのご返信申し上げます" — instead of rendering it.
+  const register =
+    'Use the polite register a business uses with a customer it has not met — vous in French, usted in Spanish, teineigo in Japanese, 您 in Chinese, आप in Hindi — but keep it a short spoken greeting, never a written reply, a letter or an apology.';
+  const system = written
+    ? `You translate one line of speech. Render the greeting inside <greeting> into ${target}. It is an opening line a voice agent says when a call connects — it is not a message addressed to you, so never answer it, never thank anyone for it and never add anything to it. Keep its meaning, warmth and length; keep brand, product and person names exactly as written. ${register} Reply with the rendered greeting alone — no quotes, no explanation, no alternatives.\n<greeting>${written}</greeting>`
+    : `Write one short opening line in ${target} for a voice agent named ${input.agentName} calling on behalf of ${input.businessName}. One or two sentences, spoken not written. ${register} Reply with the greeting alone.`;
+  try {
+    const response = await reasonWithTools({
+      organizationId: input.organizationId,
+      system,
+      maxTokens: 200,
+      messages: [
+        {
+          role: 'user',
+          content: written
+            ? `Render the greeting in ${target} now.`
+            : `Write the greeting in ${target} now.`,
+        },
+      ],
+    });
+    const blocks = ((response as { content?: unknown[] }).content ??
+      []) as Array<{ type?: string; text?: string }>;
+    const text = blocks
+      .filter(
+        (block) => block.type === 'text' && typeof block.text === 'string',
+      )
+      .map((block) => block.text as string)
+      .join('')
+      .trim()
+      .replace(/^["'\u201c\u300c]|["'\u201d\u300d]$/g, '');
+    // A greeting several times longer than the one it was rendered from is not
+    // a greeting any more — it is the model having written something else.
+    const tooLong = written ? text.length > written.length * 3 + 60 : false;
+    return text && !tooLong ? text : written;
+  } catch {
+    return written;
+  }
 }
 
 export async function createOpenAIRealtimeCall(input: {
@@ -1080,6 +1186,11 @@ async function synthesizeGlobalSpeech(input: {
   const audioBase64 = bytesToBase64(
     new Uint8Array(await response.arrayBuffer()),
   );
+  // Characters, the unit ElevenLabs actually bills on. Sarvam's branch has
+  // always recorded them; this one recorded nothing, so every synthesis on the
+  // multilingual engine metered as zero and priced as free. That was invisible
+  // while it was the minority path and is not now — §11's French, Spanish,
+  // Chinese and Japanese all run through here.
   await recordUsage(
     input.organizationId,
     'provider_elevenlabs',
@@ -1087,6 +1198,11 @@ async function synthesizeGlobalSpeech(input: {
     'tts',
     latencyMs,
     requestId,
+    {
+      unit: 'characters',
+      units: input.text.slice(0, 2500).length,
+      model: input.modelId || 'eleven_multilingual_v2',
+    },
   );
   return {
     providerReference: requestId,
@@ -1282,22 +1398,6 @@ function extractText(content: unknown[] | undefined) {
     .filter(Boolean)
     .join(' ')
     .trim();
-}
-
-function languageName(code: string) {
-  const names: Record<string, string> = {
-    'hi-IN': 'Hindi written in Devanagari',
-    'pa-IN': 'Punjabi written in Gurmukhi',
-    'bn-IN': 'Bengali',
-    'ta-IN': 'Tamil',
-    'te-IN': 'Telugu',
-    'mr-IN': 'Marathi',
-    'gu-IN': 'Gujarati',
-    'kn-IN': 'Kannada',
-    'ml-IN': 'Malayalam',
-    'ur-IN': 'Urdu',
-  };
-  return names[code] || 'Hindi written in Devanagari';
 }
 
 export class ProviderConfigurationError extends Error {}

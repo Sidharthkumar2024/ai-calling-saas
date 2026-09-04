@@ -6,7 +6,9 @@ import { recordCallTurn } from '@/lib/call-telemetry';
 import { resolveAgentVoice } from '@/lib/voice-profiles';
 import { routeTurn } from '@/lib/llm-router';
 import {
+  ProviderConfigurationError,
   generateVoiceAgentTurn,
+  greetingForLanguage,
   platformProviderSecret,
   synthesizeSpeech,
   transcribeSpeech,
@@ -38,18 +40,38 @@ export async function POST(request: Request) {
   if (request.headers.get('x-vaani-gateway-secret') !== secret)
     return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
 
-  const body = (await request.json()) as {
-    callId?: string;
-    audioBase64?: string;
-    contentType?: string;
-    languageCode?: string;
-    /** Set on the first turn so the agent opens instead of answering silence. */
-    greeting?: boolean;
-  };
+  const body = (await request.json()) as TurnRequest;
   const callId = (body.callId ?? '').trim();
   if (!callId)
     return NextResponse.json({ error: 'callId is required.' }, { status: 400 });
 
+  try {
+    return await runTurn(body, callId);
+  } catch (error) {
+    // A configuration problem has a message written for the person who has to
+    // fix it — which language needs which engine, and where to connect it.
+    // Letting it fall through as a bare 500 gives the gateway a failed call and
+    // the operator nothing to act on.
+    if (error instanceof ProviderConfigurationError)
+      return NextResponse.json({ error: error.message }, { status: 503 });
+    console.error('voice turn failed', error);
+    return NextResponse.json(
+      { error: 'The voice turn could not be completed.' },
+      { status: 500 },
+    );
+  }
+}
+
+type TurnRequest = {
+  callId?: string;
+  audioBase64?: string;
+  contentType?: string;
+  languageCode?: string;
+  /** Set on the first turn so the agent opens instead of answering silence. */
+  greeting?: boolean;
+};
+
+async function runTurn(body: TurnRequest, callId: string) {
   await ensureSchema();
   const db = getRawDb();
   const call = await db
@@ -92,7 +114,17 @@ export async function POST(request: Request) {
 
   // The greeting turn has no caller audio to transcribe.
   if (body.greeting) {
-    const text = call.welcome_message || 'नमस्ते, मैं आपकी क्या मदद कर सकती हूँ?';
+    // Was `call.welcome_message || '<a Hindi sentence>'`, played to every
+    // caller whatever language the call was in. The greeting turn never reaches
+    // the model, so none of the prompt's language rules applied to it (§11).
+    const text = await greetingForLanguage({
+      organizationId,
+      businessName: call.business_name,
+      agentName: call.agent_name || 'Vaani',
+      welcomeMessage: call.welcome_message,
+      sourceLanguage: call.primary_language,
+      languageCode: language,
+    });
     const speech = await synthesizeSpeech({
       organizationId,
       text,

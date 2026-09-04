@@ -2,7 +2,7 @@
 /* oxlint-disable jsx-a11y/media-has-caption -- call transcripts and QA summaries are available beside authenticated recordings */
 
 import { useCallback, useEffect, useState } from 'react';
-import { SUPPORTED_LANGUAGES, SUPPORTED_LANGUAGE_CODES } from '@/lib/languages';
+import { SUPPORTED_LANGUAGE_CODES, languagesForRegion } from '@/lib/languages';
 import {
   Activity,
   AlertTriangle,
@@ -2043,11 +2043,22 @@ function WorkspaceSettings({
                 value={language}
                 onChange={(event) => setLanguage(event.target.value)}
               >
-                {SUPPORTED_LANGUAGES.map((item) => (
-                  <option key={item.code} value={item.code}>
-                    {item.label}
-                  </option>
-                ))}
+                {/* Grouped because the catalog is no longer India-only (§11);
+                    eighteen flat entries hide where the global ones start. */}
+                <optgroup label="India">
+                  {languagesForRegion('india').map((item) => (
+                    <option key={item.code} value={item.code}>
+                      {item.label}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Global">
+                  {languagesForRegion('global').map((item) => (
+                    <option key={item.code} value={item.code}>
+                      {item.label}
+                    </option>
+                  ))}
+                </optgroup>
               </select>
             </Field>
             <Field label={t('field.recordingPolicy')}>
@@ -2074,31 +2085,39 @@ function WorkspaceSettings({
             <p className="mt-1 text-[10px] text-ink-muted">
               {t('settings.languages.hint')}
             </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {SUPPORTED_LANGUAGES.map((item) => {
-                const isDefault = item.code === language;
-                const active =
-                  isDefault || enabledLanguages.includes(item.code);
-                return (
-                  <button
-                    key={item.code}
-                    type="button"
-                    disabled={isDefault}
-                    onClick={() => toggleLanguage(item.code)}
-                    className={`rounded-lg border px-3 py-1.5 text-[11px] transition ${
-                      active
-                        ? 'border-emerald-400/40 bg-emerald-400/12 text-success-text'
-                        : 'border-hairline bg-surface-strong text-ink-body hover:text-ink'
-                    } ${isDefault ? 'cursor-default opacity-80' : ''}`}
-                  >
-                    {item.label}
-                    {isDefault
-                      ? ` · ${t('settings.languages.defaultSuffix')}`
-                      : ''}
-                  </button>
-                );
-              })}
-            </div>
+            {(['india', 'global'] as const).map((region) => (
+              <div key={region} className="mt-3">
+                <p className="text-[9px] uppercase tracking-wide text-ink-muted">
+                  {region === 'india' ? 'India' : 'Global'}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {languagesForRegion(region).map((item) => {
+                    const isDefault = item.code === language;
+                    const active =
+                      isDefault || enabledLanguages.includes(item.code);
+                    return (
+                      <button
+                        key={item.code}
+                        type="button"
+                        disabled={isDefault}
+                        onClick={() => toggleLanguage(item.code)}
+                        title={`${item.nativeName} · needs ${item.engines.join(' or ')}`}
+                        className={`rounded-lg border px-3 py-1.5 text-[11px] transition ${
+                          active
+                            ? 'border-emerald-400/40 bg-emerald-400/12 text-success-text'
+                            : 'border-hairline bg-surface-strong text-ink-body hover:text-ink'
+                        } ${isDefault ? 'cursor-default opacity-80' : ''}`}
+                      >
+                        {item.label}
+                        {isDefault
+                          ? ` · ${t('settings.languages.defaultSuffix')}`
+                          : ''}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
           <div className="mt-5 grid gap-5 sm:grid-cols-3">
             <Field label={t('field.recordingRetention')}>

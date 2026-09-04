@@ -114,6 +114,34 @@ and billing everywhere. Revisit once the core product has real usage.
 
 ## Landed
 
+**Global languages (§11).** French, Spanish, Chinese and Japanese join the
+catalog, and the catalog is now the only language vocabulary in the product —
+the STT router's own list of Indian codes and a `languageName` map inside the
+prompt builder are gone. Both had drifted: the router sent Odia and Assamese to
+the Indic engine although neither was selectable anywhere, and the prompt map
+fell back to *"Hindi written in Devanagari"* for any code it did not recognise,
+so a Spanish agent was instructed to open in Hindi.
+
+Synthesis now routes by what an engine can actually speak rather than by which
+API key exists. That was the load-bearing part: the old rule sent everything to
+the Indic engine unless the language was exactly `en-IN`, and an Indic model
+handed French does not fail — it returns audio. Wrong audio is worse than none,
+because only one of them is visible, so a capable engine is required and there
+is no fallback to an incapable one. Transcription keeps its fallback, which is
+the deliberate asymmetry: a wrong transcript is visible in the transcript and
+recoverable on the next turn.
+
+The greeting is rendered in the call's language. It used to be one fixed string
+per agent, with a hardcoded Hindi sentence when an agent had none — and because
+the greeting turn never reaches the model, none of the prompt's language rules
+applied to it. A French caller's first words were Hindi.
+
+*Fixed alongside:* ElevenLabs synthesis recorded no units, so every call on the
+multilingual engine metered as zero characters and priced as free. Harmless
+while it was the minority path; not once §11's four languages all run through
+it.
+
+
 **Sales intelligence loop (§10).** Every call has always produced an outcome,
 a sentiment and a list of objections, and all three went into rows nothing read
 back. `leads.score` stayed at whatever the enquiry form implied for the life of

@@ -4,6 +4,7 @@ import { getRawDb } from '@/db/index';
 import { CONVERSION_SQL_LIST } from '@/lib/call-outcomes';
 import { requireCustomerPermission } from '@/lib/customer-rbac';
 import { languageLabel } from '@/lib/languages';
+import { summariseToolUsage } from '@/lib/activity-timeline';
 
 export const dynamic = 'force-dynamic';
 
@@ -130,8 +131,49 @@ export async function GET(request: Request) {
   const rate = (value: unknown) =>
     callCount ? Math.round((Number(value ?? 0) / callCount) * 1000) / 10 : 0;
 
+  // Which actions the agent actually performs, and which fail.
+  // `agent_tool_calls` has recorded every invocation — input, result, ok flag
+  // and latency — since tool calling shipped, and nothing read it. So a
+  // workspace deciding which actions to enable had no evidence about any of
+  // them, which is the half of that decision the product was withholding.
+  const toolRows = await db
+    .prepare(
+      `SELECT tool_name AS toolName,
+              sum(CASE WHEN outcome_kind = 'succeeded' THEN 1 ELSE 0 END) AS succeeded,
+              sum(CASE WHEN outcome_kind = 'answered_no' THEN 1 ELSE 0 END) AS answeredNo,
+              sum(CASE WHEN outcome_kind = 'rejected_input' THEN 1 ELSE 0 END) AS rejectedInput,
+              sum(CASE WHEN outcome_kind = 'failed' THEN 1 ELSE 0 END) AS failed,
+              group_concat(coalesce(latency_ms, 0)) AS latencies
+       FROM agent_tool_calls
+       WHERE organization_id = ? AND created_at >= datetime('now', ?)
+       GROUP BY tool_name`,
+    )
+    .bind(organizationId, since)
+    .all<{
+      toolName: string;
+      succeeded: number;
+      answeredNo: number;
+      rejectedInput: number;
+      failed: number;
+      latencies: string | null;
+    }>();
+  const tools = summariseToolUsage(
+    (toolRows.results ?? []).map((row) => ({
+      toolName: row.toolName,
+      succeeded: Number(row.succeeded ?? 0),
+      answeredNo: Number(row.answeredNo ?? 0),
+      rejectedInput: Number(row.rejectedInput ?? 0),
+      failed: Number(row.failed ?? 0),
+      latencies: String(row.latencies ?? '')
+        .split(',')
+        .filter(Boolean)
+        .map(Number),
+    })),
+  );
+
   return NextResponse.json({
     windowDays: days,
+    tools,
     totals: {
       calls: callCount,
       leads: Array.from(leadsByDay.values()).reduce((a, b) => a + b, 0),

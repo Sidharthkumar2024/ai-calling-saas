@@ -69,12 +69,15 @@ const stages = [
 export function CustomerCrm({
   leads,
   activities,
+  timeline,
   onMove,
   onChanged,
   onStartFollowUp,
 }: {
   leads: CrmLead[];
   activities: CrmActivity[];
+  /** Score history per lead id, newest first. */
+  timeline?: Record<string, LeadTimelineEvent[]>;
   onMove: (lead: CrmLead, stage: string) => Promise<void>;
   onChanged: () => Promise<void>;
   onStartFollowUp: () => void;
@@ -464,6 +467,16 @@ export function CustomerCrm({
                             </Badge>
                           ) : null}
                         </div>
+                        {/*
+                          Why the score is what it is. `lead_events` has carried
+                          the previous value, the new one and every contribution
+                          since the post-call loop shipped, and nothing read it —
+                          so a score that moved thirty points could not say why,
+                          which is precisely what the trail was written for.
+                        */}
+                        {(timeline?.[lead.id] ?? [])[0] ? (
+                          <ScoreChange event={(timeline?.[lead.id] ?? [])[0]} />
+                        ) : null}
                         <div className="mt-3 rounded-lg border border-violet-300/8 bg-violet-300/[0.035] p-2.5">
                           <div className="flex items-center gap-1.5 text-[8px] font-semibold uppercase tracking-[0.12em] text-violet-700">
                             <Bot className="size-3" /> AI next action
@@ -623,4 +636,76 @@ function parseCsvLine(line: string) {
   }
   values.push(current.trim());
   return values;
+}
+
+export type LeadTimelineEvent = {
+  id: string;
+  createdAt: string;
+  eventType: string;
+  headline: string;
+  delta: number | null;
+  direction: 'up' | 'down' | 'flat';
+  reasons: Array<{ signal: string; delta: number; note: string }>;
+};
+
+/**
+ * The most recent score change on a lead, and what moved it.
+ *
+ * Collapsed by default: the headline is the answer most of the time, and the
+ * contributions are what somebody opens when they disagree with it.
+ */
+function ScoreChange({ event }: { event: LeadTimelineEvent }) {
+  const [open, setOpen] = useState(false);
+  if (event.eventType !== 'score_recalculated') return null;
+  return (
+    <div className="mt-3 rounded-lg border border-hairline bg-surface-muted p-2.5">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center gap-1.5 text-left"
+      >
+        <span
+          className={`text-[9px] font-semibold ${
+            event.direction === 'up'
+              ? 'text-success-text'
+              : event.direction === 'down'
+                ? 'text-danger-text'
+                : 'text-ink-muted'
+          }`}
+        >
+          {event.delta === null || event.delta === 0
+            ? '±0'
+            : `${event.delta > 0 ? '+' : ''}${event.delta}`}
+        </span>
+        <span className="flex-1 truncate text-[9px] text-ink-body">
+          {event.headline}
+        </span>
+        {event.reasons.length ? (
+          <span className="text-[8px] text-ink-muted">
+            {open ? 'hide' : 'why'}
+          </span>
+        ) : null}
+      </button>
+      {open && event.reasons.length ? (
+        <ul className="mt-2 space-y-1">
+          {event.reasons.map((reason) => (
+            <li
+              key={`${reason.signal}-${reason.delta}`}
+              className="flex gap-2 text-[9px] text-ink-muted"
+            >
+              <span
+                className={`w-8 shrink-0 text-right font-mono ${
+                  reason.delta > 0 ? 'text-success-text' : 'text-danger-text'
+                }`}
+              >
+                {reason.delta > 0 ? '+' : ''}
+                {reason.delta}
+              </span>
+              <span>{reason.note}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
 }

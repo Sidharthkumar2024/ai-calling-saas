@@ -42,6 +42,7 @@ import {
 
 import {
   CustomerCrm,
+  type LeadTimelineEvent,
   type CrmActivity,
   type CrmLead,
 } from '@/components/customer-crm';
@@ -156,7 +157,11 @@ type RetargetingData = {
 
 export type CustomerData = {
   overview: OverviewData;
-  crm: { pipeline: CrmLead[]; activities: CrmActivity[] };
+  crm: {
+    pipeline: CrmLead[];
+    activities: CrmActivity[];
+    timeline?: Record<string, LeadTimelineEvent[]>;
+  };
   numbers: CustomerNumbersData;
   integrations: IntegrationsData;
   apiKeys: ApiKeysData;
@@ -412,7 +417,7 @@ const navPermissions: Record<string, string> = {
 
 const emptyData: CustomerData = {
   overview: {},
-  crm: { pipeline: [], activities: [] },
+  crm: { pipeline: [], activities: [], timeline: {} },
   numbers: { numbers: [] },
   integrations: { integrations: [] },
   apiKeys: { apiKeys: [] },
@@ -599,6 +604,7 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
             <CustomerCrm
               leads={data.crm.pipeline}
               activities={data.crm.activities}
+              timeline={data.crm.timeline}
               onMove={moveLead}
               onChanged={load}
               onStartFollowUp={() => setActive('campaigns')}

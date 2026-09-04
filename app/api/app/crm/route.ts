@@ -6,6 +6,7 @@ import {
   requireAnyCustomerPermission,
   requireCustomerPermission,
 } from '@/lib/customer-rbac';
+import { describeLeadEvent } from '@/lib/activity-timeline';
 import { ensureDemoLeads, recordAudit } from '@/lib/demo-seed';
 
 export const dynamic = 'force-dynamic';
@@ -60,9 +61,49 @@ export async function GET(request: Request) {
       .all(),
   ]);
 
+  // Why each score is what it is. `lead_events` has carried the previous
+  // value, the new one and every contribution since the post-call loop
+  // shipped, and nothing read it — so a score that moved thirty points could
+  // not say why, which is the exact thing the trail was written to fix.
+  const events = await db
+    .prepare(
+      `SELECT id, lead_id AS leadId, event_type AS eventType,
+              payload_json AS payload, created_at AS createdAt
+       FROM lead_events
+       WHERE organization_id = ?
+       ORDER BY created_at DESC LIMIT 200`,
+    )
+    .bind(organizationId)
+    .all<{
+      id: string;
+      leadId: string;
+      eventType: string;
+      payload: string;
+      createdAt: string;
+    }>();
+
+  const timeline: Record<string, unknown[]> = {};
+  for (const row of events.results ?? []) {
+    let payload: Record<string, unknown> = {};
+    try {
+      payload = JSON.parse(row.payload || '{}') as Record<string, unknown>;
+    } catch {
+      // A payload written by an older version is still an event that happened.
+      payload = {};
+    }
+    const described = describeLeadEvent({
+      id: row.id,
+      eventType: row.eventType,
+      createdAt: row.createdAt,
+      payload,
+    });
+    (timeline[row.leadId] ??= []).push(described);
+  }
+
   return NextResponse.json({
     pipeline: pipeline.results,
     activities: activities.results,
+    timeline,
   });
 }
 

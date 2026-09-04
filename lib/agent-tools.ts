@@ -15,6 +15,7 @@ import {
 import type { Filter } from '@/lib/object-engine';
 import { createOrder } from '@/lib/order-service';
 import { filterToolDefinitions } from '@/lib/agent-tool-catalog';
+import { toolOutcomeKind } from '@/lib/activity-timeline';
 
 /**
  * The tool definitions to hand the model for one agent.
@@ -991,8 +992,8 @@ export async function executeAgentTool(
   try {
     await getRawDb()
       .prepare(`INSERT INTO agent_tool_calls
-        (id, organization_id, session_id, turn_id, tool_name, input_json, result_json, ok, error_message, latency_ms)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        (id, organization_id, session_id, turn_id, tool_name, input_json, result_json, ok, error_message, latency_ms, outcome_kind)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind(
         id('toolcall'),
         ctx.organizationId,
@@ -1009,6 +1010,13 @@ export async function executeAgentTool(
               : 'failed'
             ).slice(0, 300),
         latencyMs,
+        // Separate from `ok`, which is the tool's answer to the model and must
+        // keep saying "no such customer". This is what the tool *did*, so a
+        // negative answer is not counted as a broken tool.
+        toolOutcomeKind(
+          outcome.ok,
+          typeof outcome.reason === 'string' ? outcome.reason : null,
+        ),
       )
       .run();
   } catch {

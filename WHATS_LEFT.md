@@ -117,6 +117,38 @@ work.
 
 ## Landed
 
+**Readers for data the product recorded and never showed.** A sweep for tables
+that real code writes and no real code reads found six. Two were false
+positives — `invoice_sequences` is read through its own UPSERT's `RETURNING`,
+`graph_agents` through a helper that builds the SELECT. The rest were real, and
+one of them was written earlier in this same session:
+
+- **`lead_events`** carries why a score moved — previous value, new value, and
+  every contribution with its own delta. Written to make a score explainable,
+  and nothing could read it. Now on the lead card: the change, and "why" opens
+  the contributions.
+- **`agent_tool_calls`** logs every tool invocation with input, result and
+  latency. Now on Analytics, so a workspace choosing which actions to enable
+  can see which are used and which fail.
+- **`job_attempts`** records every attempt including its error. The health
+  panel showed only `background_jobs.last_error` — the most recent failure of
+  one job, which cannot say whether it fails *always* (a bad payload) or
+  *intermittently* (a provider). Now reported as a pattern.
+
+*The tool reader immediately found a defect.* `lookup_customer` showed 13 calls
+and 0 successes. It had never failed once: `ok` is the tool's reply **to the
+model**, and "there is no such customer" is a legitimate `ok: false` that the
+model needs to hear. The same flag was being stored as an operational health
+signal, so a working tool read as 100% broken — invisible while nothing read
+the column, and actively misleading the moment something did. Outcomes are now
+classified as succeeded / answered-no / rejected-input / failed, and the
+backfill turned those 13 failures into 9 answered-no and 4 rejected-input.
+
+Those 4 are a second, real finding: the agent called `lookup_customer` with the
+literal string `"incoming call"` as a phone number, because on an inbound call
+it is never handed the caller's number and guessed. Not yet fixed.
+
+
 **Controlling a live call (§4).** Mute, hold, supervisor monitoring and hanging
 up were all listed as "the gateway can carry them, but they need a control
 channel from the Agent Desk to a live session". Two things were missing, and

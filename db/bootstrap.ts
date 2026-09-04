@@ -1867,6 +1867,25 @@ async function bootstrap() {
        WHERE tools_json LIKE '%"send_email"%' OR tools_json LIKE '%"create_ticket"%'`,
     )
     .run();
+  // `agent_tool_calls.ok` is the tool's reply to the model — "there is no such
+  // customer" is a legitimate `ok: false`. Nothing read the column, so nothing
+  // noticed it was also being used as a health signal: `lookup_customer` read
+  // as 13 calls and 0 successes while working correctly every time. This column
+  // records what the call *was*, so a negative answer stops looking like a bug.
+  await ensureColumn(db, 'agent_tool_calls', 'outcome_kind', 'TEXT');
+  await db
+    .prepare(
+      `UPDATE agent_tool_calls SET outcome_kind = CASE
+         WHEN ok = 1 THEN 'succeeded'
+         WHEN error_message IN ('not_found','no_slots','no_availability',
+              'insufficient_inventory','already_exists','nothing_to_cancel',
+              'out_of_stock','not_eligible') THEN 'answered_no'
+         WHEN error_message IN ('invalid_phone','invalid_amount','invalid_input',
+              'missing_field','invalid_date') THEN 'rejected_input'
+         ELSE 'failed' END
+       WHERE outcome_kind IS NULL`,
+    )
+    .run();
   await ensureColumn(db, 'organizations', 'suspended_at', 'TEXT');
   await ensureColumn(db, 'organizations', 'suspension_reason', 'TEXT');
 

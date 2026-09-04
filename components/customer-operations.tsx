@@ -1476,6 +1476,17 @@ type AnalyticsPayload = {
   }>;
   outcomes: Array<{ name: string; value: number }>;
   sentiments: Array<{ name: string; value: number }>;
+  tools?: Array<{
+    toolName: string;
+    calls: number;
+    succeeded: number;
+    answeredNo: number;
+    rejectedInput: number;
+    failed: number;
+    failureRate: number | null;
+    medianLatencyMs: number | null;
+    p95LatencyMs: number | null;
+  }>;
   byLanguage: Array<{
     language: string;
     label: string;
@@ -1674,6 +1685,53 @@ function Analytics() {
               </div>
             </section>
           </div>
+          {payload.tools?.length ? (
+            <section className="portal-panel p-5">
+              <h2 className="text-sm font-semibold">Actions the agent took</h2>
+              <p className="mt-1 text-[10px] text-ink-muted">
+                Every tool call is recorded; this is what your agents actually
+                used in this window
+              </p>
+              <div className="mt-4 space-y-2">
+                {payload.tools.map((tool) => (
+                  <div
+                    key={tool.toolName}
+                    className="flex flex-wrap items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2.5 text-[11px]"
+                  >
+                    <span className="font-medium">
+                      {tool.toolName.replaceAll('_', ' ')}
+                    </span>
+                    <span className="text-ink-muted">{tool.calls} calls</span>
+                    <span className="text-ink-muted">
+                      {tool.medianLatencyMs === null
+                        ? 'no timing'
+                        : `${tool.medianLatencyMs}ms median`}
+                    </span>
+                    {tool.p95LatencyMs !== null ? (
+                      <span className="text-ink-muted">
+                        {tool.p95LatencyMs}ms p95
+                      </span>
+                    ) : null}
+                    <span
+                      className={`ml-auto text-[9px] ${
+                        tool.failed > 0
+                          ? 'text-danger-text'
+                          : 'text-success-text'
+                      }`}
+                    >
+                      {/* Never "0% failed" for a tool nobody called — that is a
+                          green tick on an untested action. */}
+                      {tool.failureRate === null
+                        ? 'not used'
+                        : tool.failed === 0
+                          ? 'all succeeded'
+                          : `${tool.failed} failed · ${Math.round(tool.failureRate * 100)}%`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
           <ObjectionLibrary />
         </>
       ) : null}

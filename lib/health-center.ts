@@ -6,6 +6,7 @@ import {
   type ServiceHealth,
   type ServiceSample,
 } from '@/lib/service-health';
+import { jobFailurePattern, type JobAttempt } from '@/lib/activity-timeline';
 import { providerReadiness } from '@/lib/provider-adapters';
 
 /**
@@ -24,6 +25,25 @@ export type HealthReport = {
   overall: string;
   windowMinutes: number;
   components: ServiceHealth[];
+  /**
+   * Jobs that are failing, with the shape of the failure (§29).
+   *
+   * The panel showed a backlog count and `background_jobs.last_error`, which is
+   * the most recent failure of one job and cannot say whether it fails every
+   * time — a bad payload or a missing column — or intermittently, which is a
+   * provider or a timeout. `job_attempts` has recorded every attempt including
+   * its error since the queue shipped, and nothing read it.
+   */
+  failingJobs: Array<{
+    jobId: string;
+    type: string;
+    status: string;
+    attempts: number;
+    failures: number;
+    pattern: string;
+    lastError: string | null;
+    distinctErrors: string[];
+  }>;
   measuredAt: string;
 };
 
@@ -191,9 +211,74 @@ async function queueSample(): Promise<Partial<ServiceSample>> {
   };
 }
 
+/**
+ * Reads the attempt history of jobs that are currently in trouble.
+ *
+ * Limited to jobs that have actually failed and are not completed: a healthy
+ * queue produces no rows here, and a panel listing every job that once
+ * retried would bury the ones that matter.
+ */
+async function failingJobs() {
+  const rows = await getRawDb()
+    .prepare(
+      `SELECT j.id AS jobId, j.type, j.status,
+              a.attempt, a.status AS attemptStatus, a.duration_ms AS durationMs,
+              a.error, a.created_at AS createdAt
+       FROM background_jobs j
+       INNER JOIN job_attempts a ON a.job_id = j.id
+       WHERE j.status IN ('retry', 'dead_letter', 'failed')
+       ORDER BY j.updated_at DESC, a.attempt ASC
+       LIMIT 200`,
+    )
+    .all<{
+      jobId: string;
+      type: string;
+      status: string;
+      attempt: number;
+      attemptStatus: string;
+      durationMs: number | null;
+      error: string | null;
+      createdAt: string;
+    }>();
+
+  const byJob = new Map<
+    string,
+    { type: string; status: string; attempts: JobAttempt[] }
+  >();
+  for (const row of rows.results ?? []) {
+    const entry = byJob.get(row.jobId) ?? {
+      type: row.type,
+      status: row.status,
+      attempts: [],
+    };
+    entry.attempts.push({
+      attempt: Number(row.attempt ?? 0),
+      status: row.attemptStatus,
+      durationMs: row.durationMs,
+      error: row.error,
+      createdAt: row.createdAt,
+    });
+    byJob.set(row.jobId, entry);
+  }
+
+  return [...byJob.entries()].map(([jobId, entry]) => ({
+    jobId,
+    type: entry.type,
+    status: entry.status,
+    ...jobFailurePattern(entry.attempts),
+  }));
+}
+
+const PATTERN_URGENCY: Record<string, number> = {
+  always: 3,
+  intermittent: 2,
+  recovered: 1,
+  clean: 0,
+};
+
 /** The §29 component list, measured. */
 export async function healthReport(): Promise<HealthReport> {
-  const [providers, stored, webhook, database, queue, readiness] =
+  const [providers, stored, webhook, database, queue, readiness, jobs] =
     await Promise.all([
       providerSamples(),
       storedHealth(),
@@ -201,6 +286,9 @@ export async function healthReport(): Promise<HealthReport> {
       databaseSample(),
       queueSample(),
       providerReadiness().catch(() => []),
+      // Never allowed to take the panel down: the health screen exists to be
+      // readable when things are broken.
+      failingJobs().catch(() => []),
     ]);
 
   const configured = new Map<string, boolean>();
@@ -265,6 +353,11 @@ export async function healthReport(): Promise<HealthReport> {
     windowMinutes: WINDOW_MINUTES,
     components: classified.sort((a, b) =>
       a.component.localeCompare(b.component),
+    ),
+    // Worst first: 'always' is a bug in the job, 'intermittent' is usually a
+    // provider, and 'recovered' needs nobody's attention today.
+    failingJobs: [...jobs].sort(
+      (a, b) => PATTERN_URGENCY[b.pattern] - PATTERN_URGENCY[a.pattern],
     ),
     measuredAt: new Date().toISOString(),
   };

@@ -21,7 +21,15 @@ export const ADMIN_CAPABILITIES = [
 ] as const;
 
 export type AdminCapability = (typeof ADMIN_CAPABILITIES)[number];
-export type AdminRole = 'super_admin' | 'operations' | 'finance' | 'analyst';
+export type AdminRole =
+  | 'super_admin'
+  | 'operations'
+  | 'finance'
+  | 'analyst'
+  // §30: the Support Executive. Reads tenants and opens audited support
+  // sessions, and can do nothing else — not providers, not billing, not
+  // security.
+  | 'support';
 
 const ROLE_CAPABILITIES: Record<AdminRole, AdminCapability[]> = {
   super_admin: [...ADMIN_CAPABILITIES],
@@ -33,6 +41,7 @@ const ROLE_CAPABILITIES: Record<AdminRole, AdminCapability[]> = {
   ],
   finance: ['tenants.read', 'billing.manage'],
   analyst: ['tenants.read'],
+  support: ['tenants.read', 'support.access'],
 };
 
 export function adminCapabilities(role: string): AdminCapability[] {

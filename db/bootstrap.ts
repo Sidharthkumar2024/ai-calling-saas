@@ -1207,6 +1207,43 @@ async function bootstrap() {
     db.prepare(
       `CREATE UNIQUE INDEX IF NOT EXISTS idx_rate_cards_version ON provider_rate_cards (provider, coalesce(model, ''), unit, effective_from)`,
     ),
+    // §30: audited support access. A PIN is minted *inside* the workspace by
+    // someone who works there — support cannot let itself in — and it is
+    // single-use, attempt-limited and short-lived. Only the hash is stored.
+    db.prepare(`CREATE TABLE IF NOT EXISTS support_pins (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      pin_hash TEXT NOT NULL,
+      issued_by TEXT,
+      reason TEXT,
+      attempts INTEGER DEFAULT 0 NOT NULL,
+      expires_at TEXT NOT NULL,
+      used_at TEXT,
+      revoked_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_support_pins_org ON support_pins (organization_id, expires_at)`,
+    ),
+    db.prepare(`CREATE TABLE IF NOT EXISTS support_sessions (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      pin_id TEXT REFERENCES support_pins(id) ON DELETE SET NULL,
+      executive_user_id TEXT NOT NULL,
+      executive_email TEXT,
+      ticket_id TEXT,
+      reason TEXT,
+      /* Every read during the session is counted, so a "quick look" that turns
+         into an hour of browsing is visible afterwards. */
+      view_count INTEGER DEFAULT 0 NOT NULL,
+      expires_at TEXT NOT NULL,
+      ended_at TEXT,
+      ended_reason TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_support_sessions_org ON support_sessions (organization_id, created_at)`,
+    ),
     // §29: per-component health state that survives a restart. The measured
     // window comes from provider_usage_events; this row carries the facts a
     // window cannot show — the last success, a tripped breaker, a declared
@@ -1858,6 +1895,9 @@ async function bootstrap() {
   await ensureColumn(db, 'invoices', 'place_of_supply', 'TEXT');
   // Billing identity of the workspace being invoiced.
   await ensureColumn(db, 'organization_settings', 'gstin', 'TEXT');
+  // §30: a short code the customer can quote, so a ticket and a call can be
+  // found without anyone reading out a UUID.
+  await ensureColumn(db, 'support_tickets', 'diagnostic_code', 'TEXT');
   await ensureColumn(db, 'organization_settings', 'legal_name', 'TEXT');
   await ensureColumn(db, 'organization_settings', 'billing_state', 'TEXT');
   await ensureColumn(db, 'organization_settings', 'billing_country', "TEXT DEFAULT 'IN'");

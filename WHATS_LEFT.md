@@ -196,8 +196,35 @@ down on purpose is not an incident.
 35 assertions on the classifier, including that `unknown` outranks `healthy` in
 the roll-up: a platform with an unmeasured component is not known to be healthy.
 
-Still to come on this track: the Support Executive portal (§30) — diagnostic ID,
-support PIN and an audited support view. None of it exists yet.
+**Support Executive portal (§30).** None of this existed — `impersonation`
+appeared once in the whole repository, in a roadmap sentence.
+
+Three rules shape it, each answering a way this goes wrong in practice:
+
+- **The customer grants access, not the operator.** A PIN is minted inside the
+  workspace by somebody who works there. Support has no way to let itself in.
+- **It ends by itself.** The PIN lives 30 minutes, is single-use and locks after
+  five attempts; the session lives an hour. A grant that needs a human to
+  remember to close it is a grant that stays open.
+- **Exposure is an allow-list, not a filter.** `VISIBLE_FIELDS` names what
+  support may read; anything unnamed is invisible, so a column added next year
+  is private until someone decides otherwise. A deny-list leaks by default the
+  moment the schema grows.
+
+The queue needs no session at all: tenant, plan, a quotable diagnostic code and
+a failed-job count answer most tickets without anyone opening anything.
+
+Verified end to end. A guessed PIN is refused; the customer mints one; support
+opens a session with it; **the same PIN a second time is refused as already
+used**; the view returns workspace, plan, wallet, diagnostics, errors, tickets
+and calls with no secret-shaped key anywhere in the payload; the customer
+revokes mid-session and the next read is 403. The audit trail reads as the whole
+story — `pin_rejected → pin_issued → session_opened → pin_rejected →
+view_read → access_revoked` — with every step attributed.
+
+A new `support` platform sub-role holds `tenants.read` and `support.access` and
+nothing else: verified 403 on rotating a provider key and on editing a plan.
+
 
 **Track D — money: rate cards, real metering, cost and margin (§13, §26-28),
 first pass.** The admin panel titled "Provider cost and margin" summed columns

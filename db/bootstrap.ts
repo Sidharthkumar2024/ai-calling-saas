@@ -2047,6 +2047,21 @@ async function bootstrap() {
   await ensureColumn(db, 'report_runs', 'delivery_state', 'TEXT');
   await ensureColumn(db, 'report_runs', 'delivered_to', 'TEXT');
 
+  // What an outbound campaign says it is (§19). Without this every campaign
+  // opened with the agent's single welcome_message, so a recruitment call and
+  // a payment reminder from the same workspace introduced themselves
+  // identically.
+  await ensureColumn(db, 'campaigns', 'opening_json', "TEXT DEFAULT '{}'");
+  // Contacts whose personalisation could not be built and fell back. Recorded
+  // so a campaign degrading for every contact is visible rather than assumed
+  // to be working.
+  await ensureColumn(
+    db,
+    'campaigns',
+    'opening_degraded',
+    'INTEGER DEFAULT 0 NOT NULL',
+  );
+
   // The embeddable web voice widget (§8). `allowed_origins_json` and the two
   // caps are not configuration niceties: this widget is reachable by a public
   // endpoint that starts calls, and those three columns are what stands

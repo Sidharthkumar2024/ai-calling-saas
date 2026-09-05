@@ -2,7 +2,7 @@
 
 /* oxlint-disable jsx-a11y/media-has-caption -- call transcripts and QA summaries are available beside authenticated recordings */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SUPPORTED_LANGUAGE_CODES, languagesForRegion } from '@/lib/languages';
 import { SoundSettings } from '@/components/notification-center';
 import {
@@ -47,6 +47,8 @@ import { CustomerImport } from '@/components/customer-import';
 import { SupervisorMonitor } from '@/components/supervisor-monitor';
 import { useT } from '@/components/locale-provider';
 import type { TranslationKey } from '@/lib/i18n';
+import { RECORDING_PRESENT } from '@/lib/call-history';
+import { parseOpening, previewOpening } from '@/lib/campaign-opening';
 import {
   describeSchedule,
   isReportSchedule,
@@ -408,6 +410,10 @@ function OperationsCreator({
     agentId: str(agents[0]?.id, ''),
     workflowId: str(workflows[0]?.id, ''),
     workflowVersion: '1',
+    openingMode: 'agent_default',
+    openingTeam: '',
+    openingExecutive: '',
+    openingReason: '',
     fromNumberId: str(numbers[0]?.id, ''),
     concurrency: '5',
     maxAttempts: '3',
@@ -444,6 +450,12 @@ function OperationsCreator({
       await submit({
         action: 'create_campaign',
         ...campaign,
+        opening: {
+          mode: campaign.openingMode,
+          team: campaign.openingTeam,
+          executive: campaign.openingExecutive,
+          reason: campaign.openingReason,
+        },
         contacts,
         concurrency: Number(campaign.concurrency),
         maxAttempts: Number(campaign.maxAttempts),
@@ -534,6 +546,82 @@ function OperationsCreator({
                   </option>
                 ))}
               </select>
+            </CreatorField>
+            {/* §19: a campaign may say who it is, rather than every campaign
+                opening with the agent's single welcome message. */}
+            <CreatorField label="How this campaign introduces itself">
+              <select
+                value={campaign.openingMode}
+                onChange={(event) =>
+                  setCampaign({ ...campaign, openingMode: event.target.value })
+                }
+              >
+                <option value="agent_default">The agent’s own welcome</option>
+                <option value="company">From the company</option>
+                <option value="team">From a team inside it</option>
+                <option value="executive">On behalf of a person</option>
+                <option value="customer">Greet the customer by name</option>
+              </select>
+              {campaign.openingMode === 'team' ? (
+                <Input
+                  value={campaign.openingTeam}
+                  onChange={(event) =>
+                    setCampaign({
+                      ...campaign,
+                      openingTeam: event.target.value,
+                    })
+                  }
+                  placeholder="admissions"
+                  className="mt-2"
+                />
+              ) : null}
+              {campaign.openingMode === 'executive' ? (
+                <Input
+                  value={campaign.openingExecutive}
+                  onChange={(event) =>
+                    setCampaign({
+                      ...campaign,
+                      openingExecutive: event.target.value,
+                    })
+                  }
+                  placeholder="Mr Rana"
+                  className="mt-2"
+                />
+              ) : null}
+              {campaign.openingMode !== 'agent_default' ? (
+                <>
+                  <Input
+                    value={campaign.openingReason}
+                    onChange={(event) =>
+                      setCampaign({
+                        ...campaign,
+                        openingReason: event.target.value,
+                      })
+                    }
+                    placeholder="about your recent enquiry (optional)"
+                    className="mt-2"
+                  />
+                  {/* Shown, not described. The one that matters is `customer`:
+                      a contact with no name gets the company line instead of
+                      "Hello , this is" — the failure any template system
+                      produces by default. */}
+                  <p className="mt-2 text-[9px] text-ink-muted">
+                    A contact will hear:{' '}
+                    <span className="text-ink">
+                      {previewOpening({
+                        config: parseOpening({
+                          mode: campaign.openingMode,
+                          team: campaign.openingTeam,
+                          executive: campaign.openingExecutive,
+                          reason: campaign.openingReason,
+                        }),
+                        businessName: 'your company',
+                        agentName: 'your agent',
+                      }).text ?? ''}
+                    </span>
+                  </p>
+                </>
+              ) : null}
             </CreatorField>
             <CreatorField label={t('field.workflowPublished')}>
               <div className="grid grid-cols-[1fr_88px] gap-2">
@@ -875,9 +963,65 @@ function CreatorField({
   );
 }
 
+/**
+ * Call history (§19: campaign/date/duration/outcome/recording/transcript/cost
+ * filters).
+ *
+ * This was a flat table of the last hundred calls with no filters and no
+ * total, so a workspace with thousands of them saw a hundred and had no way to
+ * know the rest existed.
+ *
+ * The filter choices come from the workspace's own rows, not from a list in
+ * this file. `outcome` holds two vocabularies written at different times plus
+ * free prose from an older path, and a hardcoded dropdown would hide every row
+ * whose outcome nobody predicted — the screen would look complete and be
+ * wrong.
+ */
 function CallHistory({ data }: { data: OperationsData }) {
   const t = useT();
   const [openCallId, setOpenCallId] = useState<string | null>(null);
+  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [page, setPage] = useState(1);
+  const [result, setResult] = useState<CallHistoryResult | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const query = useMemo(() => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(filters))
+      if (value) params.set(key, value);
+    params.set('page', String(page));
+    return params.toString();
+  }, [filters, page]);
+
+  useEffect(() => {
+    let live = true;
+    // Everything is deferred a tick, the loading flag included: setting state
+    // synchronously in an effect body cascades renders, which is the same
+    // reason the other loaders in this file use a timeout.
+    const timer = window.setTimeout(async () => {
+      if (live) setLoading(true);
+      try {
+        const response = await fetch(`/api/app/call-history?${query}`);
+        if (!response.ok) return;
+        const payload = (await response.json()) as CallHistoryResult;
+        if (live) setResult(payload);
+      } finally {
+        if (live) setLoading(false);
+      }
+    }, 150);
+    return () => {
+      live = false;
+      window.clearTimeout(timer);
+    };
+  }, [query]);
+
+  const set = (key: string, value: string) => {
+    setPage(1);
+    setFilters((current) => ({ ...current, [key]: value }));
+  };
+  const options = result?.options;
+  const calls = result?.calls ?? [];
+
   return (
     <div className="space-y-6">
       <Header
@@ -886,6 +1030,143 @@ function CallHistory({ data }: { data: OperationsData }) {
         description={t('screen.call_history.description')}
       />
       <Stats data={data} />
+
+      <section className="rounded-2xl border border-hairline bg-surface p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            value={filters.search ?? ''}
+            onChange={(event) => set('search', event.target.value)}
+            placeholder="Name or number"
+            aria-label="Search calls by name or number"
+            className="h-8 min-w-[170px] flex-1 rounded-lg border border-hairline bg-surface px-2.5 text-[10px]"
+          />
+          <Choice
+            label="Outcome"
+            value={filters.outcome ?? ''}
+            values={options?.outcomes ?? []}
+            onChange={(value) => set('outcome', value)}
+          />
+          <Choice
+            label="Channel"
+            value={filters.channel ?? ''}
+            values={options?.channels ?? []}
+            onChange={(value) => set('channel', value)}
+          />
+          <Choice
+            label="Direction"
+            value={filters.direction ?? ''}
+            values={options?.directions ?? []}
+            onChange={(value) => set('direction', value)}
+          />
+          <Choice
+            label="Sentiment"
+            value={filters.sentiment ?? ''}
+            values={options?.sentiments ?? []}
+            onChange={(value) => set('sentiment', value)}
+          />
+          <Named
+            label="Campaign"
+            value={filters.campaign ?? ''}
+            values={options?.campaigns ?? []}
+            onChange={(value) => set('campaign', value)}
+          />
+          <Named
+            label="Agent"
+            value={filters.agent ?? ''}
+            values={options?.agents ?? []}
+            onChange={(value) => set('agent', value)}
+          />
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-1 text-[10px] text-ink-muted">
+            From
+            <input
+              type="date"
+              value={filters.from ?? ''}
+              onChange={(event) => set('from', event.target.value)}
+              className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+            />
+          </label>
+          <label className="flex items-center gap-1 text-[10px] text-ink-muted">
+            To
+            <input
+              type="date"
+              value={filters.to ?? ''}
+              onChange={(event) => set('to', event.target.value)}
+              className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+            />
+          </label>
+          <label className="flex items-center gap-1 text-[10px] text-ink-muted">
+            Seconds
+            <input
+              type="number"
+              min={0}
+              value={filters.minSeconds ?? ''}
+              onChange={(event) => set('minSeconds', event.target.value)}
+              placeholder="min"
+              className="h-8 w-16 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+            />
+            <input
+              type="number"
+              min={0}
+              value={filters.maxSeconds ?? ''}
+              onChange={(event) => set('maxSeconds', event.target.value)}
+              placeholder="max"
+              className="h-8 w-16 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+            />
+          </label>
+          <label className="flex items-center gap-1 text-[10px] text-ink-muted">
+            Credits
+            <input
+              type="number"
+              min={0}
+              value={filters.minCredits ?? ''}
+              onChange={(event) => set('minCredits', event.target.value)}
+              placeholder="min"
+              className="h-8 w-16 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+            />
+            <input
+              type="number"
+              min={0}
+              value={filters.maxCredits ?? ''}
+              onChange={(event) => set('maxCredits', event.target.value)}
+              placeholder="max"
+              className="h-8 w-16 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+            />
+          </label>
+          <TriState
+            label="Recording"
+            value={filters.recording ?? 'any'}
+            onChange={(value) => set('recording', value)}
+          />
+          <TriState
+            label="Transcript"
+            value={filters.transcript ?? 'any'}
+            onChange={(value) => set('transcript', value)}
+          />
+          {result?.filtered ? (
+            <button
+              type="button"
+              onClick={() => {
+                setFilters({});
+                setPage(1);
+              }}
+              className="h-8 rounded-lg border border-hairline px-2.5 text-[10px]"
+            >
+              Clear
+            </button>
+          ) : null}
+        </div>
+        <p className="mt-2 text-[10px] text-ink-muted">
+          {/* The total, so nobody reads a page of fifty as the whole history —
+              and the cost of what is selected, not of the whole workspace. */}
+          {loading ? 'Loading…' : (result?.range ?? '')}
+          {result && result.total > 0
+            ? ` · ${result.selection.credits} credits · ${duration(result.selection.seconds)}`
+            : ''}
+        </p>
+      </section>
+
       <section className="overflow-hidden rounded-2xl border border-hairline bg-surface">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[980px] text-left text-xs">
@@ -894,11 +1175,11 @@ function CallHistory({ data }: { data: OperationsData }) {
                 {[
                   'Customer',
                   'Agent',
+                  'Campaign',
                   'Channel',
                   'Status',
                   'Outcome',
                   'Duration',
-                  'Latency',
                   'Sentiment',
                   'Credits',
                   'Transcript',
@@ -911,7 +1192,7 @@ function CallHistory({ data }: { data: OperationsData }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/7">
-              {data.calls.map((call) => (
+              {calls.map((call) => (
                 <tr key={str(call.id)}>
                   <td className="px-4 py-4">
                     <p className="font-medium">
@@ -925,6 +1206,9 @@ function CallHistory({ data }: { data: OperationsData }) {
                   </td>
                   <td className="px-4 py-4 text-ink-body">
                     {str(call.agent_name)}
+                  </td>
+                  <td className="px-4 py-4 text-ink-body">
+                    {str(call.campaign_name, '—')}
                   </td>
                   <td className="px-4 py-4">
                     {/* A playground conversation is real telemetry but not a
@@ -950,26 +1234,25 @@ function CallHistory({ data }: { data: OperationsData }) {
                   <td className="px-4 py-4">
                     {duration(call.duration_seconds)}
                   </td>
-                  <td className="px-4 py-4">{str(call.latency_ms)}ms</td>
                   <td className="px-4 py-4 capitalize">
                     {str(call.sentiment)}
                   </td>
                   <td className="px-4 py-4">{str(call.cost_credits)}</td>
                   <td className="px-4 py-4">
-                    {Number(call.turn_count ?? 0) > 0 ? (
+                    {Number(call.has_transcript ?? 0) > 0 ? (
                       <button
                         type="button"
                         onClick={() => setOpenCallId(str(call.id))}
-                        className="rounded-lg border border-hairline px-2.5 py-1.5 text-[10px] text-ink transition hover:border-hairline hover:text-ink"
+                        className="rounded-lg border border-hairline px-2.5 py-1.5 text-[10px] text-ink"
                       >
-                        {str(call.turn_count)} turns
+                        Read
                       </button>
                     ) : (
                       <span className="text-ink-muted">No transcript</span>
                     )}
                   </td>
                   <td className="px-4 py-4">
-                    {str(call.recording_status) !== 'not_available' ? (
+                    {RECORDING_PRESENT.includes(str(call.recording_status)) ? (
                       <audio
                         controls
                         preload="none"
@@ -980,7 +1263,9 @@ function CallHistory({ data }: { data: OperationsData }) {
                       <span className="text-ink-muted">
                         {str(call.channel, 'phone') === 'playground'
                           ? 'No audio captured'
-                          : 'Recording unavailable'}
+                          : str(call.recording_status) === 'pending'
+                            ? 'Still arriving'
+                            : 'Recording unavailable'}
                       </span>
                     )}
                   </td>
@@ -989,11 +1274,145 @@ function CallHistory({ data }: { data: OperationsData }) {
             </tbody>
           </table>
         </div>
+        {result?.empty ? (
+          /* The two blank screens look identical and mean opposite things. */
+          <p className="px-4 py-8 text-center text-[11px] text-ink-muted">
+            {result.empty === 'no_matches'
+              ? 'No calls match these filters. Clear one and try again.'
+              : 'No calls yet. They appear here as soon as your agent takes or places one.'}
+          </p>
+        ) : null}
       </section>
+
+      {result && result.totalPages > 1 ? (
+        <div className="flex items-center justify-center gap-2">
+          <button
+            type="button"
+            disabled={page <= 1}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            className="rounded-lg border border-hairline px-3 py-1.5 text-[10px] disabled:opacity-40"
+          >
+            Previous
+          </button>
+          <span className="text-[10px] text-ink-muted">
+            Page {result.page} of {result.totalPages}
+          </span>
+          <button
+            type="button"
+            disabled={page >= result.totalPages}
+            onClick={() => setPage((current) => current + 1)}
+            className="rounded-lg border border-hairline px-3 py-1.5 text-[10px] disabled:opacity-40"
+          >
+            Next
+          </button>
+        </div>
+      ) : null}
+
       {openCallId ? (
         <CallDetail callId={openCallId} onClose={() => setOpenCallId(null)} />
       ) : null}
     </div>
+  );
+}
+
+type CallHistoryResult = {
+  calls: Record<string, unknown>[];
+  page: number;
+  total: number;
+  totalPages: number;
+  range: string;
+  empty: 'no_calls' | 'no_matches' | null;
+  filtered: boolean;
+  selection: { credits: number; seconds: number };
+  options: {
+    outcomes: string[];
+    channels: string[];
+    directions: string[];
+    sentiments: string[];
+    agents: Array<{ id: string; name: string }>;
+    campaigns: Array<{ id: string; name: string }>;
+  };
+};
+
+/** A dropdown of values the workspace has actually recorded. */
+function Choice({
+  label,
+  value,
+  values,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  values: string[];
+  onChange: (value: string) => void;
+}) {
+  if (values.length === 0) return null;
+  return (
+    <select
+      aria-label={`Filter by ${label}`}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+    >
+      <option value="">{label} · All</option>
+      {values.map((entry) => (
+        <option key={entry} value={entry}>
+          {entry.replaceAll('_', ' ')}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function Named({
+  label,
+  value,
+  values,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  values: Array<{ id: string; name: string }>;
+  onChange: (value: string) => void;
+}) {
+  if (values.length === 0) return null;
+  return (
+    <select
+      aria-label={`Filter by ${label}`}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+    >
+      <option value="">{label} · All</option>
+      {values.map((entry) => (
+        <option key={entry.id} value={entry.id}>
+          {entry.name}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function TriState({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <select
+      aria-label={`Filter by ${label}`}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+    >
+      <option value="any">{label} · Any</option>
+      <option value="yes">Has {label.toLowerCase()}</option>
+      <option value="no">No {label.toLowerCase()}</option>
+    </select>
   );
 }
 

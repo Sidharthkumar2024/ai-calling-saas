@@ -7,6 +7,7 @@ import { encryptSecret } from '@/lib/security';
 import { SUPPORTED_LANGUAGE_CODES } from '@/lib/languages';
 import { checkPlanLimit } from '@/lib/plan-limits';
 import { runReportNow } from '@/lib/job-queue';
+import { openingProblems, parseOpening } from '@/lib/campaign-opening';
 import {
   checkRecipients,
   isReportSchedule,
@@ -247,9 +248,17 @@ export async function POST(request: Request) {
         },
         { status: 409 },
       );
+    // What this campaign says it is (§19). Checked here rather than at dial
+    // time: finding out that "executive" has no executive when four hundred
+    // calls are already going out is finding out too late.
+    const opening = parseOpening(body.opening);
+    const openingIssues = openingProblems(opening);
+    if (openingIssues.length > 0)
+      return invalid(openingIssues.map((issue) => issue.message).join(' '));
+
     await db
-      .prepare(`INSERT INTO campaigns (id, organization_id, agent_id, name, status, audience_size, concurrency, retry_policy_json, calling_window_json)
-      VALUES (?, ?, ?, ?, 'draft', ?, ?, ?, ?)`)
+      .prepare(`INSERT INTO campaigns (id, organization_id, agent_id, name, status, audience_size, concurrency, retry_policy_json, calling_window_json, opening_json)
+      VALUES (?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?)`)
       .bind(
         id,
         organizationId,
@@ -262,6 +271,7 @@ export async function POST(request: Request) {
         requestedConcurrency,
         JSON.stringify(retryPolicy),
         JSON.stringify(callingWindow),
+        JSON.stringify(opening),
       )
       .run();
     if (contacts.length) {

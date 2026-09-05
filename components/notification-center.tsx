@@ -201,6 +201,39 @@ export function NotificationCenter({
     }
   }, []);
 
+  /**
+   * §19: "Notifications do not duplicate or remain stale across tabs."
+   *
+   * Read state is server-owned and every tab polls, so a notification read in
+   * one tab already disappears from the others — but only at the next poll,
+   * which is up to 45 seconds of a tab showing something the person has
+   * already dealt with. This closes that window: a tab that changes read state
+   * tells the others, and they refetch at once.
+   *
+   * Deliberately a nudge, not the data itself. Nothing is copied between tabs,
+   * so the server stays the only source of truth and two tabs cannot disagree
+   * about what is unread.
+   */
+  const channelRef = useRef<BroadcastChannel | null>(null);
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return;
+    const channel = new BroadcastChannel('vaani.notifications');
+    channelRef.current = channel;
+    channel.onmessage = () => void refreshInbox();
+    return () => {
+      channelRef.current = null;
+      channel.close();
+    };
+  }, [refreshInbox]);
+
+  const announceChange = useCallback(() => {
+    try {
+      channelRef.current?.postMessage('changed');
+    } catch {
+      /* an older browser without BroadcastChannel simply waits for the poll */
+    }
+  }, []);
+
   const show = useCallback(
     (input: NotifyInput, notificationId: string | null) => {
       const id = nextId.current++;
@@ -268,11 +301,12 @@ export function NotificationCenter({
           body: JSON.stringify({ action: 'mark_read', notificationId }),
         });
         await refreshInbox();
+        announceChange();
       } catch {
         /* read state is server-owned; a failed write simply stays unread */
       }
     },
-    [refreshInbox],
+    [refreshInbox, announceChange],
   );
 
   const acknowledge = useCallback(
@@ -287,11 +321,14 @@ export function NotificationCenter({
           body: JSON.stringify({ action: 'acknowledge', notificationId }),
         });
         await refreshInbox();
+        // An acknowledgement matters most across tabs: a payment failure the
+        // person has already dealt with must stop shouting everywhere at once.
+        announceChange();
       } catch {
         /* the row stays unacknowledged, which is the safe direction */
       }
     },
-    [refreshInbox],
+    [refreshInbox, announceChange],
   );
 
   const summary = useMemo(() => inboxSummary(inbox), [inbox]);

@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { recordCallTurn } from '@/lib/call-telemetry';
+import { buildOpening, parseOpening } from '@/lib/campaign-opening';
 import { resolveAgentVoice } from '@/lib/voice-profiles';
 import { routeTurn } from '@/lib/llm-router';
 import {
@@ -78,9 +79,12 @@ async function runTurn(body: TurnRequest, callId: string) {
     .prepare(`SELECT c.id, c.organization_id, c.agent_id, c.status,
         a.name AS agent_name, a.use_case, a.primary_language, a.system_prompt,
         a.max_tokens, a.welcome_message, a.tools_json, o.name AS business_name,
-        c.direction, c.from_number, c.to_number
+        c.direction, c.from_number, c.to_number, c.campaign_id,
+        m.opening_json, l.name AS lead_name, l.product_interest
       FROM call_records c
       LEFT JOIN voice_agents a ON a.id = c.agent_id
+      LEFT JOIN campaigns m ON m.id = c.campaign_id
+      LEFT JOIN leads l ON l.id = c.lead_id
       INNER JOIN organizations o ON o.id = c.organization_id
       WHERE c.id = ? LIMIT 1`)
     .bind(callId)
@@ -100,6 +104,10 @@ async function runTurn(body: TurnRequest, callId: string) {
       direction: string;
       from_number: string;
       to_number: string;
+      campaign_id: string | null;
+      opening_json: string | null;
+      lead_name: string | null;
+      product_interest: string | null;
     }>();
   if (!call)
     return NextResponse.json({ error: 'Call not found.' }, { status: 404 });
@@ -122,11 +130,31 @@ async function runTurn(body: TurnRequest, callId: string) {
     // Was `call.welcome_message || '<a Hindi sentence>'`, played to every
     // caller whatever language the call was in. The greeting turn never reaches
     // the model, so none of the prompt's language rules applied to it (§11).
+    // A campaign may say who it is (§19): the company, a team inside it, an
+    // executive it calls on behalf of, or the customer by name. Built only
+    // from values that exist — a contact with no name gets the company
+    // opening, never "Hello , this is".
+    const opening = buildOpening({
+      config: parseOpening(safeJson(call.opening_json)),
+      businessName: call.business_name,
+      agentName: call.agent_name || 'Vaani',
+      lead: { name: call.lead_name, productInterest: call.product_interest },
+    });
+    if (opening.degraded && call.campaign_id)
+      await db
+        .prepare(
+          `UPDATE campaigns SET opening_degraded = opening_degraded + 1 WHERE id = ?`,
+        )
+        .bind(call.campaign_id)
+        .run();
+
     const text = await greetingForLanguage({
       organizationId,
       businessName: call.business_name,
       agentName: call.agent_name || 'Vaani',
-      welcomeMessage: call.welcome_message,
+      // The campaign's line when it has one, and the agent's own welcome
+      // otherwise. Either way it is rendered in the language of the call.
+      welcomeMessage: opening.text ?? call.welcome_message,
       sourceLanguage: call.primary_language,
       languageCode: language,
     });
@@ -280,4 +308,14 @@ async function runTurn(body: TurnRequest, callId: string) {
       tts: speech.latencyMs,
     },
   });
+}
+
+/** A campaign's opening config, or nothing if the column is empty or broken. */
+function safeJson(raw: string | null): unknown {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return null;
+  }
 }

@@ -54,8 +54,10 @@ export async function POST(request: Request) {
         signal: AbortSignal.timeout(20_000),
       });
       if (recording.ok) {
+        // The key is derived inside the module from the tenant and the call;
+        // this route no longer gets to choose where the audio lands.
         const stored = await storeRecording(
-          `${call.organization_id}/${call.id}.wav`,
+          { organizationId: call.organization_id, callId: call.id },
           recording,
         );
         if (stored.stored) {

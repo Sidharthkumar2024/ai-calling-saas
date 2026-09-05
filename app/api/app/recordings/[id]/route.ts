@@ -47,7 +47,12 @@ export async function GET(
     recordingStatus: call.recording_status,
   });
   if (call.recording_storage_key) {
-    const object = await getRecording(call.recording_storage_key);
+    // The tenant is passed so the module can refuse a key that is not this
+    // workspace's, rather than serving whatever the row happens to hold.
+    const object = await getRecording(
+      call.recording_storage_key,
+      auth.session.organizationId!,
+    );
     if (object?.body) {
       const headers = new Headers();
       object.writeHttpMetadata(headers);

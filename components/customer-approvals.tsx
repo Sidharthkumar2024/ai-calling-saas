@@ -15,6 +15,11 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  CALLBACK_LABEL,
+  nextCallbackStatuses,
+  type CallbackStatus,
+} from '@/lib/callbacks';
 
 type Approval = {
   id: string;
@@ -58,15 +63,6 @@ type AgentRow = {
   active_calls: number;
 };
 
-type Callback = {
-  id: string;
-  customer_name: string | null;
-  customer_phone: string;
-  reason: string | null;
-  requested_window: string | null;
-  status: string;
-};
-
 type Refund = {
   id: string;
   order_reference: string | null;
@@ -101,7 +97,6 @@ export function CustomerApprovals() {
   const seenHandoffs = useRef<Set<string> | null>(null);
   const acceptedHandoffs = useRef<Set<string> | null>(null);
   const [agents, setAgents] = useState<AgentRow[]>([]);
-  const [callbacks, setCallbacks] = useState<Callback[]>([]);
   const [refunds, setRefunds] = useState<Refund[]>([]);
   const [myRole, setMyRole] = useState('support_agent');
   const [loading, setLoading] = useState(true);
@@ -122,7 +117,6 @@ export function CustomerApprovals() {
         approvals?: Approval[];
         handoffs?: Handoff[];
         agents?: AgentRow[];
-        callbacks?: Callback[];
         refunds?: Refund[];
         myRole?: string;
         error?: string;
@@ -158,7 +152,6 @@ export function CustomerApprovals() {
       acceptedHandoffs.current = new Set(accepted);
       setHandoffs(incoming);
       setAgents(payload.agents ?? []);
-      setCallbacks(payload.callbacks ?? []);
       setRefunds(payload.refunds ?? []);
       setMyRole(payload.myRole ?? 'support_agent');
       setError('');
@@ -521,23 +514,7 @@ export function CustomerApprovals() {
             ) : null}
           </div>
         </div>
-        <div className="portal-panel p-4">
-          <p className="text-sm font-medium">Callbacks promised</p>
-          <div className="mt-3 space-y-2">
-            {callbacks.map((row) => (
-              <div key={row.id} className="text-[11px] text-ink-body">
-                {row.customer_phone}
-                {row.requested_window ? ` · ${row.requested_window}` : ''} ·{' '}
-                <span className="text-warning-text">{row.status}</span>
-              </div>
-            ))}
-            {!callbacks.length && !loading ? (
-              <p className="text-[11px] text-ink-muted">
-                No callbacks pending.
-              </p>
-            ) : null}
-          </div>
-        </div>
+        <CallbackQueue />
       </div>
 
       {history.length ? (
@@ -584,3 +561,182 @@ function Detail({
     </div>
   );
 }
+
+/**
+ * The callback queue.
+ *
+ * This was a read-only list of phone numbers and the word "pending", which is
+ * where the problem lived: a callback is a promise somebody made out loud to a
+ * customer, and there was no way to say it had been kept.
+ *
+ * Three things the screen insists on.
+ *
+ * Late is shown, not sorted away. A promise past its time is the top of the
+ * list with how far past it is, because that is the person the business owes
+ * most — not the one who called a minute ago.
+ *
+ * "No answer" is offered as its own outcome and puts the callback back in the
+ * queue. Dialling is not reaching, and a single "done" button is how a queue
+ * gets cleared without anybody being called.
+ *
+ * And nothing can be marked reached that was not first claimed, so the list
+ * cannot be tidied away in one pass.
+ */
+function CallbackQueue() {
+  const [rows, setRows] = useState<QueueCallback[]>([]);
+  const [summary, setSummary] = useState('');
+  const [busy, setBusy] = useState('');
+  const [problem, setProblem] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const response = await fetch('/api/app/callbacks');
+    if (!response.ok) return;
+    const payload = (await response.json()) as {
+      callbacks: QueueCallback[];
+      summary: string;
+    };
+    setRows(payload.callbacks ?? []);
+    setSummary(payload.summary ?? '');
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
+
+  async function move(callbackId: string, status: CallbackStatus) {
+    setBusy(callbackId + status);
+    setProblem(null);
+    try {
+      const note =
+        status === 'unreachable' || status === 'completed'
+          ? (window.prompt(
+              status === 'unreachable'
+                ? 'What happened? (optional)'
+                : 'What did you agree? (optional)',
+            ) ?? undefined)
+          : undefined;
+      const response = await fetch('/api/app/callbacks', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ callbackId, status, note }),
+      });
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        reason?: string;
+      };
+      if (!payload.ok) setProblem(payload.reason ?? 'That change was refused.');
+      else await load();
+    } finally {
+      setBusy('');
+    }
+  }
+
+  return (
+    <div className="portal-panel p-4">
+      <p className="text-sm font-medium">Callbacks promised</p>
+      <p className="mt-1 text-[10px] text-ink-muted">{summary}</p>
+      {problem ? (
+        <p role="alert" className="mt-2 text-[10px] text-danger-text">
+          {problem}
+        </p>
+      ) : null}
+      <div className="mt-3 space-y-2">
+        {rows.map((row) => (
+          <div
+            key={row.id}
+            className={`rounded-lg border px-2.5 py-2 ${
+              row.lateness?.late
+                ? 'border-warning-text/40 bg-surface-muted'
+                : 'border-hairline bg-surface'
+            }`}
+          >
+            <div className="flex flex-wrap items-baseline gap-2">
+              <span className="text-[11px] font-medium">
+                {row.customer_name || row.customer_phone}
+              </span>
+              <span className="text-[9px] text-ink-muted">
+                {row.customer_phone}
+                {row.requested_window ? ` · ${row.requested_window}` : ''}
+              </span>
+              <span
+                className={`ml-auto text-[9px] ${
+                  row.status === 'completed'
+                    ? 'text-success-text'
+                    : row.status === 'cancelled'
+                      ? 'text-ink-muted'
+                      : 'text-warning-text'
+                }`}
+              >
+                {CALLBACK_LABEL[row.status] ?? row.status}
+                {row.attempts > 0
+                  ? ` · ${row.attempts} ${row.attempts === 1 ? 'try' : 'tries'}`
+                  : ''}
+              </span>
+            </div>
+            {row.reason ? (
+              <p className="mt-0.5 text-[10px] text-ink-body">{row.reason}</p>
+            ) : null}
+            {/* How far past the promise, at the top of the row rather than
+                implied by position. */}
+            {row.lateness?.late ? (
+              <p className="mt-0.5 text-[10px] text-warning-text">
+                {row.lateness.message}
+              </p>
+            ) : null}
+            {row.outcome_note ? (
+              <p className="mt-0.5 text-[9px] text-ink-muted">
+                {row.outcome_note}
+              </p>
+            ) : null}
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {nextCallbackStatuses(row.status).map((next) => (
+                <button
+                  key={next}
+                  type="button"
+                  disabled={busy === row.id + next}
+                  onClick={() => void move(row.id, next)}
+                  className="rounded-full border border-hairline px-2.5 py-1 text-[10px] disabled:opacity-50"
+                >
+                  {next === 'in_progress'
+                    ? row.attempts > 0
+                      ? 'Try again'
+                      : 'Start calling'
+                    : next === 'completed'
+                      ? 'Reached them'
+                      : next === 'unreachable'
+                        ? 'No answer'
+                        : 'Cancel'}
+                </button>
+              ))}
+              {nextCallbackStatuses(row.status).length === 0 ? (
+                <span className="text-[9px] text-ink-muted">
+                  Closed{row.resolved_by ? ` by ${row.resolved_by}` : ''}.
+                </span>
+              ) : null}
+            </div>
+          </div>
+        ))}
+        {rows.length === 0 ? (
+          <p className="text-[11px] text-ink-muted">
+            Nothing promised yet. A callback lands here the moment an agent
+            tells somebody they will be rung back.
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+type QueueCallback = {
+  id: string;
+  customer_name: string | null;
+  customer_phone: string;
+  reason: string | null;
+  requested_window: string | null;
+  status: CallbackStatus;
+  attempts: number;
+  outcome_note: string | null;
+  resolved_by: string | null;
+  lateness?: { late: boolean; message: string };
+};

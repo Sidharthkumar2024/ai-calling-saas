@@ -8,7 +8,6 @@ import {
   ArrowRight,
   Building2,
   Check,
-  Languages,
   Loader2,
   Mic2,
   ShieldCheck,
@@ -305,14 +304,18 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
                       </select>
                     </Field>
                     <Field label="Primary language">
-                      <div className="relative">
-                        <Languages className="pointer-events-none absolute left-3 top-3.5 size-4 text-ink-muted" />
+                      {/* The icon that used to sit here was decoration over a
+                          native <select>, which does not reliably honour the
+                          padding-left meant to clear it — WebKit clamps it and
+                          the language name renders underneath the icon. The
+                          field already has a label above it. */}
+                      <div>
                         <select
                           value={form.language}
                           onChange={(event) =>
                             update('language', event.target.value)
                           }
-                          className="h-11 w-full rounded-lg border border-hairline bg-surface pl-10 pr-3 text-sm"
+                          className="h-11 w-full rounded-lg border border-hairline bg-surface px-3 text-sm"
                         >
                           <option value="hinglish">Hinglish</option>
                           <option value="haryanvi">Haryanvi</option>

@@ -19,7 +19,6 @@ import {
   CalendarClock,
   CheckCircle2,
   CircleDollarSign,
-  Filter,
   GripVertical,
   Loader2,
   Mail,
@@ -345,13 +344,18 @@ export function CustomerCrm({
             className="h-9 border-hairline bg-surface-muted pl-9 text-xs"
           />
         </div>
-        <label className="relative">
-          <Filter className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-ink-muted" />
+        {/* No icon inside this one. A native <select> does not reliably honour
+            padding-left — WebKit clamps it — so an absolutely positioned icon
+            that the padding was supposed to clear ends up sitting on top of
+            the text. It also now matches the five filters below it, which do
+            the same job and never had an icon. */}
+        <label className="contents">
+          <span className="sr-only">Filter leads by source</span>
           <select
             aria-label="Filter leads by source"
             value={sourceFilter}
             onChange={(event) => setSourceFilter(event.target.value)}
-            className="h-9 rounded-lg border border-hairline bg-surface pl-9 pr-7 text-[10px] text-ink"
+            className="h-9 rounded-lg border border-hairline bg-surface px-2.5 text-[10px] text-ink"
           >
             <option value="all">Source · All</option>
             {Array.from(

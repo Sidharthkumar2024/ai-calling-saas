@@ -6,6 +6,12 @@ import { requireCustomer } from '@/lib/api-session';
 import { recordAudit } from '@/lib/demo-seed';
 import { requireCustomerPermission } from '@/lib/customer-rbac';
 import {
+  DEFAULT_SEND_POLICY,
+  MEDIA_KINDS,
+  type MediaKind,
+  type SendPolicy,
+} from '@/lib/whatsapp-media';
+import {
   allowedTransitions,
   canTransition,
   isAgentState,
@@ -163,6 +169,7 @@ export async function PATCH(request: Request) {
     tools?: string[];
     extractions?: string[];
     callingConfig?: Record<string, unknown>;
+    sendPolicy?: unknown;
   };
   if (
     !body.id ||
@@ -188,7 +195,7 @@ export async function PATCH(request: Request) {
       name = ?, use_case = ?, welcome_message = ?, system_prompt = ?, primary_language = ?,
       voice_name = ?, intelligence_profile = ?, temperature = ?, max_tokens = ?,
       endpointing_ms = ?, interrupt_words = ?, tools_json = ?, extractions_json = ?,
-      calling_config_json = ?, updated_at = CURRENT_TIMESTAMP
+      calling_config_json = ?, send_policy_json = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ? AND organization_id = ?`)
     .bind(
       body.name.trim(),
@@ -205,6 +212,10 @@ export async function PATCH(request: Request) {
       JSON.stringify(body.tools ?? []),
       JSON.stringify(body.extractions ?? []),
       JSON.stringify(body.callingConfig ?? {}),
+      // Normalised, never stored as sent: this decides what an agent may put
+      // in front of a stranger, and a policy assembled from whatever arrived
+      // in the request body is not a control.
+      JSON.stringify(normaliseSendPolicy(body.sendPolicy)),
       body.id,
       auth.session.organizationId,
     )
@@ -377,4 +388,34 @@ function safeTools(raw: string | null): string[] {
   } catch {
     return [];
   }
+}
+
+/**
+ * Cleans a send policy before it is stored.
+ *
+ * Every field is clamped to something the runtime can act on. An
+ * `allowedKinds` holding a typo, a `maxAssets` of 500 or an `allowSensitive`
+ * of the string "false" would all be read back later by the tool as though
+ * somebody had chosen them.
+ */
+function normaliseSendPolicy(raw: unknown): SendPolicy {
+  const input = (raw && typeof raw === 'object' ? raw : {}) as Record<
+    string,
+    unknown
+  >;
+  const kinds = Array.isArray(input.allowedKinds)
+    ? input.allowedKinds.filter((entry: unknown): entry is MediaKind =>
+        (MEDIA_KINDS as readonly string[]).includes(entry as string),
+      )
+    : DEFAULT_SEND_POLICY.allowedKinds;
+  const max = Number(input.maxAssets);
+  return {
+    allowedKinds: [...new Set(kinds)],
+    maxAssets: Number.isFinite(max)
+      ? Math.max(1, Math.min(10, Math.round(max)))
+      : DEFAULT_SEND_POLICY.maxAssets,
+    // Only an actual `true` releases sensitive files. Anything else — a
+    // string, a missing field, a typo — leaves them behind a person.
+    allowSensitive: input.allowSensitive === true,
+  };
 }

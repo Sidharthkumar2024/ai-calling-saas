@@ -25,7 +25,8 @@
  * and the document states.
  */
 
-export type MediaKind = 'image' | 'document' | 'video' | 'audio';
+export const MEDIA_KINDS = ['image', 'document', 'video', 'audio'] as const;
+export type MediaKind = (typeof MEDIA_KINDS)[number];
 
 /**
  * What a workspace may receive. Deliberately short: every entry here is a

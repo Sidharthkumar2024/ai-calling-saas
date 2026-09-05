@@ -39,6 +39,12 @@ import {
 } from '@/lib/agent-tool-catalog';
 import { AgentLifecyclePanel } from '@/components/agent-lifecycle-panel';
 import { isAgentState, STATE_LABEL } from '@/lib/agent-lifecycle';
+import {
+  DEFAULT_SEND_POLICY,
+  MEDIA_KINDS,
+  type MediaKind,
+  type SendPolicy,
+} from '@/lib/whatsapp-media';
 
 export type VoiceAgentRow = {
   id: string;
@@ -57,6 +63,7 @@ export type VoiceAgentRow = {
   tools_json: string;
   extractions_json: string;
   calling_config_json: string;
+  send_policy_json?: string | null;
   cost_per_minute: number;
   updated_at: string;
 };
@@ -95,6 +102,7 @@ type AgentDraft = {
   tools: string[];
   extractions: string[];
   callingConfig: Record<string, unknown>;
+  sendPolicy: SendPolicy;
 };
 
 type TranscriptMessage = {
@@ -796,6 +804,103 @@ function SettingsPanel({
             instructed to escalate or end the call on the turn a caller asks, so
             these cannot be turned off without making that instruction a lie.
           </p>
+        </SettingSection>
+
+        {/* The column existed and the tool read it; nothing ever wrote it, so
+            every agent was stuck on the default for ever. */}
+        <SettingSection
+          title="What this agent may send"
+          note="Applies when it sends listing media over WhatsApp"
+        >
+          <div className="flex flex-wrap gap-2">
+            {MEDIA_KINDS.map((kind) => {
+              const on = draft.sendPolicy.allowedKinds.includes(kind);
+              return (
+                <button
+                  key={kind}
+                  type="button"
+                  onClick={() =>
+                    setDraft({
+                      ...draft,
+                      sendPolicy: {
+                        ...draft.sendPolicy,
+                        allowedKinds: on
+                          ? draft.sendPolicy.allowedKinds.filter(
+                              (item) => item !== kind,
+                            )
+                          : [...draft.sendPolicy.allowedKinds, kind],
+                      },
+                    })
+                  }
+                  className={`rounded-full border px-3 py-1.5 text-[10px] capitalize ${
+                    on
+                      ? 'border-amber-300/25 bg-amber-300/[0.06] text-warning-text'
+                      : 'border-hairline bg-surface-muted text-ink-muted'
+                  }`}
+                >
+                  {kind}
+                </button>
+              );
+            })}
+          </div>
+
+          <label className="mt-4 block">
+            <span className="text-[10px] font-medium">
+              Most files in one message
+            </span>
+            <input
+              type="number"
+              min={1}
+              max={10}
+              value={draft.sendPolicy.maxAssets}
+              onChange={(event) =>
+                setDraft({
+                  ...draft,
+                  sendPolicy: {
+                    ...draft.sendPolicy,
+                    maxAssets: Number(event.target.value),
+                  },
+                })
+              }
+              className="mt-1 w-24 rounded-lg border border-hairline bg-surface px-2.5 py-1.5 text-[11px]"
+            />
+            <span className="mt-1 block text-[9px] text-ink-muted">
+              Anything past this is held back and the agent is told to say so,
+              rather than sending a subset and calling it the lot.
+            </span>
+          </label>
+
+          <label
+            aria-label="Let this agent send files marked sensitive"
+            className="mt-4 flex items-start gap-2"
+          >
+            <input
+              type="checkbox"
+              checked={draft.sendPolicy.allowSensitive}
+              onChange={(event) =>
+                setDraft({
+                  ...draft,
+                  sendPolicy: {
+                    ...draft.sendPolicy,
+                    allowSensitive: event.target.checked,
+                  },
+                })
+              }
+              className="mt-0.5"
+            />
+            <span className="text-[10px]">
+              <span className="font-medium">
+                Let this agent send files marked sensitive
+              </span>
+              <span className="block text-ink-muted">
+                {/* The one setting here that can go wrong quietly, so it says
+                    what it costs rather than reading as another checkbox. */}
+                Off by default. With it off, a private floor plan or an internal
+                document is held for a person to release; with it on, the agent
+                sends it to whoever asked, on its own judgement.
+              </span>
+            </span>
+          </label>
         </SettingSection>
       </div>
     );
@@ -2204,5 +2309,30 @@ function toDraft(agent: VoiceAgentRow): AgentDraft {
     tools: safeList(agent.tools_json),
     extractions: safeList(agent.extractions_json),
     callingConfig: safeObject(agent.calling_config_json),
+    // An agent saved before this setting existed reads as the restrictive
+    // default rather than as "nothing configured", which the tool would then
+    // have to guess about.
+    sendPolicy: readSendPolicy(agent.send_policy_json),
   };
+}
+
+function readSendPolicy(raw: string | null | undefined): SendPolicy {
+  if (!raw) return DEFAULT_SEND_POLICY;
+  try {
+    const parsed = JSON.parse(raw) as Partial<SendPolicy>;
+    return {
+      allowedKinds: Array.isArray(parsed.allowedKinds)
+        ? parsed.allowedKinds.filter((entry): entry is MediaKind =>
+            (MEDIA_KINDS as readonly string[]).includes(entry),
+          )
+        : DEFAULT_SEND_POLICY.allowedKinds,
+      maxAssets:
+        typeof parsed.maxAssets === 'number'
+          ? Math.max(1, Math.min(10, parsed.maxAssets))
+          : DEFAULT_SEND_POLICY.maxAssets,
+      allowSensitive: parsed.allowSensitive === true,
+    };
+  } catch {
+    return DEFAULT_SEND_POLICY;
+  }
 }

@@ -129,7 +129,14 @@ export type EvidenceSource =
   | 'objections'
   | 'campaigns'
   | 'knowledge'
-  | 'discovery';
+  | 'discovery'
+  // Connected outside systems (§6). Named separately from the workspace's own
+  // tables so the board can always say which of the two a number came from —
+  // "your calls" and "your Google Analytics" carry different weight when a
+  // recommendation cites both.
+  | 'google_analytics'
+  | 'search_console'
+  | 'hubspot';
 
 export type Observation = {
   id: string;

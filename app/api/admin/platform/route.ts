@@ -22,6 +22,12 @@ const MANAGED_PROVIDERS = new Set([
   'razorpay',
   'whatsapp',
   'exotel',
+  // The OAuth apps behind the growth manager's connectors (§6). Registered
+  // once by the platform so a workspace presses Connect instead of creating a
+  // Google Cloud project of its own. The client id and redirect URL go in
+  // `config`; the client secret is the encrypted key.
+  'google_oauth',
+  'hubspot_oauth',
 ]);
 
 export const dynamic = 'force-dynamic';

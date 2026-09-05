@@ -90,7 +90,7 @@ type Board = {
   done?: string[];
   sources: {
     connected: string[];
-    pending: Array<{ id: string; label: string }>;
+    pending: Array<{ id: string; label: string; reason?: string | null }>;
   };
   notEnoughData: string | null;
   measuredAt: string;
@@ -272,14 +272,21 @@ export function CustomerGrowth() {
           ))}
         </div>
 
-        {/* §6 asks for four more sources. None is connected, and saying so is
-            the difference between an empty board and a complete one. */}
+        {/* Which evidence this board has and which it does not. Saying so is
+            the difference between an empty board and a complete one — silence
+            here would read as "nothing to report". */}
         <p className="mt-4 text-[9px] text-ink-muted">
           Reading from: {board.sources.connected.join(', ')}. Not yet connected:{' '}
-          {board.sources.pending.map((item) => item.label).join(', ')} — nothing
-          on this board claims to come from them.
+          {board.sources.pending
+            .map((item) =>
+              item.reason ? `${item.label} (${item.reason})` : item.label,
+            )
+            .join(', ')}{' '}
+          — nothing on this board claims to come from them.
         </p>
       </section>
+
+      <Connectors />
 
       <section className="portal-panel p-5">
         <h2 className="text-sm font-semibold">Growth plan</h2>
@@ -331,6 +338,215 @@ export function CustomerGrowth() {
         </div>
       </section>
     </div>
+  );
+}
+
+type ConnectorStatusView = {
+  id: string;
+  label: string;
+  state: string;
+  message: string;
+  canConnect: boolean;
+  selection: string | null;
+  lastSyncedAt: string | null;
+};
+
+/**
+ * §6's three connections: Google Analytics, Search Console and HubSpot.
+ *
+ * Two states here are doing the real work.
+ *
+ * `platform_not_configured` names whose problem it is. The OAuth app belongs
+ * to the platform, not the customer, so a workspace that cannot connect is
+ * told to ask its administrator rather than sent hunting for a setting it does
+ * not have.
+ *
+ * `needs_selection` exists because authorised is not connected. A Google token
+ * can read *some* property; which one is a separate question, and a connector
+ * that quietly picks the first would report a different business's numbers.
+ */
+function Connectors() {
+  const [connectors, setConnectors] = useState<ConnectorStatusView[]>([]);
+  const [choices, setChoices] = useState<
+    Record<string, Array<{ id: string; label: string }>>
+  >({});
+  const [busy, setBusy] = useState('');
+  const [problem, setProblem] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const response = await fetch('/api/app/growth/connect');
+    if (!response.ok) return;
+    const payload = (await response.json()) as {
+      connectors?: ConnectorStatusView[];
+    };
+    setConnectors(payload.connectors ?? []);
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
+
+  async function post(body: Record<string, unknown>) {
+    const response = await fetch('/api/app/growth/connect', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    return (await response.json()) as Record<string, unknown>;
+  }
+
+  async function connect(id: string) {
+    setBusy(id);
+    setProblem(null);
+    const payload = await post({ action: 'start', connector: id });
+    setBusy('');
+    if (payload.ok && typeof payload.url === 'string')
+      window.location.assign(payload.url);
+    else
+      setProblem(
+        typeof payload.reason === 'string'
+          ? payload.reason
+          : 'Could not start.',
+      );
+  }
+
+  async function loadChoices(id: string) {
+    setBusy(id);
+    const response = await fetch(
+      `/api/app/growth/connect?choices=${encodeURIComponent(id)}`,
+    );
+    const payload = (await response.json()) as {
+      ok?: boolean;
+      choices?: Array<{ id: string; label: string }>;
+      reason?: string;
+    };
+    setBusy('');
+    if (payload.ok) setChoices({ ...choices, [id]: payload.choices ?? [] });
+    else
+      setProblem(
+        payload.reason ?? 'Could not list what this account can read.',
+      );
+  }
+
+  if (connectors.length === 0) return null;
+
+  return (
+    <section className="portal-panel p-5">
+      <h2 className="text-sm font-semibold">Connect your other numbers</h2>
+      <p className="mt-1 text-[10px] text-ink-muted">
+        Each one adds evidence to the board above, with its source shown like
+        everything else. Until then the manager will keep saying it does not
+        have these numbers rather than estimating them.
+      </p>
+      <div className="mt-4 space-y-2">
+        {connectors.map((connector) => (
+          <div
+            key={connector.id}
+            className="rounded-xl border border-hairline bg-surface px-3 py-2.5"
+          >
+            <div className="flex flex-wrap items-baseline gap-2">
+              <span className="text-[11px] font-medium">{connector.label}</span>
+              <span
+                className={`ml-auto text-[9px] ${
+                  connector.state === 'connected'
+                    ? 'text-success-text'
+                    : connector.state === 'platform_not_configured'
+                      ? 'text-ink-muted'
+                      : 'text-warning-text'
+                }`}
+              >
+                {connector.state.replaceAll('_', ' ')}
+              </span>
+            </div>
+            <p className="mt-1 text-[10px] text-ink-muted">
+              {connector.message}
+            </p>
+            {connector.selection ? (
+              <p className="mt-0.5 text-[9px] text-ink-muted">
+                Reading: {connector.selection}
+              </p>
+            ) : null}
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {connector.canConnect ? (
+                <button
+                  type="button"
+                  disabled={busy === connector.id}
+                  onClick={() => void connect(connector.id)}
+                  className="rounded-full border border-hairline px-2.5 py-1 text-[10px] disabled:opacity-50"
+                >
+                  {connector.state === 'needs_selection'
+                    ? 'Re-authorise'
+                    : 'Connect'}
+                </button>
+              ) : null}
+              {connector.state === 'needs_selection' ||
+              connector.state === 'connected' ? (
+                <button
+                  type="button"
+                  disabled={busy === connector.id}
+                  onClick={() => void loadChoices(connector.id)}
+                  className="rounded-full border border-hairline px-2.5 py-1 text-[10px] disabled:opacity-50"
+                >
+                  Choose what to read
+                </button>
+              ) : null}
+              {connector.state !== 'not_connected' &&
+              connector.state !== 'platform_not_configured' ? (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await post({
+                      action: 'disconnect',
+                      connector: connector.id,
+                    });
+                    await load();
+                  }}
+                  className="rounded-full border border-hairline px-2.5 py-1 text-[10px]"
+                >
+                  Disconnect
+                </button>
+              ) : null}
+            </div>
+            {choices[connector.id] ? (
+              <div className="mt-2">
+                {choices[connector.id].length === 0 ? (
+                  <p className="text-[9px] text-warning-text">
+                    This account has nothing this connector can read.
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {choices[connector.id].map((choice) => (
+                      <button
+                        key={choice.id}
+                        type="button"
+                        onClick={async () => {
+                          await post({
+                            action: 'choose',
+                            connector: connector.id,
+                            selection: choice.id,
+                          });
+                          setChoices({ ...choices, [connector.id]: [] });
+                          await load();
+                        }}
+                        className="rounded-full border border-hairline px-2.5 py-1 text-[10px]"
+                      >
+                        {choice.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
+        ))}
+      </div>
+      {problem ? (
+        <p role="alert" className="mt-2 text-[10px] text-danger-text">
+          {problem}
+        </p>
+      ) : null}
+    </section>
   );
 }
 

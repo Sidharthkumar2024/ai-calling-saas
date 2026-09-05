@@ -18,6 +18,8 @@ import {
   type ExecutionStatus,
 } from '@/lib/growth-execution';
 import { templateByKey } from '@/lib/workflow-templates';
+import { readConnectors } from '@/lib/growth-connector-service';
+import { CONNECTORS } from '@/lib/growth-connectors';
 
 /**
  * Turns the workspace's own data into observations (§6).
@@ -40,12 +42,6 @@ export const CONNECTED_SOURCES = [
   'objections',
   'campaigns',
   'knowledge',
-] as const;
-export const PENDING_SOURCES = [
-  { id: 'website', label: 'Website scan' },
-  { id: 'google_analytics', label: 'Google Analytics' },
-  { id: 'search_console', label: 'Search Console' },
-  { id: 'hubspot', label: 'HubSpot' },
 ] as const;
 
 export async function growthBoard(organizationId: string) {
@@ -202,6 +198,12 @@ export async function growthBoard(organizationId: string) {
     topObjection,
   ].filter(Boolean) as Observation[];
 
+  // Evidence from the outside systems this workspace has connected (§6).
+  // Reads are values, not exceptions: a connector that is down contributes its
+  // reason and the rest of the board still renders.
+  const connectorReads = await readConnectors(organizationId);
+  for (const read of connectorReads) observations.push(...read.observations);
+
   const recommendations = rankRecommendations(
     [
       // Each proposal names the observations it rests on. When those are null —
@@ -273,8 +275,25 @@ export async function growthBoard(organizationId: string) {
     // none of them is connected, so the board says which evidence it does not
     // have rather than letting its silence read as "nothing to report".
     sources: {
-      connected: CONNECTED_SOURCES,
-      pending: PENDING_SOURCES,
+      connected: [
+        ...CONNECTED_SOURCES,
+        ...connectorReads
+          .filter((read) => read.observations.length > 0)
+          .map((read) => read.id),
+      ],
+      // Still named rather than implied. A source that is connected but could
+      // not be read this time is neither "connected" nor "not connected", so
+      // it is listed with the reason instead of quietly vanishing.
+      pending: [
+        { id: 'website', label: 'Website scan' },
+        ...connectorReads
+          .filter((read) => read.observations.length === 0)
+          .map((read) => ({
+            id: read.id,
+            label: CONNECTORS[read.id].label,
+            reason: read.reason,
+          })),
+      ],
     },
     notEnoughData: insufficientData({ calls, leads }),
     measuredAt: new Date().toISOString(),

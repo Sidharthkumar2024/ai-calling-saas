@@ -1986,6 +1986,41 @@ async function bootstrap() {
   // not lock out everybody who was mid-work when it deployed.
   await ensureColumn(db, 'user_security_settings', 'mfa_grace_until', 'TEXT');
   await ensureColumn(db, 'agent_tool_calls', 'outcome_kind', 'TEXT');
+
+  // The visual workflow builder (§7). `steps_json` held a flat list of step
+  // names for the old executor, which marked every step complete without
+  // running it. The graph lives in its own column so a workflow authored
+  // under the old shape stays readable instead of being silently reinterpreted
+  // as something it never was.
+  await ensureColumn(db, 'workflows', 'graph_json', 'TEXT');
+  await ensureColumn(db, 'workflows', 'description', 'TEXT');
+  await ensureColumn(db, 'workflows', 'template_key', 'TEXT');
+  // A run carries its own variables, and can be parked mid-graph waiting for
+  // an approval, so it needs to remember where to pick up.
+  await ensureColumn(
+    db,
+    'workflow_runs',
+    'variables_json',
+    "TEXT DEFAULT '{}' NOT NULL",
+  );
+  await ensureColumn(db, 'workflow_runs', 'resume_node', 'TEXT');
+  await ensureColumn(db, 'workflow_runs', 'waiting_on', 'TEXT');
+  await ensureColumn(db, 'workflow_runs', 'error', 'TEXT');
+  await ensureColumn(db, 'workflow_runs', 'call_id', 'TEXT');
+  await ensureColumn(db, 'workflow_run_steps', 'node_id', 'TEXT');
+  await ensureColumn(db, 'workflow_run_steps', 'branch', 'TEXT');
+
+  // The two demo workflows above are INSERT OR IGNORE, so a database seeded by
+  // the earlier build still holds their invented step lists and run counts.
+  // Repair those rows only — never a workflow somebody wrote.
+  await db
+    .prepare(
+      `UPDATE workflows SET run_count = 0, failure_count = 0, last_run_at = NULL,
+       trigger_type = 'webhook', steps_json = '[]'
+       WHERE id IN ('workflow_demo_payment', 'workflow_demo_no_answer')
+         AND graph_json IS NULL`,
+    )
+    .run();
   await db
     .prepare(
       `UPDATE agent_tool_calls SET outcome_kind = CASE
@@ -2435,16 +2470,22 @@ async function seedLocalDemo(db: D1Database) {
       VALUES ('kb_demo_products', 'org_vaani_demo', 'Products & objections',
        'Approved product facts, pricing, FAQs and objection handling', 'Hindi + English',
        'ready', 4, 186, CURRENT_TIMESTAMP)`),
+    // Two demo workflows. They used to be a list of step names that matched no
+    // node type — `wait_2_hours`, `update_crm` — on a trigger the builder does
+    // not have, carrying 83 and 214 runs that never happened. The old executor
+    // would have marked every one of those steps complete. These are real
+    // graphs that validate and execute, with run counts of zero, because they
+    // have not run.
     db.prepare(`INSERT OR IGNORE INTO workflows
-      (id, organization_id, name, trigger_type, status, steps_json, run_count, failure_count, last_run_at)
-      VALUES ('workflow_demo_payment', 'org_vaani_demo', 'Payment follow-up', 'call.payment_requested',
-       'active', '["confirm_consent","create_payment_link","wait_until_requested_time","send_whatsapp","update_crm"]',
-       83, 2, CURRENT_TIMESTAMP)`),
+      (id, organization_id, name, description, trigger_type, status, steps_json, graph_json, run_count, failure_count)
+      VALUES ('workflow_demo_payment', 'org_vaani_demo', 'Payment follow-up',
+       'When a call asks for a payment link: find the lead, create the link, send it.',
+       'webhook', 'active', '[]', '{"nodes":[{"id":"start","kind":"trigger","name":"Payment requested","config":{"event":"webhook","filter":"call.payment_requested"},"next":{"next":"lookup"}},{"id":"lookup","kind":"crm_lookup","name":"Find the caller","config":{"entity":"lead","match":"phone","value":"{{caller_phone}}","variable":"lead"},"next":{"found":"link","not_found":"unknown"}},{"id":"link","kind":"payment","name":"Payment link","config":{"amount":"{{amount}}","purpose":"{{purpose}}","channel":"whatsapp","destination":"{{caller_phone}}"},"next":{"next":"notify"}},{"id":"notify","kind":"message","name":"Send it over WhatsApp","config":{"channel":"whatsapp","destination":"{{caller_phone}}","body":"Your payment link is ready. Reply here if anything looks wrong."},"next":{"next":"done"}},{"id":"unknown","kind":"end","name":"No matching lead","config":{"disposition":"payment_no_lead"},"next":{}},{"id":"done","kind":"end","name":"Close","config":{"disposition":"payment_link_sent"},"next":{}}]}', 0, 0)`),
     db.prepare(`INSERT OR IGNORE INTO workflows
-      (id, organization_id, name, trigger_type, status, steps_json, run_count, failure_count, last_run_at)
-      VALUES ('workflow_demo_no_answer', 'org_vaani_demo', 'No-answer recovery', 'call.no_answer',
-       'active', '["wait_2_hours","retry_call","if_failed_add_retargeting_audience"]',
-       214, 7, CURRENT_TIMESTAMP)`),
+      (id, organization_id, name, description, trigger_type, status, steps_json, graph_json, run_count, failure_count)
+      VALUES ('workflow_demo_no_answer', 'org_vaani_demo', 'No-answer recovery',
+       'When a call goes unanswered: find the lead and offer a callback in writing.',
+       'webhook', 'active', '[]', '{"nodes":[{"id":"start","kind":"trigger","name":"Call not answered","config":{"event":"webhook","filter":"call.no_answer"},"next":{"next":"lookup"}},{"id":"lookup","kind":"crm_lookup","name":"Find the lead","config":{"entity":"lead","match":"phone","value":"{{caller_phone}}","variable":"lead"},"next":{"found":"reach","not_found":"unknown"}},{"id":"reach","kind":"message","name":"Offer a callback","config":{"channel":"whatsapp","destination":"{{caller_phone}}","body":"Sorry we missed you. Reply here with a time that suits you and we will call back."},"next":{"next":"done"}},{"id":"unknown","kind":"end","name":"No matching lead","config":{"disposition":"no_answer_no_lead"},"next":{}},{"id":"done","kind":"end","name":"Close","config":{"disposition":"no_answer_followed_up"},"next":{}}]}', 0, 0)`),
     db.prepare(`INSERT OR IGNORE INTO graph_agents
       (id, organization_id, name, status, entry_node, graph_json, version)
       VALUES ('graph_demo_revenue', 'org_vaani_demo', 'Revenue qualification graph', 'active', 'greeting',

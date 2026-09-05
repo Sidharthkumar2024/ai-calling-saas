@@ -16,6 +16,7 @@ import type { Filter } from '@/lib/object-engine';
 import { createOrder } from '@/lib/order-service';
 import { filterToolDefinitions } from '@/lib/agent-tool-catalog';
 import { toolOutcomeKind } from '@/lib/activity-timeline';
+import { createRazorpayPaymentLink } from '@/lib/commerce';
 
 /**
  * The tool definitions to hand the model for one agent.
@@ -521,32 +522,100 @@ async function runTool(
       return { ok: false, reason: 'invalid_amount' };
     if (!['whatsapp', 'email'].includes(delivery))
       return { ok: false, reason: 'delivery must be whatsapp or email' };
+
+    // A link nobody can be sent is not a link. This used to be allowed
+    // through and then died on the table's NOT NULL constraint, so the tool
+    // reported a database error to the model instead of the plain fact that
+    // it had no number to send to.
+    const phone = digits(input.customer_phone);
+    const email = str(input, 'customer_email');
+    if (delivery === 'whatsapp' && phone.length < 6)
+      return {
+        ok: false,
+        reason: 'customer_phone is required to send over WhatsApp',
+      };
+    if (delivery === 'email' && !email.includes('@'))
+      return {
+        ok: false,
+        reason: 'customer_email is required to send over email',
+      };
+
     const linkId = id('paylink');
     const reference = id('ref');
+    // Every other writer of this column stores paise, and the whole UI divides
+    // by 100 to display it. This tool's schema asks the model for rupees, so
+    // the conversion happens here — writing rupees into a paise column showed
+    // a ₹5,000 link to the customer as ₹50.
+    const paise = Math.round(amount * 100);
+    const description = str(input, 'description') || 'Voice agent payment';
+    // The caller's name is often not known on a cold call. The number is how a
+    // voice call identifies somebody, so it stands in — better than inventing
+    // a "Customer" who does not exist.
+    const customerName = str(input, 'customer_name') || phone || email;
+
+    let link: {
+      provider: string;
+      externalId: string | null;
+      shortUrl: string;
+      payload: unknown;
+    };
+    try {
+      link = await createRazorpayPaymentLink({
+        organizationId: ctx.organizationId,
+        referenceId: reference,
+        amount: paise,
+        currency: 'INR',
+        description,
+        customerName,
+        customerPhone: phone,
+        customerEmail: email || null,
+      });
+    } catch (error) {
+      return {
+        ok: false,
+        reason:
+          error instanceof Error
+            ? error.message
+            : 'payment_provider_unavailable',
+      };
+    }
+
     await db
       .prepare(`INSERT INTO payment_links
         (id, organization_id, agent_id, reference_id, customer_name, customer_phone,
-         amount, currency, description, delivery_mode, provider, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'INR', ?, ?, 'razorpay', 'created')`)
+         customer_email, amount, currency, description, delivery_mode, provider,
+         external_payment_link_id, short_url, status, provider_payload_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'INR', ?, ?, ?, ?, ?, 'created', ?)`)
       .bind(
         linkId,
         ctx.organizationId,
         ctx.agentId ?? null,
         reference,
-        str(input, 'customer_name') || null,
-        digits(input.customer_phone) || null,
-        Math.round(amount),
-        str(input, 'description') || 'Voice agent payment',
+        customerName,
+        phone,
+        email || null,
+        paise,
+        description,
         delivery,
+        link.provider,
+        link.externalId,
+        link.shortUrl,
+        JSON.stringify(link.payload).slice(0, 4000),
       )
       .run();
     return {
       ok: true,
       payment_link_id: linkId,
       reference_id: reference,
-      amount: Math.round(amount),
+      amount_rupees: amount,
+      short_url: link.shortUrl,
       delivery,
-      note: 'Link record created. Delivery happens through the configured provider.',
+      // Said plainly: the row exists and the link is real, but nothing has
+      // been sent yet. The model must not tell the caller it has arrived.
+      note:
+        link.provider === 'razorpay_sandbox'
+          ? 'Created against the local sandbox because no Razorpay credentials are connected. Do not tell the caller a real link was sent.'
+          : 'Link created. Delivery happens through the configured provider.',
     };
   }
 
@@ -853,24 +922,42 @@ async function runTool(
     // is the catalogue's, not the model's.
     const linkId = id('paylink');
     const reference = id('ref');
+    const orderDescription = order.lines
+      .map((line) => `${line.quantity}× ${line.title}`)
+      .join(', ')
+      .slice(0, 300);
+    // Same three columns the standalone payment link tool used to omit:
+    // customer_name and short_url are NOT NULL, so this insert failed too.
+    const orderCustomer = str(input, 'customer_name') || phone;
+    const orderLink = await createRazorpayPaymentLink({
+      organizationId: ctx.organizationId,
+      referenceId: reference,
+      amount: Math.round(order.total),
+      currency: 'INR',
+      description: orderDescription,
+      customerName: orderCustomer,
+      customerPhone: phone,
+    });
     await db
       .prepare(`INSERT INTO payment_links
         (id, organization_id, agent_id, reference_id, customer_name, customer_phone,
-         amount, currency, description, delivery_mode, provider, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'INR', ?, ?, 'razorpay', 'created')`)
+         amount, currency, description, delivery_mode, provider,
+         external_payment_link_id, short_url, status, provider_payload_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'INR', ?, ?, ?, ?, ?, 'created', ?)`)
       .bind(
         linkId,
         ctx.organizationId,
         ctx.agentId ?? null,
         reference,
-        str(input, 'customer_name') || null,
+        orderCustomer,
         phone,
         Math.round(order.total),
-        order.lines
-          .map((line) => `${line.quantity}× ${line.title}`)
-          .join(', ')
-          .slice(0, 300),
+        orderDescription,
         delivery,
+        orderLink.provider,
+        orderLink.externalId,
+        orderLink.shortUrl,
+        JSON.stringify(orderLink.payload).slice(0, 4000),
       )
       .run();
     await db

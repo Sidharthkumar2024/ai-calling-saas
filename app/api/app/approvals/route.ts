@@ -6,6 +6,7 @@ import { requireCustomer } from '@/lib/api-session';
 import { recordAudit } from '@/lib/demo-seed';
 import { executeRefund } from '@/lib/refund-execution';
 import { decideApproval, recordRefundRequest } from '@/lib/handoff-service';
+import { resumeAfterApproval } from '@/lib/workflow-engine';
 import { resolveActorRole } from '@/lib/handoff-service';
 
 export const dynamic = 'force-dynamic';
@@ -189,6 +190,24 @@ export async function PATCH(request: Request) {
       }
     }
 
+    // A workflow that asked for this approval is parked mid-graph waiting for
+    // it. Without this the decision was granted and the run stayed at
+    // 'waiting' for ever — approved, and then nothing.
+    let workflow: unknown = null;
+    if (body.outcome !== 'info_requested') {
+      const resumed = await resumeAfterApproval({
+        organizationId: auth.session.organizationId!,
+        approvalId: body.approvalId,
+        approved: body.outcome === 'approved',
+      });
+      if (resumed)
+        workflow = {
+          runId: resumed.runId,
+          status: resumed.status,
+          steps: resumed.steps,
+        };
+    }
+
     await recordAudit(
       auth.session,
       `approval.${body.outcome}`,
@@ -196,7 +215,7 @@ export async function PATCH(request: Request) {
       body.approvalId,
       { role, reason: body.reason ?? null },
     );
-    return NextResponse.json({ decided: body.outcome, refund });
+    return NextResponse.json({ decided: body.outcome, refund, workflow });
   }
 
   return NextResponse.json({ error: 'Unsupported action.' }, { status: 400 });

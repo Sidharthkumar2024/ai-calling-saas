@@ -12,6 +12,7 @@ import { dialCampaign } from '@/lib/campaign-dialer';
 export { enqueueJob };
 import { sendWhatsAppPaymentLink } from '@/lib/commerce';
 import { decryptSecret } from '@/lib/security';
+import { executeGraph, parseGraph } from '@/lib/workflow-engine';
 import { env } from 'cloudflare:workers';
 
 type JobRow = {
@@ -670,39 +671,95 @@ async function finalizeKnowledgeSource(
   return { sourceId, indexed: true };
 }
 
+/**
+ * Runs a queued workflow.
+ *
+ * This used to walk the step list marking each one `completed` with
+ * `execution: 'recorded'` — nothing ran, and a workflow that booked nothing
+ * and messaged nobody still reported a clean run. The engine now executes the
+ * graph, and a run that could not do something says which step and why.
+ */
 async function executeWorkflow(job: JobRow, payload: Record<string, unknown>) {
   if (!job.organization_id) throw new Error('Organization scope is required.');
   const runId = stringValue(payload.runId);
   if (!runId) throw new Error('Workflow run is required.');
   const db = getRawDb();
-  const steps = await db
-    .prepare(
-      `SELECT id, step_type FROM workflow_run_steps WHERE run_id = ? ORDER BY step_index`,
-    )
-    .bind(runId)
-    .all<{ id: string; step_type: string }>();
-  await db
-    .prepare(
-      `UPDATE workflow_runs SET status = 'running', started_at = CURRENT_TIMESTAMP WHERE id = ? AND organization_id = ?`,
-    )
+  const run = await db
+    .prepare(`SELECT r.id, r.variables_json, r.call_id, w.graph_json, w.name
+      FROM workflow_runs r JOIN workflows w ON w.id = r.workflow_id
+      WHERE r.id = ? AND r.organization_id = ? LIMIT 1`)
     .bind(runId, job.organization_id)
-    .run();
-  for (const step of steps.results) {
+    .first<{
+      id: string;
+      variables_json: string | null;
+      call_id: string | null;
+      graph_json: string | null;
+      name: string;
+    }>();
+  if (!run) throw new Error('That workflow run no longer exists.');
+
+  const graph = parseGraph(run.graph_json);
+  if (!graph) {
+    // A workflow authored under the old flat step list has no graph. Saying so
+    // is the honest outcome; running an empty graph and calling it a success
+    // is what this replaced.
     await db
-      .prepare(`UPDATE workflow_run_steps SET status = 'completed', started_at = CURRENT_TIMESTAMP,
-      completed_at = CURRENT_TIMESTAMP, output_json = ? WHERE id = ?`)
+      .prepare(`UPDATE workflow_runs SET status = 'failed', completed_at = CURRENT_TIMESTAMP,
+        error = ? WHERE id = ?`)
       .bind(
-        JSON.stringify({ action: step.step_type, execution: 'recorded' }),
-        step.id,
+        `“${run.name}” has no steps the builder can run. Open it and rebuild it on the canvas.`,
+        runId,
       )
       .run();
+    return { runId, status: 'failed', reason: 'no_graph' };
   }
+
   await db
-    .prepare(`UPDATE workflow_runs SET status = 'completed', completed_at = CURRENT_TIMESTAMP,
-    output_json = ? WHERE id = ?`)
-    .bind(JSON.stringify({ steps: steps.results.length }), runId)
+    .prepare(
+      `UPDATE workflow_runs SET status = 'running', started_at = CURRENT_TIMESTAMP WHERE id = ?`,
+    )
+    .bind(runId)
     .run();
-  return { runId, steps: steps.results.length };
+
+  const outcome = await executeGraph({
+    graph,
+    context: {
+      organizationId: job.organization_id,
+      runId,
+      sessionId: run.call_id,
+      // A queued run has nobody on the line. Steps that speak to a caller are
+      // recorded as skipped with that reason rather than as spoken.
+      live: false,
+    },
+    variables: safeJson(run.variables_json),
+  });
+
+  await db
+    .prepare(
+      `UPDATE workflows SET run_count = run_count + 1, last_run_at = CURRENT_TIMESTAMP,
+       failure_count = failure_count + ? WHERE id = (SELECT workflow_id FROM workflow_runs WHERE id = ?)`,
+    )
+    .bind(outcome.status === 'failed' ? 1 : 0, runId)
+    .run();
+
+  return {
+    runId,
+    status: outcome.status,
+    steps: outcome.steps,
+    skipped: outcome.trace.filter((step) => step.status === 'skipped').length,
+  };
+}
+
+function safeJson(raw: string | null): Record<string, unknown> {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed && typeof parsed === 'object'
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
 }
 
 async function syncAudience(job: JobRow, payload: Record<string, unknown>) {

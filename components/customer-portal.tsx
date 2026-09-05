@@ -83,6 +83,7 @@ import {
 } from '@/components/notification-center';
 import { CustomerSecurity } from '@/components/customer-security';
 import { CustomerGrowth } from '@/components/customer-growth';
+import { CustomerWorkflowBuilder } from '@/components/customer-workflow-builder';
 import {
   CustomerOperations,
   type OperationsData,
@@ -662,6 +663,9 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
           {!loading && !error && active === 'growth' ? (
             <CustomerGrowth />
           ) : null}
+          {!loading && !error && active === 'workflows' ? (
+            <CustomerWorkflowBuilder />
+          ) : null}
           {!loading && !error && active === 'agents' ? (
             <CustomerAgentStudio
               data={data.agents}
@@ -675,7 +679,6 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
             'campaigns',
             'sip_trunks',
             'knowledge',
-            'workflows',
             'graph_agents',
             'call_history',
             'live_monitor',

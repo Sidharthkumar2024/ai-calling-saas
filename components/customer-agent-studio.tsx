@@ -37,6 +37,8 @@ import {
   MANDATORY_TOOL_NAMES,
   SELECTABLE_TOOLS,
 } from '@/lib/agent-tool-catalog';
+import { AgentLifecyclePanel } from '@/components/agent-lifecycle-panel';
+import { isAgentState, STATE_LABEL } from '@/lib/agent-lifecycle';
 
 export type VoiceAgentRow = {
   id: string;
@@ -130,6 +132,9 @@ export function CustomerAgentStudio({
     selected ? toDraft(selected) : null,
   );
   const [saving, setSaving] = useState(false);
+  // Part of the lifecycle panel's key, so a save remounts it and its version
+  // history reflects what was just written.
+  const [savedAt, setSavedAt] = useState(0);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -155,6 +160,7 @@ export function CustomerAgentStudio({
       if (!response.ok)
         throw new Error(payload.error ?? 'Unable to save agent.');
       setNotice('Agent settings saved. No external provider was called.');
+      setSavedAt(Date.now());
       await onChanged();
     } catch (caught) {
       setError(
@@ -255,6 +261,16 @@ export function CustomerAgentStudio({
         </div>
       ) : null}
 
+      {/* Keyed on the last save as well as the agent: the panel loads its
+          versions once, and a save writes one — without a remount the history
+          would keep saying none exists. */}
+      <AgentLifecyclePanel
+        key={`${selected.id}:${savedAt}`}
+        agentId={selected.id}
+        status={selected.status}
+        onChanged={onChanged}
+      />
+
       <div className="grid gap-4 2xl:grid-cols-[230px_minmax(0,1fr)_430px]">
         <aside className="rounded-2xl border border-hairline bg-surface p-3">
           <div className="flex items-center justify-between px-2 py-2">
@@ -291,8 +307,21 @@ export function CustomerAgentStudio({
                   <ChevronRight className="mt-2 size-3 text-ink-muted" />
                 </div>
                 <div className="mt-3 flex items-center justify-between text-[9px]">
-                  <span className="rounded-full border border-emerald-400/12 bg-emerald-400/6 px-2 py-1 capitalize text-success-text">
-                    {agent.status}
+                  {/* Was green whatever the status, so a paused or archived
+                      agent read as live in the one place people scan. */}
+                  <span
+                    className={`rounded-full border px-2 py-1 capitalize ${
+                      agent.status === 'active'
+                        ? 'border-emerald-400/12 bg-emerald-400/6 text-success-text'
+                        : agent.status === 'paused' ||
+                            agent.status === 'testing'
+                          ? 'border-amber-400/15 bg-amber-400/6 text-warning-text'
+                          : 'border-hairline bg-surface-strong text-ink-muted'
+                    }`}
+                  >
+                    {isAgentState(agent.status)
+                      ? STATE_LABEL[agent.status]
+                      : agent.status}
                   </span>
                   <span className="text-ink-muted">
                     ₹{(agent.cost_per_minute / 100).toFixed(2)}/min

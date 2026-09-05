@@ -100,6 +100,55 @@ partner and reseller white-label explicitly, so this is not a "revisit later"
 any more. It is out of scope by decision, and should not be carried as pending
 work.
 
+### 6. [CODE] 22 tables the new usage audit found
+
+`npm run audit:tables` (`scripts/check-table-usage.mjs`) looks for the one
+defect that kept recurring by hand: a row written and treated as done. It was
+written after the fifth instance — `appointments`, which had no `UPDATE`
+anywhere in the repo, so nothing could ever be cancelled or marked a no-show —
+and it found seventeen more on its first run. **It reports a real backlog
+today, so it is not in `npm test` yet.** It joins the suite when this list is
+empty; until then a green suite would be the same lie it is meant to catch.
+
+Each finding was cross-checked by hand before being listed here.
+
+**Written and read by nobody** — whatever it records, no person can see it.
+
+- `whatsapp_sends` — records what an agent actually sent a customer *and what
+  the send policy held back for a person to release*. There is no screen and no
+  release action, so media the agent said "a colleague will release" is held
+  forever. The sharpest of the three, and the next one to fix.
+- `invoice_sequences` — per-tenant invoice numbering is written and never read
+  back, so numbering is not actually sequential.
+- `graph_agents` — a graph agent can be created and nothing ever reads it,
+  though the portal has a Graph agents screen.
+
+**Read and created by nobody** — the screen can only ever be empty.
+
+- `call_jobs` — counted on both the customer and admin overviews; nothing
+  creates one.
+- `fx_rates`, `price_books` — the multi-currency layer reads both and nothing
+  writes either, so pricing silently falls back to defaults. Section 3 above
+  calls multi-currency shipped; these two are why that is not the whole truth.
+
+**Status frozen at creation** — a `status` column that can only ever hold the
+value the row was born with, because nothing updates the table.
+
+`alert_rules`, `branches`, `call_quality_reviews`, `credit_packages`,
+`departments`, `growth_runs`, `import_rows`, `invoices`, `lead_sources`,
+`number_routes`, `playbooks`, `recordings`, `routing_rules`, `shifts`,
+`subscriptions`, `teams`.
+
+Three groups, roughly. Most of the org configuration — branches, teams,
+departments, shifts, routing rules, number routes, lead sources — can be
+created and then never edited, deactivated or removed. `invoices` and
+`subscriptions` are sharper: an invoice cannot move from issued to paid or
+void, and a subscription cannot be cancelled. `recordings` is different again —
+the real recording lifecycle lives on `call_records.recording_status`, which is
+updated properly; the `recordings` table is written once per call with
+`'not_available'` and then read by nothing, so it is vestigial rather than
+broken.
+
 ### 5. [KEY] Things only you can supply
 
 - **A male ElevenLabs voice id** (still outstanding) and a Punjabi voice id.

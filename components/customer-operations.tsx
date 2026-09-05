@@ -46,6 +46,13 @@ import { CustomerSecurity } from '@/components/customer-security';
 import { CustomerImport } from '@/components/customer-import';
 import { SupervisorMonitor } from '@/components/supervisor-monitor';
 import { useT } from '@/components/locale-provider';
+import {
+  GRAPH_ACTION_LABEL,
+  nextGraphStatuses,
+  normaliseAlertStatus,
+  type GraphAgentStatus,
+} from '@/lib/operations-status';
+import { nextQualityStatuses, openFindings } from '@/lib/call-quality';
 import type { TranslationKey } from '@/lib/i18n';
 import { RECORDING_PRESENT } from '@/lib/call-history';
 import { parseOpening, previewOpening } from '@/lib/campaign-opening';
@@ -107,7 +114,8 @@ export function CustomerOperations({
   if (module === 'call_history') return <CallHistory data={data} />;
   if (module === 'live_monitor') return <LiveMonitor data={data} />;
   if (module === 'analytics') return <Analytics />;
-  if (module === 'quality') return <Quality data={data} />;
+  if (module === 'quality')
+    return <Quality data={data} onChanged={onChanged} />;
   if (module === 'settings')
     return <WorkspaceSettings data={data} onChanged={onChanged} />;
   return <ResourceModule module={module} data={data} onChanged={onChanged} />;
@@ -318,6 +326,54 @@ function ResourceModule({
                 </div>
               ))}
             </div>
+            {/* A graph agent was born 'draft' and stayed 'draft', and an
+                alert rule could not be silenced once it started firing. Both
+                readers already filtered on status; neither had a writer. */}
+            {module === 'graph_agents' ? (
+              <div className="mt-4 flex flex-wrap gap-1.5">
+                {nextGraphStatuses(str(row.status, 'draft')).map(
+                  (next: GraphAgentStatus) => (
+                    <Button
+                      key={next}
+                      variant="outline"
+                      disabled={Boolean(loading)}
+                      onClick={() =>
+                        void statusMove(
+                          {
+                            action: 'set_graph_agent_status',
+                            graphId: str(row.id),
+                            status: next,
+                          },
+                          onChanged,
+                          setError,
+                        )
+                      }
+                      className="h-7 border-hairline bg-transparent text-[10px]"
+                    >
+                      {GRAPH_ACTION_LABEL[next]}
+                    </Button>
+                  ),
+                )}
+              </div>
+            ) : null}
+            {module === 'alerts' ? (
+              <Button
+                variant="outline"
+                disabled={Boolean(loading)}
+                onClick={() =>
+                  void statusMove(
+                    { action: 'set_alert_status', ruleId: str(row.id) },
+                    onChanged,
+                    setError,
+                  )
+                }
+                className="mt-4 h-7 w-full border-hairline bg-transparent text-[10px]"
+              >
+                {normaliseAlertStatus(row.status) === 'active'
+                  ? 'Disable'
+                  : 'Enable'}
+              </Button>
+            ) : null}
             {module === 'reports' ? (
               <Button
                 variant="outline"
@@ -2345,8 +2401,15 @@ function ObjectionLibrary() {
   );
 }
 
-function Quality({ data }: { data: OperationsData }) {
+function Quality({
+  data,
+  onChanged,
+}: {
+  data: OperationsData;
+  onChanged: () => Promise<void> | void;
+}) {
   const t = useT();
+  const [problem, setProblem] = useState('');
   const average = data.qualityReviews.length
     ? Math.round(
         data.qualityReviews.reduce(
@@ -2375,13 +2438,18 @@ function Quality({ data }: { data: OperationsData }) {
         />
         <Metric
           label={t('field.openFindings')}
-          value={String(
-            data.qualityReviews.filter((item) => item.status !== 'passed')
-              .length,
-          )}
+          // "Open" is a review still asking for a person, not merely one that
+          // did not pass — the old count included every review anybody had
+          // already dealt with, and so only ever went up.
+          value={String(openFindings(data.qualityReviews))}
           icon={AlertTriangle}
         />
       </div>
+      {problem ? (
+        <p role="alert" className="text-[10px] text-danger-text">
+          {problem}
+        </p>
+      ) : null}
       <div className="grid gap-4 lg:grid-cols-2">
         {data.qualityReviews.map((review) => (
           <section
@@ -2428,6 +2496,32 @@ function Quality({ data }: { data: OperationsData }) {
               </span>
               <Status value={str(review.status)} />
             </div>
+            {/* The scoring flags a call and asks for a person. Until now there
+                was nothing a person could do about it. */}
+            {nextQualityStatuses(str(review.status)).length > 0 ? (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {nextQualityStatuses(str(review.status)).map((next) => (
+                  <Button
+                    key={next}
+                    variant="outline"
+                    onClick={() =>
+                      void statusMove(
+                        {
+                          action: 'set_quality_status',
+                          reviewId: str(review.id),
+                          status: next,
+                        },
+                        onChanged,
+                        setProblem,
+                      )
+                    }
+                    className="h-7 border-hairline bg-transparent text-[10px]"
+                  >
+                    {next === 'reviewed' ? 'Acted on it' : 'Not a problem'}
+                  </Button>
+                ))}
+              </div>
+            ) : null}
           </section>
         ))}
       </div>
@@ -2880,6 +2974,26 @@ function duration(value: unknown) {
   const seconds = Number(value ?? 0);
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
+/**
+ * A status change, with its refusal shown.
+ *
+ * `mutate` throws, and a caller that forgets to catch turns "a graph agent
+ * that is archived cannot be published" into a blank screen. This is the one
+ * place these three actions go through.
+ */
+async function statusMove(
+  payload: Record<string, unknown>,
+  onChanged: () => void,
+  onError: (message: string) => void,
+) {
+  try {
+    await mutate(payload);
+    onChanged();
+  } catch (caught) {
+    onError(caught instanceof Error ? caught.message : 'That change failed.');
+  }
+}
+
 async function mutate(payload: Record<string, unknown>) {
   const response = await fetch('/api/app/operations', {
     method: 'POST',

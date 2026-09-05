@@ -2,7 +2,13 @@ import { NextResponse } from 'next/server';
 
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
+import { canMoveQuality } from '@/lib/call-quality';
 import { recordAudit } from '@/lib/demo-seed';
+import {
+  canMoveGraph,
+  isAlertRuleStatus,
+  toggleAlertStatus,
+} from '@/lib/operations-status';
 import { encryptSecret } from '@/lib/security';
 import { SUPPORTED_LANGUAGE_CODES } from '@/lib/languages';
 import { checkPlanLimit } from '@/lib/plan-limits';
@@ -524,6 +530,99 @@ export async function POST(request: Request) {
         JSON.stringify(recipients.valid),
       )
       .run();
+  } else if (action === 'set_graph_agent_status') {
+    // A graph agent was born 'draft' and stayed 'draft': there was no publish,
+    // so every graph anyone built was unusable by design rather than by
+    // choice.
+    const graphId = clean(body.graphId, 140);
+    const requested = clean(body.status, 20);
+    const row = await db
+      .prepare(
+        `SELECT id, status FROM graph_agents WHERE id = ? AND organization_id = ? LIMIT 1`,
+      )
+      .bind(graphId, organizationId)
+      .first<{ id: string; status: string }>();
+    if (!row)
+      return NextResponse.json(
+        { error: 'Graph agent not found.' },
+        { status: 404 },
+      );
+    if (!canMoveGraph(row.status, requested))
+      return invalid(
+        `A graph agent that is ${row.status} cannot be moved to ${requested || 'that'}.`,
+      );
+    await db
+      .prepare(
+        `UPDATE graph_agents SET status = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ? AND organization_id = ?`,
+      )
+      .bind(requested, graphId, organizationId)
+      .run();
+    await recordAudit(
+      auth.session,
+      `graph_agent.${requested}`,
+      'graph_agent',
+      graphId,
+      {},
+    );
+    return NextResponse.json({ ok: true, status: requested });
+  } else if (action === 'set_alert_status') {
+    // The evaluator only ever looked at rules whose status is 'active'. It was
+    // waiting for a writer that did not exist, so a rule could not be silenced
+    // once it started firing.
+    const ruleId = clean(body.ruleId, 140);
+    const row = await db
+      .prepare(
+        `SELECT id, status FROM alert_rules WHERE id = ? AND organization_id = ? LIMIT 1`,
+      )
+      .bind(ruleId, organizationId)
+      .first<{ id: string; status: string }>();
+    if (!row)
+      return NextResponse.json(
+        { error: 'Alert rule not found.' },
+        { status: 404 },
+      );
+    const next = isAlertRuleStatus(body.status)
+      ? body.status
+      : toggleAlertStatus(row.status);
+    await db
+      .prepare(
+        `UPDATE alert_rules SET status = ? WHERE id = ? AND organization_id = ?`,
+      )
+      .bind(next, ruleId, organizationId)
+      .run();
+    await recordAudit(auth.session, `alert.${next}`, 'alert_rule', ruleId, {});
+    return NextResponse.json({ ok: true, status: next });
+  } else if (action === 'set_quality_status') {
+    // "Open findings" counted reviews the scoring had flagged and nothing
+    // could close, so the number only ever went up.
+    const reviewId = clean(body.reviewId, 140);
+    const requested = clean(body.status, 20);
+    const row = await db
+      .prepare(
+        `SELECT id, status FROM call_quality_reviews WHERE id = ? AND organization_id = ? LIMIT 1`,
+      )
+      .bind(reviewId, organizationId)
+      .first<{ id: string; status: string }>();
+    if (!row)
+      return NextResponse.json({ error: 'Review not found.' }, { status: 404 });
+    if (!canMoveQuality(row.status, requested))
+      return invalid(
+        `A review that is ${row.status.replaceAll('_', ' ')} cannot be moved to ${requested || 'that'}.`,
+      );
+    await db
+      .prepare(`UPDATE call_quality_reviews SET status = ?, reviewed_by = ?,
+        reviewed_at = CURRENT_TIMESTAMP WHERE id = ? AND organization_id = ?`)
+      .bind(requested, auth.session.userId, reviewId, organizationId)
+      .run();
+    await recordAudit(
+      auth.session,
+      `call_quality.${requested}`,
+      'call_quality_review',
+      reviewId,
+      {},
+    );
+    return NextResponse.json({ ok: true, status: requested });
   } else if (action === 'set_campaign_status') {
     // Campaigns were create-only: there was no way to start, pause or stop one,
     // so the status column never moved off 'draft'.
@@ -727,6 +826,9 @@ const OPERATION_PERMISSIONS: Record<string, CustomerPermission> = {
   create_knowledge_base: 'agents.manage',
   create_workflow: 'agents.manage',
   create_graph_agent: 'agents.manage',
+  set_graph_agent_status: 'agents.manage',
+  set_alert_status: 'analytics.manage',
+  set_quality_status: 'analytics.manage',
   create_alert: 'analytics.manage',
   create_report: 'analytics.manage',
   generate_report: 'analytics.manage',

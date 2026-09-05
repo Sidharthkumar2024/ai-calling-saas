@@ -539,3 +539,24 @@ export function buildPlaybook(input: {
     caveat: PLAYBOOK_CAVEAT,
   };
 }
+
+/**
+ * A playbook's own state, worked out from its entries.
+ *
+ * The header row was written `proposed` and never touched again, while the
+ * real decisions happened one entry at a time on `playbook_entries`. So the
+ * header's status was decoration — and worse, a playbook whose every line had
+ * been read and decided still read as untouched.
+ *
+ * Derived rather than tracked, because two places holding the same fact is how
+ * they come to disagree.
+ */
+export function playbookHeaderStatus(counts: {
+  proposed: number;
+  approved: number;
+  rejected: number;
+}): 'proposed' | 'in_review' | 'reviewed' {
+  const decided = counts.approved + counts.rejected;
+  if (decided === 0) return 'proposed';
+  return counts.proposed > 0 ? 'in_review' : 'reviewed';
+}

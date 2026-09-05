@@ -14,6 +14,7 @@ import {
   textOf,
   tokenise,
   VOCABULARY_MIN_CALLS,
+  playbookHeaderStatus,
 } from '../lib/playbook-mining.ts';
 
 let passed = 0;
@@ -282,6 +283,33 @@ check('what was left out is reported alongside what was used', () => {
   assert.equal(playbook.wonCount, 6);
   assert.equal(playbook.lostCount, 6);
   assert.equal(playbook.excluded.find((e) => e.outcome === 'callback_scheduled').count, 9);
+});
+
+// The header row said 'proposed' forever while every line beneath it was being
+// decided one at a time. Derived from the entries, so there is one fact rather
+// than two that can disagree.
+check('a playbook nobody has touched is still proposed', () => {
+  assert.equal(
+    playbookHeaderStatus({ proposed: 8, approved: 0, rejected: 0 }),
+    'proposed',
+  );
+});
+check('one decision moves it into review', () => {
+  assert.equal(
+    playbookHeaderStatus({ proposed: 7, approved: 1, rejected: 0 }),
+    'in_review',
+  );
+});
+check('and it is only reviewed when nothing is left undecided', () => {
+  assert.equal(
+    playbookHeaderStatus({ proposed: 0, approved: 5, rejected: 3 }),
+    'reviewed',
+  );
+  // Rejecting everything is a decision too.
+  assert.equal(
+    playbookHeaderStatus({ proposed: 0, approved: 0, rejected: 8 }),
+    'reviewed',
+  );
 });
 
 console.log(`\n${passed} assertions passed.`);

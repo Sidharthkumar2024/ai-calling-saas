@@ -29,6 +29,9 @@
  *
  * Legitimate exceptions are declared below with a reason, so this file is a
  * record of intent rather than a list of things someone silenced.
+ *
+ * It reported 22 on its first run. All 22 are closed, so it is part of
+ * `npm test` now — a new one fails the suite rather than joining a backlog.
  */
 import { readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
@@ -51,6 +54,13 @@ const EXPECTED = {
   // the money has already arrived, with `status = 'paid'` and `paid_at` set in
   // the same statement. There is no open-then-paid lifecycle to be missing.
   invoices: 'a receipt issued after payment; correct as written, never edited',
+  // Both of these record a verdict that was already reached before the row
+  // existed. A growth run is written when the crawl has finished, with the
+  // status it finished in; an import row is written with the parser's own
+  // accepted-or-rejected decision about that line. Neither has a later state
+  // to move to.
+  growth_runs: 'written when the run has already finished, in its final state',
+  import_rows: "written with the parser's verdict on that line; final",
 };
 
 const source = readFileSync(BOOTSTRAP, 'utf8');

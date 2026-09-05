@@ -24,6 +24,7 @@ import {
   buildPlaybook,
   type MinedCall,
   type PlaybookEntry,
+  playbookHeaderStatus,
 } from '@/lib/playbook-mining';
 
 /** How many calls one mining run will read. */
@@ -307,12 +308,48 @@ export async function reviewEntry(input: {
   status: 'approved' | 'rejected' | 'proposed';
   userId: string;
 }) {
-  const result = await getRawDb()
+  const db = getRawDb();
+  const entry = await db
+    .prepare(
+      `SELECT playbook_id FROM playbook_entries WHERE id = ? AND organization_id = ? LIMIT 1`,
+    )
+    .bind(input.entryId, input.organizationId)
+    .first<{ playbook_id: string }>();
+  const result = await db
     .prepare(`UPDATE playbook_entries SET status = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP
       WHERE id = ? AND organization_id = ?`)
     .bind(input.status, input.userId, input.entryId, input.organizationId)
     .run();
-  return { ok: (result.meta?.changes ?? 0) > 0 };
+  if ((result.meta?.changes ?? 0) === 0) return { ok: false };
+
+  // The header used to say 'proposed' forever while every line beneath it was
+  // being decided. Rolled forward from the entries themselves, so there is one
+  // fact rather than two that can disagree.
+  if (entry?.playbook_id) {
+    const counts = await db
+      .prepare(`SELECT
+          sum(CASE WHEN status = 'proposed' THEN 1 ELSE 0 END) AS proposed,
+          sum(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) AS approved,
+          sum(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) AS rejected
+        FROM playbook_entries WHERE playbook_id = ? AND organization_id = ?`)
+      .bind(entry.playbook_id, input.organizationId)
+      .first<{ proposed: number; approved: number; rejected: number }>();
+    await db
+      .prepare(
+        `UPDATE playbooks SET status = ? WHERE id = ? AND organization_id = ?`,
+      )
+      .bind(
+        playbookHeaderStatus({
+          proposed: Number(counts?.proposed ?? 0),
+          approved: Number(counts?.approved ?? 0),
+          rejected: Number(counts?.rejected ?? 0),
+        }),
+        entry.playbook_id,
+        input.organizationId,
+      )
+      .run();
+  }
+  return { ok: true };
 }
 
 /**

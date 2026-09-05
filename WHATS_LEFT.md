@@ -100,55 +100,45 @@ partner and reseller white-label explicitly, so this is not a "revisit later"
 any more. It is out of scope by decision, and should not be carried as pending
 work.
 
-### 6. [CODE] 22 tables the new usage audit found
+### 6. Table-usage audit — 22 found, 22 closed
 
 `npm run audit:tables` (`scripts/check-table-usage.mjs`) looks for the one
 defect that kept recurring by hand: a row written and treated as done. It was
 written after the fifth instance — `appointments`, which had no `UPDATE`
 anywhere in the repo, so nothing could ever be cancelled or marked a no-show —
-and it found 22 more on its first run. One is fixed; 21 remain. **It reports a real backlog
-today, so it is not in `npm test` yet.** It joins the suite when this list is
-empty; until then a green suite would be the same lie it is meant to catch.
+and it found 22 more on its first run. **All 22 are now closed and it is part
+of `npm test`**, so a new one fails the suite instead of joining a backlog.
 
-Each finding was cross-checked by hand before being listed here.
+What it found, and what happened:
 
-**Written and read by nobody** — whatever it records, no person can see it.
+- **`whatsapp_sends`** — recorded what an agent sent a customer *and what the
+  send policy held back for a person to release*, with no screen and no release
+  action. Now on Approvals & handoff.
+- **`call_jobs`, `recordings`** — queried by three dashboard tiles and one panel,
+  and never written by anything. Both now read the tables that actually move;
+  the dead ones are marked superseded.
+- **Seven kinds of org configuration** — `branches`, `departments`, `teams`,
+  `shifts`, `number_routes`, `routing_rules`, `lead_sources`. Four could be hard
+  deleted and three could not be removed at all. All seven now archive and
+  restore, and the readers that already filtered on `status = 'active'` finally
+  have a writer.
+- **`fx_rates`, `price_books`** — read by the pricing layer, written by nothing,
+  so a workspace outside the base currency could not be priced. Super Admin can
+  set both. *This is the part of §3's multi-currency claim that was missing.*
+- **`credit_packages`** — could be created and never withdrawn.
+- **`alert_rules`, `graph_agents`, `call_quality_reviews`** — an alert that
+  could not be silenced, a graph agent born `draft` and stuck there, and a QA
+  queue whose "open findings" count could only ever go up.
+- **`playbooks`** — the header said `proposed` forever while every entry beneath
+  it was being decided. Derived from the entries now.
+- **`invoices`, `growth_runs`, `import_rows`** — not defects. Each records a
+  verdict already reached before the row existed, and each is declared as such
+  in the script with its reason.
 
-- ~~`whatsapp_sends`~~ — **fixed.** Held-back media now appears on Approvals &
-  handoff, where a person can release it or decide not to send it. A release
-  re-resolves the file from its record rather than from a URL copied into the
-  log, so an unpublished listing cannot be released and a replaced file goes
-  out as the current one.
-- `invoice_sequences` — per-tenant invoice numbering is written and never read
-  back, so numbering is not actually sequential.
-- `graph_agents` — a graph agent can be created and nothing ever reads it,
-  though the portal has a Graph agents screen.
-
-**Read and created by nobody** — the screen can only ever be empty.
-
-- `call_jobs` — counted on both the customer and admin overviews; nothing
-  creates one.
-- `fx_rates`, `price_books` — the multi-currency layer reads both and nothing
-  writes either, so pricing silently falls back to defaults. Section 3 above
-  calls multi-currency shipped; these two are why that is not the whole truth.
-
-**Status frozen at creation** — a `status` column that can only ever hold the
-value the row was born with, because nothing updates the table.
-
-`alert_rules`, `branches`, `call_quality_reviews`, `credit_packages`,
-`departments`, `growth_runs`, `import_rows`, `invoices`, `lead_sources`,
-`number_routes`, `playbooks`, `recordings`, `routing_rules`, `shifts`,
-`subscriptions`, `teams`.
-
-Three groups, roughly. Most of the org configuration — branches, teams,
-departments, shifts, routing rules, number routes, lead sources — can be
-created and then never edited, deactivated or removed. `invoices` and
-`subscriptions` are sharper: an invoice cannot move from issued to paid or
-void, and a subscription cannot be cancelled. `recordings` is different again —
-the real recording lifecycle lives on `call_records.recording_status`, which is
-updated properly; the `recordings` table is written once per call with
-`'not_available'` and then read by nothing, so it is vestigial rather than
-broken.
+Three false positives came from the script itself and were fixed rather than
+declared: rows created only by bootstrap seeds are not read-only, an upsert is
+three operations wearing one keyword, and statement text living in a pure module
+is still SQL.
 
 ### 5. [KEY] Things only you can supply
 

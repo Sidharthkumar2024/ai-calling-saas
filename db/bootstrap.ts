@@ -2099,6 +2099,11 @@ async function bootstrap() {
   await ensureColumn(db, 'appointments', 'outcome_note', 'TEXT');
   await ensureColumn(db, 'appointments', 'updated_by', 'TEXT');
   await ensureColumn(db, 'appointments', 'updated_at', 'TEXT');
+
+  // Who closed a flagged quality review, and when. The screen counted open
+  // findings and nothing could ever close one.
+  await ensureColumn(db, 'call_quality_reviews', 'reviewed_by', 'TEXT');
+  await ensureColumn(db, 'call_quality_reviews', 'reviewed_at', 'TEXT');
   await db
     .prepare(
       `CREATE INDEX IF NOT EXISTS idx_appointments_org_slot ON appointments (organization_id, status, slot_start)`,

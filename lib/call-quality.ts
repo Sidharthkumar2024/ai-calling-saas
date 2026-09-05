@@ -241,3 +241,65 @@ export function supportCode(seed = crypto.randomUUID()) {
   }
   return `${code.slice(0, 3)}-${code.slice(3)}`;
 }
+
+/* ------------------------------------------------------------------ *
+ * Working the review queue
+ * ------------------------------------------------------------------ */
+
+/**
+ * A review is written by the intelligence job as `passed` or `needs_review`,
+ * and until now that was the end of it — there was no `UPDATE
+ * call_quality_reviews` anywhere, so the AI quality screen counted "open
+ * findings" that nobody could ever close. `needs_review` is a request for a
+ * person; these are the answers.
+ */
+export const QUALITY_STATUSES = [
+  'passed',
+  'needs_review',
+  'reviewed',
+  'dismissed',
+] as const;
+
+export type QualityStatus = (typeof QUALITY_STATUSES)[number];
+
+export function isQualityStatus(value: unknown): value is QualityStatus {
+  return (QUALITY_STATUSES as readonly string[]).includes(String(value));
+}
+
+/**
+ * What a person may do with a review.
+ *
+ * `passed` is the machine's own verdict and stays put — reopening a call the
+ * scoring liked is what `needs_review` is for, and letting a person mark a
+ * passed call "reviewed" would make the open-findings count meaningless.
+ * `reviewed` and `dismissed` are both terminal, and they mean different
+ * things: one says somebody acted on it, the other says it was not worth
+ * acting on. Collapsing them would lose the only signal that the scoring is
+ * flagging the wrong things.
+ */
+export function normaliseQualityStatus(value: unknown): QualityStatus {
+  const status = typeof value === 'string' ? value : '';
+  if (status === 'passed' || status === 'reviewed' || status === 'dismissed')
+    return status;
+  // Everything else — `needs_review`, the seed's older `review`, anything a
+  // future scorer invents — is a call still waiting on a person. A status
+  // nobody recognises must not leave a flagged review with no way to close it.
+  return 'needs_review';
+}
+
+export function nextQualityStatuses(current: string): QualityStatus[] {
+  return normaliseQualityStatus(current) === 'needs_review'
+    ? ['reviewed', 'dismissed']
+    : [];
+}
+
+export function canMoveQuality(from: string, to: string) {
+  return nextQualityStatuses(from).includes(to as QualityStatus);
+}
+
+/** Reviews still asking for a person. */
+export function openFindings(rows: Array<{ status?: string | null }>): number {
+  return rows.filter(
+    (row) => normaliseQualityStatus(row.status) === 'needs_review',
+  ).length;
+}

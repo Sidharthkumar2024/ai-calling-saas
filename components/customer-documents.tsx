@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { describeRequest } from '@/lib/document-requests';
 import {
   ASSOCIATION_KINDS,
   ASSOCIATION_LABEL,
@@ -54,6 +55,18 @@ type Doc = {
   association_title: string | null;
 };
 
+type DocRequest = {
+  id: string;
+  document_label: string;
+  contact_phone: string | null;
+  status: string;
+  attempts: number;
+  expires_at: string | null;
+  document_id: string | null;
+  source: string;
+  created_at: string;
+};
+
 const STATUS_TONE: Record<string, string> = {
   new: 'text-primary',
   under_review: 'text-warning-text',
@@ -64,9 +77,20 @@ const STATUS_TONE: Record<string, string> = {
 
 export function CustomerDocuments() {
   const [documents, setDocuments] = useState<Doc[]>([]);
+  const [requests, setRequests] = useState<DocRequest[]>([]);
   const [note, setNote] = useState('');
   const [filter, setFilter] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
+  const [asking, setAsking] = useState({ document: '', phone: '' });
+  // Its own field rather than the shared one at the top of the screen: a
+  // refusal shown two panels away from the button that caused it reads as an
+  // unrelated problem.
+  const [askProblem, setAskProblem] = useState<string | null>(null);
+  // Shown once, right after minting. Only the hash is stored, so this is the
+  // only moment the link can be copied for a customer who is not on WhatsApp.
+  const [minted, setMinted] = useState<{ url: string; message: string } | null>(
+    null,
+  );
 
   const load = useCallback(async () => {
     const response = await fetch(
@@ -75,9 +99,11 @@ export function CustomerDocuments() {
     if (!response.ok) return;
     const payload = (await response.json()) as {
       documents: Doc[];
+      requests?: DocRequest[];
       validationNote: string;
     };
     setDocuments(payload.documents);
+    setRequests(payload.requests ?? []);
     setNote(payload.validationNote);
   }, [filter]);
 
@@ -116,6 +142,33 @@ export function CustomerDocuments() {
     else await load();
   }
 
+  async function ask() {
+    setAskProblem(null);
+    setMinted(null);
+    const response = await fetch('/api/app/documents', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        action: 'request',
+        document: asking.document,
+        phone: asking.phone,
+      }),
+    });
+    const payload = (await response.json()) as {
+      ok?: boolean;
+      url?: string;
+      message?: string;
+      error?: string;
+    };
+    if (!payload.ok || !payload.url) {
+      setAskProblem(payload.error ?? 'The request could not be created.');
+      return;
+    }
+    setMinted({ url: payload.url, message: payload.message ?? '' });
+    setAsking({ document: '', phone: '' });
+    await load();
+  }
+
   return (
     <div className="space-y-6">
       <section className="portal-panel p-5">
@@ -152,6 +205,106 @@ export function CustomerDocuments() {
           <p role="alert" className="mt-2 text-[10px] text-danger-text">
             {problem}
           </p>
+        ) : null}
+      </section>
+
+      <section className="portal-panel p-5">
+        <h2 className="text-sm font-semibold">Ask for a document</h2>
+        <p className="mt-1 max-w-2xl text-[10px] text-ink-muted">
+          Creates a real upload link and returns it once. Nothing is sent from
+          here — copy it, or let an agent or a workflow message it. The link
+          works for three days and closes as soon as one file arrives.
+        </p>
+        <div className="mt-3 flex flex-wrap items-end gap-2">
+          <label className="flex flex-col gap-1 text-[10px] text-ink-muted">
+            What to ask for
+            <input
+              value={asking.document}
+              onChange={(event) =>
+                setAsking((current) => ({
+                  ...current,
+                  document: event.target.value,
+                }))
+              }
+              placeholder="PAN card"
+              className="h-8 w-48 rounded-lg border border-hairline bg-surface px-2.5 text-[11px] text-ink-body"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-[10px] text-ink-muted">
+            Their number (optional)
+            <input
+              value={asking.phone}
+              onChange={(event) =>
+                setAsking((current) => ({
+                  ...current,
+                  phone: event.target.value,
+                }))
+              }
+              placeholder="98xxxxxxxx"
+              className="h-8 w-40 rounded-lg border border-hairline bg-surface px-2.5 text-[11px] text-ink-body"
+            />
+          </label>
+          <button
+            type="button"
+            disabled={!asking.document.trim()}
+            onClick={() => void ask()}
+            className="portal-primary h-8 rounded-lg px-3 text-[11px] disabled:opacity-40"
+          >
+            Create link
+          </button>
+        </div>
+        {askProblem ? (
+          <p role="alert" className="mt-3 text-[10px] text-danger-text">
+            {askProblem}
+          </p>
+        ) : null}
+        {minted ? (
+          <div className="mt-3 rounded-lg border border-hairline bg-surface-muted p-2.5">
+            <p className="text-[10px] text-ink-muted">
+              Copy this now — it is not shown again.
+            </p>
+            <p className="mt-1 break-all text-[11px] text-ink-body">
+              {minted.url}
+            </p>
+            {minted.message ? (
+              <p className="mt-2 text-[10px] text-ink-muted">
+                Suggested message: {minted.message}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+        {requests.length > 0 ? (
+          <div className="mt-4 space-y-1.5">
+            {requests.map((row) => (
+              <div
+                key={row.id}
+                className="flex flex-wrap items-baseline justify-between gap-2 rounded-lg border border-hairline bg-surface px-3 py-2"
+              >
+                <span className="text-[11px] text-ink-body">
+                  {describeRequest({
+                    document: row.document_label,
+                    status: row.status,
+                    expiresAt: row.expires_at,
+                  })}
+                  {row.contact_phone ? ` · ${row.contact_phone}` : ''}
+                </span>
+                {row.status === 'open' ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void post({
+                        action: 'cancel_request',
+                        requestId: row.id,
+                      })
+                    }
+                    className="h-6 rounded-md border border-hairline px-2 text-[10px] text-ink-muted"
+                  >
+                    Withdraw
+                  </button>
+                ) : null}
+              </div>
+            ))}
+          </div>
         ) : null}
       </section>
 

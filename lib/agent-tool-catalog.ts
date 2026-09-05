@@ -60,6 +60,11 @@ export const SELECTABLE_TOOLS: Array<{
     note: 'Images and brochures for published records only, subject to the send policy',
   },
   {
+    name: 'request_document',
+    label: 'Ask for a document',
+    note: 'Send a real upload link for a PAN card, proof or signed form',
+  },
+  {
     name: 'create_payment_link',
     label: 'Create payment link',
     note: 'Amount, expiry and customer mapping',

@@ -4,6 +4,11 @@ import { ensureSchema } from '@/db/bootstrap';
 import { requireCustomerPermission } from '@/lib/customer-rbac';
 import { recordAudit } from '@/lib/demo-seed';
 import {
+  cancelDocumentRequest,
+  createDocumentRequest,
+  listDocumentRequests,
+} from '@/lib/document-request-service';
+import {
   associateDocument,
   associationTargets,
   listDocuments,
@@ -49,6 +54,12 @@ export async function GET(request: Request) {
       organizationId: auth.session.organizationId!,
       status,
     }),
+    // What has been asked for and not yet come back. Kept next to the inbox
+    // because "no documents" and "three people were asked and none replied"
+    // are very different situations and used to look identical.
+    requests: await listDocumentRequests({
+      organizationId: auth.session.organizationId!,
+    }),
     statuses: DOCUMENT_STATUSES,
     associationKinds: ASSOCIATION_KINDS,
     // Carried to the screen rather than left implicit: somebody about to open
@@ -68,7 +79,56 @@ export async function POST(request: Request) {
     documentType?: string;
     kind?: string | null;
     targetId?: string | null;
+    document?: string;
+    phone?: string;
+    requestId?: string;
   };
+
+  if (body.action === 'request') {
+    const created = await createDocumentRequest({
+      organizationId: auth.session.organizationId!,
+      document: String(body.document ?? ''),
+      contactPhone: String(body.phone ?? '') || null,
+      source: 'manual',
+      requestedBy: auth.session.userId,
+    });
+    if (!created.ok)
+      return NextResponse.json({ ok: false, error: created.detail });
+    await recordAudit(
+      auth.session,
+      'document.requested',
+      'document_requests',
+      created.id,
+      { document: String(body.document ?? '') },
+    );
+    // The link is returned once, here, so a person can paste it themselves
+    // when the customer is not on WhatsApp. It is never shown again — only
+    // the hash is stored.
+    return NextResponse.json({
+      ok: true,
+      id: created.id,
+      url: created.url,
+      message: created.message,
+      expiresAt: created.expiresAt,
+    });
+  }
+
+  if (body.action === 'cancel_request') {
+    const result = await cancelDocumentRequest({
+      organizationId: auth.session.organizationId!,
+      requestId: String(body.requestId ?? ''),
+    });
+    if (result.cancelled)
+      await recordAudit(
+        auth.session,
+        'document.request_cancelled',
+        'document_requests',
+        String(body.requestId),
+      );
+    // `ok` alongside `cancelled` because the screen's shared POST helper reads
+    // `ok`, and a withdrawal that worked would otherwise report itself refused.
+    return NextResponse.json({ ok: result.cancelled, ...result });
+  }
 
   if (body.action === 'associate') {
     const result = await associateDocument({

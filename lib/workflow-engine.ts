@@ -24,6 +24,8 @@
 
 import { getRawDb } from '@/db/index';
 import { executeAgentTool } from '@/lib/agent-tools';
+import { createDocumentRequest } from '@/lib/document-request-service';
+import { normaliseDocumentLabel } from '@/lib/document-requests';
 import { createApprovalRequest } from '@/lib/handoff-service';
 import type { Filter } from '@/lib/object-engine';
 import { getObject, searchRecords } from '@/lib/object-store';
@@ -343,8 +345,10 @@ async function runNode(
       return payment(config, context);
 
     case 'message':
+      return message(config, context);
+
     case 'document_request':
-      return message(node, config, context);
+      return documentRequest(config, context);
 
     case 'human_transfer':
       return transfer(config, context);
@@ -554,16 +558,85 @@ async function payment(
   };
 }
 
-async function message(
-  node: WorkflowNode,
+/**
+ * Ask for a document, with somewhere to send it.
+ *
+ * This step used to compose "Use the link in this message" and then send a
+ * message containing no link. The customer was told to do something they
+ * could not do, and the workspace waited for a file that could never arrive.
+ * Now the link is minted first: if one cannot be built, the step fails and
+ * says why, rather than sending the instruction anyway.
+ */
+async function documentRequest(
   config: Record<string, unknown>,
   context: ExecutionContext,
 ): Promise<StepResult> {
   const destination = textValue(config.destination).trim();
-  const body =
-    node.kind === 'document_request'
-      ? `Please upload your ${textValue(config.document)}. Use the link in this message.`
-      : textValue(config.body);
+  const document = normaliseDocumentLabel(textValue(config.document));
+  if (!destination || destination.includes('{{'))
+    return {
+      status: 'skipped',
+      branch: 'next',
+      output: {
+        reason: 'no_destination',
+        detail: 'No number or address reached this step, so nothing was sent.',
+      },
+    };
+  if (!document)
+    return {
+      status: 'skipped',
+      branch: 'next',
+      output: {
+        reason: 'no_document',
+        detail:
+          'This run never worked out which document to ask for, so nothing was sent.',
+      },
+    };
+
+  const request = await createDocumentRequest({
+    organizationId: context.organizationId,
+    document,
+    contactPhone: destination,
+    source: 'workflow',
+    requestedBy: context.runId,
+  });
+  if (!request.ok)
+    return {
+      status: 'failed',
+      branch: 'next',
+      output: {
+        reason: request.reason,
+        // Said in full, because the fix is a deployment setting and whoever
+        // reads this run is the person who can change it.
+        detail: `No upload link could be created, so the customer was not asked for their ${document}. ${request.detail}`,
+      },
+    };
+
+  const outcome = await executeAgentTool(
+    'send_whatsapp',
+    { phone: destination, message: request.message },
+    toolContext(context),
+  );
+  return {
+    status: outcome.ok ? 'completed' : 'failed',
+    branch: 'next',
+    output: {
+      ...outcome,
+      document,
+      document_request_id: request.id,
+      expires_at: request.expiresAt,
+      channel: textValue(config.channel) || 'whatsapp',
+    },
+    variables: { document_request_id: request.id },
+  };
+}
+
+async function message(
+  config: Record<string, unknown>,
+  context: ExecutionContext,
+): Promise<StepResult> {
+  const destination = textValue(config.destination).trim();
+  const body = textValue(config.body);
   if (!destination || destination.includes('{{'))
     return {
       status: 'skipped',

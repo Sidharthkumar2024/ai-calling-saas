@@ -2156,6 +2156,39 @@ async function bootstrap() {
       `CREATE UNIQUE INDEX IF NOT EXISTS idx_document_inbox_media ON document_inbox (organization_id, provider_media_id)`,
     )
     .run();
+  // Asking for a document, rather than telling a customer to use a link that
+  // was never generated. Only the token's hash is kept: the customer has no
+  // account, so the token is the whole credential.
+  await db
+    .prepare(`CREATE TABLE IF NOT EXISTS document_requests (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      token_hash TEXT NOT NULL,
+      document_label TEXT NOT NULL,
+      contact_phone TEXT,
+      lead_id TEXT REFERENCES leads(id) ON DELETE SET NULL,
+      association_type TEXT,
+      association_id TEXT,
+      status TEXT DEFAULT 'open' NOT NULL,
+      attempts INTEGER DEFAULT 0 NOT NULL,
+      expires_at TEXT,
+      document_id TEXT REFERENCES document_inbox(id) ON DELETE SET NULL,
+      fulfilled_at TEXT,
+      requested_by TEXT,
+      source TEXT DEFAULT 'manual' NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`)
+    .run();
+  await db
+    .prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_document_requests_token ON document_requests (token_hash)`,
+    )
+    .run();
+  await db
+    .prepare(
+      `CREATE INDEX IF NOT EXISTS idx_document_requests_org ON document_requests (organization_id, status, created_at)`,
+    )
+    .run();
   // What an agent actually sent, to whom, and which of it was held back.
   await db
     .prepare(`CREATE TABLE IF NOT EXISTS whatsapp_sends (

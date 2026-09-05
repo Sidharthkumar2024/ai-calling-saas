@@ -1124,7 +1124,7 @@ export const TOOL_FOR_KIND: Partial<Record<NodeKind, string>> = {
   booking: 'book_appointment',
   payment: 'create_payment_link',
   message: 'send_whatsapp',
-  document_request: 'send_whatsapp',
+  document_request: 'request_document',
   human_transfer: 'transfer_to_human',
   end: 'end_call',
 };

@@ -25,6 +25,7 @@ import {
   type SendPolicy,
 } from '@/lib/whatsapp-media';
 import { createRazorpayPaymentLink, whatsAppConnected } from '@/lib/commerce';
+import { createDocumentRequest } from '@/lib/document-request-service';
 
 /**
  * The tool definitions to hand the model for one agent.
@@ -158,6 +159,23 @@ export const VAANI_AGENT_TOOLS: Array<Record<string, unknown>> = [
         },
       },
       required: ['phone', 'message'],
+    },
+  },
+  {
+    name: 'request_document',
+    description:
+      'Ask the caller to send a document (PAN card, Aadhaar, a signed form, a photo) by creating a real upload link and messaging it to them over WhatsApp. Use this instead of describing where to send it \u2014 you cannot see their email and there is no other address. The result tells you whether the link was actually sent; if sent is false, never tell the caller to check their phone.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        phone: { type: 'string' },
+        document: {
+          type: 'string',
+          description:
+            'What is being asked for, in the caller\u2019s own words where possible: "PAN card", "address proof".',
+        },
+      },
+      required: ['phone', 'document'],
     },
   },
   {
@@ -706,6 +724,51 @@ async function runTool(
       // "Queued" is the truth. Delivery happens in a job moments later, and
       // the model must not upgrade that to "delivered".
       say: 'Tell the caller it is on its way, not that it has arrived — you cannot see their phone.',
+    };
+  }
+
+  if (name === 'request_document') {
+    const phone = digits(input.phone);
+    const document = str(input, 'document');
+    if (phone.length < 6 || !document)
+      return { ok: false, reason: 'phone and document required' };
+    // Order matters. A request row created before the connection is checked
+    // would leave the workspace waiting on a link that was never sent \u2014 the
+    // same shape of defect this tool exists to remove.
+    if (!(await whatsAppConnected(ctx.organizationId)))
+      return {
+        ok: false,
+        reason: 'whatsapp_not_connected',
+        say: 'Do not tell the caller to check their phone. This workspace has no WhatsApp connection, so say a colleague will arrange how to receive the document.',
+      };
+    const request = await createDocumentRequest({
+      organizationId: ctx.organizationId,
+      document,
+      contactPhone: phone,
+      source: 'call',
+      requestedBy: ctx.sessionId ?? null,
+    });
+    if (!request.ok)
+      return {
+        ok: false,
+        reason: request.reason,
+        detail: request.detail,
+        say: 'No upload link could be created, so say a colleague will follow up about how to send the document. Do not tell the caller a link is on its way.',
+      };
+    const messageId = id('msg');
+    await db
+      .prepare(`INSERT INTO outbound_messages
+        (id, organization_id, channel, destination, message_body, status)
+        VALUES (?, ?, 'whatsapp', ?, ?, 'queued')`)
+      .bind(messageId, ctx.organizationId, phone, request.message)
+      .run();
+    return {
+      ok: true,
+      sent: true,
+      document_request_id: request.id,
+      message_id: messageId,
+      expires_at: request.expiresAt,
+      say: 'Tell the caller a link is on its way over WhatsApp and that it works for the next few days. Do not read the link out \u2014 it is long.',
     };
   }
 

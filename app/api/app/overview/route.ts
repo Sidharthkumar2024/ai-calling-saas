@@ -48,11 +48,17 @@ export async function GET(request: Request) {
       .first(),
     db
       .prepare(
-        `SELECT count(*) AS total,
-             sum(CASE WHEN status = 'queued' THEN 1 ELSE 0 END) AS queued
-           FROM call_jobs WHERE organization_id = ?`,
+        // Both numbers used to come from `call_jobs`, which nothing has ever
+        // inserted a row into — so the tile read "0 calls, 0 queued" for a
+        // workspace that had made hundreds. The real call log is
+        // `call_records`, and the real queue is the campaign's own contacts.
+        `SELECT
+             (SELECT count(*) FROM call_records WHERE organization_id = ?) AS total,
+             (SELECT count(*) FROM campaign_contacts cc
+                JOIN campaigns c ON c.id = cc.campaign_id
+              WHERE c.organization_id = ? AND cc.status = 'pending') AS queued`,
       )
-      .bind(organizationId)
+      .bind(organizationId, organizationId)
       .first(),
     db
       .prepare(

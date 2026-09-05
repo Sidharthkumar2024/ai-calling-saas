@@ -38,7 +38,7 @@ export async function GET(request: Request) {
              (SELECT count(*) FROM organizations WHERE status = 'active') AS customers,
              (SELECT count(*) FROM app_users WHERE role != 'platform_admin' AND status = 'active') AS users,
              (SELECT count(*) FROM leads) AS leads,
-             (SELECT count(*) FROM call_jobs) AS calls,
+             (SELECT count(*) FROM call_records) AS calls,
              (SELECT count(*) FROM subscriptions WHERE status = 'trialing') AS trials,
              (SELECT count(*) FROM voice_agents) AS voice_agents,
              (SELECT count(*) FROM agent_test_sessions) AS agent_tests,

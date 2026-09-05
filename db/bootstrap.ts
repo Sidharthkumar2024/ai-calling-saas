@@ -97,6 +97,9 @@ async function bootstrap() {
     )`),
     db.prepare(`CREATE INDEX IF NOT EXISTS idx_lead_events_org_lead
       ON lead_events (organization_id, lead_id)`),
+    // Superseded. Nothing has ever inserted a row here; the real call log is
+    // `call_records` and the real outbound queue is `campaign_contacts`. Kept
+    // as DDL only so an existing database is not surprised by its absence.
     db.prepare(`CREATE TABLE IF NOT EXISTS call_jobs (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -1500,6 +1503,9 @@ async function bootstrap() {
     db.prepare(
       `CREATE INDEX IF NOT EXISTS idx_call_transport_call ON call_transport_stats (call_id)`,
     ),
+    // Superseded. A row per call was written here and read by nothing; the
+    // recording a workspace can play is `call_records.recording_status` plus
+    // `recording_storage_key`, which the telephony webhook keeps current.
     db.prepare(`CREATE TABLE IF NOT EXISTS recordings (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,

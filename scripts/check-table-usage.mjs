@@ -108,10 +108,6 @@ for (const file of files) {
     note(reads, match[1].toLowerCase(), file);
   for (const match of sql.matchAll(/\bJOIN\s+([a-z_0-9]+)/gi))
     note(reads, match[1].toLowerCase(), file);
-  for (const match of sql.matchAll(
-    /\bINSERT\s+(?:OR\s+\w+\s+)?INTO\s+([a-z_0-9]+)/gi,
-  ))
-    note(writes, match[1].toLowerCase(), file);
   for (const match of sql.matchAll(/\bUPDATE\s+([a-z_0-9]+)\s+SET/gi)) {
     note(updates, match[1].toLowerCase(), file);
     // An UPDATE is also proof somebody cares about the row's contents.
@@ -119,6 +115,54 @@ for (const file of files) {
   }
   for (const match of sql.matchAll(/\bDELETE\s+FROM\s+([a-z_0-9]+)/gi))
     note(reads, match[1].toLowerCase(), file);
+
+  // An INSERT is scanned along with the rest of its own statement, because an
+  // upsert is three operations wearing one keyword. `invoice_sequences` is the
+  // case that taught this: it is written, updated and read back by a single
+  // `INSERT ... ON CONFLICT DO UPDATE ... RETURNING`, and counting only the
+  // INSERT reported a table nobody could ever see.
+  for (const match of sql.matchAll(
+    /\bINSERT\s+(?:OR\s+\w+\s+)?INTO\s+([a-z_0-9]+)/gi,
+  )) {
+    const table = match[1].toLowerCase();
+    note(writes, table, file);
+    // The rest of that statement, up to the end of its template literal. An
+    // unterminated match must not cost us the write above, which is why this
+    // is a second look rather than one greedier pattern.
+    const rest = sql.slice(match.index, sql.indexOf('`', match.index) + 1);
+    if (rest.length > 0 && rest.length < 2000) {
+      if (/\bON\s+CONFLICT\b[\s\S]*?\bDO\s+UPDATE\b/i.test(rest))
+        note(updates, table, file);
+      if (/\bRETURNING\b/i.test(rest)) note(reads, table, file);
+    }
+  }
+}
+
+/**
+ * Tables reached through a helper that builds its own SQL.
+ *
+ * `scoped(db, 'alert_rules', …)` and `owned('branches', …)` compose
+ * `SELECT * FROM ${table}`, so the table name is a JavaScript string and no
+ * amount of SQL matching will find it. In a file that demonstrably builds
+ * dynamic SQL, a bare string literal equal to a table name is one of those
+ * arguments — near enough always, and the alternative is reporting every such
+ * table as dead.
+ *
+ * Counted, but counted separately and reported in the summary, so this is a
+ * stated limit rather than a silent one. `check-sql-bindings` reports its own
+ * dynamic skips the same way.
+ */
+const dynamic = new Set();
+for (const file of files) {
+  const sql = readFileSync(file, 'utf8');
+  if (!/\b(?:FROM|JOIN|INTO|UPDATE)\s+\$\{/.test(sql)) continue;
+  for (const match of sql.matchAll(/'([a-z_0-9]{3,})'/g)) {
+    const table = match[1];
+    if (!declared.has(table)) continue;
+    dynamic.add(table);
+    note(reads, table, `${file} (dynamic)`);
+    if (/\bUPDATE\s+\$\{/.test(sql)) note(updates, table, `${file} (dynamic)`);
+  }
 }
 
 const findings = [];
@@ -167,6 +211,6 @@ for (const table of unused)
 
 const total = findings.length + unused.length;
 console.log(
-  `${declared.size} tables checked, ${Object.keys(EXPECTED).length} declared append-only, ${total} flagged`,
+  `${declared.size} tables checked, ${Object.keys(EXPECTED).length} declared append-only, ${dynamic.size} reached through dynamic SQL, ${total} flagged`,
 );
 if (total > 0) process.exitCode = 1;

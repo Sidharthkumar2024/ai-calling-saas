@@ -50,12 +50,11 @@ export async function ensurePlaygroundCallRecord(input: {
       input.agentName,
     )
     .run();
-  await db
-    .prepare(`INSERT INTO recordings
-      (id, organization_id, call_id, status, format)
-      VALUES (?, ?, ?, 'not_available', NULL)`)
-    .bind(`recording_${crypto.randomUUID()}`, input.organizationId, callId)
-    .run();
+  // A `recordings` row used to be written here and read by nothing, ever.
+  // The recording a workspace can actually play is tracked on the call itself
+  // — `call_records.recording_status` and `recording_storage_key`, which the
+  // telephony webhook updates when audio arrives. One place, not two, and the
+  // second one was the one that never moved off 'not_available'.
   return callId;
 }
 

@@ -9,6 +9,11 @@ import { checkPlanLimit } from '@/lib/plan-limits';
 import { runReportNow } from '@/lib/job-queue';
 import { openingProblems, parseOpening } from '@/lib/campaign-opening';
 import {
+  assignVariant,
+  isOpeningStyle,
+  type Variant,
+} from '@/lib/campaign-studio';
+import {
   checkRecipients,
   isReportSchedule,
   REPORT_SCHEDULES,
@@ -255,10 +260,17 @@ export async function POST(request: Request) {
     const openingIssues = openingProblems(opening);
     if (openingIssues.length > 0)
       return invalid(openingIssues.map((issue) => issue.message).join(' '));
+    const openingStyle = isOpeningStyle(body.openingStyle)
+      ? body.openingStyle
+      : 'standard';
+    // Variants are normalised here rather than trusted: a split that does not
+    // add up would quietly send most contacts to one opening and still be
+    // read as a fair test.
+    const variants = normaliseVariants(body.variants);
 
     await db
-      .prepare(`INSERT INTO campaigns (id, organization_id, agent_id, name, status, audience_size, concurrency, retry_policy_json, calling_window_json, opening_json)
-      VALUES (?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?)`)
+      .prepare(`INSERT INTO campaigns (id, organization_id, agent_id, name, status, audience_size, concurrency, retry_policy_json, calling_window_json, opening_json, opening_style, variants_json, qualification_json)
+      VALUES (?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind(
         id,
         organizationId,
@@ -272,6 +284,9 @@ export async function POST(request: Request) {
         JSON.stringify(retryPolicy),
         JSON.stringify(callingWindow),
         JSON.stringify(opening),
+        openingStyle,
+        JSON.stringify(variants),
+        JSON.stringify(body.qualification ?? {}),
       )
       .run();
     if (contacts.length) {
@@ -279,14 +294,18 @@ export async function POST(request: Request) {
         contacts.map((phone) =>
           db
             .prepare(`INSERT INTO campaign_contacts
-        (id, organization_id, campaign_id, phone, status, consent_status)
-        VALUES (?, ?, ?, ?, 'pending', ?)`)
+        (id, organization_id, campaign_id, phone, status, consent_status, variant_key)
+        VALUES (?, ?, ?, ?, 'pending', ?, ?)`)
             .bind(
               `campaign_contact_${crypto.randomUUID()}`,
               organizationId,
               id,
               phone,
               grantedPhones.has(phone) ? 'granted' : 'unknown',
+              // Derived from the contact's own number, so a redial keeps the
+              // same opening and the test measures the wording rather than
+              // the dialer's retry pattern.
+              assignVariant(phone, variants)?.key ?? null,
             ),
         ),
       );
@@ -718,4 +737,42 @@ function operationPermission(action: string): CustomerPermission {
   // Unknown actions fall to the most restrictive workspace permission so a new
   // handler cannot ship unguarded.
   return OPERATION_PERMISSIONS[action] ?? 'workspace.manage';
+}
+
+/**
+ * Cleans up an A/B split.
+ *
+ * A test whose shares do not add to 100 sends most contacts to one opening and
+ * is still read as a fair comparison, so the shares are rebalanced here and
+ * anything unusable is dropped rather than stored.
+ */
+function normaliseVariants(raw: unknown): Variant[] {
+  if (!Array.isArray(raw)) return [];
+  const entries = raw
+    .map((entry: unknown) => (entry ?? {}) as Record<string, unknown>)
+    .map((entry, index) => ({
+      key:
+        typeof entry.key === 'string' && entry.key.trim()
+          ? entry.key.trim().slice(0, 20)
+          : `v${index + 1}`,
+      label:
+        typeof entry.label === 'string' && entry.label.trim()
+          ? entry.label.trim().slice(0, 60)
+          : `Opening ${index + 1}`,
+      share: Math.max(0, Math.min(100, Math.round(Number(entry.share) || 0))),
+    }))
+    .filter((entry) => entry.share > 0)
+    .slice(0, 4);
+  if (entries.length === 0) return [];
+  const total = entries.reduce((sum, entry) => sum + entry.share, 0);
+  if (total === 100) return entries;
+  // Rebalanced proportionally, with the remainder on the first, so the shares
+  // always describe what will actually happen.
+  const scaled = entries.map((entry) => ({
+    ...entry,
+    share: Math.max(1, Math.round((entry.share / total) * 100)),
+  }));
+  const drift = 100 - scaled.reduce((sum, entry) => sum + entry.share, 0);
+  scaled[0].share = Math.max(1, scaled[0].share + drift);
+  return scaled;
 }

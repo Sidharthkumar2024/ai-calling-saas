@@ -4,6 +4,7 @@ import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { recordCallTurn } from '@/lib/call-telemetry';
 import { buildOpening, parseOpening } from '@/lib/campaign-opening';
+import { isOpeningStyle, STYLE_GUIDANCE } from '@/lib/campaign-studio';
 import { resolveAgentVoice } from '@/lib/voice-profiles';
 import { routeTurn } from '@/lib/llm-router';
 import {
@@ -80,10 +81,12 @@ async function runTurn(body: TurnRequest, callId: string) {
         a.name AS agent_name, a.use_case, a.primary_language, a.system_prompt,
         a.max_tokens, a.welcome_message, a.tools_json, o.name AS business_name,
         c.direction, c.from_number, c.to_number, c.campaign_id,
-        m.opening_json, l.name AS lead_name, l.product_interest
+        m.opening_json, m.opening_style, m.variants_json,
+        cc.variant_key, l.name AS lead_name, l.product_interest
       FROM call_records c
       LEFT JOIN voice_agents a ON a.id = c.agent_id
       LEFT JOIN campaigns m ON m.id = c.campaign_id
+      LEFT JOIN campaign_contacts cc ON cc.campaign_id = c.campaign_id AND cc.lead_id = c.lead_id
       LEFT JOIN leads l ON l.id = c.lead_id
       INNER JOIN organizations o ON o.id = c.organization_id
       WHERE c.id = ? LIMIT 1`)
@@ -106,6 +109,9 @@ async function runTurn(body: TurnRequest, callId: string) {
       to_number: string;
       campaign_id: string | null;
       opening_json: string | null;
+      opening_style: string | null;
+      variants_json: string | null;
+      variant_key: string | null;
       lead_name: string | null;
       product_interest: string | null;
     }>();
@@ -148,13 +154,24 @@ async function runTurn(body: TurnRequest, callId: string) {
         .bind(call.campaign_id)
         .run();
 
+    // How the opening is pitched (Part 2.2). Guidance for the model rather
+    // than a fixed script, because the line still has to be rendered in the
+    // caller's own language.
+    const style = isOpeningStyle(call.opening_style)
+      ? call.opening_style
+      : 'standard';
+    const styled =
+      opening.text && style !== 'standard' && style !== 'custom'
+        ? `${opening.text} [${STYLE_GUIDANCE[style]}]`
+        : opening.text;
+
     const text = await greetingForLanguage({
       organizationId,
       businessName: call.business_name,
       agentName: call.agent_name || 'Vaani',
       // The campaign's line when it has one, and the agent's own welcome
       // otherwise. Either way it is rendered in the language of the call.
-      welcomeMessage: opening.text ?? call.welcome_message,
+      welcomeMessage: styled ?? call.welcome_message,
       sourceLanguage: call.primary_language,
       languageCode: language,
     });

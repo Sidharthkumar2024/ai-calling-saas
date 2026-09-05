@@ -2062,6 +2062,25 @@ async function bootstrap() {
     'INTEGER DEFAULT 0 NOT NULL',
   );
 
+  // The rest of the Campaign Opening Studio (Part 2.2): how the opening is
+  // pitched, the variants being compared, and what counts as qualified.
+  await ensureColumn(
+    db,
+    'campaigns',
+    'opening_style',
+    "TEXT DEFAULT 'standard'",
+  );
+  await ensureColumn(db, 'campaigns', 'variants_json', "TEXT DEFAULT '[]'");
+  await ensureColumn(
+    db,
+    'campaigns',
+    'qualification_json',
+    "TEXT DEFAULT '{}'",
+  );
+  // Which opening a contact was given, so a redial keeps the same one and the
+  // result can be read per variant afterwards.
+  await ensureColumn(db, 'campaign_contacts', 'variant_key', 'TEXT');
+
   // Every publish of an agent, kept so a change can be undone (Part 2.1).
   // Editing used to overwrite in place: there was no way back to what the
   // agent said yesterday, and no record that anything had changed.

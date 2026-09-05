@@ -6,6 +6,7 @@ import {
 } from '@/lib/agent-tools';
 import { retrieveKnowledge } from '@/lib/knowledge-retrieval';
 import { objectionPlaybook } from '@/lib/sales-intelligence-service';
+import { approvedPlaybookBlock } from '@/lib/playbook-service';
 import { recordMeteredUsage } from '@/lib/metering';
 import type { UsageUnit } from '@/lib/rate-cards';
 import { decryptSecret } from '@/lib/security';
@@ -577,7 +578,7 @@ export async function generateVoiceAgentTurn(input: {
   const lastCustomerTurn =
     [...input.messages].reverse().find((message) => message.role === 'user')
       ?.content ?? '';
-  const [enabledLanguages, knowledge, playbook] = await Promise.all([
+  const [enabledLanguages, knowledge, playbook, mined] = await Promise.all([
     workspaceEnabledLanguages(input.organizationId),
     retrieveKnowledge({
       organizationId: input.organizationId,
@@ -587,12 +588,16 @@ export async function generateVoiceAgentTurn(input: {
     // workspace approved. Extracted on every call since the beginning and read
     // by nothing until now (§10).
     objectionPlaybook(input.organizationId),
+    // What this company's own past calls suggest, but only the rows a person
+    // approved (§13.1). Mining alone never reaches a live call.
+    approvedPlaybookBlock(input.organizationId).catch(() => null),
   ]);
   const system = buildVoiceAgentInstructions({
     ...input,
     enabledLanguages,
     knowledge: knowledge.text,
     playbook,
+    companyPlaybook: mined,
   });
   const messages: Array<{
     role: 'user' | 'assistant';
@@ -699,6 +704,12 @@ export function buildVoiceAgentInstructions(input: {
   knowledge?: string;
   /** The workspace's objection playbook, or empty when it has none yet. */
   playbook?: string;
+  /**
+   * Patterns mined from this company's own past calls and approved by a person
+   * (§13.1). Null until somebody approves something — mining alone never
+   * reaches a live call.
+   */
+  companyPlaybook?: string | null;
   /** The number on the other end, so tools are not handed a guess. */
   callerNumber?: string | null;
 }) {
@@ -754,7 +765,7 @@ export function buildVoiceAgentInstructions(input: {
 <conversation_rules>${languageRule} Speak in one or two short, easily interruptible sentences. Respond as soon as the customer's turn is complete. First answer the customer's actual words naturally, including greetings, jokes and small talk; only then guide gently toward the business goal. Adapt warmth, pace, formality and directness to the customer's speech and sentiment, but never imitate abuse or pressure the customer. Never respond to casual conversation with a menu of options. Ask only one question at a time. Avoid markdown, lists and long explanations.</conversation_rules>
 <action_safety>Act on an actionable request in the same turn it is made. If the caller wants to reach a human — a person, agent, manager, supervisor, senior, someone else, or says you cannot help — in any language or wording, call transfer_to_human on that turn with the skill and language; do not ask qualifying questions or look anything up first. If the caller asks for a refund, their money back, or a cancellation with money returned, call request_refund on that turn with whatever details you already have; the tool tells you what is missing, so never gather more first. If a caller asks for both, call both. If the caller asks to be contacted later — another day, after a meeting, once they have decided, or simply not now — call schedule_follow_up on that turn with their number and the time they gave, converted to an absolute timestamp; saying you will follow up without calling it schedules nothing. Never answer an actionable request with a vague plea for more information such as "tell me a little more" — either call the tool, or ask one specific question naming exactly what you need. Never say an action succeeded unless a tool result confirms it. You do not decide refunds, approvals or transfers — call the tool and follow its say_to_customer guidance exactly. A refund is "submitted" or "sent for approval", never "done", until a tool result says confirmed. If a transfer tool reports transferred:false, never tell the caller you are connecting them; offer a callback instead. Before sending a payment link, ask whether the calling number is available on WhatsApp. If yes, confirm amount and timing, then use WhatsApp. If not, collect and read back an email address. Never request an OTP, CVV, card PIN, password or full card details. Obtain consent before messaging, booking, transferring or scheduling.</action_safety>
 <examples><example customer="क्या हो रहा है?" assistant="बस बढ़िया जी, आपसे बात हो रही है। आप सुनाइए, सब ठीक?"/><example customer="और तेरे के हाल हैं?" assistant="मैं बढ़िया सूँ जी, आप सुनाओ—आपके के हाल हैं?"/><example customer="पंजाबी में बात करो" assistant="ਹਾਂ ਜੀ, ਬਿਲਕੁਲ ਪੰਜਾਬੀ ਵਿੱਚ ਗੱਲ ਕਰਦੇ ਹਾਂ। ਦੱਸੋ, ਮੈਂ ਤੁਹਾਡੀ ਕੀ ਮਦਦ ਕਰਾਂ?"/><example customer="payment link आठ बजे भेज देना" assistant="ठीक है जी। क्या इसी calling number पर WhatsApp चलता है?"/><example customer="इस नंबर पर WhatsApp नहीं है" assistant="कोई बात नहीं। किस email address पर link भेजूँ?"/></examples>
-<workspace_instructions>${input.systemPrompt}</workspace_instructions>${callerRule}${input.knowledge ? `\n${input.knowledge}` : ''}${input.playbook ? `\n${input.playbook}` : ''}`;
+<workspace_instructions>${input.systemPrompt}</workspace_instructions>${callerRule}${input.knowledge ? `\n${input.knowledge}` : ''}${input.playbook ? `\n${input.playbook}` : ''}${input.companyPlaybook ? `\n${input.companyPlaybook}` : ''}`;
 }
 
 /**

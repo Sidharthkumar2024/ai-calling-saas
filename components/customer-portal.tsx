@@ -84,6 +84,7 @@ import {
 import { CustomerSecurity } from '@/components/customer-security';
 import { CustomerGrowth } from '@/components/customer-growth';
 import { CustomerWorkflowBuilder } from '@/components/customer-workflow-builder';
+import { CustomerPlaybook } from '@/components/customer-playbook';
 import {
   CustomerOperations,
   type OperationsData,
@@ -279,6 +280,12 @@ const groups: PortalNavGroup[] = [
         translationKey: 'nav.analytics',
       },
       {
+        id: 'playbook',
+        label: 'Company playbook',
+        icon: BookOpenText,
+        translationKey: 'nav.quality',
+      },
+      {
         id: 'quality',
         label: 'AI quality assurance',
         icon: FileAudio,
@@ -403,6 +410,7 @@ const navPermissions: Record<string, string> = {
   voice_profiles: 'agents.manage',
   graph_agents: 'agents.manage',
   workflows: 'agents.manage',
+  playbook: 'analytics.view',
   knowledge: 'agents.manage',
   campaigns: 'campaigns.manage',
   numbers: 'telephony.manage',
@@ -665,6 +673,9 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
           ) : null}
           {!loading && !error && active === 'workflows' ? (
             <CustomerWorkflowBuilder />
+          ) : null}
+          {!loading && !error && active === 'playbook' ? (
+            <CustomerPlaybook />
           ) : null}
           {!loading && !error && active === 'agents' ? (
             <CustomerAgentStudio

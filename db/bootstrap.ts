@@ -2047,6 +2047,46 @@ async function bootstrap() {
   await ensureColumn(db, 'report_runs', 'delivery_state', 'TEXT');
   await ensureColumn(db, 'report_runs', 'delivered_to', 'TEXT');
 
+  // Mined playbooks (§13.1). Entries start as proposals: §13.1 puts "Human
+  // reviews" between the mining and any use of it, and nothing here reaches a
+  // live call until somebody approves that row.
+  await db
+    .prepare(`CREATE TABLE IF NOT EXISTS playbooks (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      status TEXT DEFAULT 'proposed' NOT NULL,
+      calls_read INTEGER DEFAULT 0 NOT NULL,
+      won_count INTEGER DEFAULT 0 NOT NULL,
+      lost_count INTEGER DEFAULT 0 NOT NULL,
+      blocked TEXT,
+      excluded_json TEXT DEFAULT '[]' NOT NULL,
+      created_by TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`)
+    .run();
+  await db
+    .prepare(`CREATE TABLE IF NOT EXISTS playbook_entries (
+      id TEXT PRIMARY KEY NOT NULL,
+      playbook_id TEXT NOT NULL REFERENCES playbooks(id) ON DELETE CASCADE,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      section TEXT NOT NULL,
+      content TEXT NOT NULL,
+      evidence TEXT DEFAULT '' NOT NULL,
+      won_calls INTEGER DEFAULT 0 NOT NULL,
+      lost_calls INTEGER DEFAULT 0 NOT NULL,
+      confidence TEXT DEFAULT 'low' NOT NULL,
+      status TEXT DEFAULT 'proposed' NOT NULL,
+      reviewed_by TEXT,
+      reviewed_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`)
+    .run();
+  await db
+    .prepare(
+      `CREATE INDEX IF NOT EXISTS idx_playbook_entries_org ON playbook_entries (organization_id, status)`,
+    )
+    .run();
+
   // The two demo workflows above are INSERT OR IGNORE, so a database seeded by
   // the earlier build still holds their invented step lists and run counts.
   // Repair those rows only — never a workflow somebody wrote.

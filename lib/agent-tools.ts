@@ -17,10 +17,10 @@ import { createOrder } from '@/lib/order-service';
 import { filterToolDefinitions } from '@/lib/agent-tool-catalog';
 import { toolOutcomeKind } from '@/lib/activity-timeline';
 import {
+  assetsOfRecord,
   buildSendSet,
   DEFAULT_SEND_POLICY,
   describeSend,
-  type Asset,
   type MediaKind,
   type SendPolicy,
 } from '@/lib/whatsapp-media';
@@ -852,8 +852,12 @@ async function runTool(
           set.sending.map((asset) => ({ id: asset.id, label: asset.label })),
         ),
         JSON.stringify(
+          // The label goes in too. Whoever releases this later is deciding
+          // whether to send a file to a customer, and "Skyline 3BHK — floor
+          // plan" is that decision; the asset id is machine noise.
           set.withheld.map((entry) => ({
             id: entry.asset.id,
+            label: entry.asset.label,
             reason: entry.reason,
           })),
         ),
@@ -1419,43 +1423,6 @@ async function busiestObject(
  * workspace put in its own image/brochure/video fields — not a fixed shape
  * invented here.
  */
-function assetsOfRecord(
-  recordId: string,
-  title: string,
-  valuesJson: string,
-): Asset[] {
-  let values: Record<string, unknown>;
-  try {
-    values = JSON.parse(valuesJson || '{}') as Record<string, unknown>;
-  } catch {
-    return [];
-  }
-  const assets: Asset[] = [];
-  const push = (key: string, url: string) => {
-    if (!url.startsWith('https://')) return;
-    const kind: MediaKind = /brochure|pdf|doc|floor/i.test(key)
-      ? 'document'
-      : /video|tour/i.test(key)
-        ? 'video'
-        : 'image';
-    assets.push({
-      id: `${recordId}:${key}:${assets.length}`,
-      label: `${title} — ${key.replaceAll('_', ' ')}`,
-      kind,
-      url,
-      // A field the workspace named private stays behind a person.
-      sensitive: /private|internal|owner|confidential/i.test(key),
-    });
-  };
-  for (const [key, value] of Object.entries(values)) {
-    if (typeof value === 'string') push(key, value);
-    else if (Array.isArray(value))
-      for (const entry of value)
-        if (typeof entry === 'string') push(key, entry);
-  }
-  return assets;
-}
-
 /** What this agent is allowed to release on its own (Part 3.1). */
 async function agentSendPolicy(
   organizationId: string,

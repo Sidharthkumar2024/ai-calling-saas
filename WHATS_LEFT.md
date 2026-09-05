@@ -106,7 +106,7 @@ work.
 defect that kept recurring by hand: a row written and treated as done. It was
 written after the fifth instance — `appointments`, which had no `UPDATE`
 anywhere in the repo, so nothing could ever be cancelled or marked a no-show —
-and it found seventeen more on its first run. **It reports a real backlog
+and it found 22 more on its first run. One is fixed; 21 remain. **It reports a real backlog
 today, so it is not in `npm test` yet.** It joins the suite when this list is
 empty; until then a green suite would be the same lie it is meant to catch.
 
@@ -114,10 +114,11 @@ Each finding was cross-checked by hand before being listed here.
 
 **Written and read by nobody** — whatever it records, no person can see it.
 
-- `whatsapp_sends` — records what an agent actually sent a customer *and what
-  the send policy held back for a person to release*. There is no screen and no
-  release action, so media the agent said "a colleague will release" is held
-  forever. The sharpest of the three, and the next one to fix.
+- ~~`whatsapp_sends`~~ — **fixed.** Held-back media now appears on Approvals &
+  handoff, where a person can release it or decide not to send it. A release
+  re-resolves the file from its record rather than from a URL copied into the
+  log, so an unpublished listing cannot be released and a replaced file goes
+  out as the current one.
 - `invoice_sequences` — per-tenant invoice numbering is written and never read
   back, so numbering is not actually sequential.
 - `graph_agents` — a graph agent can be created and nothing ever reads it,

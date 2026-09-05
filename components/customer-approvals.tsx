@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNotifications } from '@/components/notification-center';
 import { newlyArrived } from '@/lib/notifications';
+import { withheldLabel } from '@/lib/whatsapp-media';
 import {
   BadgeCheck,
   Headphones,
@@ -517,6 +518,8 @@ export function CustomerApprovals() {
         <CallbackQueue />
       </div>
 
+      <MediaReleaseQueue />
+
       {history.length ? (
         <div className="portal-panel p-4">
           <p className="text-sm font-medium">Decision history</p>
@@ -740,3 +743,158 @@ type QueueCallback = {
   resolved_by: string | null;
   lateness?: { late: boolean; message: string };
 };
+
+type SendRow = {
+  id: string;
+  destination: string;
+  status: string;
+  createdAt: string;
+  sent: Array<{ id: string; label: string }>;
+  withheld: Array<{ id: string; label?: string; reason: string }>;
+  summary: string;
+};
+
+/**
+ * Media an agent was refused, waiting for a person.
+ *
+ * The send policy holds files back and the agent tells the caller "a colleague
+ * will send the rest". There was no colleague: the `whatsapp_sends` row was
+ * written by the tool and read by nothing, so a promise made out loud on a
+ * call had no way of ever being kept. This is that colleague.
+ */
+function MediaReleaseQueue() {
+  const [sends, setSends] = useState<SendRow[]>([]);
+  const [pendingFiles, setPendingFiles] = useState(0);
+  const [chosen, setChosen] = useState<Record<string, boolean>>({});
+  const [problem, setProblem] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const response = await fetch('/api/app/media-sends');
+    if (!response.ok) return;
+    const payload = (await response.json()) as {
+      sends: SendRow[];
+      pendingFiles: number;
+    };
+    setSends(payload.sends);
+    setPendingFiles(payload.pendingFiles);
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
+
+  async function post(body: Record<string, unknown>) {
+    setProblem(null);
+    const response = await fetch('/api/app/media-sends', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const payload = (await response.json()) as {
+      ok?: boolean;
+      reason?: string;
+      unavailable?: Array<{ id: string; reason: string }>;
+    };
+    if (!payload.ok) {
+      setProblem(payload.reason ?? 'That release was refused.');
+      return;
+    }
+    // A partial success is said out loud rather than looking like a clean one:
+    // some files resolve and some no longer exist on the listing.
+    if (payload.unavailable?.length) setProblem(payload.unavailable[0].reason);
+    setChosen({});
+    await load();
+  }
+
+  const waiting = sends.filter(
+    (row) => row.withheld.length > 0 && row.status !== 'cancelled',
+  );
+
+  return (
+    <div className="portal-panel p-4">
+      <p className="text-sm font-medium">Files waiting to be released</p>
+      <p className="mt-1 max-w-2xl text-[10px] text-ink-muted">
+        An agent asked to send these and was not allowed to on its own, so it
+        told the caller a colleague would.{' '}
+        {pendingFiles > 0
+          ? `${pendingFiles} ${pendingFiles === 1 ? 'file is' : 'files are'} still owed.`
+          : 'Nothing is owed right now.'}
+      </p>
+      {problem ? (
+        <p role="alert" className="mt-2 text-[10px] text-danger-text">
+          {problem}
+        </p>
+      ) : null}
+
+      <div className="mt-3 space-y-2">
+        {waiting.length === 0 ? (
+          <p className="text-[11px] text-ink-muted">
+            Nothing waiting. Held-back files appear here the moment an agent is
+            refused one on a call.
+          </p>
+        ) : null}
+        {waiting.map((row) => (
+          <div
+            key={row.id}
+            className="rounded-lg border border-hairline bg-surface px-3 py-2.5"
+          >
+            <p className="text-[11px] text-ink-body">{row.summary}</p>
+            <div className="mt-2 space-y-1">
+              {row.withheld.map((entry) => (
+                <label
+                  key={entry.id}
+                  className="flex items-start gap-2 text-[10px] text-ink-muted"
+                >
+                  <input
+                    type="checkbox"
+                    checked={chosen[entry.id] ?? false}
+                    onChange={(event) =>
+                      setChosen((current) => ({
+                        ...current,
+                        [entry.id]: event.target.checked,
+                      }))
+                    }
+                    className="mt-0.5"
+                  />
+                  <span>
+                    <span className="text-ink-body">
+                      {withheldLabel(entry)}
+                    </span>
+                    {' — '}
+                    {entry.reason}
+                  </span>
+                </label>
+              ))}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                disabled={!row.withheld.some((entry) => chosen[entry.id])}
+                onClick={() =>
+                  void post({
+                    action: 'release',
+                    sendId: row.id,
+                    assetIds: row.withheld
+                      .filter((entry) => chosen[entry.id])
+                      .map((entry) => entry.id),
+                  })
+                }
+                className="portal-primary h-6 rounded-md px-2 text-[10px] disabled:opacity-40"
+              >
+                Release chosen
+              </button>
+              <button
+                type="button"
+                onClick={() => void post({ action: 'cancel', sendId: row.id })}
+                className="h-6 rounded-md border border-hairline px-2 text-[10px] text-ink-muted"
+              >
+                Do not send
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

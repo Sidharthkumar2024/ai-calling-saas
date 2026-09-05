@@ -226,6 +226,55 @@ export type SendSet = {
 };
 
 /**
+ * The sendable media on one catalogue record.
+ *
+ * Moved here from `lib/agent-tools.ts` when releasing held-back media became
+ * possible: the release has to resolve exactly the same assets, with exactly
+ * the same ids, or a person would be releasing something other than what the
+ * agent was refused. One definition, used by both.
+ *
+ * The id carries the record it came from, which is what lets a release
+ * re-resolve an asset from the record rather than trusting a URL copied into
+ * the send log — so a file replaced since the call goes out as the current one.
+ */
+export function assetsOfRecord(
+  recordId: string,
+  title: string,
+  valuesJson: string,
+): Asset[] {
+  let values: Record<string, unknown>;
+  try {
+    values = JSON.parse(valuesJson || '{}') as Record<string, unknown>;
+  } catch {
+    return [];
+  }
+  const assets: Asset[] = [];
+  const push = (key: string, url: string) => {
+    if (!url.startsWith('https://')) return;
+    const kind: MediaKind = /brochure|pdf|doc|floor/i.test(key)
+      ? 'document'
+      : /video|tour/i.test(key)
+        ? 'video'
+        : 'image';
+    assets.push({
+      id: `${recordId}:${key}:${assets.length}`,
+      label: `${title} — ${key.replaceAll('_', ' ')}`,
+      kind,
+      url,
+      // A field the workspace named private stays behind a person.
+      sensitive: /private|internal|owner|confidential/i.test(key),
+    });
+  };
+  for (const [key, value] of Object.entries(values)) {
+    if (typeof value === 'string') push(key, value);
+    else if (Array.isArray(value))
+      for (const entry of value)
+        if (typeof entry === 'string') push(key, entry);
+  }
+  return assets;
+}
+
+/**
  * Decides what actually goes out.
  *
  * Withheld assets are returned rather than filtered away: an agent that
@@ -352,4 +401,100 @@ export function describeAssociation(input: {
   if (!input.found)
     return `Filed against a ${label.toLowerCase()} that no longer exists.`;
   return input.title ? `${label}: ${input.title}` : `${label} ${input.id}`;
+}
+
+/* ------------------------------------------------------------------ *
+ * Releasing what was held back
+ * ------------------------------------------------------------------ */
+
+/**
+ * `buildSendSet` held files back "for a person to release", the agent said so
+ * to the caller, and until now there was no person and no release — the
+ * `whatsapp_sends` row was written and read by nothing. These are the rules
+ * for the half that was missing.
+ *
+ * The policy limits the *agent*, not the workspace. So every withheld reason
+ * is releasable by an authorised person, including "not allowed to send video"
+ * and "over the four-file limit" — a human overriding the agent's limit is the
+ * point of having one.
+ */
+export const SEND_STATUSES = [
+  'queued',
+  'nothing_to_send',
+  'partially_released',
+  'released',
+  'cancelled',
+] as const;
+
+export type SendStatus = (typeof SEND_STATUSES)[number];
+
+export function isSendStatus(value: unknown): value is SendStatus {
+  return (SEND_STATUSES as readonly string[]).includes(String(value));
+}
+
+export type WithheldEntry = { id: string; label?: string; reason: string };
+export type SentEntry = { id: string; label: string; releasedBy?: string };
+
+/** Tolerant of an unreadable column: a bad row shows as empty, never throws. */
+export function parseEntries<T>(json: string | null | undefined): T[] {
+  try {
+    const parsed = JSON.parse(String(json ?? '[]')) as unknown;
+    return Array.isArray(parsed) ? (parsed as T[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** The record an asset id came from, or null if the id is not one of ours. */
+export function recordIdOfAsset(assetId: string): string | null {
+  const at = String(assetId ?? '').indexOf(':');
+  return at > 0 ? assetId.slice(0, at) : null;
+}
+
+/**
+ * Where a send stands once some of it has been released.
+ *
+ * `released` only when nothing is left waiting. A row that still holds one
+ * file must not read as finished — somebody was told a colleague would send
+ * the rest.
+ */
+export function statusAfterRelease(input: {
+  remainingWithheld: number;
+  totalSent: number;
+}): SendStatus {
+  if (input.remainingWithheld > 0) return 'partially_released';
+  return input.totalSent > 0 ? 'released' : 'nothing_to_send';
+}
+
+/**
+ * What to call a held-back file on screen.
+ *
+ * Rows written before labels were kept have only the asset id, so the field
+ * name is recovered from it rather than showing the raw
+ * `record_x:private_floor_plan:1` to somebody deciding whether to send a
+ * customer a file.
+ */
+export function withheldLabel(entry: WithheldEntry): string {
+  if (entry.label) return entry.label;
+  const parts = String(entry.id ?? '').split(':');
+  const field = parts.length >= 2 ? parts[1] : '';
+  return field ? field.replaceAll('_', ' ') : (entry.id ?? 'A file');
+}
+
+/** One line for the person working the queue. */
+export function describeSendRow(row: {
+  destination: string;
+  sent: SentEntry[];
+  withheld: WithheldEntry[];
+  status: string;
+}): string {
+  const waiting = row.withheld.length;
+  if (row.status === 'cancelled')
+    return `Withdrawn — nothing further will go to ${row.destination}.`;
+  if (waiting === 0)
+    return row.sent.length > 0
+      ? `All ${row.sent.length} sent to ${row.destination}.`
+      : `Nothing was sendable to ${row.destination}.`;
+  // The sentence that matters: somebody on a call was promised these.
+  return `${waiting} ${waiting === 1 ? 'file is' : 'files are'} still waiting for a person to release ${waiting === 1 ? 'it' : 'them'} to ${row.destination}.`;
 }

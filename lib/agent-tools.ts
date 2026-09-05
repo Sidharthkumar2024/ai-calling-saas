@@ -24,7 +24,7 @@ import {
   type MediaKind,
   type SendPolicy,
 } from '@/lib/whatsapp-media';
-import { createRazorpayPaymentLink } from '@/lib/commerce';
+import { createRazorpayPaymentLink, whatsAppConnected } from '@/lib/commerce';
 
 /**
  * The tool definitions to hand the model for one agent.
@@ -654,6 +654,16 @@ async function runTool(
     const messageBody = str(input, 'message');
     if (phone.length < 6 || !messageBody)
       return { ok: false, reason: 'phone and message required' };
+    // Said before the row is written, not after. This used to return
+    // `{ok: true, status: 'queued'}` whatever the workspace had connected —
+    // the model then told the caller the message was on its way, and with no
+    // WhatsApp connection it never was.
+    if (!(await whatsAppConnected(ctx.organizationId)))
+      return {
+        ok: false,
+        reason: 'whatsapp_not_connected',
+        say: 'Do not tell the caller anything was sent. This workspace has no WhatsApp connection, so offer to read it out or have a colleague follow up.',
+      };
     const messageId = id('msg');
     await db
       .prepare(`INSERT INTO outbound_messages
@@ -667,12 +677,25 @@ async function runTool(
         str(input, 'scheduled_for') || null,
       )
       .run();
-    return { ok: true, message_id: messageId, status: 'queued' };
+    return {
+      ok: true,
+      message_id: messageId,
+      status: 'queued',
+      // "Queued" is the truth. Delivery happens in a job moments later, and
+      // the model must not upgrade that to "delivered".
+      say: 'Tell the caller it is on its way, not that it has arrived — you cannot see their phone.',
+    };
   }
 
   if (name === 'send_listing_media') {
     const phone = digits(input.phone);
     if (phone.length < 6) return { ok: false, reason: 'phone required' };
+    if (!(await whatsAppConnected(ctx.organizationId)))
+      return {
+        ok: false,
+        reason: 'whatsapp_not_connected',
+        say: 'Do not promise any files. This workspace has no WhatsApp connection yet.',
+      };
     const recordIds = Array.isArray(input.record_ids)
       ? input.record_ids
           .map((entry: unknown) => str({ v: entry }, 'v'))

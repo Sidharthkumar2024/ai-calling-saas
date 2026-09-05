@@ -183,6 +183,66 @@ export async function sendWhatsAppPaymentLink(input: {
   };
 }
 
+/**
+ * Sends a plain WhatsApp message.
+ *
+ * Separate from the payment-link sender because that one posts an approved
+ * template. This posts free text, which WhatsApp only permits inside the
+ * 24-hour window after the customer last messaged the business — outside it
+ * the provider refuses, and the refusal is returned rather than swallowed, so
+ * the row ends up `failed` with a reason instead of `sent`.
+ */
+export async function sendWhatsAppText(input: {
+  organizationId: string;
+  destination: string;
+  body: string;
+}): Promise<CommerceDeliveryResult> {
+  const credentials = await whatsAppCredentials(input.organizationId);
+  if (!credentials.accessToken || !credentials.phoneNumberId) {
+    return {
+      status: 'sandbox_delivered',
+      providerReference: `sandbox_${crypto.randomUUID()}`,
+      payload: {
+        mode: 'local_sandbox',
+        reason: 'WhatsApp Cloud API credentials are not connected.',
+      },
+    };
+  }
+  const response = await fetch(
+    `https://graph.facebook.com/${credentials.graphVersion}/${credentials.phoneNumberId}/messages`,
+    {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${credentials.accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: input.destination.replace(/^\+/, ''),
+        type: 'text',
+        text: { preview_url: true, body: input.body.slice(0, 4096) },
+      }),
+    },
+  );
+  const payload = (await response.json()) as {
+    messages?: Array<{ id: string }>;
+    error?: { message?: string };
+  };
+  if (!response.ok || !payload.messages?.[0]?.id)
+    throw new Error(payload.error?.message ?? 'WhatsApp refused the message.');
+  return {
+    status: 'sent',
+    providerReference: payload.messages[0].id,
+    payload,
+  };
+}
+
+/** Whether this workspace could send a WhatsApp message at all right now. */
+export async function whatsAppConnected(organizationId: string) {
+  const credentials = await whatsAppCredentials(organizationId);
+  return Boolean(credentials.accessToken && credentials.phoneNumberId);
+}
+
 export async function getRazorpayWebhookSecret(organizationId: string) {
   if (process.env.RAZORPAY_WEBHOOK_SECRET)
     return process.env.RAZORPAY_WEBHOOK_SECRET;

@@ -185,7 +185,10 @@ export async function executeGraph(input: {
 
     if (result.status === 'failed') {
       status = 'failed';
-      error = textValue(result.output.error) || 'A step failed.';
+      error =
+        textValue(result.output.error) ||
+        textValue(result.output.reason) ||
+        'A step failed.';
       break;
     }
     if (result.suspend) {
@@ -840,7 +843,14 @@ function safeVariables(raw: string | null): Record<string, unknown> {
 
 function noteFor(result: StepResult): string {
   if (result.status === 'failed')
-    return textValue(result.output.error) || 'failed';
+    // Tools report a `reason`, thrown errors an `error`, and a step that says
+    // only "failed" tells whoever reads the trace nothing they can act on.
+    return (
+      textValue(result.output.error) ||
+      textValue(result.output.reason) ||
+      textValue(result.output.say) ||
+      'failed'
+    );
   if (result.status === 'skipped')
     return textValue(result.output.detail) || textValue(result.output.reason);
   if (result.suspend) return 'Parked until a person decides.';

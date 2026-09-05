@@ -10,7 +10,11 @@ import { closeIdlePlaygroundCalls } from '@/lib/call-telemetry';
 import { dialCampaign } from '@/lib/campaign-dialer';
 
 export { enqueueJob };
-import { sendWhatsAppPaymentLink } from '@/lib/commerce';
+import {
+  sendTransactionalEmail,
+  sendWhatsAppPaymentLink,
+  sendWhatsAppText,
+} from '@/lib/commerce';
 import { decryptSecret } from '@/lib/security';
 import { executeGraph, parseGraph } from '@/lib/workflow-engine';
 import {
@@ -20,7 +24,6 @@ import {
   type DeliveryState,
   type ReportSchedule,
 } from '@/lib/report-schedules';
-import { sendTransactionalEmail } from '@/lib/commerce';
 import { env } from 'cloudflare:workers';
 
 type JobRow = {
@@ -79,6 +82,16 @@ export async function enqueueMaintenanceJobs() {
       idempotencyKey: `close-idle:${organization.id}:${hour}`,
       payload: {},
       priority: 150,
+    });
+    // Anything queued and never sent. Frequent, because a caller was told the
+    // message was on its way.
+    await enqueueJob({
+      organizationId: organization.id,
+      queue: 'messaging',
+      type: 'messages.deliver',
+      idempotencyKey: `messages:${organization.id}:${hour}`,
+      payload: {},
+      priority: 120,
     });
     await enqueueJob({
       organizationId: organization.id,
@@ -246,6 +259,7 @@ async function executeJob(job: JobRow) {
   if (job.type === 'webhook.deliver') return retryWebhook(job, payload);
   if (job.type === 'retention.enforce') return enforceRetention(job);
   if (job.type === 'report.generate') return generateReport(job, payload);
+  if (job.type === 'messages.deliver') return deliverQueuedMessages(job);
   if (job.type === 'call.intelligence') return analyseCall(job, payload);
   if (job.type === 'calls.close_idle') return closeIdleCalls(job);
   if (job.type === 'campaign.dial') {
@@ -800,6 +814,84 @@ async function sendScheduledPayment(
       .bind(delivery.status, delivery.providerReference, row.message_id),
   ]);
   return { delivered: true, providerReference: delivery.providerReference };
+}
+
+/**
+ * Actually sends the messages sitting in `outbound_messages`.
+ *
+ * Only rows attached to a payment link were ever delivered. Everything else —
+ * the agent's `send_whatsapp`, `send_listing_media`, the workflow engine's
+ * message step — was inserted as `queued` and sent by nothing at all, while
+ * the tool told the model the message was on its way and the model told the
+ * caller. This is the job that makes that true.
+ *
+ * Three outcomes, kept apart: `sent` means the provider accepted it,
+ * `sandbox_delivered` means no provider is connected and nothing left the
+ * building, `failed` carries the provider's own refusal. A workspace has to be
+ * able to tell those apart, and a caller was told something either way.
+ */
+async function deliverQueuedMessages(job: JobRow) {
+  if (!job.organization_id) throw new Error('Organization scope is required.');
+  const db = getRawDb();
+  const rows = await db
+    .prepare(`SELECT id, channel, destination, message_body FROM outbound_messages
+      WHERE organization_id = ? AND status = 'queued' AND payment_link_id IS NULL
+        AND (scheduled_for IS NULL OR scheduled_for <= CURRENT_TIMESTAMP)
+      ORDER BY created_at LIMIT 25`)
+    .bind(job.organization_id)
+    .all<{
+      id: string;
+      channel: string;
+      destination: string;
+      message_body: string;
+    }>();
+
+  let sent = 0;
+  let sandbox = 0;
+  let failed = 0;
+  for (const row of rows.results ?? []) {
+    let status = 'failed';
+    let reference: string | null = null;
+    let error: string | null = null;
+    try {
+      if (row.channel === 'email') {
+        const result = await sendTransactionalEmail({
+          organizationId: job.organization_id,
+          to: row.destination,
+          subject:
+            row.message_body.split('\n')[0].slice(0, 120) ||
+            'A message from us',
+          html: `<p>${row.message_body.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\n/g, '<br>')}</p>`,
+        });
+        status = result.status;
+        reference = result.providerReference;
+      } else {
+        const result = await sendWhatsAppText({
+          organizationId: job.organization_id,
+          destination: row.destination,
+          body: row.message_body,
+        });
+        status = result.status;
+        reference = result.providerReference;
+      }
+    } catch (caught) {
+      status = 'failed';
+      error =
+        caught instanceof Error ? caught.message : 'The provider refused it.';
+    }
+    if (status === 'sent') sent += 1;
+    else if (status === 'failed') failed += 1;
+    else sandbox += 1;
+
+    await db
+      .prepare(`UPDATE outbound_messages SET status = ?, provider_reference = ?,
+        error_message = ?, sent_at = CASE WHEN ? = 'sent' THEN CURRENT_TIMESTAMP ELSE sent_at END
+        WHERE id = ?`)
+      .bind(status, reference, error?.slice(0, 300) ?? null, status, row.id)
+      .run();
+  }
+
+  return { considered: rows.results?.length ?? 0, sent, sandbox, failed };
 }
 
 async function finalizeKnowledgeSource(

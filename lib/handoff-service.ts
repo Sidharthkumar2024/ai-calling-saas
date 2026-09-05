@@ -16,6 +16,7 @@ import {
   type ActionPolicy,
   type ActorRole,
 } from '@/lib/action-policy';
+import { recordNotification } from '@/lib/notification-store';
 
 function id(prefix: string) {
   return `${prefix}_${crypto.randomUUID()}`;
@@ -453,6 +454,21 @@ export async function createCallbackRequest(input: {
       input.requestedWindow ?? null,
     )
     .run();
+  // Somebody has to be told. A promise made out loud on a call, sitting in a
+  // table nobody has open, is the same as no promise — which is what this was
+  // until now.
+  try {
+    await recordNotification({
+      organizationId: input.organizationId,
+      event: 'callback_requested',
+      detail: `${input.customerName ?? input.customerPhone} asked for a call back${
+        input.requestedWindow ? ` ${input.requestedWindow}` : ''
+      }.`,
+      subject: callbackId,
+    });
+  } catch {
+    /* the promise is recorded either way; the bell must not break the call */
+  }
   return { ok: true, callbackId, status: 'pending' };
 }
 

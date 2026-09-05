@@ -22,6 +22,9 @@ export const NOTIFICATION_EVENTS = [
   'call_connected',
   'handoff_requested',
   'transfer_accepted',
+  // A promise made out loud to a person: the agent said somebody would ring
+  // them back. It reached nobody before this, so the queue grew unattended.
+  'callback_requested',
   // §3.2 names these three as the events that stay until acknowledged. They
   // are separate from the generic 'error' precisely so that a failed payment
   // cannot quietly time out after five seconds like a failed page load.
@@ -125,6 +128,19 @@ export const NOTIFICATION_SPECS: Record<NotificationEvent, NotificationSpec> = {
       { frequency: 740, duration: 190, delay: 400, wave: 'triangle' },
     ],
     priority: 90,
+    motion: 'shake',
+    severity: 'warning',
+  },
+  callback_requested: {
+    event: 'callback_requested',
+    title: 'Somebody is waiting for a call back',
+    // Softer than a live handoff — nobody is holding the line — but it is a
+    // promise already made, so it is not a silent one either.
+    tone: [
+      { frequency: 560, duration: 150, delay: 0, wave: 'triangle' },
+      { frequency: 700, duration: 200, delay: 220, wave: 'triangle' },
+    ],
+    priority: 75,
     motion: 'shake',
     severity: 'warning',
   },

@@ -2062,6 +2062,21 @@ async function bootstrap() {
     'INTEGER DEFAULT 0 NOT NULL',
   );
 
+  // A callback is a promise made out loud to a person. It was created and
+  // then abandoned: no status ever moved, nobody owned it, and after a week
+  // nobody could tell which had been called.
+  await ensureColumn(db, 'callback_requests', 'claimed_by', 'TEXT');
+  await ensureColumn(db, 'callback_requests', 'claimed_at', 'TEXT');
+  await ensureColumn(db, 'callback_requests', 'resolved_by', 'TEXT');
+  await ensureColumn(db, 'callback_requests', 'resolved_at', 'TEXT');
+  await ensureColumn(
+    db,
+    'callback_requests',
+    'attempts',
+    'INTEGER DEFAULT 0 NOT NULL',
+  );
+  await ensureColumn(db, 'callback_requests', 'outcome_note', 'TEXT');
+
   // The rest of the Campaign Opening Studio (Part 2.2): how the opening is
   // pitched, the variants being compared, and what counts as qualified.
   await ensureColumn(

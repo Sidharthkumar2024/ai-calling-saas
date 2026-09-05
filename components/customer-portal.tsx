@@ -85,6 +85,7 @@ import { CustomerSecurity } from '@/components/customer-security';
 import { CustomerGrowth } from '@/components/customer-growth';
 import { CustomerWorkflowBuilder } from '@/components/customer-workflow-builder';
 import { CustomerPlaybook } from '@/components/customer-playbook';
+import { CustomerDocuments } from '@/components/customer-documents';
 import { CustomerWebWidget } from '@/components/customer-web-widget';
 import {
   CustomerOperations,
@@ -287,6 +288,12 @@ const groups: PortalNavGroup[] = [
         translationKey: 'nav.web_widget',
       },
       {
+        id: 'documents',
+        label: 'Document inbox',
+        icon: FileBarChart2,
+        translationKey: 'nav.documents',
+      },
+      {
         id: 'playbook',
         label: 'Company playbook',
         icon: BookOpenText,
@@ -418,6 +425,7 @@ const navPermissions: Record<string, string> = {
   graph_agents: 'agents.manage',
   workflows: 'agents.manage',
   playbook: 'analytics.view',
+  documents: 'crm.manage',
   web_widget: 'agents.manage',
   knowledge: 'agents.manage',
   campaigns: 'campaigns.manage',
@@ -684,6 +692,9 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
           ) : null}
           {!loading && !error && active === 'playbook' ? (
             <CustomerPlaybook />
+          ) : null}
+          {!loading && !error && active === 'documents' ? (
+            <CustomerDocuments />
           ) : null}
           {!loading && !error && active === 'web_widget' ? (
             <CustomerWebWidget />

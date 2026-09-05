@@ -16,6 +16,14 @@ import type { Filter } from '@/lib/object-engine';
 import { createOrder } from '@/lib/order-service';
 import { filterToolDefinitions } from '@/lib/agent-tool-catalog';
 import { toolOutcomeKind } from '@/lib/activity-timeline';
+import {
+  buildSendSet,
+  DEFAULT_SEND_POLICY,
+  describeSend,
+  type Asset,
+  type MediaKind,
+  type SendPolicy,
+} from '@/lib/whatsapp-media';
 import { createRazorpayPaymentLink } from '@/lib/commerce';
 
 /**
@@ -150,6 +158,28 @@ export const VAANI_AGENT_TOOLS: Array<Record<string, unknown>> = [
         },
       },
       required: ['phone', 'message'],
+    },
+  },
+  {
+    name: 'send_listing_media',
+    description:
+      'Send images, a brochure or other media for listings the caller asked about, over WhatsApp. Use after confirming the number. Some files may be held back for a person to release — say so honestly rather than claiming everything was sent.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        phone: { type: 'string' },
+        record_ids: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'Ids of records the caller asked about, from search_catalog.',
+        },
+        note: {
+          type: 'string',
+          description: 'One line to send with the files.',
+        },
+      },
+      required: ['phone', 'record_ids'],
     },
   },
   {
@@ -638,6 +668,95 @@ async function runTool(
       )
       .run();
     return { ok: true, message_id: messageId, status: 'queued' };
+  }
+
+  if (name === 'send_listing_media') {
+    const phone = digits(input.phone);
+    if (phone.length < 6) return { ok: false, reason: 'phone required' };
+    const recordIds = Array.isArray(input.record_ids)
+      ? input.record_ids
+          .map((entry: unknown) => str({ v: entry }, 'v'))
+          .filter(Boolean)
+      : [];
+    if (recordIds.length === 0)
+      return { ok: false, reason: 'no records named' };
+
+    // Only published records, and only from this workspace. An agent asked to
+    // "send those options" must not be able to reach a draft nobody approved
+    // or a record belonging to somebody else.
+    const placeholders = recordIds
+      .slice(0, 10)
+      .map(() => '?')
+      .join(', ');
+    const rows = await db
+      .prepare(`SELECT id, title, values_json FROM records
+        WHERE organization_id = ? AND status = 'published' AND id IN (${placeholders})`)
+      .bind(ctx.organizationId, ...recordIds.slice(0, 10))
+      .all<{ id: string; title: string; values_json: string }>();
+    if ((rows.results ?? []).length === 0)
+      return { ok: false, reason: 'no_published_records_matched' };
+
+    const requested = (rows.results ?? []).flatMap((row) =>
+      assetsOfRecord(row.id, row.title, row.values_json),
+    );
+    const policy = await agentSendPolicy(ctx.organizationId, ctx.agentId);
+    const set = buildSendSet({ requested, policy });
+
+    const sendId = id('wasend');
+    await db
+      .prepare(`INSERT INTO whatsapp_sends
+        (id, organization_id, session_id, agent_id, destination, sent_json, withheld_json, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(
+        sendId,
+        ctx.organizationId,
+        ctx.sessionId ?? null,
+        ctx.agentId ?? null,
+        phone,
+        JSON.stringify(
+          set.sending.map((asset) => ({ id: asset.id, label: asset.label })),
+        ),
+        JSON.stringify(
+          set.withheld.map((entry) => ({
+            id: entry.asset.id,
+            reason: entry.reason,
+          })),
+        ),
+        set.sending.length > 0 ? 'queued' : 'nothing_to_send',
+      )
+      .run();
+
+    if (set.sending.length > 0) {
+      const note = str(input, 'note');
+      await db
+        .prepare(`INSERT INTO outbound_messages
+          (id, organization_id, channel, destination, message_body, status)
+          VALUES (?, ?, 'whatsapp', ?, ?, 'queued')`)
+        .bind(
+          id('msg'),
+          ctx.organizationId,
+          phone,
+          `${note ? `${note}\n` : ''}${set.sending.map((asset) => `${asset.label}: ${asset.url}`).join('\n')}`.slice(
+            0,
+            900,
+          ),
+        )
+        .run();
+    }
+
+    return {
+      ok: set.sending.length > 0,
+      send_id: sendId,
+      sent: set.sending.map((asset) => asset.label),
+      withheld: set.withheld.map((entry) => ({
+        item: entry.asset.label,
+        reason: entry.reason,
+      })),
+      needs_approval: set.needsApproval,
+      // The sentence the model is meant to work from, so a partial send is
+      // never announced to the caller as a complete one.
+      say: describeSend(set),
+    };
   }
 
   if (name === 'transfer_to_human') {
@@ -1135,4 +1254,79 @@ async function busiestObject(
     objects[0] ??
     null
   );
+}
+
+/**
+ * The media attached to one record.
+ *
+ * Records carry arbitrary custom fields, so the assets are whatever the
+ * workspace put in its own image/brochure/video fields — not a fixed shape
+ * invented here.
+ */
+function assetsOfRecord(
+  recordId: string,
+  title: string,
+  valuesJson: string,
+): Asset[] {
+  let values: Record<string, unknown>;
+  try {
+    values = JSON.parse(valuesJson || '{}') as Record<string, unknown>;
+  } catch {
+    return [];
+  }
+  const assets: Asset[] = [];
+  const push = (key: string, url: string) => {
+    if (!url.startsWith('https://')) return;
+    const kind: MediaKind = /brochure|pdf|doc|floor/i.test(key)
+      ? 'document'
+      : /video|tour/i.test(key)
+        ? 'video'
+        : 'image';
+    assets.push({
+      id: `${recordId}:${key}:${assets.length}`,
+      label: `${title} — ${key.replaceAll('_', ' ')}`,
+      kind,
+      url,
+      // A field the workspace named private stays behind a person.
+      sensitive: /private|internal|owner|confidential/i.test(key),
+    });
+  };
+  for (const [key, value] of Object.entries(values)) {
+    if (typeof value === 'string') push(key, value);
+    else if (Array.isArray(value))
+      for (const entry of value)
+        if (typeof entry === 'string') push(key, entry);
+  }
+  return assets;
+}
+
+/** What this agent is allowed to release on its own (Part 3.1). */
+async function agentSendPolicy(
+  organizationId: string,
+  agentId?: string | null,
+): Promise<SendPolicy> {
+  if (!agentId) return DEFAULT_SEND_POLICY;
+  try {
+    const row = await getRawDb()
+      .prepare(
+        `SELECT send_policy_json FROM voice_agents WHERE id = ? AND organization_id = ? LIMIT 1`,
+      )
+      .bind(agentId, organizationId)
+      .first<{ send_policy_json: string | null }>();
+    if (!row?.send_policy_json) return DEFAULT_SEND_POLICY;
+    const parsed = JSON.parse(row.send_policy_json) as Partial<SendPolicy>;
+    return {
+      allowedKinds: Array.isArray(parsed.allowedKinds)
+        ? (parsed.allowedKinds as MediaKind[])
+        : DEFAULT_SEND_POLICY.allowedKinds,
+      maxAssets:
+        typeof parsed.maxAssets === 'number' && parsed.maxAssets > 0
+          ? Math.min(10, Math.round(parsed.maxAssets))
+          : DEFAULT_SEND_POLICY.maxAssets,
+      allowSensitive: parsed.allowSensitive === true,
+    };
+  } catch {
+    // An unreadable policy is the restrictive one, not a free pass.
+    return DEFAULT_SEND_POLICY;
+  }
 }

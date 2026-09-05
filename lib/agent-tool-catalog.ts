@@ -55,6 +55,11 @@ export const SELECTABLE_TOOLS: Array<{
     note: 'Approved product details and templates',
   },
   {
+    name: 'send_listing_media',
+    label: 'Send listing media',
+    note: 'Images and brochures for published records only, subject to the send policy',
+  },
+  {
     name: 'create_payment_link',
     label: 'Create payment link',
     note: 'Amount, expiry and customer mapping',

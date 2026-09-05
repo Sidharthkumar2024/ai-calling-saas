@@ -356,3 +356,55 @@ export async function sendTransactionalEmail(input: {
     throw new Error(payload.message || 'The email provider rejected the send.');
   return { status: 'sent', providerReference: payload.id, payload };
 }
+
+/**
+ * Which workspace a WhatsApp message belongs to, from the number it arrived on.
+ *
+ * The webhook must never take a tenant id from the payload — that is a claim
+ * by whoever sent the request. The phone number id is issued by Meta and is
+ * bound to one workspace's own connection, so it is the only trustworthy
+ * routing key in the delivery.
+ */
+export async function whatsAppInboundCredentials(phoneNumberId: string) {
+  const rows = await getRawDb()
+    .prepare(`SELECT organization_id, encrypted_secret, public_config_json
+      FROM integration_connections
+      WHERE type = 'whatsapp_cloud' AND status != 'disabled' LIMIT 200`)
+    .bind()
+    .all<{
+      organization_id: string;
+      encrypted_secret: string | null;
+      public_config_json: string;
+    }>();
+  for (const row of rows.results ?? []) {
+    let accountId: unknown;
+    try {
+      accountId = (
+        JSON.parse(row.public_config_json || '{}') as {
+          accountId?: unknown;
+        }
+      ).accountId;
+    } catch {
+      continue;
+    }
+    if (accountId !== phoneNumberId || !row.encrypted_secret) continue;
+    return {
+      organizationId: row.organization_id,
+      accessToken: await decryptSecret(row.encrypted_secret),
+      graphVersion: process.env.WHATSAPP_GRAPH_VERSION || 'v23.0',
+    };
+  }
+  // A single-tenant deployment may configure the number in the environment
+  // instead. It still has to match the number the message came in on.
+  if (
+    process.env.WHATSAPP_PHONE_NUMBER_ID === phoneNumberId &&
+    process.env.WHATSAPP_ACCESS_TOKEN &&
+    process.env.WHATSAPP_DEFAULT_ORGANIZATION_ID
+  )
+    return {
+      organizationId: process.env.WHATSAPP_DEFAULT_ORGANIZATION_ID,
+      accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
+      graphVersion: process.env.WHATSAPP_GRAPH_VERSION || 'v23.0',
+    };
+  return null;
+}

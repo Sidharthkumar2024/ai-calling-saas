@@ -2062,6 +2062,68 @@ async function bootstrap() {
     'INTEGER DEFAULT 0 NOT NULL',
   );
 
+  // Documents that arrive from outside (Part 3). WhatsApp is the transport;
+  // the business copy lives in our own storage, because provider media is not
+  // guaranteed to stay fetchable.
+  await db
+    .prepare(`CREATE TABLE IF NOT EXISTS document_inbox (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      contact_phone TEXT,
+      lead_id TEXT REFERENCES leads(id) ON DELETE SET NULL,
+      source TEXT DEFAULT 'whatsapp' NOT NULL,
+      provider_media_id TEXT,
+      document_type TEXT DEFAULT 'unclassified' NOT NULL,
+      filename TEXT,
+      mime_type TEXT,
+      size_bytes INTEGER DEFAULT 0 NOT NULL,
+      checksum TEXT,
+      storage_key TEXT,
+      status TEXT DEFAULT 'new' NOT NULL,
+      rejection_reason TEXT,
+      association_type TEXT,
+      association_id TEXT,
+      reviewed_by TEXT,
+      reviewed_at TEXT,
+      retention_until TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`)
+    .run();
+  await db
+    .prepare(
+      `CREATE INDEX IF NOT EXISTS idx_document_inbox_org ON document_inbox (organization_id, status, created_at)`,
+    )
+    .run();
+  // One row per provider media id, so a redelivered webhook does not file the
+  // same Aadhaar card twice.
+  await db
+    .prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_document_inbox_media ON document_inbox (organization_id, provider_media_id)`,
+    )
+    .run();
+  // What an agent actually sent, to whom, and which of it was held back.
+  await db
+    .prepare(`CREATE TABLE IF NOT EXISTS whatsapp_sends (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      session_id TEXT,
+      agent_id TEXT,
+      destination TEXT NOT NULL,
+      sent_json TEXT DEFAULT '[]' NOT NULL,
+      withheld_json TEXT DEFAULT '[]' NOT NULL,
+      status TEXT DEFAULT 'queued' NOT NULL,
+      provider_reference TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`)
+    .run();
+  await db
+    .prepare(
+      `CREATE INDEX IF NOT EXISTS idx_whatsapp_sends_org ON whatsapp_sends (organization_id, created_at)`,
+    )
+    .run();
+  // Which media an agent may release without a person (Part 3.1).
+  await ensureColumn(db, 'voice_agents', 'send_policy_json', 'TEXT');
+
   // The embeddable web voice widget (§8). `allowed_origins_json` and the two
   // caps are not configuration niceties: this widget is reachable by a public
   // endpoint that starts calls, and those three columns are what stands

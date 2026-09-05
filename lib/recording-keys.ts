@@ -1,5 +1,8 @@
 /**
- * Where a call recording lives, and who is allowed to read it.
+ * Tenant-scoped object keys, and who is allowed to read them.
+ *
+ * Covers call recordings and inbound documents: both are files belonging to
+ * one workspace, and both need the same two guarantees.
  *
  * The object key used to be handed in by whoever was storing the recording.
  * It happened to be tenant-scoped at the one call site that existed, but
@@ -64,4 +67,32 @@ export function keyBelongsTo(key: string | null, organizationId: string) {
     key.startsWith(recordingPrefix(organizationId)) ||
     key.startsWith(`${organizationId}/`)
   );
+}
+
+/**
+ * Where an inbound document lives.
+ *
+ * Same bucket as recordings, a separate prefix, and the same rule: derived
+ * here from the tenant, never handed in. `keyBelongsTo` covers both, because
+ * both begin with the tenant's own prefix.
+ *
+ *   tenant/{organization}/documents/{YYYY}/{MM}/{document}/file.{ext}
+ */
+export function documentKey(input: {
+  organizationId: string;
+  documentId: string;
+  at?: Date;
+  extension?: string;
+}) {
+  if (!SAFE_SEGMENT.test(input.organizationId))
+    throw new Error('Document key: organization id is not a plain identifier.');
+  if (!SAFE_SEGMENT.test(input.documentId))
+    throw new Error('Document key: document id is not a plain identifier.');
+  const at = input.at ?? new Date();
+  const year = at.getUTCFullYear();
+  const month = String(at.getUTCMonth() + 1).padStart(2, '0');
+  const extension = /^[a-z0-9]{1,5}$/.test(input.extension ?? '')
+    ? input.extension
+    : 'bin';
+  return `${recordingPrefix(input.organizationId)}documents/${year}/${month}/${input.documentId}/file.${extension}`;
 }

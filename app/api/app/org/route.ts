@@ -7,6 +7,8 @@ import {
   type CustomerPermission,
 } from '@/lib/customer-rbac';
 import { recordAudit } from '@/lib/demo-seed';
+import { isOrgConfigKind } from '@/lib/org-config';
+import { archiveOrgConfig, restoreOrgConfig } from '@/lib/org-config-service';
 import { SUPPORTED_LANGUAGE_CODES } from '@/lib/languages';
 import { agentOnShift, formatMinute, minuteOfDay } from '@/lib/shifts';
 
@@ -39,7 +41,7 @@ export async function GET(request: Request) {
       db
         .prepare(`SELECT id, name, code, city, timezone, status,
           (SELECT count(*) FROM support_agents a WHERE a.branch_id = b.id) AS agent_count
-        FROM branches b WHERE b.organization_id = ? ORDER BY b.name`)
+        FROM branches b WHERE b.organization_id = ? ORDER BY b.status, b.name`)
         .bind(organizationId)
         .all(),
       db
@@ -223,15 +225,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, branchId });
   }
 
-  if (action === 'delete_branch') {
-    const branchId = text(body.branchId, 80);
-    const result = await db
-      .prepare(`DELETE FROM branches WHERE id = ? AND organization_id = ?`)
-      .bind(branchId, organizationId)
-      .run();
-    if (!result.meta.changes)
-      return NextResponse.json({ error: 'Branch not found.' }, { status: 404 });
-    return NextResponse.json({ ok: true });
+  // Archive, not delete. Agents and teams point at a branch, and a call
+  // recorded against "Andheri" should still say so a year after Andheri
+  // closed — which is exactly what deleting the row took away.
+  if (action === 'delete_branch' || action === 'archive_branch') {
+    return NextResponse.json(
+      await archiveOrgConfig({
+        organizationId,
+        kind: 'branch',
+        id: text(body.branchId, 80),
+      }),
+    );
   }
 
   if (action === 'create_department') {
@@ -385,15 +389,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, shiftId });
   }
 
-  if (action === 'delete_shift') {
-    const shiftId = text(body.shiftId, 80);
-    const result = await db
-      .prepare(`DELETE FROM shifts WHERE id = ? AND organization_id = ?`)
-      .bind(shiftId, organizationId)
-      .run();
-    if (!result.meta.changes)
-      return NextResponse.json({ error: 'Shift not found.' }, { status: 404 });
-    return NextResponse.json({ ok: true });
+  if (action === 'delete_shift' || action === 'archive_shift') {
+    return NextResponse.json(
+      await archiveOrgConfig({
+        organizationId,
+        kind: 'shift',
+        id: text(body.shiftId, 80),
+      }),
+    );
   }
 
   if (action === 'set_agent_languages') {
@@ -495,15 +498,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, routeId });
   }
 
-  if (action === 'delete_number_route') {
-    const routeId = text(body.routeId, 80);
-    const result = await db
-      .prepare(`DELETE FROM number_routes WHERE id = ? AND organization_id = ?`)
-      .bind(routeId, organizationId)
-      .run();
-    if (!result.meta.changes)
-      return NextResponse.json({ error: 'Route not found.' }, { status: 404 });
-    return NextResponse.json({ ok: true });
+  if (action === 'delete_number_route' || action === 'archive_number_route') {
+    return NextResponse.json(
+      await archiveOrgConfig({
+        organizationId,
+        kind: 'number_route',
+        id: text(body.routeId, 80),
+      }),
+    );
+  }
+
+  // The three kinds that had no removal at all — department, team, lead source
+  // — plus a restore for everything, so archiving is never a one-way door.
+  if (action === 'archive_config' || action === 'restore_config') {
+    const kind = body.kind;
+    if (!isOrgConfigKind(kind))
+      return NextResponse.json({ error: 'Unknown kind.' }, { status: 400 });
+    const move =
+      action === 'archive_config' ? archiveOrgConfig : restoreOrgConfig;
+    return NextResponse.json(
+      await move({ organizationId, kind, id: text(body.id, 80) }),
+    );
   }
 
   if (action === 'upsert_contact') {

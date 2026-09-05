@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Loader2, Trash2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { SUPPORTED_LANGUAGES } from '@/lib/languages';
@@ -98,13 +98,28 @@ export function CustomerOrgStructure() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const body = (await response.json()) as { error?: string };
+      const body = (await response.json()) as {
+        error?: string;
+        ok?: boolean;
+        reason?: string;
+        note?: string;
+      };
       if (!response.ok) {
         setNotice(str(body.error, 'Action failed.'));
         return false;
       }
+      // A refused archive comes back as a 200 carrying its reason — "this
+      // branch is already archived" is an answer, not a server error — so the
+      // status code alone is not enough to call this a success.
+      if (body.ok === false) {
+        setNotice(str(body.reason, 'Action failed.'));
+        return false;
+      }
       await load();
-      setNotice(success);
+      // The note says what still points at an archived row. Worth reading:
+      // archiving the only team an agent belongs to is a different act from
+      // archiving an empty one.
+      setNotice(body.note ? `${success} ${body.note}` : success);
       return true;
     } catch {
       setNotice('Action failed.');
@@ -180,6 +195,50 @@ function Panel({
   );
 }
 
+/**
+ * Turn a piece of configuration off, or back on.
+ *
+ * This used to be a bin icon that ran a hard `DELETE`, on three of the seven
+ * kinds and on none of the others. Archiving keeps the row, so an agent still
+ * belongs to a team that was closed and a call still names the branch it was
+ * taken at — and it works for the kinds that previously could not be removed
+ * at all.
+ */
+function ArchiveControl({
+  kind,
+  id,
+  status,
+  run,
+  busy,
+}: {
+  kind: string;
+  id: string;
+  status: string;
+  run: RunFn;
+  busy: boolean;
+}) {
+  const archived = status === 'archived';
+  return (
+    <button
+      type="button"
+      disabled={busy}
+      onClick={() =>
+        void run(
+          {
+            action: archived ? 'restore_config' : 'archive_config',
+            kind,
+            id,
+          },
+          archived ? 'Restored.' : 'Archived.',
+        )
+      }
+      className="text-[9px] text-ink-muted transition hover:text-ink-body"
+    >
+      {archived ? 'Restore' : 'Archive'}
+    </button>
+  );
+}
+
 function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
@@ -243,25 +302,26 @@ function BranchesAndTeams({
                 key={str(row.id)}
                 className="flex items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2.5 text-[11px]"
               >
-                <span className="font-medium">{str(row.name)}</span>
+                <span
+                  className={
+                    str(row.status) === 'archived'
+                      ? 'font-medium text-ink-muted line-through'
+                      : 'font-medium'
+                  }
+                >
+                  {str(row.name)}
+                </span>
                 <span className="text-ink-muted">{str(row.city, '—')}</span>
                 <span className="ml-auto text-[9px] text-ink-muted">
                   {str(row.agent_count, '0')} agents
                 </span>
-                <button
-                  type="button"
-                  aria-label={t('aria.deleteBranch')}
-                  disabled={busy}
-                  onClick={() =>
-                    void run(
-                      { action: 'delete_branch', branchId: str(row.id) },
-                      'Branch removed.',
-                    )
-                  }
-                  className="text-ink-muted transition hover:text-danger-text"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                <ArchiveControl
+                  kind="branch"
+                  id={str(row.id)}
+                  status={str(row.status)}
+                  run={run}
+                  busy={busy}
+                />
               </div>
             ))}
           </div>
@@ -319,6 +379,13 @@ function BranchesAndTeams({
                 <span className="ml-auto text-[9px] text-ink-muted">
                   {str(row.member_count, '0')} members
                 </span>
+                <ArchiveControl
+                  kind="team"
+                  id={str(row.id)}
+                  status={str(row.status)}
+                  run={run}
+                  busy={busy}
+                />
               </div>
             ))}
           </div>
@@ -461,20 +528,13 @@ function Shifts({
                   ? 'covering now'
                   : str(row.coverage_reason).replaceAll('_', ' ')}
               </span>
-              <button
-                type="button"
-                aria-label={t('aria.deleteShift')}
-                disabled={busy}
-                onClick={() =>
-                  void run(
-                    { action: 'delete_shift', shiftId: str(row.id) },
-                    'Shift removed.',
-                  )
-                }
-                className="text-ink-muted transition hover:text-danger-text"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+              <ArchiveControl
+                kind="shift"
+                id={str(row.id)}
+                status={str(row.status)}
+                run={run}
+                busy={busy}
+              />
             </div>
           );
         })}
@@ -622,20 +682,15 @@ function NumberRoutes({
             <span className="text-[9px] text-ink-muted">
               off hours: {str(row.off_hours_action)}
             </span>
-            <button
-              type="button"
-              aria-label={t('aria.deleteRoute')}
-              disabled={busy}
-              onClick={() =>
-                void run(
-                  { action: 'delete_number_route', routeId: str(row.id) },
-                  'Route removed.',
-                )
-              }
-              className="ml-auto text-ink-muted transition hover:text-danger-text"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+            <span className="ml-auto">
+              <ArchiveControl
+                kind="number_route"
+                id={str(row.id)}
+                status={str(row.status)}
+                run={run}
+                busy={busy}
+              />
+            </span>
           </div>
         ))}
       </div>

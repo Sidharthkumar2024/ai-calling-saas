@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { archiveOrgConfig, restoreOrgConfig } from '@/lib/org-config-service';
 
 import { getRawDb } from '@/db/index';
 import {
@@ -412,15 +413,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, ruleId });
   }
 
-  if (action === 'delete_rule') {
-    const ruleId = text(body.ruleId, 80);
-    const result = await db
-      .prepare(`DELETE FROM routing_rules WHERE id = ? AND organization_id = ?`)
-      .bind(ruleId, organizationId)
-      .run();
-    if (!result.meta.changes)
-      return NextResponse.json({ error: 'Rule not found.' }, { status: 404 });
-    return NextResponse.json({ ok: true });
+  // Archived, not deleted: a rule that decided how calls were routed last
+  // month is part of why they went where they went.
+  if (action === 'delete_rule' || action === 'archive_rule') {
+    return NextResponse.json(
+      await archiveOrgConfig({
+        organizationId,
+        kind: 'routing_rule',
+        id: text(body.ruleId, 80),
+      }),
+    );
+  }
+
+  if (action === 'restore_rule') {
+    return NextResponse.json(
+      await restoreOrgConfig({
+        organizationId,
+        kind: 'routing_rule',
+        id: text(body.ruleId, 80),
+      }),
+    );
   }
 
   if (action === 'set_presence') {

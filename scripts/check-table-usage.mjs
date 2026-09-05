@@ -69,8 +69,12 @@ for (const match of source.matchAll(
 ))
   hasStatus.add(match[1]);
 
+// Any file carrying SQL, not only ones that call `.prepare(`. Statement text
+// lives in pure modules too — `lib/org-config.ts` holds twenty-one of them so
+// that a test can check their bindings — and a scan that missed those reported
+// seven tables as frozen while the code that thaws them sat one import away.
 const files = execSync(
-  "grep -rl 'prepare(' app lib services --include='*.ts' --include='*.mjs' 2>/dev/null",
+  "grep -rlE '(SELECT |INSERT +INTO|UPDATE +[a-z_]+ +SET|DELETE +FROM)' app lib services --include='*.ts' --include='*.mjs' 2>/dev/null",
   { encoding: 'utf8' },
 )
   .trim()

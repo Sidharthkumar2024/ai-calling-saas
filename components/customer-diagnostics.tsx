@@ -54,6 +54,12 @@ type TestResult = {
   readiness: { state: 'ready' | 'warn' | 'blocked'; reasons: string[] };
 };
 
+/**
+ * Long enough to judge. The old 700ms was over before somebody wearing a
+ * headset had finished deciding whether they heard it.
+ */
+const TONE_SECONDS = 1.4;
+
 const bandTone: Record<string, string> = {
   excellent: 'text-success-text',
   good: 'text-success-text',
@@ -338,37 +344,134 @@ export function CustomerDiagnostics() {
   }
 
   /** Plays a short tone through the chosen output, optionally on one side. */
+  /**
+   * The speaker test.
+   *
+   * Three things were wrong with this, and the third is the one that made it
+   * useless.
+   *
+   * `setSinkId` lives on the AudioContext, not on its `destination` node. It
+   * was read off `destination`, where it is `undefined`, so the guard was
+   * always false: choosing an output device did nothing at all, and said
+   * nothing about it either.
+   *
+   * A browser may hand back a suspended AudioContext. An oscillator started on
+   * a suspended clock makes no sound, which is exactly "I pressed Play and
+   * nothing happened".
+   *
+   * And whatever the outcome, the screen said nothing — a spinner for
+   * 700ms and then silence, identical whether the tone played perfectly or
+   * never left the building. A test that cannot tell you which is not a test.
+   * So this measures its own output and reports what it can honestly claim:
+   * that the tone was generated and sent to a named device. Whether a speaker
+   * physically made a noise is what the person's own ears are for, and the
+   * message says so rather than pretending to know.
+   */
   async function playTone(side: 'both' | 'left' | 'right') {
     setBusy(`tone-${side}`);
+    setNotice(null);
+    let context: AudioContext | null = null;
     try {
-      const context = new AudioContext();
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
-      const panner = context.createStereoPanner();
-      oscillator.frequency.value = 440;
-      gain.gain.value = 0.12;
-      panner.pan.value = side === 'left' ? -1 : side === 'right' ? 1 : 0;
-      oscillator.connect(gain).connect(panner).connect(context.destination);
-      // Output selection needs setSinkId, which not every browser exposes.
-      const destination = context.destination as unknown as {
+      context = new AudioContext();
+      // A context handed back suspended must be resumed or nothing is heard.
+      if (context.state === 'suspended') {
+        try {
+          await context.resume();
+        } catch {
+          /* reported below from the state, not guessed at here */
+        }
+      }
+      if (context.state !== 'running') {
+        setNotice(
+          'Your browser is holding audio until you interact with the page. Click anywhere on this screen and press Play again.',
+        );
+        return;
+      }
+
+      let deviceLabel =
+        outputs.find((device) => device.deviceId === outputId)?.label ??
+        t('diag.systemDefault');
+      // setSinkId is on the context itself. Read off `destination` it is
+      // always undefined, which is why picking a device never did anything.
+      const switchable = context as unknown as {
         setSinkId?: (id: string) => Promise<void>;
       };
-      if (outputId && typeof destination.setSinkId === 'function') {
-        try {
-          await destination.setSinkId(outputId);
-        } catch {
+      if (outputId) {
+        if (typeof switchable.setSinkId === 'function') {
+          try {
+            await switchable.setSinkId(outputId);
+          } catch {
+            deviceLabel = t('diag.systemDefault');
+            setNotice(
+              'That output device refused the test tone, so the system default was used.',
+            );
+          }
+        } else {
+          deviceLabel = t('diag.systemDefault');
           setNotice(
-            'This browser would not switch the output device; the system default was used.',
+            'This browser cannot send audio to a chosen output device, so the system default was used.',
           );
         }
       }
+
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const panner = context.createStereoPanner();
+      const analyser = context.createAnalyser();
+      oscillator.frequency.value = 440;
+      panner.pan.value = side === 'left' ? -1 : side === 'right' ? 1 : 0;
+      oscillator.connect(gain).connect(panner).connect(context.destination);
+      // Tapped after the panner so the measurement is of what actually goes
+      // to the output, panning included.
+      panner.connect(analyser);
+
+      // Faded in and out. A square-edged start and stop is an audible click,
+      // and a click is not a tone you can judge your headset by.
+      const now = context.currentTime;
+      const level = 0.18;
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(level, now + 0.04);
+      gain.gain.setValueAtTime(level, now + TONE_SECONDS - 0.06);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + TONE_SECONDS);
+
       oscillator.start();
-      await new Promise((resolve) => setTimeout(resolve, 700));
+      await new Promise((resolve) =>
+        setTimeout(resolve, (TONE_SECONDS / 2) * 1000),
+      );
+      const samples = new Float32Array(analyser.fftSize);
+      analyser.getFloatTimeDomainData(samples);
+      let peak = 0;
+      for (const sample of samples) peak = Math.max(peak, Math.abs(sample));
+      await new Promise((resolve) =>
+        setTimeout(resolve, (TONE_SECONDS / 2) * 1000),
+      );
       oscillator.stop();
-      await context.close();
+
+      if (peak < 0.001) {
+        // The tone never reached the output graph. That is a fault this screen
+        // can genuinely detect, as opposed to a silent speaker.
+        setNotice(
+          'The tone was built but no audio came out of it. Something in this browser is blocking audio playback.',
+        );
+        return;
+      }
+      const where =
+        side === 'both'
+          ? 'both ears'
+          : side === 'left'
+            ? 'the left ear only'
+            : 'the right ear only';
+      setNotice(
+        `A ${TONE_SECONDS}-second tone was sent to ${deviceLabel}, in ${where}. If you heard nothing, the problem is between the browser and your speaker — check the system volume and that the right device is selected.`,
+      );
     } catch {
       setNotice('The test tone could not be played.');
     } finally {
+      try {
+        await context?.close();
+      } catch {
+        /* closing a context that already failed is not a second problem */
+      }
       setBusy(null);
     }
   }

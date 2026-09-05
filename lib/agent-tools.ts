@@ -25,6 +25,8 @@ import {
   type SendPolicy,
 } from '@/lib/whatsapp-media';
 import { createRazorpayPaymentLink, whatsAppConnected } from '@/lib/commerce';
+import { queueConfirmation } from '@/lib/appointment-service';
+import { DEFAULT_TIMEZONE, describeSlot, todayIn } from '@/lib/appointments';
 import { createDocumentRequest } from '@/lib/document-request-service';
 
 /**
@@ -482,9 +484,13 @@ async function runTool(
   }
 
   if (name === 'get_available_slots') {
+    // `toISOString()` is UTC. Between midnight and 05:30 IST that is
+    // yesterday's date, so "today" used to mean the previous day for five and
+    // a half hours every night — and every slot it offered came back
+    // `slot_in_the_past`.
     const date = /^\d{4}-\d{2}-\d{2}$/.test(str(input, 'date'))
       ? str(input, 'date')
-      : new Date().toISOString().slice(0, 10);
+      : todayIn(DEFAULT_TIMEZONE);
     const taken = await db
       .prepare(`SELECT slot_start FROM appointments
         WHERE organization_id = ? AND status != 'cancelled' AND slot_start LIKE ?`)
@@ -521,7 +527,7 @@ async function runTool(
         reason: 'outside_business_hours',
         business_hours: `${BUSINESS_HOURS[0]}:00-${BUSINESS_HOURS[BUSINESS_HOURS.length - 1]}:00`,
       };
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayIn(DEFAULT_TIMEZONE);
     if (slot.slice(0, 10) < today)
       return { ok: false, reason: 'slot_in_the_past', today };
     // Idempotency: the same caller + slot can only ever book once.
@@ -560,7 +566,28 @@ async function runTool(
         key,
       )
       .run();
-    return { ok: true, appointment_id: appointmentId, slot_start: slot };
+    // The row used to be the end of it. Nothing reached the customer, nothing
+    // reminded them, and the model was free to promise a confirmation that
+    // was never coming.
+    const confirmation = await queueConfirmation({
+      organizationId: ctx.organizationId,
+      appointmentId,
+      customerName: customer,
+      customerPhone: phone,
+      slot,
+      service: str(input, 'service'),
+      mode: str(input, 'mode') || 'in_person',
+    });
+    return {
+      ok: true,
+      appointment_id: appointmentId,
+      slot_start: slot,
+      slot_local: describeSlot(slot, DEFAULT_TIMEZONE),
+      confirmation_sent: confirmation.sent,
+      say: confirmation.sent
+        ? `Read the time back as ${describeSlot(slot, DEFAULT_TIMEZONE)} and say a confirmation is on its way over WhatsApp, not that it has arrived.`
+        : 'The booking is made, but no confirmation message can be sent. Read the date and time back clearly and do not say anything is on its way to their phone.',
+    };
   }
 
   if (name === 'create_payment_link') {

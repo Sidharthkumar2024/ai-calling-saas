@@ -2077,6 +2077,28 @@ async function bootstrap() {
   );
   await ensureColumn(db, 'callback_requests', 'outcome_note', 'TEXT');
 
+  // An appointment used to be write-only: booked, and then invisible. These
+  // are the columns that let a person work it — whether the customer was ever
+  // told, whether they were reminded, and how it actually went.
+  await ensureColumn(
+    db,
+    'appointments',
+    'timezone',
+    "TEXT DEFAULT 'Asia/Kolkata' NOT NULL",
+  );
+  await ensureColumn(db, 'appointments', 'confirmed_at', 'TEXT');
+  await ensureColumn(db, 'appointments', 'confirmation_message_id', 'TEXT');
+  await ensureColumn(db, 'appointments', 'reminded_at', 'TEXT');
+  await ensureColumn(db, 'appointments', 'reminder_message_id', 'TEXT');
+  await ensureColumn(db, 'appointments', 'outcome_note', 'TEXT');
+  await ensureColumn(db, 'appointments', 'updated_by', 'TEXT');
+  await ensureColumn(db, 'appointments', 'updated_at', 'TEXT');
+  await db
+    .prepare(
+      `CREATE INDEX IF NOT EXISTS idx_appointments_org_slot ON appointments (organization_id, status, slot_start)`,
+    )
+    .run();
+
   // The rest of the Campaign Opening Studio (Part 2.2): how the opening is
   // pitched, the variants being compared, and what counts as qualified.
   await ensureColumn(

@@ -38,6 +38,7 @@ import {
   Workflow,
   Zap,
   FileAudio,
+  CalendarClock,
   FileBarChart2,
 } from 'lucide-react';
 
@@ -85,6 +86,7 @@ import { CustomerSecurity } from '@/components/customer-security';
 import { CustomerGrowth } from '@/components/customer-growth';
 import { CustomerWorkflowBuilder } from '@/components/customer-workflow-builder';
 import { CustomerPlaybook } from '@/components/customer-playbook';
+import { CustomerAppointments } from '@/components/customer-appointments';
 import { CustomerDocuments } from '@/components/customer-documents';
 import { CustomerWebWidget } from '@/components/customer-web-widget';
 import {
@@ -292,6 +294,12 @@ const groups: PortalNavGroup[] = [
         label: 'Document inbox',
         icon: FileBarChart2,
         translationKey: 'nav.documents',
+      },
+      {
+        id: 'appointments',
+        label: 'Appointments',
+        icon: CalendarClock,
+        translationKey: 'nav.appointments',
       },
       {
         id: 'playbook',
@@ -695,6 +703,9 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
           ) : null}
           {!loading && !error && active === 'documents' ? (
             <CustomerDocuments />
+          ) : null}
+          {!loading && !error && active === 'appointments' ? (
+            <CustomerAppointments />
           ) : null}
           {!loading && !error && active === 'web_widget' ? (
             <CustomerWebWidget />

@@ -1,4 +1,5 @@
 import { getRawDb } from '@/db/index';
+import { sendDueReminders } from '@/lib/appointment-service';
 import { isCallOutcome } from '@/lib/call-outcomes';
 import {
   applyCallToLead,
@@ -92,6 +93,16 @@ export async function enqueueMaintenanceJobs() {
       idempotencyKey: `messages:${organization.id}:${hour}`,
       payload: {},
       priority: 120,
+    });
+    // Hourly, because a reminder is only useful before the appointment and a
+    // daily pass would miss most of the window.
+    await enqueueJob({
+      organizationId: organization.id,
+      queue: 'messaging',
+      type: 'appointments.remind',
+      idempotencyKey: `appointments:${organization.id}:${hour}`,
+      payload: {},
+      priority: 110,
     });
     await enqueueJob({
       organizationId: organization.id,
@@ -260,6 +271,11 @@ async function executeJob(job: JobRow) {
   if (job.type === 'retention.enforce') return enforceRetention(job);
   if (job.type === 'report.generate') return generateReport(job, payload);
   if (job.type === 'messages.deliver') return deliverQueuedMessages(job);
+  if (job.type === 'appointments.remind') {
+    if (!job.organization_id)
+      throw new Error('Organization scope is required.');
+    return sendDueReminders(job.organization_id);
+  }
   if (job.type === 'call.intelligence') return analyseCall(job, payload);
   if (job.type === 'calls.close_idle') return closeIdleCalls(job);
   if (job.type === 'campaign.dial') {

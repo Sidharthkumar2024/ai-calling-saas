@@ -633,6 +633,26 @@ async function runTool(
         JSON.stringify(link.payload).slice(0, 4000),
       )
       .run();
+    // The link used to be created and then nothing was queued: `delivery_mode`
+    // said 'whatsapp' and no message ever existed, so the caller was told a
+    // link was on its way to a number nothing was ever sent to.
+    const deliverable =
+      delivery === 'email' || (await whatsAppConnected(ctx.organizationId));
+    if (deliverable)
+      await db
+        .prepare(`INSERT INTO outbound_messages
+          (id, organization_id, payment_link_id, channel, destination, message_body, status)
+          VALUES (?, ?, ?, ?, ?, ?, 'queued')`)
+        .bind(
+          id('msg'),
+          ctx.organizationId,
+          linkId,
+          delivery,
+          delivery === 'email' ? email : phone,
+          `${description} — ₹${amount.toLocaleString('en-IN')}. Pay here: ${link.shortUrl}`,
+        )
+        .run();
+
     return {
       ok: true,
       payment_link_id: linkId,
@@ -640,12 +660,14 @@ async function runTool(
       amount_rupees: amount,
       short_url: link.shortUrl,
       delivery,
-      // Said plainly: the row exists and the link is real, but nothing has
-      // been sent yet. The model must not tell the caller it has arrived.
-      note:
-        link.provider === 'razorpay_sandbox'
-          ? 'Created against the local sandbox because no Razorpay credentials are connected. Do not tell the caller a real link was sent.'
-          : 'Link created. Delivery happens through the configured provider.',
+      queued_for_delivery: deliverable,
+      // Said plainly, and differently in each case, because the model repeats
+      // this to a person waiting for a link.
+      say: !deliverable
+        ? 'The link exists but this workspace has no WhatsApp connection, so nothing was sent. Read the amount out and say a colleague will send the link.'
+        : link.provider === 'razorpay_sandbox'
+          ? 'Created against a test payment account, so do not tell the caller a real payment link is on its way.'
+          : 'Tell the caller the link is on its way, not that it has arrived.',
     };
   }
 
@@ -1107,6 +1129,24 @@ async function runTool(
         WHERE id = ? AND organization_id = ?`)
       .bind(linkId, order.orderId, ctx.organizationId)
       .run();
+    // Queued for the same reason: an order's payment link that nothing sends
+    // is an order nobody can pay for.
+    const orderDeliverable =
+      delivery === 'email' || (await whatsAppConnected(ctx.organizationId));
+    if (orderDeliverable)
+      await db
+        .prepare(`INSERT INTO outbound_messages
+          (id, organization_id, payment_link_id, channel, destination, message_body, status)
+          VALUES (?, ?, ?, ?, ?, ?, 'queued')`)
+        .bind(
+          id('msg'),
+          ctx.organizationId,
+          linkId,
+          delivery,
+          phone,
+          `${orderDescription} — ₹${(Math.round(order.total) / 100).toLocaleString('en-IN')}. Pay here: ${orderLink.shortUrl}`,
+        )
+        .run();
 
     return {
       ok: true,
@@ -1119,7 +1159,10 @@ async function runTool(
       // §22: the order is not confirmed and the download is not open. The model
       // is handed the sentence rather than left to compose one.
       status: order.status,
-      say_to_customer: order.sayToCustomer,
+      queued_for_delivery: orderDeliverable,
+      say_to_customer: orderDeliverable
+        ? order.sayToCustomer
+        : `${order.sayToCustomer} This workspace has no WhatsApp connection, so the payment link was not sent — say a colleague will send it rather than that it is on its way.`,
       ...(order.hasDigital
         ? {
             digital_delivery:

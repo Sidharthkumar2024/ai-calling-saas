@@ -3,8 +3,12 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import {
+  ASSOCIATION_KINDS,
+  ASSOCIATION_LABEL,
+  describeAssociation,
   DOCUMENT_STATUSES,
   nextStatuses,
+  type AssociationKind,
   type DocumentStatus,
 } from '@/lib/whatsapp-media';
 
@@ -44,6 +48,10 @@ type Doc = {
   reviewed_at: string | null;
   created_at: string;
   has_file: number;
+  association_type: string | null;
+  association_id: string | null;
+  association_found: boolean;
+  association_title: string | null;
 };
 
 const STATUS_TONE: Record<string, string> = {
@@ -77,6 +85,21 @@ export function CustomerDocuments() {
     const timer = window.setTimeout(() => void load(), 0);
     return () => window.clearTimeout(timer);
   }, [load]);
+
+  async function post(body: Record<string, unknown>) {
+    setProblem(null);
+    const response = await fetch('/api/app/documents', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const payload = (await response.json()) as {
+      ok?: boolean;
+      reason?: string;
+    };
+    if (!payload.ok) setProblem(payload.reason ?? 'That change was refused.');
+    else await load();
+  }
 
   async function review(documentId: string, status: DocumentStatus) {
     setProblem(null);
@@ -173,6 +196,27 @@ export function CustomerDocuments() {
                   {document.rejection_reason}
                 </p>
               ) : null}
+              {/* Where it was filed. A link to a row somebody has since deleted
+                  reads as handled, so a missing target is said out loud. */}
+              <p className="mt-1 text-[10px] text-ink-muted">
+                {describeAssociation({
+                  kind: document.association_type,
+                  id: document.association_id,
+                  found: document.association_found,
+                  title: document.association_title,
+                })}
+              </p>
+              <FilePicker
+                document={document}
+                onPick={(kind, targetId) =>
+                  post({
+                    action: 'associate',
+                    documentId: document.id,
+                    kind,
+                    targetId,
+                  })
+                }
+              />
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 {document.has_file ? (
                   <a
@@ -210,6 +254,102 @@ export function CustomerDocuments() {
           ))}
         </div>
       </section>
+    </div>
+  );
+}
+
+/**
+ * Chooses what a document is filed against.
+ *
+ * Candidates come from the workspace's own rows rather than a free-text id
+ * box: a document filed against an id somebody typed is a document filed
+ * against nothing, and the screen would look identical either way.
+ */
+function FilePicker({
+  document,
+  onPick,
+}: {
+  document: Doc;
+  onPick: (
+    kind: string | null,
+    targetId: string | null,
+  ) => Promise<void> | void;
+}) {
+  const [kind, setKind] = useState<AssociationKind | ''>('');
+  const [targets, setTargets] = useState<Array<{ id: string; title: string }>>(
+    [],
+  );
+  const [loading, setLoading] = useState(false);
+
+  async function chooseKind(next: string) {
+    setKind(next as AssociationKind | '');
+    setTargets([]);
+    if (!next) return;
+    setLoading(true);
+    try {
+      const response = await fetch(
+        `/api/app/documents?targets=${encodeURIComponent(next)}`,
+      );
+      if (!response.ok) return;
+      const payload = (await response.json()) as {
+        targets: Array<{ id: string; title: string }>;
+      };
+      setTargets(payload.targets ?? []);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+      <select
+        aria-label="What to file this document against"
+        value={kind}
+        onChange={(event) => void chooseKind(event.target.value)}
+        className="h-7 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+      >
+        <option value="">File against…</option>
+        {ASSOCIATION_KINDS.map((entry) => (
+          <option key={entry} value={entry}>
+            {ASSOCIATION_LABEL[entry]}
+          </option>
+        ))}
+      </select>
+      {kind ? (
+        loading ? (
+          <span className="text-[9px] text-ink-muted">Loading…</span>
+        ) : targets.length === 0 ? (
+          <span className="text-[9px] text-ink-muted">
+            No {ASSOCIATION_LABEL[kind].toLowerCase()} records in this workspace
+            yet.
+          </span>
+        ) : (
+          <select
+            aria-label="Which record"
+            defaultValue=""
+            onChange={(event) => {
+              if (event.target.value) void onPick(kind, event.target.value);
+            }}
+            className="h-7 max-w-[220px] rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+          >
+            <option value="">Choose…</option>
+            {targets.map((target) => (
+              <option key={target.id} value={target.id}>
+                {target.title}
+              </option>
+            ))}
+          </select>
+        )
+      ) : null}
+      {document.association_id ? (
+        <button
+          type="button"
+          onClick={() => void onPick(null, null)}
+          className="rounded-full border border-hairline px-2 py-0.5 text-[9px]"
+        >
+          Unfile
+        </button>
+      ) : null}
     </div>
   );
 }

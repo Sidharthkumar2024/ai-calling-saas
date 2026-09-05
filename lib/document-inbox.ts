@@ -18,9 +18,12 @@ import { env } from 'cloudflare:workers';
 import { getRawDb } from '@/db/index';
 import { documentKey, keyBelongsTo } from '@/lib/recording-keys';
 import {
+  ASSOCIATION_TABLE,
   checkIncomingMedia,
   canMove,
+  isAssociationKind,
   isDocumentStatus,
+  type AssociationKind,
   type DocumentStatus,
 } from '@/lib/whatsapp-media';
 
@@ -210,8 +213,65 @@ export async function listDocuments(input: {
       WHERE ${clauses.join(' AND ')}
       ORDER BY d.created_at DESC LIMIT ?`)
     .bind(...bindings, Math.min(200, Math.max(1, input.limit ?? 100)))
-    .all();
-  return rows.results ?? [];
+    .all<Record<string, unknown>>();
+  return resolveAssociations(input.organizationId, rows.results ?? []);
+}
+
+/**
+ * Looks up what each document was filed against.
+ *
+ * Resolved rather than trusted: an association pointing at a row somebody has
+ * since deleted reads as handled on every screen that shows it, which is worse
+ * than a document nobody filed. One query per kind, not one per document.
+ */
+async function resolveAssociations(
+  organizationId: string,
+  documents: Array<Record<string, unknown>>,
+) {
+  const db = getRawDb();
+  const wanted = new Map<AssociationKind, Set<string>>();
+  for (const document of documents) {
+    const kind = document.association_type;
+    const id = document.association_id;
+    if (!isAssociationKind(kind) || typeof id !== 'string' || !id) continue;
+    if (!wanted.has(kind)) wanted.set(kind, new Set());
+    wanted.get(kind)!.add(id);
+  }
+
+  const titles = new Map<string, string>();
+  const titleColumn: Record<AssociationKind, string> = {
+    lead: 'name',
+    order: 'customer_name',
+    payment: 'customer_name',
+    booking: 'customer_name',
+    ticket: 'subject',
+  };
+  for (const [kind, ids] of wanted) {
+    const list = [...ids].slice(0, 100);
+    const placeholders = list.map(() => '?').join(', ');
+    const rows = await db
+      .prepare(`SELECT id, coalesce(${titleColumn[kind]}, '') AS title
+        FROM ${ASSOCIATION_TABLE[kind]}
+        WHERE organization_id = ? AND id IN (${placeholders})`)
+      .bind(organizationId, ...list)
+      .all<{ id: string; title: string }>();
+    for (const row of rows.results ?? [])
+      titles.set(`${kind}:${row.id}`, row.title || row.id);
+  }
+
+  return documents.map((document) => {
+    const kind = document.association_type;
+    const id = document.association_id;
+    const key =
+      isAssociationKind(kind) && typeof id === 'string'
+        ? `${kind}:${id}`
+        : null;
+    return {
+      ...document,
+      association_found: key ? titles.has(key) : false,
+      association_title: key ? (titles.get(key) ?? null) : null,
+    };
+  });
 }
 
 export async function reviewDocument(input: {
@@ -275,4 +335,110 @@ export async function readDocument(organizationId: string, documentId: string) {
   const object = await env.RECORDINGS.get(row.storage_key);
   if (!object) return null;
   return { object, mimeType: row.mime_type, filename: row.filename };
+}
+
+/**
+ * The rows a document could be filed against.
+ *
+ * Only this workspace's own, and only a handful — this is a picker, not a
+ * search engine. Each kind names the column that reads as a title, because
+ * "Order order_9c3f…" tells a reviewer nothing.
+ */
+export async function associationTargets(input: {
+  organizationId: string;
+  kind: AssociationKind;
+  search?: string;
+}) {
+  const table = ASSOCIATION_TABLE[input.kind];
+  // The table comes from a fixed map keyed by a validated kind. Nothing here
+  // is ever assembled from a request string.
+  const titleColumn: Record<AssociationKind, string> = {
+    lead: 'name',
+    order: 'customer_name',
+    payment: 'customer_name',
+    booking: 'customer_name',
+    ticket: 'subject',
+  };
+  const title = titleColumn[input.kind];
+  const search = (input.search ?? '').trim().toLowerCase();
+  const clauses = ['organization_id = ?'];
+  const bindings: unknown[] = [input.organizationId];
+  if (search) {
+    clauses.push(`lower(coalesce(${title}, '')) LIKE ?`);
+    bindings.push(`%${search.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`);
+  }
+  const rows = await getRawDb()
+    .prepare(`SELECT id, coalesce(${title}, '') AS title, created_at
+      FROM ${table} WHERE ${clauses.join(' AND ')}
+      ORDER BY created_at DESC LIMIT 25`)
+    .bind(...bindings)
+    .all<{ id: string; title: string; created_at: string }>();
+  return (rows.results ?? []).map((row) => ({
+    id: row.id,
+    title: row.title || row.id,
+    createdAt: row.created_at,
+  }));
+}
+
+/**
+ * Files a document against something.
+ *
+ * The target is checked to exist in this workspace before the link is written.
+ * A document filed against an id that is not there reads as handled on every
+ * screen that shows it, which is worse than one nobody filed.
+ */
+export async function associateDocument(input: {
+  organizationId: string;
+  documentId: string;
+  kind: string | null;
+  targetId: string | null;
+}): Promise<{ ok: boolean; reason?: string }> {
+  const db = getRawDb();
+
+  if (!input.kind || !input.targetId) {
+    const cleared = await db
+      .prepare(`UPDATE document_inbox SET association_type = NULL, association_id = NULL
+        WHERE id = ? AND organization_id = ?`)
+      .bind(input.documentId, input.organizationId)
+      .run();
+    return (cleared.meta?.changes ?? 0) > 0
+      ? { ok: true }
+      : { ok: false, reason: 'That document is not in this inbox.' };
+  }
+
+  if (!isAssociationKind(input.kind))
+    return {
+      ok: false,
+      reason: 'That is not something a document can be filed against.',
+    };
+
+  const table = ASSOCIATION_TABLE[input.kind];
+  const target = await db
+    .prepare(
+      `SELECT id FROM ${table} WHERE id = ? AND organization_id = ? LIMIT 1`,
+    )
+    .bind(input.targetId, input.organizationId)
+    .first<{ id: string }>();
+  if (!target)
+    return {
+      ok: false,
+      reason: `That ${input.kind} is not in this workspace, so the document was not filed against it.`,
+    };
+
+  const result = await db
+    .prepare(`UPDATE document_inbox SET association_type = ?, association_id = ?,
+      lead_id = CASE WHEN ? = 'lead' THEN ? ELSE lead_id END
+      WHERE id = ? AND organization_id = ?`)
+    .bind(
+      input.kind,
+      input.targetId,
+      input.kind,
+      input.targetId,
+      input.documentId,
+      input.organizationId,
+    )
+    .run();
+  return (result.meta?.changes ?? 0) > 0
+    ? { ok: true }
+    : { ok: false, reason: 'That document is not in this inbox.' };
 }

@@ -288,3 +288,68 @@ export function describeSend(set: SendSet): string {
   if (set.withheld.length === 0) return sent;
   return `${sent} ${set.withheld.length} more ${set.withheld.length === 1 ? 'was' : 'were'} not sent — tell the caller a colleague will send the rest, and do not claim they were already delivered.`;
 }
+
+/* ------------------------------------------------------------------ *
+ * What a document is filed against (Part 3.3, "Association")
+ * ------------------------------------------------------------------ */
+
+export const ASSOCIATION_KINDS = [
+  'lead',
+  'order',
+  'payment',
+  'booking',
+  'ticket',
+] as const;
+export type AssociationKind = (typeof ASSOCIATION_KINDS)[number];
+
+export function isAssociationKind(value: unknown): value is AssociationKind {
+  return (
+    typeof value === 'string' &&
+    (ASSOCIATION_KINDS as readonly string[]).includes(value)
+  );
+}
+
+export const ASSOCIATION_LABEL: Record<AssociationKind, string> = {
+  lead: 'Lead',
+  order: 'Order',
+  payment: 'Payment',
+  booking: 'Booking',
+  ticket: 'Support ticket',
+};
+
+/**
+ * The table behind each kind.
+ *
+ * Kept here rather than built from the kind string, because a table name
+ * derived from user input is how a filing feature becomes an injection. Every
+ * lookup goes through this map or it does not happen.
+ */
+export const ASSOCIATION_TABLE: Record<AssociationKind, string> = {
+  lead: 'leads',
+  order: 'orders',
+  payment: 'payment_links',
+  booking: 'appointments',
+  ticket: 'support_tickets',
+};
+
+/**
+ * What the inbox row says about where a document was filed.
+ *
+ * An association pointing at a row that no longer exists is worse than none at
+ * all — it reads as handled. So a missing target is stated rather than
+ * rendered as a link nobody can follow.
+ */
+export function describeAssociation(input: {
+  kind: string | null;
+  id: string | null;
+  found: boolean;
+  title?: string | null;
+}): string {
+  if (!input.kind || !input.id) return 'Not filed against anything yet.';
+  const label = isAssociationKind(input.kind)
+    ? ASSOCIATION_LABEL[input.kind]
+    : input.kind;
+  if (!input.found)
+    return `Filed against a ${label.toLowerCase()} that no longer exists.`;
+  return input.title ? `${label}: ${input.title}` : `${label} ${input.id}`;
+}

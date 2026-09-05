@@ -47,6 +47,10 @@ const EXPECTED = {
   audit_events: 'append-only trail; edited by nothing, by design',
   provider_usage_events: 'append-only metering; rolled up by query',
   provider_webhook_events: 'append-only provider receipts, kept for replay',
+  // Not frozen — never open. An invoice here is a receipt, written only once
+  // the money has already arrived, with `status = 'paid'` and `paid_at` set in
+  // the same statement. There is no open-then-paid lifecycle to be missing.
+  invoices: 'a receipt issued after payment; correct as written, never edited',
 };
 
 const source = readFileSync(BOOTSTRAP, 'utf8');

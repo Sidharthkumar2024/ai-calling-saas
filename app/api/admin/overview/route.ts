@@ -21,6 +21,8 @@ export async function GET(request: Request) {
     customers,
     planRows,
     creditPackages,
+    fxRates,
+    priceBooks,
     numberRows,
     audits,
     integrations,
@@ -79,6 +81,20 @@ export async function GET(request: Request) {
     db.prepare(`SELECT * FROM plans ORDER BY monthly_price`).all(),
     db
       .prepare(`SELECT *, amount AS price FROM credit_packages ORDER BY amount`)
+      .all(),
+    db
+      .prepare(
+        // Newest first per pair, because the current rate is what anybody
+        // opening this screen is looking for.
+        `SELECT id, base_currency, quote_currency, rate, effective_from, source
+         FROM fx_rates ORDER BY effective_from DESC LIMIT 50`,
+      )
+      .all(),
+    db
+      .prepare(
+        `SELECT id, product_type, product_id, country, currency, amount_minor, active
+         FROM price_books ORDER BY product_type, product_id, currency LIMIT 200`,
+      )
       .all(),
     db
       .prepare(
@@ -327,6 +343,8 @@ export async function GET(request: Request) {
     customers: customers.results,
     plans: planRows.results,
     creditPackages: creditPackages.results,
+    fxRates: fxRates.results,
+    priceBooks: priceBooks.results,
     numbers: numberRows.results,
     audits: audits.results,
     integrations: integrations.results,

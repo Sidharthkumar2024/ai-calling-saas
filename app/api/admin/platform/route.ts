@@ -64,6 +64,9 @@ const ACTION_CAPABILITIES: Record<string, AdminCapability> = {
   plan_update: 'billing.manage',
   plan_create: 'billing.manage',
   credit_package_create: 'billing.manage',
+  credit_package_status: 'billing.manage',
+  fx_rate_set: 'billing.manage',
+  price_book_set: 'billing.manage',
   kyc_status: 'tenants.manage',
   voice_consent_review: 'security.manage',
   voice_block: 'security.manage',
@@ -177,6 +180,18 @@ export async function PATCH(request: Request) {
     rejectionReason?: string;
     apiKey?: string;
     config?: Record<string, string>;
+    packageId?: string;
+    baseCurrency?: string;
+    quoteCurrency?: string;
+    rate?: number;
+    effectiveFrom?: string;
+    source?: string;
+    productType?: string;
+    productId?: string;
+    country?: string;
+    currency?: string;
+    amountMinor?: number;
+    active?: boolean;
   };
   const auth = await requireAdminCapability(
     request,
@@ -747,6 +762,159 @@ export async function PATCH(request: Request) {
     );
     return NextResponse.json({ created: true, id });
   }
+  // A pack could be created and never retired, so an offer withdrawn from the
+  // price list stayed buyable — every read filters on status = 'active' and
+  // nothing could ever set it to anything else.
+  if (body.action === 'credit_package_status') {
+    const packageId = String(body.packageId ?? '');
+    const status = body.status === 'active' ? 'active' : 'retired';
+    const result = await db
+      .prepare(`UPDATE credit_packages SET status = ? WHERE id = ?`)
+      .bind(status, packageId)
+      .run();
+    if (!result.meta.changes)
+      return NextResponse.json(
+        { error: 'That credit package does not exist.' },
+        { status: 404 },
+      );
+    await recordAudit(
+      auth.session,
+      `billing.credit_package_${status}`,
+      'credit_package',
+      packageId,
+      {},
+    );
+    return NextResponse.json({ ok: true, status });
+  }
+
+  // `fx_rates` and `price_books` were read by the pricing layer and written by
+  // nothing, so a workspace on a currency other than the base one could not be
+  // priced at all. `priceForWorkspace` refuses rather than guessing — which was
+  // the right behaviour and also meant it always refused.
+  if (body.action === 'fx_rate_set') {
+    const base = String(body.baseCurrency ?? '')
+      .trim()
+      .toUpperCase();
+    const quote = String(body.quoteCurrency ?? '')
+      .trim()
+      .toUpperCase();
+    const rate = Number(body.rate);
+    if (!/^[A-Z]{3}$/.test(base) || !/^[A-Z]{3}$/.test(quote))
+      return NextResponse.json(
+        { error: 'Both currencies must be three-letter codes.' },
+        { status: 400 },
+      );
+    if (base === quote)
+      return NextResponse.json(
+        { error: 'A currency does not need a rate against itself.' },
+        { status: 400 },
+      );
+    // A zero or negative rate would price everything at nothing. Refused here
+    // rather than discovered on an invoice.
+    if (!Number.isFinite(rate) || rate <= 0)
+      return NextResponse.json(
+        { error: 'The rate must be a positive number.' },
+        { status: 400 },
+      );
+    const effectiveFrom = /^\d{4}-\d{2}-\d{2}/.test(
+      String(body.effectiveFrom ?? ''),
+    )
+      ? String(body.effectiveFrom)
+      : new Date().toISOString();
+    const id = `fx_${crypto.randomUUID()}`;
+    await db
+      .prepare(
+        // Rates are historical: the pair plus its effective date is the key, so
+        // setting today's rate twice corrects it rather than adding a second
+        // one, and yesterday's stays where it is.
+        `INSERT INTO fx_rates (id, base_currency, quote_currency, rate, effective_from, source)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(base_currency, quote_currency, effective_from)
+           DO UPDATE SET rate = excluded.rate, source = excluded.source`,
+      )
+      .bind(
+        id,
+        base,
+        quote,
+        rate,
+        effectiveFrom,
+        String(body.source ?? 'manual').slice(0, 60),
+      )
+      .run();
+    await recordAudit(auth.session, 'billing.fx_rate_set', 'fx_rate', id, {
+      base,
+      quote,
+      rate,
+      effectiveFrom,
+    });
+    return NextResponse.json({ ok: true, base, quote, rate, effectiveFrom });
+  }
+
+  if (body.action === 'price_book_set') {
+    const productType =
+      body.productType === 'credit_package' ? 'credit_package' : 'plan';
+    const productId = String(body.productId ?? '').slice(0, 80);
+    const currency = String(body.currency ?? '')
+      .trim()
+      .toUpperCase();
+    const amountMinor = Number(body.amountMinor);
+    if (!productId)
+      return NextResponse.json(
+        { error: 'Name the plan or credit package this price is for.' },
+        { status: 400 },
+      );
+    if (!/^[A-Z]{3}$/.test(currency))
+      return NextResponse.json(
+        { error: 'The currency must be a three-letter code.' },
+        { status: 400 },
+      );
+    // Minor units, so 4999 is $49.99. A fractional value here would be a
+    // rounding argument on every invoice that used it.
+    if (!Number.isInteger(amountMinor) || amountMinor < 0)
+      return NextResponse.json(
+        { error: 'The amount must be a whole number of minor units.' },
+        { status: 400 },
+      );
+    const country = String(body.country ?? '')
+      .trim()
+      .toUpperCase()
+      .slice(0, 2);
+    const id = `price_${crypto.randomUUID()}`;
+    await db
+      .prepare(
+        `INSERT INTO price_books
+           (id, product_type, product_id, country, currency, amount_minor, active, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(product_type, product_id, country, currency)
+           DO UPDATE SET amount_minor = excluded.amount_minor, active = excluded.active`,
+      )
+      .bind(
+        id,
+        productType,
+        productId,
+        country,
+        currency,
+        amountMinor,
+        body.active === false ? 0 : 1,
+        auth.session.userId,
+      )
+      .run();
+    await recordAudit(
+      auth.session,
+      'billing.price_book_set',
+      'price_book',
+      id,
+      {
+        productType,
+        productId,
+        country,
+        currency,
+        amountMinor,
+      },
+    );
+    return NextResponse.json({ ok: true, productType, productId, currency });
+  }
+
   if (body.action === 'kyc_status') {
     if (!body.numberId || !['approved', 'rejected'].includes(body.status ?? ''))
       return NextResponse.json(

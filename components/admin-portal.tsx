@@ -48,6 +48,8 @@ type AdminPayload = {
   customers?: Record<string, unknown>[];
   plans?: Record<string, unknown>[];
   creditPackages?: Record<string, unknown>[];
+  fxRates?: Record<string, unknown>[];
+  priceBooks?: Record<string, unknown>[];
   numbers?: Record<string, unknown>[];
   audits?: Record<string, unknown>[];
   integrations?: Record<string, unknown>[];
@@ -1657,10 +1659,32 @@ function PlansBilling({
               <p className="mt-1 text-[10px] text-ink-muted">
                 {money(item.price)}
               </p>
+              {/* A pack could be created and never withdrawn, so an offer
+                  taken off the price list stayed buyable. */}
+              <button
+                type="button"
+                onClick={() =>
+                  void platformAction(
+                    {
+                      action: 'credit_package_status',
+                      packageId: textValue(item.id),
+                      status:
+                        textValue(item.status) === 'active'
+                          ? 'retired'
+                          : 'active',
+                    },
+                    onChanged,
+                  )
+                }
+                className="mt-3 text-[10px] text-ink-muted transition hover:text-ink-body"
+              >
+                {textValue(item.status) === 'active' ? 'Retire' : 'Bring back'}
+              </button>
             </div>
           ))}
         </div>
       </Panel>
+      <CurrencyRates data={data} onChanged={onChanged} />
       <div className="grid gap-3 sm:grid-cols-3">
         <Stat
           label="Revenue collected"
@@ -3117,6 +3141,218 @@ function ErrorState({ error, retry }: { error: string; retry: () => void }) {
     </div>
   );
 }
+/** One place for every PATCH to the platform route, so refusals are shown. */
+async function platformAction(
+  payload: Record<string, unknown>,
+  onChanged: () => Promise<void> | void,
+): Promise<string | null> {
+  try {
+    const response = await fetch('/api/admin/platform', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const body = (await response.json()) as { error?: string };
+    if (!response.ok) return textValue(body.error, 'Action failed.');
+    await onChanged();
+    return null;
+  } catch {
+    return 'Action failed.';
+  }
+}
+
+/**
+ * Exchange rates and country prices.
+ *
+ * `fx_rates` and `price_books` were read by `lib/workspace-pricing.ts` and
+ * written by nothing at all, so a workspace billing in anything other than the
+ * base currency could not be priced — `priceForWorkspace` refuses rather than
+ * charging ₹7,999 as $7,999, which was right, and also meant it always
+ * refused. This is the screen that gives it something to read.
+ */
+function CurrencyRates({
+  data,
+  onChanged,
+}: {
+  data: AdminPayload;
+  onChanged: () => Promise<void> | void;
+}) {
+  const [fx, setFx] = useState({ base: 'INR', quote: '', rate: '' });
+  const [price, setPrice] = useState({
+    productType: 'plan',
+    productId: '',
+    country: '',
+    currency: '',
+    amountMinor: '',
+  });
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const field =
+    'h-8 rounded-lg border border-hairline bg-surface px-2.5 text-[11px]';
+
+  return (
+    <Panel>
+      <PanelHeader
+        title="Exchange rates and country prices"
+        description="What a workspace outside the base currency is charged. Without a rate or a price-book entry, pricing refuses rather than guessing."
+      />
+      {notice ? (
+        <p role="alert" className="mt-3 text-[10px] text-danger-text">
+          {notice}
+        </p>
+      ) : null}
+
+      <div className="mt-4 flex flex-wrap items-end gap-2">
+        <input
+          aria-label="Base currency"
+          value={fx.base}
+          onChange={(event) => setFx({ ...fx, base: event.target.value })}
+          placeholder="INR"
+          className={`${field} w-20`}
+        />
+        <input
+          aria-label="Quote currency"
+          value={fx.quote}
+          onChange={(event) => setFx({ ...fx, quote: event.target.value })}
+          placeholder="USD"
+          className={`${field} w-20`}
+        />
+        <input
+          aria-label="Rate"
+          value={fx.rate}
+          onChange={(event) => setFx({ ...fx, rate: event.target.value })}
+          placeholder="0.012"
+          className={`${field} w-28`}
+        />
+        <button
+          type="button"
+          disabled={!fx.quote.trim() || !fx.rate.trim()}
+          onClick={async () =>
+            setNotice(
+              await platformAction(
+                {
+                  action: 'fx_rate_set',
+                  baseCurrency: fx.base,
+                  quoteCurrency: fx.quote,
+                  rate: Number(fx.rate),
+                },
+                onChanged,
+              ),
+            )
+          }
+          className="portal-primary h-8 rounded-lg px-3 text-[11px] disabled:opacity-40"
+        >
+          Set rate
+        </button>
+      </div>
+      <div className="mt-3 space-y-1">
+        {(data.fxRates ?? []).length === 0 ? (
+          <p className="text-[10px] text-ink-muted">
+            No rates yet, so only the base currency can be priced.
+          </p>
+        ) : null}
+        {(data.fxRates ?? []).map((row: Record<string, unknown>) => (
+          <p key={textValue(row.id)} className="text-[10px] text-ink-body">
+            1 {textValue(row.base_currency)} = {num(row.rate)}{' '}
+            {textValue(row.quote_currency)}
+            <span className="text-ink-muted">
+              {' '}
+              · from {textValue(row.effective_from).slice(0, 10)} ·{' '}
+              {textValue(row.source, 'manual')}
+            </span>
+          </p>
+        ))}
+      </div>
+
+      <div className="mt-6 flex flex-wrap items-end gap-2">
+        <select
+          aria-label="Product type"
+          value={price.productType}
+          onChange={(event) =>
+            setPrice({ ...price, productType: event.target.value })
+          }
+          className={`${field} w-32`}
+        >
+          <option value="plan">Plan</option>
+          <option value="credit_package">Credit package</option>
+        </select>
+        <input
+          aria-label="Product id"
+          value={price.productId}
+          onChange={(event) =>
+            setPrice({ ...price, productId: event.target.value })
+          }
+          placeholder="plan id"
+          className={`${field} w-44`}
+        />
+        <input
+          aria-label="Country"
+          value={price.country}
+          onChange={(event) =>
+            setPrice({ ...price, country: event.target.value })
+          }
+          placeholder="any"
+          className={`${field} w-16`}
+        />
+        <input
+          aria-label="Currency"
+          value={price.currency}
+          onChange={(event) =>
+            setPrice({ ...price, currency: event.target.value })
+          }
+          placeholder="USD"
+          className={`${field} w-20`}
+        />
+        <input
+          aria-label="Amount in minor units"
+          value={price.amountMinor}
+          onChange={(event) =>
+            setPrice({ ...price, amountMinor: event.target.value })
+          }
+          placeholder="4999"
+          className={`${field} w-28`}
+        />
+        <button
+          type="button"
+          disabled={!price.productId.trim() || !price.currency.trim()}
+          onClick={async () =>
+            setNotice(
+              await platformAction(
+                {
+                  action: 'price_book_set',
+                  productType: price.productType,
+                  productId: price.productId,
+                  country: price.country,
+                  currency: price.currency,
+                  amountMinor: Number(price.amountMinor),
+                },
+                onChanged,
+              ),
+            )
+          }
+          className="portal-primary h-8 rounded-lg px-3 text-[11px] disabled:opacity-40"
+        >
+          Set price
+        </button>
+      </div>
+      <p className="mt-2 text-[10px] text-ink-muted">
+        Minor units — 4999 is $49.99. Leave the country blank for anywhere using
+        that currency.
+      </p>
+      <div className="mt-3 space-y-1">
+        {(data.priceBooks ?? []).map((row: Record<string, unknown>) => (
+          <p key={textValue(row.id)} className="text-[10px] text-ink-body">
+            {textValue(row.product_type)} {textValue(row.product_id)} ·{' '}
+            {textValue(row.country) || 'any country'} · {num(row.amount_minor)}{' '}
+            {textValue(row.currency)}
+            {Number(row.active) === 1 ? '' : ' · inactive'}
+          </p>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
 function num(value: unknown) {
   return Number(value ?? 0).toLocaleString('en-IN');
 }

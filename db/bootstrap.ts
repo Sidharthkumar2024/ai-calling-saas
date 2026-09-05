@@ -2154,14 +2154,21 @@ async function bootstrap() {
   // The two demo workflows above are INSERT OR IGNORE, so a database seeded by
   // the earlier build still holds their invented step lists and run counts.
   // Repair those rows only — never a workflow somebody wrote.
-  await db
-    .prepare(
-      `UPDATE workflows SET run_count = 0, failure_count = 0, last_run_at = NULL,
-       trigger_type = 'webhook', steps_json = '[]'
-       WHERE id IN ('workflow_demo_payment', 'workflow_demo_no_answer')
-         AND graph_json IS NULL`,
-    )
-    .run();
+  // Counters *and* the graph. Resetting the invented run counts without
+  // writing the graph left both rows saying "0 steps · needs rebuilding" on a
+  // database seeded by the earlier build — repaired halfway is still broken.
+  for (const [id, graph] of [
+    ['workflow_demo_payment', DEMO_PAYMENT_GRAPH],
+    ['workflow_demo_no_answer', DEMO_NO_ANSWER_GRAPH],
+  ] as const)
+    await db
+      .prepare(
+        `UPDATE workflows SET run_count = 0, failure_count = 0, last_run_at = NULL,
+         trigger_type = 'webhook', steps_json = '[]', graph_json = ?
+         WHERE id = ? AND (graph_json IS NULL OR graph_json = '')`,
+      )
+      .bind(graph, id)
+      .run();
   await db
     .prepare(
       `UPDATE agent_tool_calls SET outcome_kind = CASE
@@ -2790,6 +2797,16 @@ async function seedLocalDemo(db: D1Database) {
        'We are reviewing the gateway, codecs and TLS configuration. No live routing is enabled yet.')`),
   ]);
 }
+
+/**
+ * The two demo workflows' graphs, defined once and used by both the seed and
+ * the repair below. Kept apart from the INSERTs so a database created by the
+ * earlier build and a fresh one end up with exactly the same thing.
+ */
+const DEMO_PAYMENT_GRAPH =
+  '{"nodes":[{"id":"start","kind":"trigger","name":"Payment requested","config":{"event":"webhook","filter":"call.payment_requested"},"next":{"next":"lookup"}},{"id":"lookup","kind":"crm_lookup","name":"Find the caller","config":{"entity":"lead","match":"phone","value":"{{caller_phone}}","variable":"lead"},"next":{"found":"link","not_found":"unknown"}},{"id":"link","kind":"payment","name":"Payment link","config":{"amount":"{{amount}}","purpose":"{{purpose}}","channel":"whatsapp","destination":"{{caller_phone}}"},"next":{"next":"notify"}},{"id":"notify","kind":"message","name":"Send it over WhatsApp","config":{"channel":"whatsapp","destination":"{{caller_phone}}","body":"Your payment link is ready. Reply here if anything looks wrong."},"next":{"next":"done"}},{"id":"unknown","kind":"end","name":"No matching lead","config":{"disposition":"payment_no_lead"},"next":{}},{"id":"done","kind":"end","name":"Close","config":{"disposition":"payment_link_sent"},"next":{}}]}';
+const DEMO_NO_ANSWER_GRAPH =
+  '{"nodes":[{"id":"start","kind":"trigger","name":"Call not answered","config":{"event":"webhook","filter":"call.no_answer"},"next":{"next":"lookup"}},{"id":"lookup","kind":"crm_lookup","name":"Find the lead","config":{"entity":"lead","match":"phone","value":"{{caller_phone}}","variable":"lead"},"next":{"found":"reach","not_found":"unknown"}},{"id":"reach","kind":"message","name":"Offer a callback","config":{"channel":"whatsapp","destination":"{{caller_phone}}","body":"Sorry we missed you. Reply here with a time that suits you and we will call back."},"next":{"next":"done"}},{"id":"unknown","kind":"end","name":"No matching lead","config":{"disposition":"no_answer_no_lead"},"next":{}},{"id":"done","kind":"end","name":"Close","config":{"disposition":"no_answer_followed_up"},"next":{}}]}';
 
 async function ensureColumn(
   db: D1Database,

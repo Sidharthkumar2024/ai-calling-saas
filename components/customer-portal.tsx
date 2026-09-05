@@ -284,13 +284,13 @@ const groups: PortalNavGroup[] = [
         id: 'web_widget',
         label: 'Website assistant',
         icon: Globe2,
-        translationKey: 'nav.agents',
+        translationKey: 'nav.web_widget',
       },
       {
         id: 'playbook',
         label: 'Company playbook',
         icon: BookOpenText,
-        translationKey: 'nav.quality',
+        translationKey: 'nav.playbook',
       },
       {
         id: 'quality',

@@ -9,6 +9,15 @@ import {
   type DiscoveryAnswers,
   type Observation,
 } from '@/lib/growth-manager';
+import {
+  HOT_LEAD_THRESHOLD,
+  offersFor,
+  type ExecutedAction,
+  type ExecutionContext,
+  type ExecutionKind,
+  type ExecutionStatus,
+} from '@/lib/growth-execution';
+import { templateByKey } from '@/lib/workflow-templates';
 
 /**
  * Turns the workspace's own data into observations (§6).
@@ -572,4 +581,320 @@ export async function getChat(organizationId: string, chatId: string) {
     .bind(chatId, organizationId)
     .all();
   return rows.results ?? [];
+}
+
+/* ------------------------------------------------------------------ *
+ * Execution (§6) — turning a recommendation into work
+ * ------------------------------------------------------------------ */
+
+/**
+ * Measures what the workspace can currently support, so an offer is never
+ * blocked or allowed on a guess.
+ */
+export async function executionContext(
+  organizationId: string,
+): Promise<ExecutionContext> {
+  const db = getRawDb();
+  const [hot, consented, agents, objection, negative, people] =
+    await Promise.all([
+      db
+        .prepare(
+          `SELECT count(*) AS n FROM leads WHERE organization_id = ? AND score >= ? AND trim(phone) != ''`,
+        )
+        .bind(organizationId, HOT_LEAD_THRESHOLD)
+        .first<{ n: number }>(),
+      // Counted here rather than discovered after the campaign exists: a hot
+      // lead with no consent on record is one the dialer will refuse to call.
+      db
+        .prepare(
+          `SELECT count(*) AS n FROM leads l WHERE l.organization_id = ? AND l.score >= ?
+         AND trim(l.phone) != '' AND EXISTS (
+           SELECT 1 FROM consent_records c WHERE c.organization_id = l.organization_id
+             AND c.phone = l.phone AND c.status = 'granted'
+             AND (c.expires_at IS NULL OR c.expires_at > CURRENT_TIMESTAMP))`,
+        )
+        .bind(organizationId, HOT_LEAD_THRESHOLD)
+        .first<{ n: number }>(),
+      db
+        .prepare(
+          `SELECT count(*) AS n FROM voice_agents WHERE organization_id = ? AND status = 'active'`,
+        )
+        .bind(organizationId)
+        .first<{ n: number }>(),
+      db
+        .prepare(
+          `SELECT label FROM objection_library WHERE organization_id = ? ORDER BY occurrences DESC LIMIT 1`,
+        )
+        .bind(organizationId)
+        .first<{ label: string }>(),
+      db
+        .prepare(
+          `SELECT count(*) AS n FROM call_records WHERE organization_id = ? AND sentiment = 'negative'
+         AND started_at >= date('now', '-30 day')`,
+        )
+        .bind(organizationId)
+        .first<{ n: number }>(),
+      db
+        .prepare(
+          `SELECT count(*) AS n FROM organization_members WHERE organization_id = ?`,
+        )
+        .bind(organizationId)
+        .first<{ n: number }>(),
+    ]);
+  return {
+    hotLeadCount: hot?.n ?? 0,
+    hotLeadsWithConsent: consented?.n ?? 0,
+    hotLeadThreshold: HOT_LEAD_THRESHOLD,
+    agentCount: agents?.n ?? 0,
+    topObjection: objection?.label ?? null,
+    negativeCallCount: negative?.n ?? 0,
+    assignableCount: people?.n ?? 0,
+  };
+}
+
+export async function listGrowthActions(
+  organizationId: string,
+): Promise<ExecutedAction[]> {
+  const rows = await getRawDb()
+    .prepare(
+      `SELECT id, recommendation_id, kind, title, detail, status, target_type, target_id,
+              created_at, completed_at
+       FROM growth_actions WHERE organization_id = ? ORDER BY created_at DESC LIMIT 100`,
+    )
+    .bind(organizationId)
+    .all<{
+      id: string;
+      recommendation_id: string;
+      kind: string;
+      title: string;
+      detail: string;
+      status: string;
+      target_type: string | null;
+      target_id: string | null;
+      created_at: string;
+      completed_at: string | null;
+    }>();
+  return (rows.results ?? []).map((row) => ({
+    id: row.id,
+    recommendationId: row.recommendation_id,
+    kind: row.kind as ExecutedAction['kind'],
+    title: row.title,
+    detail: row.detail,
+    status: row.status as ExecutedAction['status'],
+    targetType: row.target_type,
+    targetId: row.target_id,
+    createdAt: row.created_at,
+    completedAt: row.completed_at,
+  }));
+}
+
+export type ExecutionResult =
+  | {
+      ok: true;
+      action: ExecutedAction;
+      opened: { screen: string; id: string } | null;
+    }
+  | { ok: false; reason: string };
+
+/**
+ * Acts on one recommendation.
+ *
+ * Re-checks the block before doing anything: the board a person is looking at
+ * may be minutes old, and "create a campaign from the 12 hot leads" must not
+ * create an empty campaign because the last one was just called.
+ */
+export async function executeRecommendation(input: {
+  organizationId: string;
+  userId: string;
+  recommendationId: string;
+  kind: ExecutionKind;
+}): Promise<ExecutionResult> {
+  const db = getRawDb();
+  const board = await growthBoard(input.organizationId);
+  const recommendation = board.recommendations.find(
+    (entry) => entry.id === input.recommendationId,
+  );
+  if (!recommendation)
+    return {
+      ok: false,
+      reason:
+        'That recommendation is no longer on the board — the numbers behind it have moved.',
+    };
+
+  const context = await executionContext(input.organizationId);
+  const offer = offersFor(recommendation, context).find(
+    (entry) => entry.kind === input.kind,
+  );
+  if (!offer)
+    return {
+      ok: false,
+      reason: 'That is not something this recommendation offers.',
+    };
+  if (offer.blockedBy) return { ok: false, reason: offer.blockedBy };
+
+  const actionId = `growthact_${crypto.randomUUID()}`;
+  let targetType: string | null = null;
+  let targetId: string | null = null;
+  let opened: { screen: string; id: string } | null = null;
+  let detail = offer.effect;
+
+  if (input.kind === 'campaign') {
+    const leads = await db
+      .prepare(
+        `SELECT id, name, phone FROM leads WHERE organization_id = ? AND score >= ?
+         AND trim(phone) != '' ORDER BY score DESC LIMIT 500`,
+      )
+      .bind(input.organizationId, HOT_LEAD_THRESHOLD)
+      .all<{ id: string; name: string; phone: string }>();
+    const rows = leads.results ?? [];
+    if (rows.length === 0)
+      return {
+        ok: false,
+        reason: `No lead is scoring ${HOT_LEAD_THRESHOLD} or above any more, so the campaign would be empty.`,
+      };
+
+    // Consent is carried over rather than assumed. A contact whose consent is
+    // not on record goes in as 'unknown', and the dialer refuses to call it —
+    // marking them all granted here would launder that refusal away.
+    const granted = await db
+      .prepare(
+        `SELECT phone FROM consent_records WHERE organization_id = ? AND status = 'granted'
+         AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP) LIMIT 10000`,
+      )
+      .bind(input.organizationId)
+      .all<{ phone: string }>();
+    const grantedPhones = new Set(
+      (granted.results ?? []).map((row) => row.phone),
+    );
+
+    const agent = await db
+      .prepare(
+        `SELECT id FROM voice_agents WHERE organization_id = ? AND status = 'active' ORDER BY created_at LIMIT 1`,
+      )
+      .bind(input.organizationId)
+      .first<{ id: string }>();
+
+    const campaignId = `campaign_${crypto.randomUUID()}`;
+    await db
+      .prepare(`INSERT INTO campaigns
+        (id, organization_id, agent_id, name, status, audience_size, concurrency, retry_policy_json, calling_window_json)
+        VALUES (?, ?, ?, ?, 'draft', ?, 1, ?, ?)`)
+      .bind(
+        campaignId,
+        input.organizationId,
+        agent?.id ?? null,
+        `Hot leads — ${new Date().toISOString().slice(0, 10)}`,
+        rows.length,
+        JSON.stringify({
+          attempts: 3,
+          backoffMinutes: [120, 1440],
+          objective: 'lead_qualification',
+        }),
+        JSON.stringify({
+          timezone: 'Asia/Kolkata',
+          start: '10:00',
+          end: '19:00',
+        }),
+      )
+      .run();
+    await db.batch(
+      rows.map((lead) =>
+        db
+          .prepare(`INSERT INTO campaign_contacts
+            (id, organization_id, campaign_id, lead_id, phone, status, consent_status)
+            VALUES (?, ?, ?, ?, ?, 'pending', ?)`)
+          .bind(
+            `campaign_contact_${crypto.randomUUID()}`,
+            input.organizationId,
+            campaignId,
+            lead.id,
+            lead.phone,
+            grantedPhones.has(lead.phone) ? 'granted' : 'unknown',
+          ),
+      ),
+    );
+    const withConsent = rows.filter((lead) =>
+      grantedPhones.has(lead.phone),
+    ).length;
+    targetType = 'campaign';
+    targetId = campaignId;
+    opened = { screen: 'campaigns', id: campaignId };
+    detail = `Draft campaign with ${rows.length} lead${rows.length === 1 ? '' : 's'}, ${withConsent} of them with consent on record. It is not dialling; start it from Campaigns.`;
+  }
+
+  if (input.kind === 'workflow') {
+    const template = templateByKey('sales');
+    if (!template)
+      return { ok: false, reason: 'That workflow template is not available.' };
+    const workflowId = `wf_${crypto.randomUUID()}`;
+    await db
+      .prepare(`INSERT INTO workflows
+        (id, organization_id, name, description, trigger_type, status, steps_json, graph_json, template_key)
+        VALUES (?, ?, ?, ?, 'outbound_campaign', 'draft', '[]', ?, ?)`)
+      .bind(
+        workflowId,
+        input.organizationId,
+        template.name,
+        template.flow,
+        JSON.stringify(template.graph),
+        template.key,
+      )
+      .run();
+    targetType = 'workflow';
+    targetId = workflowId;
+    opened = { screen: 'workflows', id: workflowId };
+    detail =
+      'Installed as a draft. Open it, point the object search and queue at your own configuration, then publish.';
+  }
+
+  if (input.kind === 'task') detail = offer.effect;
+
+  await db
+    .prepare(`INSERT INTO growth_actions
+      (id, organization_id, recommendation_id, kind, title, detail, status, target_type, target_id, evidence_json, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?)`)
+    .bind(
+      actionId,
+      input.organizationId,
+      recommendation.id,
+      input.kind,
+      recommendation.title,
+      detail.slice(0, 600),
+      targetType,
+      targetId,
+      JSON.stringify(recommendation.evidence),
+      input.userId,
+    )
+    .run();
+
+  return {
+    ok: true,
+    opened,
+    action: {
+      id: actionId,
+      recommendationId: recommendation.id,
+      kind: input.kind,
+      title: recommendation.title,
+      detail,
+      status: 'open',
+      targetType,
+      targetId,
+      createdAt: new Date().toISOString(),
+      completedAt: null,
+    },
+  };
+}
+
+export async function updateGrowthAction(input: {
+  organizationId: string;
+  actionId: string;
+  status: ExecutionStatus;
+}) {
+  const result = await getRawDb()
+    .prepare(`UPDATE growth_actions SET status = ?,
+      completed_at = CASE WHEN ? = 'done' THEN CURRENT_TIMESTAMP ELSE NULL END
+      WHERE id = ? AND organization_id = ?`)
+    .bind(input.status, input.status, input.actionId, input.organizationId)
+    .run();
+  return { ok: (result.meta?.changes ?? 0) > 0 };
 }

@@ -4,14 +4,25 @@ import { ensureSchema } from '@/db/bootstrap';
 import { requireCustomerPermission } from '@/lib/customer-rbac';
 import {
   askGrowthManager,
+  executeRecommendation,
+  executionContext,
   getChat,
   getRun,
   growthBoard,
   listChats,
+  listGrowthActions,
   listRuns,
   runSiteScan,
   saveDiscovery,
+  updateGrowthAction,
 } from '@/lib/growth-service';
+import {
+  alreadyDone,
+  EXECUTION_STATUSES,
+  offersFor,
+  type ExecutionKind,
+  type ExecutionStatus,
+} from '@/lib/growth-execution';
 import { composeGoalPrompt, workspaceChips } from '@/lib/growth-chat';
 
 export const dynamic = 'force-dynamic';
@@ -42,15 +53,26 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Run not found.' }, { status: 404 });
     return NextResponse.json({ run });
   }
-  const [board, runs, chats] = await Promise.all([
+  const [board, runs, chats, actions, context] = await Promise.all([
     growthBoard(organizationId),
     listRuns(organizationId),
     listChats(organizationId),
+    listGrowthActions(organizationId),
+    executionContext(organizationId),
   ]);
+  // §6's Execution row. Each offer names what it will do in this workspace's
+  // own numbers, and carries the reason when it cannot be done — a hidden
+  // button never answers "why can't I do this?".
+  const offers = board.recommendations.flatMap((recommendation) =>
+    offersFor(recommendation, context),
+  );
   return NextResponse.json({
     ...board,
     runs,
     chats,
+    actions,
+    offers,
+    done: [...alreadyDone(offers, actions)],
     // Composed from what the workspace already told us, so nobody retypes
     // their own business into an empty box every time.
     chips: workspaceChips(board.discovery.answers),
@@ -69,6 +91,10 @@ export async function POST(request: Request) {
     siteUrl?: string;
     question?: string;
     chatId?: string;
+    recommendationId?: string;
+    kind?: string;
+    actionId?: string;
+    status?: string;
   };
   const auth = await requireCustomerPermission(
     request,
@@ -105,6 +131,34 @@ export async function POST(request: Request) {
     // the run happened, it is stored, and the reason is the useful part.
     return NextResponse.json(result);
   }
+  if (body.action === 'execute') {
+    const kind = String(body.kind ?? '');
+    if (!['campaign', 'task', 'workflow'].includes(kind))
+      return NextResponse.json({ error: 'Unknown kind.' }, { status: 400 });
+    const result = await executeRecommendation({
+      organizationId: auth.session.organizationId!,
+      userId: auth.session.userId,
+      recommendationId: String(body.recommendationId ?? ''),
+      kind: kind as ExecutionKind,
+    });
+    // A refusal is a 200 carrying the reason, not a 500: the check ran, and
+    // the reason is the useful part of the answer.
+    return NextResponse.json(result);
+  }
+
+  if (body.action === 'update_action') {
+    const status = String(body.status ?? '');
+    if (!(EXECUTION_STATUSES as readonly string[]).includes(status))
+      return NextResponse.json({ error: 'Unknown status.' }, { status: 400 });
+    return NextResponse.json(
+      await updateGrowthAction({
+        organizationId: auth.session.organizationId!,
+        actionId: String(body.actionId ?? ''),
+        status: status as ExecutionStatus,
+      }),
+    );
+  }
+
   if (body.action !== 'save_discovery')
     return NextResponse.json({ error: 'Unknown action.' }, { status: 400 });
   const state = await saveDiscovery({

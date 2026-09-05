@@ -1023,6 +1023,31 @@ async function bootstrap() {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`),
     // §6's chat and its history. One thread per conversation, messages inside.
+    // What was actually done about a recommendation (§6, Execution). Kept
+    // separate from the campaign or task it created, so the board can say
+    // "you made this a campaign on 5 September" without the recommendation
+    // itself disappearing — the observation behind it stays true until the
+    // numbers move.
+    db.prepare(`CREATE TABLE IF NOT EXISTS growth_actions (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      recommendation_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      title TEXT NOT NULL,
+      detail TEXT DEFAULT '' NOT NULL,
+      status TEXT DEFAULT 'open' NOT NULL,
+      target_type TEXT,
+      target_id TEXT,
+      assigned_to TEXT,
+      due_at TEXT,
+      evidence_json TEXT DEFAULT '[]' NOT NULL,
+      created_by TEXT,
+      completed_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_growth_actions_org ON growth_actions (organization_id, status, created_at)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS growth_chats (
       id TEXT PRIMARY KEY NOT NULL,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,

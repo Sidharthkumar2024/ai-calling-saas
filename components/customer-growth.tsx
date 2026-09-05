@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { DISCOVERY_QUESTIONS, type Confidence } from '@/lib/growth-manager';
+import {
+  actionSummary,
+  type ExecutedAction,
+  type ExecutionOffer,
+} from '@/lib/growth-execution';
 
 /**
  * The AI Business Manager (§6).
@@ -80,6 +85,9 @@ type Board = {
     evidence: string[];
     confidence: Confidence;
   }>;
+  offers?: ExecutionOffer[];
+  actions?: ExecutedAction[];
+  done?: string[];
   sources: {
     connected: string[];
     pending: Array<{ id: string; label: string }>;
@@ -308,10 +316,124 @@ export function CustomerGrowth() {
                   </li>
                 ))}
               </ul>
+              <Execution
+                recommendationId={item.id}
+                offers={(board.offers ?? []).filter(
+                  (offer) => offer.recommendationId === item.id,
+                )}
+                actions={(board.actions ?? []).filter(
+                  (action) => action.recommendationId === item.id,
+                )}
+                onDone={load}
+              />
             </div>
           ))}
         </div>
       </section>
+    </div>
+  );
+}
+
+/**
+ * §6's Execution row: turning a recommendation into work.
+ *
+ * Two rules make this more than a button that files a to-do.
+ *
+ * An offer says exactly what it will do, in this workspace's numbers — "a
+ * draft campaign holding the 12 leads scoring 75 or above" — so nobody has to
+ * click it to find out.
+ *
+ * An offer that cannot be done is shown greyed with the reason rather than
+ * hidden. A missing button never answers "why can't I do this?".
+ *
+ * Acting on advice does not delete the advice: the recommendation stays until
+ * the numbers behind it move, with a line saying what was already done.
+ */
+function Execution({
+  recommendationId,
+  offers,
+  actions,
+  onDone,
+}: {
+  recommendationId: string;
+  offers: ExecutionOffer[];
+  actions: ExecutedAction[];
+  onDone: () => Promise<void> | void;
+}) {
+  const [busy, setBusy] = useState('');
+  const [problem, setProblem] = useState<string | null>(null);
+  if (offers.length === 0 && actions.length === 0) return null;
+  const live = new Set(
+    actions
+      .filter((action) => action.status !== 'dropped')
+      .map((action) => action.kind),
+  );
+
+  async function run(kind: string) {
+    setBusy(kind);
+    setProblem(null);
+    try {
+      const response = await fetch('/api/app/growth', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'execute', recommendationId, kind }),
+      });
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        reason?: string;
+      };
+      if (!payload.ok) setProblem(payload.reason ?? 'That could not be done.');
+      else await onDone();
+    } finally {
+      setBusy('');
+    }
+  }
+
+  return (
+    <div className="mt-2.5 border-t border-hairline pt-2.5">
+      <div className="flex flex-wrap gap-1.5">
+        {offers.map((offer) => (
+          <button
+            key={offer.id}
+            type="button"
+            disabled={
+              Boolean(offer.blockedBy) ||
+              busy === offer.kind ||
+              live.has(offer.kind)
+            }
+            title={offer.blockedBy ?? offer.effect}
+            onClick={() => void run(offer.kind)}
+            className="rounded-full border border-hairline bg-surface px-2.5 py-1 text-[10px] disabled:opacity-45"
+          >
+            {busy === offer.kind
+              ? 'Working…'
+              : live.has(offer.kind)
+                ? `${offer.label} ✓`
+                : offer.label}
+          </button>
+        ))}
+      </div>
+      {/* The effect of each offer is spelled out rather than left to a tooltip:
+          a person deciding whether to create a campaign should not have to
+          hover to learn how many leads go into it. */}
+      {offers.map((offer) => (
+        <p
+          key={`${offer.id}-effect`}
+          className={`mt-1 text-[9px] ${offer.blockedBy ? 'text-warning-text' : 'text-ink-muted'}`}
+        >
+          {offer.blockedBy ?? offer.effect}
+        </p>
+      ))}
+      {actions.map((action) => (
+        <p key={action.id} className="mt-1 text-[9px] text-ink-muted">
+          {actionSummary(action)} {action.detail}
+        </p>
+      ))}
+      {problem ? (
+        <p role="alert" className="mt-1 text-[9px] text-danger-text">
+          {problem}
+        </p>
+      ) : null}
     </div>
   );
 }

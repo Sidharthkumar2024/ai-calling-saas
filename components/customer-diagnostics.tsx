@@ -347,52 +347,85 @@ export function CustomerDiagnostics() {
   /**
    * The speaker test.
    *
-   * Three things were wrong with this, and the third is the one that made it
-   * useless.
+   * Four things were wrong with this, and the last one is why it stayed
+   * broken in Safari after the first three were fixed.
    *
-   * `setSinkId` lives on the AudioContext, not on its `destination` node. It
-   * was read off `destination`, where it is `undefined`, so the guard was
-   * always false: choosing an output device did nothing at all, and said
-   * nothing about it either.
+   * `setSinkId` lives on the AudioContext, not on its `destination` node. Read
+   * off `destination` it is always `undefined`, so choosing an output device
+   * did nothing and never said so.
    *
-   * A browser may hand back a suspended AudioContext. An oscillator started on
-   * a suspended clock makes no sound, which is exactly "I pressed Play and
-   * nothing happened".
+   * A browser may hand back a suspended AudioContext, and an oscillator
+   * started on a suspended clock makes no sound.
    *
-   * And whatever the outcome, the screen said nothing — a spinner for
-   * 700ms and then silence, identical whether the tone played perfectly or
-   * never left the building. A test that cannot tell you which is not a test.
-   * So this measures its own output and reports what it can honestly claim:
-   * that the tone was generated and sent to a named device. Whether a speaker
-   * physically made a noise is what the person's own ears are for, and the
-   * message says so rather than pretending to know.
+   * Whatever happened, the screen said nothing — a spinner and then silence,
+   * identical whether the tone played or never left the building.
+   *
+   * And the one that mattered on Safari: **nothing may be awaited before the
+   * oscillator starts.** A browser only allows audio inside the user gesture
+   * that asked for it, and the first `await` ends that gesture. Awaiting
+   * `resume()` and `setSinkId()` first meant `start()` ran outside it, and
+   * Safari silently produced nothing — while still reporting the context as
+   * running, which is why the screen cheerfully said the tone had been sent.
+   * So the whole graph is built and started synchronously here, and the
+   * asynchronous work happens afterwards.
+   *
+   * StereoPannerNode is gone too, in favour of two gains into a channel
+   * merger: it does exactly the same job for a left/right check and is
+   * supported everywhere without qualification.
    */
   async function playTone(side: 'both' | 'left' | 'right') {
     setBusy(`tone-${side}`);
     setNotice(null);
     let context: AudioContext | null = null;
     try {
-      context = new AudioContext();
-      // A context handed back suspended must be resumed or nothing is heard.
-      if (context.state === 'suspended') {
-        try {
-          await context.resume();
-        } catch {
-          /* reported below from the state, not guessed at here */
-        }
-      }
-      if (context.state !== 'running') {
+      const Ctor =
+        window.AudioContext ??
+        (window as unknown as { webkitAudioContext?: typeof AudioContext })
+          .webkitAudioContext;
+      if (!Ctor) {
         setNotice(
-          'Your browser is holding audio until you interact with the page. Click anywhere on this screen and press Play again.',
+          'This browser has no Web Audio support, so it cannot play a test tone.',
         );
         return;
       }
 
+      // ── Everything from here to oscillator.start() must stay synchronous.
+      context = new Ctor();
+      // resume() returns a promise, but calling it inside the gesture is what
+      // matters; awaiting it is not, and awaiting it here would end the
+      // gesture before the tone starts.
+      void context.resume();
+
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const leftGain = context.createGain();
+      const rightGain = context.createGain();
+      const merger = context.createChannelMerger(2);
+      const analyser = context.createAnalyser();
+      oscillator.frequency.value = 440;
+      leftGain.gain.value = side === 'right' ? 0 : 1;
+      rightGain.gain.value = side === 'left' ? 0 : 1;
+      oscillator.connect(gain);
+      gain.connect(leftGain).connect(merger, 0, 0);
+      gain.connect(rightGain).connect(merger, 0, 1);
+      merger.connect(context.destination);
+      merger.connect(analyser);
+
+      // Faded in and out: a square-edged start and stop is an audible click,
+      // not a tone anybody can judge their headset by.
+      const now = context.currentTime;
+      const level = 0.2;
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(level, now + 0.05);
+      gain.gain.setValueAtTime(level, now + TONE_SECONDS - 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + TONE_SECONDS);
+      oscillator.start();
+      oscillator.stop(now + TONE_SECONDS);
+      // ── The gesture has done its job. Awaiting is safe from here.
+
       let deviceLabel =
         outputs.find((device) => device.deviceId === outputId)?.label ??
         t('diag.systemDefault');
-      // setSinkId is on the context itself. Read off `destination` it is
-      // always undefined, which is why picking a device never did anything.
       const switchable = context as unknown as {
         setSinkId?: (id: string) => Promise<void>;
       };
@@ -409,32 +442,11 @@ export function CustomerDiagnostics() {
         } else {
           deviceLabel = t('diag.systemDefault');
           setNotice(
-            'This browser cannot send audio to a chosen output device, so the system default was used.',
+            'This browser cannot send audio to a chosen output device, so the system default was used. Safari is one of them — change the output in macOS Sound settings instead.',
           );
         }
       }
 
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
-      const panner = context.createStereoPanner();
-      const analyser = context.createAnalyser();
-      oscillator.frequency.value = 440;
-      panner.pan.value = side === 'left' ? -1 : side === 'right' ? 1 : 0;
-      oscillator.connect(gain).connect(panner).connect(context.destination);
-      // Tapped after the panner so the measurement is of what actually goes
-      // to the output, panning included.
-      panner.connect(analyser);
-
-      // Faded in and out. A square-edged start and stop is an audible click,
-      // and a click is not a tone you can judge your headset by.
-      const now = context.currentTime;
-      const level = 0.18;
-      gain.gain.setValueAtTime(0.0001, now);
-      gain.gain.exponentialRampToValueAtTime(level, now + 0.04);
-      gain.gain.setValueAtTime(level, now + TONE_SECONDS - 0.06);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + TONE_SECONDS);
-
-      oscillator.start();
       await new Promise((resolve) =>
         setTimeout(resolve, (TONE_SECONDS / 2) * 1000),
       );
@@ -442,19 +454,26 @@ export function CustomerDiagnostics() {
       analyser.getFloatTimeDomainData(samples);
       let peak = 0;
       for (const sample of samples) peak = Math.max(peak, Math.abs(sample));
+      const state = context.state;
       await new Promise((resolve) =>
         setTimeout(resolve, (TONE_SECONDS / 2) * 1000),
       );
-      oscillator.stop();
 
+      // The two faults this screen can genuinely tell apart, rather than
+      // claiming the tone was delivered and leaving the person to wonder.
+      if (state !== 'running') {
+        setNotice(
+          `Your browser kept audio ${state}, so nothing was played. Click anywhere on this page first, then press Play again.`,
+        );
+        return;
+      }
       if (peak < 0.001) {
-        // The tone never reached the output graph. That is a fault this screen
-        // can genuinely detect, as opposed to a silent speaker.
         setNotice(
           'The tone was built but no audio came out of it. Something in this browser is blocking audio playback.',
         );
         return;
       }
+
       const where =
         side === 'both'
           ? 'both ears'

@@ -2047,6 +2047,55 @@ async function bootstrap() {
   await ensureColumn(db, 'report_runs', 'delivery_state', 'TEXT');
   await ensureColumn(db, 'report_runs', 'delivered_to', 'TEXT');
 
+  // The embeddable web voice widget (§8). `allowed_origins_json` and the two
+  // caps are not configuration niceties: this widget is reachable by a public
+  // endpoint that starts calls, and those three columns are what stands
+  // between it and somebody emptying a customer's wallet with curl.
+  await db
+    .prepare(`CREATE TABLE IF NOT EXISTS web_widgets (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      agent_id TEXT REFERENCES voice_agents(id) ON DELETE SET NULL,
+      public_key TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      status TEXT DEFAULT 'paused' NOT NULL,
+      allowed_origins_json TEXT DEFAULT '[]' NOT NULL,
+      modes_json TEXT DEFAULT '["voice","callback"]' NOT NULL,
+      branding_json TEXT DEFAULT '{}' NOT NULL,
+      daily_cap INTEGER DEFAULT 200 NOT NULL,
+      hourly_cap INTEGER DEFAULT 40 NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`)
+    .run();
+  await db
+    .prepare(
+      `CREATE INDEX IF NOT EXISTS idx_web_widgets_org ON web_widgets (organization_id, status)`,
+    )
+    .run();
+  // Every attempt, allowed or refused, with the reason. A widget that stopped
+  // answering must be diagnosable without guessing, and a refusal nobody
+  // recorded is a support ticket with no evidence in it.
+  await db
+    .prepare(`CREATE TABLE IF NOT EXISTS web_widget_sessions (
+      id TEXT PRIMARY KEY NOT NULL,
+      widget_id TEXT NOT NULL REFERENCES web_widgets(id) ON DELETE CASCADE,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      call_id TEXT,
+      lead_id TEXT,
+      mode TEXT NOT NULL,
+      origin TEXT,
+      outcome TEXT DEFAULT 'started' NOT NULL,
+      refusal_code TEXT,
+      page_url TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`)
+    .run();
+  await db
+    .prepare(
+      `CREATE INDEX IF NOT EXISTS idx_web_widget_sessions ON web_widget_sessions (widget_id, created_at)`,
+    )
+    .run();
+
   // Mined playbooks (§13.1). Entries start as proposals: §13.1 puts "Human
   // reviews" between the mining and any use of it, and nothing here reaches a
   // live call until somebody approves that row.

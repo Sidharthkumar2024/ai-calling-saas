@@ -1,4 +1,5 @@
 'use client';
+
 /* oxlint-disable jsx-a11y/media-has-caption -- call transcripts and QA summaries are available beside authenticated recordings */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -46,6 +47,13 @@ import { CustomerImport } from '@/components/customer-import';
 import { SupervisorMonitor } from '@/components/supervisor-monitor';
 import { useT } from '@/components/locale-provider';
 import type { TranslationKey } from '@/lib/i18n';
+import {
+  describeSchedule,
+  isReportSchedule,
+  MAX_RECIPIENTS,
+  nextRunAt,
+  REPORT_SCHEDULES,
+} from '@/lib/report-schedules';
 
 export type OperationsData = {
   campaigns: Record<string, unknown>[];
@@ -76,7 +84,6 @@ export type OperationsModule =
   | 'campaigns'
   | 'sip_trunks'
   | 'knowledge'
-  | 'workflows'
   | 'graph_agents'
   | 'call_history'
   | 'live_monitor'
@@ -122,12 +129,6 @@ const resourceMap = {
     key: 'knowledgeBases',
     action: 'create_knowledge_base',
     icon: BookOpenText,
-  },
-  workflows: {
-    i18n: 'workflows',
-    key: 'workflows',
-    action: 'create_workflow',
-    icon: Workflow,
   },
   graph_agents: {
     i18n: 'graph_agents',
@@ -194,18 +195,8 @@ function ResourceModule({
           description: 'Approved product and support content',
           language: 'Hindi + English + Haryanvi',
         });
-      if (module === 'workflows')
-        Object.assign(payload, {
-          triggerType: 'call.completed',
-          steps: ['check_consent', 'update_crm', 'send_follow_up'],
-        });
       if (module === 'alerts')
         Object.assign(payload, { metric: 'call_failure_rate', threshold: 10 });
-      if (module === 'reports')
-        Object.assign(payload, {
-          reportType: 'call_performance',
-          schedule: 'weekly',
-        });
     }
     try {
       await mutate(payload);
@@ -253,7 +244,7 @@ function ResourceModule({
   }
 
   const hasStructuredCreator =
-    module === 'campaigns' || module === 'sip_trunks' || module === 'workflows';
+    module === 'campaigns' || module === 'sip_trunks' || module === 'reports';
   return (
     <div className="space-y-6">
       <Header
@@ -400,7 +391,7 @@ function OperationsCreator({
   loading,
   submit,
 }: {
-  module: 'campaigns' | 'sip_trunks' | 'workflows';
+  module: 'campaigns' | 'sip_trunks' | 'reports';
   data: OperationsData;
   open: boolean;
   setOpen: (open: boolean) => void;
@@ -437,10 +428,11 @@ function OperationsCreator({
     mediaEncryption: 'sdes',
     codecs: 'PCMU, PCMA',
   });
-  const [workflow, setWorkflow] = useState({
+  const [report, setReport] = useState({
     name: '',
-    triggerType: 'call.completed',
-    steps: 'check_consent, update_crm, send_follow_up',
+    reportType: 'call_performance',
+    schedule: 'weekly',
+    recipients: '',
   });
 
   async function create() {
@@ -474,10 +466,10 @@ function OperationsCreator({
       return;
     }
     await submit({
-      action: 'create_workflow',
-      ...workflow,
-      steps: workflow.steps
-        .split(',')
+      action: 'create_report',
+      ...report,
+      recipients: report.recipients
+        .split(/[\n,;]/)
         .map((item) => item.trim())
         .filter(Boolean),
     });
@@ -492,14 +484,14 @@ function OperationsCreator({
               ? 'Create outbound campaign'
               : module === 'sip_trunks'
                 ? 'Register SIP trunk'
-                : 'Create workflow'}
+                : 'Create report'}
           </DialogTitle>
           <DialogDescription className="text-xs leading-5 text-ink-muted">
             {module === 'campaigns'
               ? 'Configure the agent, workflow version, consent-aware contacts, retry policy and legal calling window.'
               : module === 'sip_trunks'
                 ? 'Credentials are encrypted before storage. Activation remains locked until the connectivity test passes.'
-                : 'Define the event and ordered, auditable actions this workflow may execute.'}
+                : 'Choose what it measures, how often it runs, and who receives it.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -767,44 +759,64 @@ function OperationsCreator({
           </div>
         ) : null}
 
-        {module === 'workflows' ? (
-          <div className="grid gap-5 p-6">
-            <CreatorField label={t('field.workflowName')}>
+        {module === 'reports' ? (
+          <div className="grid gap-5 p-6 sm:grid-cols-2">
+            <CreatorField label="Report name">
               <Input
-                value={workflow.name}
+                value={report.name}
                 onChange={(event) =>
-                  setWorkflow({ ...workflow, name: event.target.value })
+                  setReport({ ...report, name: event.target.value })
                 }
-                placeholder="Payment-link follow-up"
+                placeholder="Weekly call performance"
               />
             </CreatorField>
-            <CreatorField label={t('field.trigger')}>
+            <CreatorField label="What it reports on">
               <select
-                value={workflow.triggerType}
+                value={report.reportType}
                 onChange={(event) =>
-                  setWorkflow({ ...workflow, triggerType: event.target.value })
+                  setReport({ ...report, reportType: event.target.value })
                 }
               >
-                <option value="call.completed">Call completed</option>
-                <option value="lead.qualified">Lead qualified</option>
-                <option value="payment_link.requested">
-                  Payment link requested
-                </option>
-                <option value="appointment.booked">Appointment booked</option>
-                <option value="credit.low">Credit balance low</option>
+                <option value="call_performance">Call performance</option>
+                <option value="agent_productivity">Agent productivity</option>
+                <option value="lead_conversion">Lead conversion</option>
+                <option value="campaign_outcomes">Campaign outcomes</option>
+                <option value="spend">Spend</option>
               </select>
             </CreatorField>
-            <CreatorField label={t('field.orderedSteps')}>
-              <Input
-                value={workflow.steps}
+            <CreatorField label="How often">
+              <select
+                value={report.schedule}
                 onChange={(event) =>
-                  setWorkflow({ ...workflow, steps: event.target.value })
+                  setReport({ ...report, schedule: event.target.value })
                 }
+              >
+                {REPORT_SCHEDULES.map((option) => (
+                  <option key={option} value={option}>
+                    {describeSchedule(option)}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-2 text-[9px] text-ink-muted">
+                {/* The cadence used to be a free-text field that ran daily
+                    whatever it said. It is a closed set now, and the scheduler
+                    honours it. */}
+                A report that has never run goes out on the next cron tick, so a
+                weekly report does not sit idle for a week before its first one.
+              </p>
+            </CreatorField>
+            <CreatorField label="Email it to">
+              <Input
+                value={report.recipients}
+                onChange={(event) =>
+                  setReport({ ...report, recipients: event.target.value })
+                }
+                placeholder="ops@yourcompany.com, finance@yourcompany.com"
               />
               <p className="mt-2 text-[9px] text-ink-muted">
-                Available: check_consent, update_crm, send_whatsapp,
-                create_payment_link, schedule_follow_up, sync_retargeting,
-                notify_human.
+                Up to {MAX_RECIPIENTS}. Leave it empty and the report is
+                generated for download only — it will say so rather than
+                implying it was sent.
               </p>
             </CreatorField>
           </div>
@@ -838,7 +850,7 @@ function OperationsCreator({
               ? 'Create draft campaign'
               : module === 'sip_trunks'
                 ? 'Save encrypted configuration'
-                : 'Create draft workflow'}
+                : 'Create report'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -2471,7 +2483,11 @@ function resourceDescription(module: string, row: Record<string, unknown>) {
     return `${str(row.attempted, '0')} of ${str(row.audience_size, '0')} contacts attempted`;
   if (module === 'alerts')
     return `${str(row.metric).replaceAll('_', ' ')} ${str(row.comparator)} ${str(row.threshold)}`;
-  return `${str(row.report_type).replaceAll('_', ' ')} · ${str(row.schedule)}`;
+  const schedule = str(row.schedule, 'manual');
+  const cadence = isReportSchedule(schedule)
+    ? describeSchedule(schedule)
+    : `${schedule} — not a schedule this build runs`;
+  return `${str(row.report_type).replaceAll('_', ' ')} · ${cadence}`;
 }
 function resourceFacts(module: string, row: Record<string, unknown>) {
   if (module === 'campaigns')
@@ -2504,9 +2520,22 @@ function resourceFacts(module: string, row: Record<string, unknown>) {
       ['Window', `${str(row.window_minutes)} min`],
       ['Frequency', `${str(row.frequency_minutes)} min`],
     ];
+  const schedule = str(row.schedule, 'manual');
+  const next = isReportSchedule(schedule)
+    ? nextRunAt({
+        schedule,
+        lastGeneratedAt: str(row.last_generated_at, '') || null,
+      })
+    : null;
+  const recipients = safeArray(row.recipients_json);
   return [
-    ['Schedule', str(row.schedule)],
-    ['Last generated', str(row.last_generated_at, 'Not yet')],
+    // "Not yet" was the whole story before; a scheduled report that has never
+    // gone out and one that goes out tonight looked identical.
+    ['Next run', next ? next.toLocaleString('en-IN') : 'Only when you ask'],
+    [
+      'Emailed to',
+      recipients.length ? recipients.join(', ') : 'Nobody — download only',
+    ],
   ];
 }
 function safeArray(value: unknown) {

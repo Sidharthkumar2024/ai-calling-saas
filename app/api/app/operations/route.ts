@@ -7,6 +7,11 @@ import { encryptSecret } from '@/lib/security';
 import { SUPPORTED_LANGUAGE_CODES } from '@/lib/languages';
 import { checkPlanLimit } from '@/lib/plan-limits';
 import { runReportNow } from '@/lib/job-queue';
+import {
+  checkRecipients,
+  isReportSchedule,
+  REPORT_SCHEDULES,
+} from '@/lib/report-schedules';
 import { dialCampaign } from '@/lib/campaign-dialer';
 import {
   type CustomerPermission,
@@ -466,15 +471,28 @@ export async function POST(request: Request) {
       .run();
   } else if (action === 'create_report') {
     if (!name) return invalid('Report name is required.');
+    // `schedule` used to be any string clipped to forty characters, so
+    // "fortnightly" saved happily and then ran daily like everything else.
+    const schedule = clean(body.schedule, 40) || 'manual';
+    if (!isReportSchedule(schedule))
+      return invalid(`Schedule must be one of ${REPORT_SCHEDULES.join(', ')}.`);
+    const recipients = checkRecipients(body.recipients);
+    if (recipients.rejected.length > 0)
+      return invalid(
+        `These recipients were not accepted: ${recipients.rejected
+          .map((entry) => `${entry.value} (${entry.reason})`)
+          .join('; ')}`,
+      );
     await db
-      .prepare(`INSERT INTO report_definitions (id, organization_id, name, report_type, schedule, filters_json, status)
-      VALUES (?, ?, ?, ?, ?, '{}', 'active')`)
+      .prepare(`INSERT INTO report_definitions (id, organization_id, name, report_type, schedule, filters_json, recipients_json, status)
+      VALUES (?, ?, ?, ?, ?, '{}', ?, 'active')`)
       .bind(
         id,
         organizationId,
         name,
         clean(body.reportType, 80) || 'call_performance',
-        clean(body.schedule, 40) || 'manual',
+        schedule,
+        JSON.stringify(recipients.valid),
       )
       .run();
   } else if (action === 'set_campaign_status') {

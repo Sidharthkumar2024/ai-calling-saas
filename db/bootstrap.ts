@@ -2035,6 +2035,18 @@ async function bootstrap() {
   await ensureColumn(db, 'workflow_run_steps', 'node_id', 'TEXT');
   await ensureColumn(db, 'workflow_run_steps', 'branch', 'TEXT');
 
+  // Scheduled reports (§6): who receives one, and what actually happened to
+  // the delivery. `sandbox` has to be distinguishable from `sent`, or a
+  // workspace will believe its Monday report is landing in an inbox.
+  await ensureColumn(
+    db,
+    'report_definitions',
+    'recipients_json',
+    "TEXT DEFAULT '[]'",
+  );
+  await ensureColumn(db, 'report_runs', 'delivery_state', 'TEXT');
+  await ensureColumn(db, 'report_runs', 'delivered_to', 'TEXT');
+
   // The two demo workflows above are INSERT OR IGNORE, so a database seeded by
   // the earlier build still holds their invented step lists and run counts.
   // Repair those rows only — never a workflow somebody wrote.

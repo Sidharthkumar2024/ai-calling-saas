@@ -13,6 +13,14 @@ export { enqueueJob };
 import { sendWhatsAppPaymentLink } from '@/lib/commerce';
 import { decryptSecret } from '@/lib/security';
 import { executeGraph, parseGraph } from '@/lib/workflow-engine';
+import {
+  checkRecipients,
+  isDue,
+  isReportSchedule,
+  type DeliveryState,
+  type ReportSchedule,
+} from '@/lib/report-schedules';
+import { sendTransactionalEmail } from '@/lib/commerce';
 import { env } from 'cloudflare:workers';
 
 type JobRow = {
@@ -81,25 +89,60 @@ export async function enqueueMaintenanceJobs() {
       priority: 180,
     });
   }
+  // Every active scheduled report is read, and the cadence decides. This used
+  // to ask for anything older than one day whatever its schedule said, so a
+  // report set to monthly ran daily and the schedule column was decoration.
   const reports = await getRawDb()
-    .prepare(`SELECT id, organization_id FROM report_definitions
-    WHERE status = 'active' AND schedule != 'manual'
-      AND (last_generated_at IS NULL OR last_generated_at < datetime('now','-1 day'))`)
-    .all<{ id: string; organization_id: string }>();
+    .prepare(`SELECT id, organization_id, schedule, last_generated_at FROM report_definitions
+    WHERE status = 'active' AND schedule != 'manual'`)
+    .all<{
+      id: string;
+      organization_id: string;
+      schedule: string;
+      last_generated_at: string | null;
+    }>();
+  const now = new Date();
+  let dueReports = 0;
   for (const report of reports.results) {
+    // A schedule this build does not recognise is left alone rather than run
+    // on a guessed cadence.
+    if (!isReportSchedule(report.schedule)) continue;
+    if (
+      !isDue({
+        schedule: report.schedule,
+        lastGeneratedAt: report.last_generated_at,
+        now,
+      })
+    )
+      continue;
+    dueReports += 1;
     await enqueueJob({
       organizationId: report.organization_id,
       queue: 'reports',
       type: 'report.generate',
-      idempotencyKey: `report:${report.id}:${day}`,
+      // Keyed by the cadence's own period, so a weekly report cannot be
+      // queued twice in one week by two cron ticks.
+      idempotencyKey: `report:${report.id}:${periodKey(report.schedule, now)}`,
       payload: { reportId: report.id },
       priority: 150,
     });
   }
   return {
     organizations: organizations.results.length,
-    reports: reports.results.length,
+    reports: dueReports,
   };
+}
+
+/**
+ * The period a run belongs to, for idempotency. Daily is the calendar day,
+ * weekly the ISO-ish week bucket, monthly the calendar month.
+ */
+function periodKey(schedule: ReportSchedule, now: Date): string {
+  const iso = now.toISOString();
+  if (schedule === 'daily') return iso.slice(0, 10);
+  if (schedule === 'monthly') return iso.slice(0, 7);
+  const week = Math.floor(now.getTime() / (7 * 86_400_000));
+  return `w${week}`;
 }
 
 export async function processJobs(input?: {
@@ -263,7 +306,7 @@ async function generateReport(job: JobRow, payload: Record<string, unknown>) {
 export async function runReportNow(organizationId: string, reportId: string) {
   const db = getRawDb();
   const definition = await db
-    .prepare(`SELECT id, name, report_type, filters_json FROM report_definitions
+    .prepare(`SELECT id, name, report_type, filters_json, recipients_json FROM report_definitions
       WHERE id = ? AND organization_id = ? AND status = 'active' LIMIT 1`)
     .bind(reportId, organizationId)
     .first<{
@@ -271,6 +314,7 @@ export async function runReportNow(organizationId: string, reportId: string) {
       name: string;
       report_type: string;
       filters_json: string;
+      recipients_json: string | null;
     }>();
   if (!definition) throw new Error('Active report was not found.');
 
@@ -316,13 +360,115 @@ export async function runReportNow(organizationId: string, reportId: string) {
       )`)
     .bind(reportId, reportId)
     .run();
+  const delivery = await deliverReport({
+    organizationId,
+    definition,
+    runId,
+    rows: built.rows.length,
+    summary: built.summary,
+  });
+
   return {
     reportId,
     runId,
     generated: true,
     rows: built.rows.length,
     bytes: new TextEncoder().encode(csv).length,
+    delivery: delivery.state,
+    recipients: delivery.count,
   };
+}
+
+/**
+ * Emails a finished report to its recipients (§6).
+ *
+ * A scheduled report that generates and then sits in a table is a report
+ * nobody reads. The three outcomes are kept apart on purpose: `sent` means an
+ * email provider accepted it, `sandbox` means no provider is connected and
+ * nothing left the building, and `failed` means the provider refused. A
+ * workspace must be able to tell the difference, or it will believe its Monday
+ * report is landing somewhere it is not.
+ *
+ * The CSV is not attached. It can be large and it is already downloadable, so
+ * the email carries the summary and points at the run.
+ */
+async function deliverReport(input: {
+  organizationId: string;
+  definition: { id: string; name: string; recipients_json?: string | null };
+  runId: string;
+  rows: number;
+  summary: Record<string, unknown>;
+}): Promise<{ state: DeliveryState; count: number }> {
+  const db = getRawDb();
+  const { valid } = checkRecipients(safeList(input.definition.recipients_json));
+  if (valid.length === 0) {
+    await db
+      .prepare(
+        `UPDATE report_runs SET delivery_state = 'no_recipients' WHERE id = ?`,
+      )
+      .bind(input.runId)
+      .run();
+    return { state: 'no_recipients', count: 0 };
+  }
+
+  const lines = Object.entries(input.summary)
+    .map(
+      ([key, value]) =>
+        `<li>${escapeHtml(key)}: ${escapeHtml(summaryText(value))}</li>`,
+    )
+    .join('');
+  const html = `<p>${escapeHtml(input.definition.name)} — ${input.rows} row${input.rows === 1 ? '' : 's'}.</p><ul>${lines}</ul><p>Open Reports in Vaani to download the CSV.</p>`;
+
+  let state: DeliveryState = 'sent';
+  for (const to of valid) {
+    try {
+      const result = await sendTransactionalEmail({
+        organizationId: input.organizationId,
+        to,
+        subject: `${input.definition.name} — ${input.rows} rows`,
+        html,
+      });
+      if (result.status === 'sandbox_delivered' && state === 'sent')
+        state = 'sandbox';
+    } catch {
+      state = 'failed';
+    }
+  }
+  await db
+    .prepare(
+      `UPDATE report_runs SET delivery_state = ?, delivered_to = ? WHERE id = ?`,
+    )
+    .bind(state, valid.join(', ').slice(0, 500), input.runId)
+    .run();
+  return { state, count: valid.length };
+}
+
+function safeList(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed)
+      ? parsed.map((entry: unknown) => (typeof entry === 'string' ? entry : ''))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Summary values are numbers as often as strings; objects never appear there. */
+function summaryText(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean')
+    return String(value);
+  return '—';
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 /** One query per report type, each over real tenant data. */

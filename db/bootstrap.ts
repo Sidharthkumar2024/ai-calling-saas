@@ -2062,6 +2062,27 @@ async function bootstrap() {
     'INTEGER DEFAULT 0 NOT NULL',
   );
 
+  // Every publish of an agent, kept so a change can be undone (Part 2.1).
+  // Editing used to overwrite in place: there was no way back to what the
+  // agent said yesterday, and no record that anything had changed.
+  await db
+    .prepare(`CREATE TABLE IF NOT EXISTS agent_versions (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      agent_id TEXT NOT NULL REFERENCES voice_agents(id) ON DELETE CASCADE,
+      version INTEGER NOT NULL,
+      snapshot_json TEXT NOT NULL,
+      note TEXT,
+      created_by TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`)
+    .run();
+  await db
+    .prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_versions_number ON agent_versions (agent_id, version)`,
+    )
+    .run();
+
   // Documents that arrive from outside (Part 3). WhatsApp is the transport;
   // the business copy lives in our own storage, because provider media is not
   // guaranteed to stay fetchable.

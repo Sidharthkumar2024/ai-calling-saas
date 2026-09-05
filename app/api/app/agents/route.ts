@@ -1,9 +1,24 @@
 import { NextResponse } from 'next/server';
 
+import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { requireCustomer } from '@/lib/api-session';
 import { recordAudit } from '@/lib/demo-seed';
 import { requireCustomerPermission } from '@/lib/customer-rbac';
+import {
+  allowedTransitions,
+  canTransition,
+  isAgentState,
+  LIVE_STATE,
+  publishReadiness,
+  STATE_LABEL,
+} from '@/lib/agent-lifecycle';
+import {
+  cloneAgent,
+  listVersions,
+  restoreVersion,
+  snapshotAgent,
+} from '@/lib/agent-versions';
 
 export const dynamic = 'force-dynamic';
 
@@ -160,6 +175,14 @@ export async function PATCH(request: Request) {
       { status: 400 },
     );
   }
+  // Snapshot before the change, so the stored version is the configuration
+  // being replaced — the thing somebody rolling back actually wants.
+  await snapshotAgent({
+    organizationId: auth.session.organizationId!,
+    agentId: body.id,
+    note: 'Before an edit',
+    userId: auth.session.userId,
+  });
   const result = await getRawDb()
     .prepare(`UPDATE voice_agents SET
       name = ?, use_case = ?, welcome_message = ?, system_prompt = ?, primary_language = ?,
@@ -191,4 +214,167 @@ export async function PATCH(request: Request) {
   }
   await recordAudit(auth.session, 'agent.updated', 'voice_agent', body.id);
   return NextResponse.json({ updated: true });
+}
+
+/**
+ * The agent lifecycle (Part 2.1): state changes, versions, rollback, clone.
+ *
+ * Separate from PATCH on purpose. PATCH changes what an agent says; this
+ * changes whether it is allowed to say it to a customer, and the two want
+ * different guards.
+ */
+export async function PUT(request: Request) {
+  const auth = await requireCustomerPermission(request, 'agents.manage');
+  if (auth.response) return auth.response;
+  await ensureSchema();
+  const organizationId = auth.session.organizationId!;
+  const db = getRawDb();
+  const body = (await request.json()) as {
+    action?: string;
+    agentId?: string;
+    status?: string;
+    version?: number;
+  };
+  const agentId = String(body.agentId ?? '');
+
+  const agent = await db
+    .prepare(`SELECT id, name, status, system_prompt, welcome_message, primary_language,
+        voice_name, voice_profile_id, tools_json
+      FROM voice_agents WHERE id = ? AND organization_id = ? LIMIT 1`)
+    .bind(agentId, organizationId)
+    .first<{
+      id: string;
+      name: string;
+      status: string;
+      system_prompt: string | null;
+      welcome_message: string | null;
+      primary_language: string | null;
+      voice_name: string | null;
+      voice_profile_id: string | null;
+      tools_json: string | null;
+    }>();
+  if (!agent)
+    return NextResponse.json({ error: 'Agent not found.' }, { status: 404 });
+
+  if (body.action === 'versions')
+    return NextResponse.json({
+      versions: await listVersions(organizationId, agentId),
+      state: agent.status,
+      readiness: publishReadiness({
+        name: agent.name,
+        systemPrompt: agent.system_prompt,
+        welcomeMessage: agent.welcome_message,
+        primaryLanguage: agent.primary_language,
+        voiceName: agent.voice_name,
+        voiceProfileId: agent.voice_profile_id,
+        tools: safeTools(agent.tools_json),
+      }),
+      allowed: isAgentState(agent.status)
+        ? allowedTransitions(agent.status)
+        : ['draft'],
+    });
+
+  if (body.action === 'clone') {
+    const cloned = await cloneAgent({ organizationId, agentId });
+    if (!cloned.ok)
+      return NextResponse.json({ error: cloned.reason }, { status: 400 });
+    await recordAudit(
+      auth.session,
+      'agent.cloned',
+      'voice_agent',
+      cloned.agentId,
+      {
+        from: agentId,
+      },
+    );
+    return NextResponse.json(cloned);
+  }
+
+  if (body.action === 'restore') {
+    const result = await restoreVersion({
+      organizationId,
+      agentId,
+      version: Number(body.version),
+      userId: auth.session.userId,
+    });
+    if (result.ok)
+      await recordAudit(
+        auth.session,
+        'agent.restored',
+        'voice_agent',
+        agentId,
+        {
+          version: body.version,
+          changed: result.changed,
+        },
+      );
+    return NextResponse.json(result);
+  }
+
+  if (body.action === 'set_state') {
+    const from = isAgentState(agent.status) ? agent.status : 'draft';
+    const to = body.status;
+    if (!isAgentState(to))
+      return NextResponse.json({ error: 'Unknown state.' }, { status: 400 });
+    if (!canTransition(from, to))
+      return NextResponse.json(
+        {
+          ok: false,
+          reason: `An agent that is ${STATE_LABEL[from].toLowerCase()} cannot go straight to ${STATE_LABEL[to].toLowerCase()}.`,
+        },
+        { status: 200 },
+      );
+
+    // Going live is gated on readiness, not on a button being enabled. The
+    // screen can be wrong or stale; this cannot.
+    if (to === LIVE_STATE) {
+      const readiness = publishReadiness({
+        name: agent.name,
+        systemPrompt: agent.system_prompt,
+        welcomeMessage: agent.welcome_message,
+        primaryLanguage: agent.primary_language,
+        voiceName: agent.voice_name,
+        voiceProfileId: agent.voice_profile_id,
+        tools: safeTools(agent.tools_json),
+      });
+      if (!readiness.ready)
+        return NextResponse.json({
+          ok: false,
+          reason: `This agent still needs ${readiness.missing.join(', ')}.`,
+          missing: readiness.missing,
+        });
+      await snapshotAgent({
+        organizationId,
+        agentId,
+        note: 'Published',
+        userId: auth.session.userId,
+      });
+    }
+
+    await db
+      .prepare(
+        `UPDATE voice_agents SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND organization_id = ?`,
+      )
+      .bind(to, agentId, organizationId)
+      .run();
+    await recordAudit(auth.session, `agent.${to}`, 'voice_agent', agentId, {
+      from,
+    });
+    return NextResponse.json({ ok: true, status: to });
+  }
+
+  return NextResponse.json({ error: 'Unknown action.' }, { status: 400 });
+}
+
+function safeTools(raw: string | null): string[] {
+  try {
+    const parsed = JSON.parse(raw || '[]') as unknown;
+    return Array.isArray(parsed)
+      ? parsed.filter(
+          (entry: unknown): entry is string => typeof entry === 'string',
+        )
+      : [];
+  } catch {
+    return [];
+  }
 }

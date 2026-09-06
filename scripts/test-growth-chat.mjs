@@ -6,6 +6,7 @@ import {
   composeGoalPrompt,
   recentTurns,
   workspaceChips,
+  answerLanguageRule,
 } from '../lib/growth-chat.ts';
 
 let passed = 0;
@@ -213,6 +214,45 @@ check('a short thread is untouched, and nothing is a throw', () => {
   assert.equal(recentTurns([{ role: 'user', content: 'a' }]).length, 1);
   assert.deepEqual(recentTurns([]), []);
   assert.deepEqual(recentTurns(undefined), []);
+});
+
+// A Hinglish question came back in **Urdu** before this rule existed: Roman
+// script Hindi looks close enough to romanised Urdu that a model with no
+// instruction picks either, and an Indian business owner cannot read the
+// Arabic script.
+check('the workspace language is named, with its script', () => {
+  const rule = answerLanguageRule('hinglish');
+  assert.match(rule, /Answer in Hinglish/);
+  assert.match(rule, /Devanagari/);
+});
+
+check('Urdu is ruled out by name rather than left to inference', () => {
+  assert.match(
+    answerLanguageRule('hinglish'),
+    /Roman-script Hindi is Hinglish, not Urdu/,
+  );
+  assert.match(answerLanguageRule('hi-IN'), /do not reply in Arabic script/);
+});
+
+check('but a workspace that chose Urdu still gets Urdu', () => {
+  const rule = answerLanguageRule('ur-IN');
+  assert.match(rule, /Answer in Urdu/);
+});
+
+check('each language brings its own script', () => {
+  assert.match(answerLanguageRule('hi-IN'), /written in Devanagari/);
+  assert.match(answerLanguageRule('ta-IN'), /written in Tamil/);
+  assert.match(answerLanguageRule('en-IN'), /written in Latin/);
+});
+
+check('an unknown or missing language falls back rather than going silent', () => {
+  assert.match(answerLanguageRule('kl-KL'), /Answer in Hinglish/);
+  assert.match(answerLanguageRule(null), /Answer in Hinglish/);
+  assert.match(answerLanguageRule(undefined), /Answer in Hinglish/);
+});
+
+check('product nouns people say in English stay in English', () => {
+  assert.match(answerLanguageRule('hi-IN'), /campaign, credits, CRM/);
 });
 
 console.log(`\n${passed} assertions passed.`);

@@ -3,6 +3,7 @@ import {
   type DiscoveryAnswers,
   type Observation,
 } from './growth-manager.ts';
+import { SUPPORTED_LANGUAGES } from './languages.ts';
 
 /**
  * The growth manager's chat (§6).
@@ -186,6 +187,33 @@ Rules you do not break:
 - Prefer one specific action this business can take on a named page or a named call outcome over general advice that would fit anybody.
 - If the honest answer is that there is not enough data yet, give that answer and say what would produce it. That is a useful reply, not a failure.
 - Be brief. A few sentences and at most a short list.`;
+
+/**
+ * Which language and script to answer in.
+ *
+ * Left unsaid, this reply came back in **Urdu** to a question typed in
+ * Hinglish — Roman-script Hindi looks close enough to romanised Urdu that a
+ * model with no instruction will pick either. An Indian business owner cannot
+ * read the Arabic script, so the answer was worthless however good its content.
+ *
+ * `lib/languages.ts` already carries the script for every language it
+ * supports, and says in its own comment why it is named explicitly. The voice
+ * agent uses it. This did not.
+ */
+export function answerLanguageRule(code: string | null | undefined): string {
+  const language =
+    SUPPORTED_LANGUAGES.find((entry) => entry.code === code) ??
+    SUPPORTED_LANGUAGES.find((entry) => entry.code === 'hinglish')!;
+  return [
+    '',
+    'Language:',
+    `- Answer in ${language.label}, written in ${language.script}.`,
+    // The failure was picking a neighbouring language, so it is ruled out by
+    // name rather than left to inference.
+    '- Never answer in a language the business did not ask for. Roman-script Hindi is Hinglish, not Urdu; do not reply in Arabic script unless the language above is Urdu.',
+    '- Keep product nouns people say in English — campaign, credits, CRM, lead, workflow — in English.',
+  ].join('\n');
+}
 
 export type ChatMessage = { role: 'user' | 'assistant'; content: string };
 

@@ -422,8 +422,12 @@ export async function askGrowthManager(input: {
   question: string;
 }) {
   const db = getRawDb();
-  const { buildChatContext, CHAT_SYSTEM_PROMPT, recentTurns } =
-    await import('@/lib/growth-chat');
+  const {
+    answerLanguageRule,
+    buildChatContext,
+    CHAT_SYSTEM_PROMPT,
+    recentTurns,
+  } = await import('@/lib/growth-chat');
   const { reasonWithTools } = await import('@/lib/provider-adapters');
 
   const board = await growthBoard(input.organizationId);
@@ -453,6 +457,14 @@ export async function askGrowthManager(input: {
       return [];
     }
   };
+
+  const settings = await db
+    .prepare(
+      `SELECT default_language FROM organization_settings WHERE organization_id = ? LIMIT 1`,
+    )
+    .bind(input.organizationId)
+    .first<{ default_language: string | null }>();
+  const workspaceLanguage = settings?.default_language ?? 'hinglish';
 
   const context = buildChatContext({
     answers: board.discovery.answers,
@@ -500,7 +512,10 @@ export async function askGrowthManager(input: {
   try {
     const response = await reasonWithTools({
       organizationId: input.organizationId,
-      system: `${CHAT_SYSTEM_PROMPT}\n\n${context}`,
+      // The workspace's own language, not whatever the model guesses from the
+      // script a question happens to be typed in. A Hinglish question came
+      // back in Urdu before this.
+      system: `${CHAT_SYSTEM_PROMPT}${answerLanguageRule(workspaceLanguage)}\n\n${context}`,
       maxTokens: 700,
       messages: [
         ...recentTurns(history.results ?? []),

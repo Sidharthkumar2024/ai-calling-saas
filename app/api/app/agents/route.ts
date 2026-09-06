@@ -18,6 +18,7 @@ import {
   LIVE_STATE,
   publishReadiness,
   STATE_LABEL,
+  agentRemoval,
 } from '@/lib/agent-lifecycle';
 import {
   cloneAgent,
@@ -378,6 +379,57 @@ export async function PUT(request: Request) {
       from,
     });
     return NextResponse.json({ ok: true, status: to });
+  }
+
+  // Delete only what nothing points at. An agent that has taken calls is
+  // archived instead: `call_records.agent_id` is ON DELETE SET NULL, so
+  // removing the row would blank the agent on every call it handled — the
+  // history would survive and stop saying who did the work.
+  if (body.action === 'delete') {
+    const counts = await db
+      .prepare(`SELECT
+          (SELECT count(*) FROM call_records WHERE agent_id = ?) AS calls,
+          (SELECT count(*) FROM campaigns WHERE agent_id = ?) AS campaigns,
+          (SELECT count(*) FROM number_routes WHERE agent_id = ?) AS routes,
+          (SELECT count(*) FROM agent_test_sessions WHERE agent_id = ?) AS tests,
+          (SELECT count(*) FROM payment_links WHERE agent_id = ?) AS paymentLinks,
+          (SELECT count(*) FROM scheduled_actions WHERE agent_id = ?) AS scheduled`)
+      .bind(
+        agent.id,
+        agent.id,
+        agent.id,
+        agent.id,
+        agent.id,
+        agent.id,
+      )
+      .first<{
+        calls: number;
+        campaigns: number;
+        routes: number;
+        tests: number;
+        paymentLinks: number;
+        scheduled: number;
+      }>();
+
+    const removal = agentRemoval(counts ?? {});
+    if (!removal.deletable)
+      // A 200 carrying the reason: "twelve calls still point at this agent" is
+      // an answer, not a server error.
+      return NextResponse.json(
+        { ok: false, reason: removal.reason, counts: removal.counts },
+        { status: 200 },
+      );
+
+    await db
+      .prepare(
+        `DELETE FROM voice_agents WHERE id = ? AND organization_id = ?`,
+      )
+      .bind(agent.id, auth.session.organizationId)
+      .run();
+    await recordAudit(auth.session, 'agent.deleted', 'voice_agent', agent.id, {
+      name: agent.name,
+    });
+    return NextResponse.json({ ok: true, deleted: true });
   }
 
   return NextResponse.json({ error: 'Unknown action.' }, { status: 400 });

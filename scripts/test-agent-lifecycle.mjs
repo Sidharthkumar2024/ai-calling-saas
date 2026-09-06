@@ -12,6 +12,8 @@ import {
   MIN_PROMPT_LENGTH,
   publishReadiness,
   VERSIONED_FIELDS,
+  agentRemoval,
+  AGENT_REFERENCE_LABELS,
 } from '../lib/agent-lifecycle.ts';
 
 let passed = 0;
@@ -179,6 +181,52 @@ check('existing names are matched case-insensitively', () => {
 
 check('an empty name still produces something usable', () => {
   assert.equal(cloneName('   ', []), 'Agent (copy)');
+});
+
+// An agent created by mistake and never used is clutter; making somebody
+// archive it for ever is silly. One that has taken calls is a different thing:
+// `call_records.agent_id` is ON DELETE SET NULL, so deleting it would blank the
+// agent on every call it handled — the history survives and stops saying who
+// did the work.
+check('an agent nothing points at can simply be deleted', () => {
+  const removal = agentRemoval({});
+  assert.equal(removal.deletable, true);
+  assert.match(removal.reason, /can be deleted outright/);
+  assert.deepEqual(removal.counts, []);
+});
+
+check('one that has handled calls is archived instead, and says why', () => {
+  const removal = agentRemoval({ calls: 12 });
+  assert.equal(removal.deletable, false);
+  assert.match(removal.reason, /12 calls still point at this agent/);
+  assert.match(removal.reason, /blank the agent on work it actually did/);
+  assert.match(removal.reason, /archive it instead/);
+});
+
+check('a single reference is named in the singular', () => {
+  assert.match(agentRemoval({ campaigns: 1 }).reason, /1 campaign still point/);
+});
+
+check('every kind that holds it is listed', () => {
+  const removal = agentRemoval({ calls: 3, routes: 1, tests: 2 });
+  assert.equal(removal.counts.length, 3);
+  assert.match(removal.reason, /3 calls/);
+  assert.match(removal.reason, /1 number route/);
+  assert.match(removal.reason, /2 playground sessions/);
+});
+
+check('a zero count is not a reference', () => {
+  assert.equal(agentRemoval({ calls: 0, campaigns: 0 }).deletable, true);
+});
+
+check('and rubbish in the counts does not make it undeletable', () => {
+  assert.equal(agentRemoval({ calls: Number.NaN }).deletable, true);
+  assert.equal(agentRemoval({ calls: -4 }).deletable, true);
+});
+
+check('every reference kind has a readable label', () => {
+  for (const label of Object.values(AGENT_REFERENCE_LABELS))
+    assert.match(label, /^[a-z ]+$/);
 });
 
 console.log(`\n${passed} assertions passed.`);

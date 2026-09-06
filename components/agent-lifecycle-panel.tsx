@@ -99,6 +99,7 @@ export function AgentLifecyclePanel({
         error?: string;
         changed?: string[];
         name?: string;
+        deleted?: boolean;
       };
       if (payload.ok === false || payload.error) {
         setNotice(payload.reason ?? payload.error ?? 'That was refused.');
@@ -110,6 +111,7 @@ export function AgentLifecyclePanel({
             ? `Restored. Changed: ${payload.changed.join(', ')}.`
             : 'Restored — nothing differed.',
         );
+      else if (payload.deleted) setNotice('Deleted.');
       else if (payload.name)
         setNotice(`Copied as “${payload.name}”, as a draft.`);
       else setNotice('Done.');
@@ -163,6 +165,24 @@ export function AgentLifecyclePanel({
             className="rounded-full border border-hairline px-2.5 py-1 text-[10px] disabled:opacity-50"
           >
             Duplicate
+          </button>
+          {/* Offered always, and refused in words when something points at the
+              agent — rather than a greyed-out button nobody can explain. An
+              agent created by mistake and never used is just clutter. */}
+          <button
+            type="button"
+            disabled={busy === 'delete'}
+            onClick={() => {
+              if (
+                window.confirm(
+                  'Delete this agent? Only an agent nothing points at can be deleted — one that has taken calls is archived instead.',
+                )
+              )
+                void act({ action: 'delete' }, 'delete');
+            }}
+            className="rounded-full border border-hairline px-2.5 py-1 text-[10px] text-danger-text disabled:opacity-50"
+          >
+            Delete
           </button>
         </div>
       </div>

@@ -234,3 +234,75 @@ export function cloneName(original: string, existing: string[]): string {
   }
   return `${base} (copy ${Date.now()})`;
 }
+
+/* ------------------------------------------------------------------ *
+ * Removing an agent
+ * ------------------------------------------------------------------ */
+
+/**
+ * What still points at an agent, and therefore whether it can be deleted.
+ *
+ * An agent that was created by mistake and never used is just clutter, and
+ * making somebody archive it forever is silly. One that has taken calls is a
+ * different thing: `call_records.agent_id` is `ON DELETE SET NULL`, so
+ * deleting it would blank the agent on every call it ever handled — the
+ * history would survive and stop saying who did the work. `campaigns`,
+ * `number_routes`, `payment_links` and `scheduled_actions` are the same, and
+ * `agent_test_sessions` is worse: it cascades, so playground transcripts would
+ * go with it.
+ *
+ * So: delete only what nothing references, archive everything else, and say
+ * which one you are getting and why rather than offering a button that fails.
+ */
+export const AGENT_REFERENCE_LABELS = {
+  calls: 'call',
+  campaigns: 'campaign',
+  routes: 'number route',
+  tests: 'playground session',
+  paymentLinks: 'payment link',
+  scheduled: 'scheduled action',
+} as const;
+
+export type AgentReferenceCounts = Partial<
+  Record<keyof typeof AGENT_REFERENCE_LABELS, number>
+>;
+
+export type AgentRemoval = {
+  /** True when nothing points at it and the row can simply go. */
+  deletable: boolean;
+  /** What is holding it, in words, when it is not. */
+  reason: string;
+  counts: Array<{ label: string; count: number }>;
+};
+
+export function agentRemoval(counts: AgentReferenceCounts): AgentRemoval {
+  const held = (
+    Object.keys(AGENT_REFERENCE_LABELS) as Array<
+      keyof typeof AGENT_REFERENCE_LABELS
+    >
+  )
+    .map((key) => ({
+      label: AGENT_REFERENCE_LABELS[key],
+      count: Math.max(0, Math.round(Number(counts[key] ?? 0))),
+    }))
+    .filter((entry) => entry.count > 0);
+
+  if (held.length === 0)
+    return {
+      deletable: true,
+      reason: 'Nothing points at this agent, so it can be deleted outright.',
+      counts: [],
+    };
+
+  const listed = held
+    .map(
+      (entry) =>
+        `${entry.count} ${entry.count === 1 ? entry.label : `${entry.label}s`}`,
+    )
+    .join(', ');
+  return {
+    deletable: false,
+    reason: `${listed} still point at this agent. Deleting it would blank the agent on work it actually did, so archive it instead — the name stays readable on every call it handled.`,
+    counts: held,
+  };
+}

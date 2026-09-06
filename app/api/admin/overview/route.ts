@@ -5,6 +5,14 @@ import { getRawDb } from '@/db/index';
 import { requireAdminCapability } from '@/lib/admin-rbac';
 import { grossMargin } from '@/lib/currency';
 import { healthReport } from '@/lib/health-center';
+import {
+  costPerCall,
+  costPerMessage,
+  costPerMinute,
+  DEFAULT_ASSUMPTIONS,
+  fixedCostPerWorkspace,
+  planEconomics,
+} from '@/lib/unit-economics';
 import { BASE_CURRENCY } from '@/lib/metering';
 
 export const dynamic = 'force-dynamic';
@@ -343,6 +351,92 @@ export async function GET(request: Request) {
     complete: unpriced30d === 0,
   };
 
+  // The forward-looking half of §28. `unitEconomics` above divides revenue by
+  // cost over the last 30 days — a rear-view mirror. This answers the question
+  // asked before a price is set: what does one minute cost, and what must a
+  // plan charge to survive a customer who uses everything they paid for.
+  const rateRows = await db
+    .prepare(
+      `SELECT provider, model, category, unit, price_micros, effective_from
+       FROM provider_rate_cards
+       WHERE effective_from <= ? AND (effective_to IS NULL OR effective_to > ?)
+       ORDER BY effective_from DESC`,
+    )
+    .bind(new Date().toISOString(), new Date().toISOString())
+    .all<{ category: string; unit: string; price_micros: number }>();
+
+  // Cheapest card in each category, because the model answers "what does a
+  // minute cost if I route it well", not "what is the worst it could be".
+  const cheapest = new Map<string, number>();
+  for (const row of rateRows.results ?? []) {
+    const key = `${row.category}:${row.unit}`;
+    const price = Number(row.price_micros);
+    if (!cheapest.has(key) || price < cheapest.get(key)!)
+      cheapest.set(key, price);
+  }
+  const lookup = (category: string, unit: string) =>
+    cheapest.has(`${category}:${unit}`)
+      ? cheapest.get(`${category}:${unit}`)!
+      : null;
+
+  const minute = costPerMinute(lookup as never);
+  const averageCallMinutes =
+    Number(
+      (
+        await db
+          .prepare(
+            `SELECT avg(duration_seconds) AS seconds FROM call_records WHERE duration_seconds > 0`,
+          )
+          .first<{ seconds: number | null }>()
+      )?.seconds ?? 0,
+    ) / 60;
+  const activeWorkspaces = Number(
+    (
+      await db
+        .prepare(
+          `SELECT count(*) AS total FROM organizations WHERE status = 'active'`,
+        )
+        .first<{ total: number }>()
+    )?.total ?? 0,
+  );
+  const fixed = fixedCostPerWorkspace(
+    lookup('infrastructure', 'months'),
+    activeWorkspaces,
+  );
+
+  const costModel = {
+    assumptions: DEFAULT_ASSUMPTIONS,
+    minute,
+    call: costPerCall(minute, averageCallMinutes || 1),
+    message: costPerMessage(lookup as never),
+    fixed,
+    plans: (planRows.results ?? []).map((plan) => {
+      const row = plan as {
+        id: string;
+        name: string;
+        monthly_price?: number;
+        included_credits?: number;
+      };
+      // Credits are the minutes a plan includes; ten credits buy a minute the
+      // same way they buy a playground turn.
+      const includedMinutes = Math.round(
+        Number(row.included_credits ?? 0) / 10,
+      );
+      return {
+        id: row.id,
+        name: row.name,
+        ...planEconomics({
+          // Plan prices are stored in minor units; costs are in micros.
+          planPriceMicros: Number(row.monthly_price ?? 0) * 10_000,
+          includedMinutes,
+          costPerMinuteMicros: minute.micros,
+          fixedMicros: fixed.micros,
+          complete: minute.complete,
+        }),
+      };
+    }),
+  };
+
   // §29: the API Health Center. Every component classified from evidence, with
   // `unknown` where there is none — the state the old block could not express,
   // which is why it asserted `api: 'operational'` as a constant.
@@ -368,6 +462,8 @@ export async function GET(request: Request) {
     jobStats: jobStats.results,
     providerCosts: providerCosts.results,
     unitEconomics,
+    costModel,
+    rateCards: rateRows.results,
     health,
     compliance,
     system: {

@@ -5,6 +5,7 @@ import { getRawDb } from '@/db/index';
 import { requireAdminCapability, type AdminCapability } from '@/lib/admin-rbac';
 import { recordAudit } from '@/lib/demo-seed';
 import { canMoveKyc } from '@/lib/kyc-documents';
+import { isUsageUnit, USAGE_UNITS } from '@/lib/rate-cards';
 import {
   platformProviderSecret,
   providerReadiness,
@@ -53,6 +54,18 @@ const PROVIDER_ROW_IDS: Record<string, string> = {
  * and edit plans. Anything not listed falls to `security.manage`, so a new
  * action is locked down by default rather than open by omission.
  */
+/** The kinds of cost a rate card can describe. */
+const RATE_CATEGORIES = [
+  'llm',
+  'stt',
+  'tts',
+  'telephony',
+  'messaging',
+  'storage',
+  'payments',
+  'infrastructure',
+] as const;
+
 const ACTION_CAPABILITIES: Record<string, AdminCapability> = {
   provider_key_save: 'providers.manage',
   provider_key_clear: 'providers.manage',
@@ -67,6 +80,7 @@ const ACTION_CAPABILITIES: Record<string, AdminCapability> = {
   credit_package_create: 'billing.manage',
   credit_package_status: 'billing.manage',
   fx_rate_set: 'billing.manage',
+  rate_card_set: 'billing.manage',
   price_book_set: 'billing.manage',
   kyc_status: 'tenants.manage',
   kyc_document_review: 'tenants.manage',
@@ -184,6 +198,10 @@ export async function PATCH(request: Request) {
     config?: Record<string, string>;
     packageId?: string;
     documentId?: string;
+    category?: string;
+    unit?: string;
+    priceMicros?: number;
+    model?: string;
     baseCurrency?: string;
     quoteCurrency?: string;
     rate?: number;
@@ -794,6 +812,70 @@ export async function PATCH(request: Request) {
   // nothing, so a workspace on a currency other than the base one could not be
   // priced at all. `priceForWorkspace` refuses rather than guessing — which was
   // the right behaviour and also meant it always refused.
+  // What a provider charges us. There was no way to enter one: the seeded
+  // cards came from the architecture document and nothing could add WhatsApp,
+  // a server bill or a model this deployment actually uses.
+  if (body.action === 'rate_card_set') {
+    const provider = String(body.provider ?? '')
+      .trim()
+      .toLowerCase()
+      .slice(0, 40);
+    const category = String(body.category ?? '').trim();
+    const unit = String(body.unit ?? '').trim();
+    const priceMicros = Number(body.priceMicros);
+    if (!provider)
+      return NextResponse.json(
+        { error: 'Name the provider this rate belongs to.' },
+        { status: 400 },
+      );
+    if (!RATE_CATEGORIES.includes(category as never))
+      return NextResponse.json(
+        { error: `Category must be one of ${RATE_CATEGORIES.join(', ')}.` },
+        { status: 400 },
+      );
+    if (!isUsageUnit(unit))
+      return NextResponse.json(
+        { error: `Unit must be one of ${USAGE_UNITS.join(', ')}.` },
+        { status: 400 },
+      );
+    // A negative price would pay us to make calls. Zero is allowed and means
+    // exactly zero — a provider on a free tier — which is different from
+    // having no card at all.
+    if (!Number.isFinite(priceMicros) || priceMicros < 0)
+      return NextResponse.json(
+        { error: 'The price must be zero or a positive number of micros.' },
+        { status: 400 },
+      );
+
+    const id = `rate_${crypto.randomUUID()}`;
+    const effectiveFrom = new Date().toISOString();
+    await db
+      .prepare(`INSERT INTO provider_rate_cards
+        (id, provider, model, category, unit, price_micros, currency, effective_from, source, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, 'INR', ?, ?, ?)`)
+      .bind(
+        id,
+        provider,
+        String(body.model ?? '').trim() || null,
+        category,
+        unit,
+        Math.round(priceMicros),
+        effectiveFrom,
+        // Said plainly, so a figure somebody typed is never mistaken for one
+        // taken from a provider's published price list.
+        'Entered by Super Admin',
+        auth.session.userId,
+      )
+      .run();
+    await recordAudit(auth.session, 'billing.rate_card_set', 'rate_card', id, {
+      provider,
+      category,
+      unit,
+      priceMicros,
+    });
+    return NextResponse.json({ ok: true, id, provider, category, unit });
+  }
+
   if (body.action === 'fx_rate_set') {
     const base = String(body.baseCurrency ?? '')
       .trim()
@@ -923,9 +1005,7 @@ export async function PATCH(request: Request) {
   if (body.action === 'kyc_document_review') {
     const documentId = String(body.documentId ?? '');
     const row = await db
-      .prepare(
-        `SELECT id, status FROM kyc_documents WHERE id = ? LIMIT 1`,
-      )
+      .prepare(`SELECT id, status FROM kyc_documents WHERE id = ? LIMIT 1`)
       .bind(documentId)
       .first<{ id: string; status: string }>();
     if (!row)

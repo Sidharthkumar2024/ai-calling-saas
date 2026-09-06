@@ -30,10 +30,11 @@ export type UsageUnit =
   | 'minutes'
   | 'messages'
   | 'gb_month'
+  | 'months'
   | 'requests';
 
 /** How many of a unit make up the quantity a price is quoted against. */
-const UNIT_BATCH: Record<UsageUnit, number> = {
+export const UNIT_BATCH: Record<UsageUnit, number> = {
   input_tokens: 1_000_000,
   cached_input_tokens: 1_000_000,
   output_tokens: 1_000_000,
@@ -42,6 +43,8 @@ const UNIT_BATCH: Record<UsageUnit, number> = {
   minutes: 1,
   messages: 1,
   gb_month: 1,
+  /* A flat monthly bill — the server, a licence — priced one month at a time. */
+  months: 1,
   requests: 1_000,
 };
 
@@ -63,7 +66,9 @@ export type RateCard = {
     | 'telephony'
     | 'messaging'
     | 'storage'
-    | 'payments';
+    | 'payments'
+    /* The bill that arrives whether or not a call was made. */
+    | 'infrastructure';
   unit: UsageUnit;
   /**
    * Price in micros of `currency` for one *batch* of the unit — per million

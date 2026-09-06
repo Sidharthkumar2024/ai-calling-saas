@@ -40,6 +40,7 @@ import { ActivityAreaChart, QueueBars } from '@/components/analytics-charts';
 import { useT } from '@/components/locale-provider';
 import { formatMoney } from '@/lib/currency';
 import { KYC_DOCUMENT_LABEL, nextKycStatuses } from '@/lib/kyc-documents';
+import { USAGE_UNITS } from '@/lib/rate-cards';
 
 type AdminSession = { name: string; email: string };
 
@@ -53,6 +54,30 @@ type AdminPayload = {
   priceBooks?: Record<string, unknown>[];
   numbers?: Record<string, unknown>[];
   kycDocuments?: Record<string, unknown>[];
+  rateCards?: Record<string, unknown>[];
+  costModel?: {
+    assumptions: { note: string };
+    minute: {
+      summary: string;
+      complete: boolean;
+      components: Array<{
+        key: string;
+        label: string;
+        micros: number | null;
+        quantity: string;
+      }>;
+    };
+    call: { summary: string };
+    message: { summary: string };
+    fixed: { summary: string };
+    plans: Array<{
+      id: string;
+      name: string;
+      includedMinutes: number;
+      summary: string;
+      complete: boolean;
+    }>;
+  };
   audits?: Record<string, unknown>[];
   integrations?: Record<string, unknown>[];
   commerce?: Record<string, unknown>[];
@@ -1811,6 +1836,7 @@ function PlansBilling({
         </div>
       </Panel>
       <CurrencyRates data={data} onChanged={onChanged} />
+      <CostModel data={data} onChanged={onChanged} />
       <div className="grid gap-3 sm:grid-cols-3">
         <Stat
           label="Revenue collected"
@@ -3493,6 +3519,224 @@ function CurrencyRates({
       </div>
     </Panel>
   );
+}
+
+/**
+ * What a minute costs, and whether each plan survives it.
+ *
+ * The panel above this one divides revenue by cost over the last 30 days — a
+ * rear-view mirror. This is the question asked *before* a price is set. Two
+ * things it will not do: treat a provider with no rate card as free, and
+ * present an assumption as a measurement.
+ */
+function CostModel({
+  data,
+  onChanged,
+}: {
+  data: AdminPayload;
+  onChanged: () => Promise<void> | void;
+}) {
+  const [draft, setDraft] = useState({
+    provider: '',
+    category: 'messaging',
+    unit: 'messages',
+    model: '',
+    priceMicros: '',
+  });
+  const [notice, setNotice] = useState<string | null>(null);
+  const model = data.costModel;
+  const field =
+    'h-8 rounded-lg border border-hairline bg-surface px-2.5 text-[11px]';
+
+  return (
+    <Panel>
+      <PanelHeader
+        title="What a minute costs"
+        description="Built from the rate cards below and this deployment's own measured usage. A provider with no rate card is reported as missing, never as free."
+      />
+      {notice ? (
+        <p role="alert" className="mt-3 text-[10px] text-danger-text">
+          {notice}
+        </p>
+      ) : null}
+
+      {model ? (
+        <>
+          <p className="mt-4 text-[11px] font-medium text-ink">
+            {model.minute.summary}
+          </p>
+          <div className="mt-3 space-y-1">
+            {model.minute.components.map((component) => (
+              <p key={component.key} className="text-[10px] text-ink-muted">
+                <span className="text-ink-body">{component.label}</span>
+                {' · '}
+                {component.quantity}
+                {' · '}
+                {component.micros === null ? (
+                  <span className="text-warning-text">no rate card</span>
+                ) : (
+                  formatMicros(component.micros)
+                )}
+              </p>
+            ))}
+          </div>
+          <div className="mt-3 space-y-1 text-[10px] text-ink-body">
+            <p>{model.call.summary}</p>
+            <p>{model.message.summary}</p>
+            <p>{model.fixed.summary}</p>
+          </div>
+
+          <div className="mt-5 space-y-1.5">
+            {model.plans.map((plan) => (
+              <p
+                key={plan.id}
+                className="rounded-lg border border-hairline bg-surface-muted px-3 py-2 text-[10px]"
+              >
+                <span className="text-[11px] font-medium text-ink">
+                  {plan.name}
+                </span>
+                <span className="text-ink-muted">
+                  {' · '}
+                  {plan.includedMinutes.toLocaleString('en-IN')} included
+                  minutes
+                </span>
+                <br />
+                <span
+                  className={
+                    plan.summary.startsWith('Loses') ||
+                    plan.summary.startsWith('Free plan')
+                      ? 'text-danger-text'
+                      : 'text-ink-body'
+                  }
+                >
+                  {plan.summary}
+                </span>
+              </p>
+            ))}
+          </div>
+
+          {/* An assumption said out loud is worth more than a number that
+              looks measured. */}
+          <p className="mt-3 text-[9px] leading-4 text-ink-muted">
+            {model.assumptions.note}
+          </p>
+        </>
+      ) : null}
+
+      <div className="mt-6 flex flex-wrap items-end gap-2">
+        <input
+          aria-label="Provider"
+          value={draft.provider}
+          onChange={(event) =>
+            setDraft({ ...draft, provider: event.target.value })
+          }
+          placeholder="meta"
+          className={`${field} w-28`}
+        />
+        <select
+          aria-label="Cost category"
+          value={draft.category}
+          onChange={(event) =>
+            setDraft({ ...draft, category: event.target.value })
+          }
+          className={`${field} w-36`}
+        >
+          {[
+            'llm',
+            'stt',
+            'tts',
+            'telephony',
+            'messaging',
+            'storage',
+            'payments',
+            'infrastructure',
+          ].map((category) => (
+            <option key={category} value={category}>
+              {category}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Unit"
+          value={draft.unit}
+          onChange={(event) => setDraft({ ...draft, unit: event.target.value })}
+          className={`${field} w-40`}
+        >
+          {USAGE_UNITS.map((unit) => (
+            <option key={unit} value={unit}>
+              {unit}
+            </option>
+          ))}
+        </select>
+        <input
+          aria-label="Model"
+          value={draft.model}
+          onChange={(event) =>
+            setDraft({ ...draft, model: event.target.value })
+          }
+          placeholder="model (optional)"
+          className={`${field} w-36`}
+        />
+        <input
+          aria-label="Price in micros"
+          value={draft.priceMicros}
+          onChange={(event) =>
+            setDraft({ ...draft, priceMicros: event.target.value })
+          }
+          placeholder="micros per batch"
+          className={`${field} w-36`}
+        />
+        <button
+          type="button"
+          disabled={!draft.provider.trim() || !draft.priceMicros.trim()}
+          onClick={async () =>
+            setNotice(
+              await platformAction(
+                {
+                  action: 'rate_card_set',
+                  provider: draft.provider,
+                  category: draft.category,
+                  unit: draft.unit,
+                  model: draft.model,
+                  priceMicros: Number(draft.priceMicros),
+                },
+                onChanged,
+              ),
+            )
+          }
+          className="portal-primary h-8 rounded-lg px-3 text-[11px] disabled:opacity-40"
+        >
+          Set rate
+        </button>
+      </div>
+      <p className="mt-2 text-[10px] text-ink-muted">
+        Micros of a rupee per batch — a million tokens, a thousand characters,
+        an hour of audio, one message, one month. 1,000,000 micros is ₹1.
+      </p>
+
+      <div className="mt-3 space-y-1">
+        {(data.rateCards ?? []).slice(0, 14).map((row, index) => (
+          <p
+            key={`${textValue(row.provider)}-${textValue(row.unit)}-${index}`}
+            className="text-[10px] text-ink-muted"
+          >
+            {textValue(row.provider)}
+            {row.model ? ` ${textValue(row.model)}` : ''} ·{' '}
+            {textValue(row.category)} · {textValue(row.unit)} ·{' '}
+            {formatMicros(Number(row.price_micros))}
+          </p>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+/** Micros of a rupee, kept readable at the sizes these actually take. */
+function formatMicros(micros: number) {
+  const rupees = micros / 1_000_000;
+  if (rupees === 0) return '₹0';
+  if (Math.abs(rupees) < 1) return `₹${rupees.toFixed(rupees < 0.01 ? 4 : 2)}`;
+  return `₹${rupees.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 }
 
 function num(value: unknown) {

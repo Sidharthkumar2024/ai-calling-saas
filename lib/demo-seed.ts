@@ -2,7 +2,28 @@ import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { ingestLead } from '@/lib/lead-engine';
 
+/**
+ * The one workspace these leads belong in.
+ *
+ * The name said demo and the behaviour said "any workspace with no leads yet",
+ * which is every workspace on its first day. Two things followed from that.
+ *
+ * A real customer's pipeline was seeded with three invented people — Aarav
+ * Khanna, Priya Mehta, Kabir Bansal — carrying plausible Indian mobile
+ * numbers, in a product whose whole purpose is to ring the numbers in its
+ * pipeline.
+ *
+ * And it did not even get that far: signup creates only the `manual` and
+ * `website_form` lead sources, while these leads arrive as `meta_ads` and
+ * `google_ads`, so `ingestLead` threw "Lead source is not configured." That
+ * throw was unhandled on `/api/app/overview` — the first screen a new signup
+ * lands on — which answered 500 with an empty body for every account ever
+ * created.
+ */
+const DEMO_ORGANIZATION_ID = 'org_vaani_demo';
+
 export async function ensureDemoLeads(organizationId: string) {
+  if (organizationId !== DEMO_ORGANIZATION_ID) return;
   await ensureSchema();
   const db = getRawDb();
   const existing = await db
@@ -70,7 +91,14 @@ export async function ensureDemoLeads(organizationId: string) {
   ];
 
   for (const input of demoLeads) {
-    const result = await ingestLead(organizationId, input);
+    // Even in the demo workspace, a missing lead source is not a reason to
+    // take a screen down. Seeding is a convenience; the page is the product.
+    let result: Awaited<ReturnType<typeof ingestLead>>;
+    try {
+      result = await ingestLead(organizationId, input);
+    } catch {
+      continue;
+    }
     await db
       .prepare(
         `INSERT OR IGNORE INTO crm_activities

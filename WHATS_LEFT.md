@@ -226,6 +226,37 @@ Completed runs that left work undone now appear on the health screen, rolled up
 per job type so a run that skips hourly is one line rather than twenty-four.
 "Nothing to do" is not reported — a quiet queue should stay quiet.
 
+### 10. [CODE] Signup was broken, and seeded fake people into real workspaces
+
+Found by signing up as a new customer rather than by reading the code. Two
+defects, and the second is the worse one.
+
+**Every brand-new workspace's first screen returned 500.** `/api/app/overview`
+calls `ensureDemoLeads`, which ingests leads as `meta_ads` and `google_ads` —
+but signup creates only the `manual` and `website_form` lead sources, so
+`ingestLead` threw "Lead source is not configured." The throw was unhandled, so
+the answer was a 500 with an empty body. The demo workspace has those two
+sources from its own seed, which is why nobody saw it.
+
+**And the seed was never limited to the demo workspace.** The name said demo;
+the condition said "any workspace with no leads yet", which is every workspace
+on its first day. A real customer's pipeline would be filled with three
+invented people — Aarav Khanna, Priya Mehta, Kabir Bansal — carrying plausible
+Indian mobile numbers, in a product whose purpose is to ring the numbers in its
+pipeline.
+
+Both fixed: the seed touches `org_vaani_demo` only, and a failure to seed can
+no longer take a screen down.
+
+**One thing for you.** This had already fired on this machine. The workspace
+`org_f6d7a1be-…` — the second one named "UrbanNest Realty", not the demo —
+holds two of those invented leads (Aarav Khanna, Priya Mehta). They are not
+mine and I have not deleted them. If that workspace is yours, they are safe to
+remove:
+
+    DELETE FROM leads WHERE organization_id = 'org_f6d7a1be-ccc5-42b2-80a0-39d0077d108a'
+      AND name IN ('Aarav Khanna', 'Priya Mehta', 'Kabir Bansal');
+
 ### 5. [KEY] Things only you can supply
 
 - **A male ElevenLabs voice id** (still outstanding) and a Punjabi voice id.

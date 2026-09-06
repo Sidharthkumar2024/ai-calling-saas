@@ -1,7 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Check, Copy, RefreshCw, Send, Square } from 'lucide-react';
 
+import { type Block, type Inline, parseBlocks } from '@/lib/chat-markdown';
 import { DISCOVERY_QUESTIONS, type Confidence } from '@/lib/growth-manager';
 import {
   actionSummary,
@@ -908,17 +910,149 @@ function GrowthChat({
 }) {
   const [question, setQuestion] = useState('');
   const [chatId, setChatId] = useState<string | null>(null);
-  const [turns, setTurns] = useState<
-    Array<{ role: string; content: string; grounded?: string[] }>
-  >([]);
+  const [turns, setTurns] = useState<Turn[]>([]);
   const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState<number | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+  const lastAskedRef = useRef('');
 
+  // Follow the answer as it arrives, the way a conversation does. Only when
+  // the reader is already at the bottom: yanking the view down while somebody
+  // is reading an earlier answer is worse than not following at all.
+  useEffect(() => {
+    const box = scrollRef.current;
+    if (!box) return;
+    const distance = box.scrollHeight - box.scrollTop - box.clientHeight;
+    if (distance < 140) box.scrollTop = box.scrollHeight;
+  }, [turns]);
+
+  function grow(element: HTMLTextAreaElement | null) {
+    if (!element) return;
+    element.style.height = 'auto';
+    element.style.height = `${Math.min(160, element.scrollHeight)}px`;
+  }
+
+  function stop() {
+    abortRef.current?.abort();
+    abortRef.current = null;
+  }
+
+  /**
+   * Streams one answer.
+   *
+   * The stream is the path; the plain JSON `ask` action is the fallback, used
+   * when the browser has no `ReadableStream` on responses or the stream never
+   * opens. Both write the same turn to the same thread — the fallback is a
+   * slower answer, not a different one.
+   */
   async function ask(text: string) {
     const asked = text.trim();
-    if (!asked) return;
+    if (!asked || busy) return;
+    lastAskedRef.current = asked;
     setBusy(true);
     setQuestion('');
-    setTurns((current) => [...current, { role: 'user', content: asked }]);
+    grow(composerRef.current);
+    setTurns((current) => [
+      ...current,
+      { role: 'user', content: asked },
+      { role: 'assistant', content: '', streaming: true },
+    ]);
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    const writeAssistant = (update: (turn: Turn) => Turn) =>
+      setTurns((current) => {
+        const next = [...current];
+        for (let index = next.length - 1; index >= 0; index -= 1)
+          if (next[index].role === 'assistant') {
+            next[index] = update(next[index]);
+            break;
+          }
+        return next;
+      });
+
+    try {
+      const response = await fetch('/api/app/growth/stream', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ question: asked, chatId }),
+        signal: controller.signal,
+      });
+      if (!response.ok || !response.body) throw new Error('no stream');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let reading = true;
+      while (reading) {
+        const { done, value } = await reader.read();
+        if (done) {
+          reading = false;
+          break;
+        }
+        buffer += decoder.decode(value, { stream: true });
+        let boundary = buffer.indexOf('\n\n');
+        while (boundary !== -1) {
+          const line = buffer.slice(0, boundary).replace(/^data: ?/, '');
+          buffer = buffer.slice(boundary + 2);
+          boundary = buffer.indexOf('\n\n');
+          if (!line) continue;
+          const event = JSON.parse(line) as {
+            type: string;
+            text?: string;
+            chatId?: string;
+            message?: string;
+            groundedOn?: {
+              observations: number;
+              scanRun: string | null;
+              missingSources: string[];
+            };
+          };
+          if (event.type === 'start') {
+            if (event.chatId) setChatId(event.chatId);
+            const grounded = describeGrounding(event.groundedOn);
+            writeAssistant((turn) => ({ ...turn, grounded }));
+          } else if (event.type === 'delta' && event.text) {
+            writeAssistant((turn) => ({
+              ...turn,
+              content: turn.content + event.text,
+            }));
+          } else if (event.type === 'error') {
+            writeAssistant((turn) => ({
+              ...turn,
+              error: event.message ?? 'The answer stopped early.',
+            }));
+          } else if (event.type === 'done') {
+            writeAssistant((turn) => ({ ...turn, streaming: false }));
+          }
+        }
+      }
+      writeAssistant((turn) => ({ ...turn, streaming: false }));
+      await onDone();
+    } catch (error) {
+      if ((error as { name?: string })?.name === 'AbortError') {
+        // Stopped on purpose. Whatever arrived stays; the server keeps it too.
+        writeAssistant((turn) => ({
+          ...turn,
+          streaming: false,
+          stopped: true,
+        }));
+        await onDone();
+        return;
+      }
+      await askWithoutStreaming(asked, writeAssistant);
+    } finally {
+      abortRef.current = null;
+      setBusy(false);
+    }
+  }
+
+  async function askWithoutStreaming(
+    asked: string,
+    writeAssistant: (update: (turn: Turn) => Turn) => void,
+  ) {
     try {
       const response = await fetch('/api/app/growth', {
         method: 'POST',
@@ -936,92 +1070,102 @@ function GrowthChat({
         };
       };
       if (!response.ok) {
-        setTurns((current) => [
-          ...current,
-          {
-            role: 'assistant',
-            content: body.error ?? 'That did not go through.',
-          },
-        ]);
+        writeAssistant((turn) => ({
+          ...turn,
+          streaming: false,
+          error: body.error ?? 'That did not go through.',
+        }));
         return;
       }
       if (body.chatId) setChatId(body.chatId);
-      const grounded: string[] = [];
-      if (body.groundedOn?.observations)
-        grounded.push(`${body.groundedOn.observations} measured figures`);
-      if (body.groundedOn?.scanRun)
-        grounded.push(`website scan ${body.groundedOn.scanRun}`);
-      if (body.groundedOn?.missingSources.length)
-        grounded.push(
-          `not connected: ${body.groundedOn.missingSources.join(', ')}`,
-        );
-      setTurns((current) => [
-        ...current,
-        { role: 'assistant', content: body.answer ?? '', grounded },
-      ]);
+      writeAssistant((turn) => ({
+        ...turn,
+        streaming: false,
+        content: body.answer ?? '',
+        grounded: describeGrounding(body.groundedOn),
+      }));
       await onDone();
     } catch {
-      setTurns((current) => [
-        ...current,
-        { role: 'assistant', content: 'That did not go through.' },
-      ]);
-    } finally {
-      setBusy(false);
+      writeAssistant((turn) => ({
+        ...turn,
+        streaming: false,
+        error: 'That did not go through.',
+      }));
     }
   }
 
   async function openChat(id: string) {
+    stop();
     const response = await fetch(
       `/api/app/growth?chat=${encodeURIComponent(id)}`,
-      {
-        cache: 'no-store',
-      },
+      { cache: 'no-store' },
     );
     const body = (await response.json()) as {
       messages?: Array<{ role: string; content: string }>;
     };
     setChatId(id);
-    setTurns(body.messages ?? []);
+    setTurns(
+      (body.messages ?? []).map((message) => ({
+        role: message.role === 'user' ? 'user' : 'assistant',
+        content: message.content,
+      })),
+    );
   }
 
+  async function copy(index: number, text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(index);
+      window.setTimeout(() => setCopied(null), 1500);
+    } catch {
+      // A browser that refuses the clipboard is not an error worth a banner;
+      // the text is on screen and selectable.
+    }
+  }
+
+  const starters = [
+    suggestedGoal,
+    'Which leads should I call first this week, and why?',
+    'What is losing me the most bookings right now?',
+    'Draft the opening line my agent should use on new site-visit enquiries.',
+  ].filter(Boolean);
+
   return (
-    <section className="portal-panel p-5">
+    <section className="portal-panel flex flex-col p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold">What should I grow today?</h2>
-        {turns.length ? (
-          <button
-            type="button"
-            onClick={() => {
-              setChatId(null);
-              setTurns([]);
-            }}
-            className="text-[11px] text-ink-body underline-offset-2 hover:underline"
-          >
-            New chat
-          </button>
-        ) : null}
+        <div className="flex items-center gap-3">
+          {turns.length ? (
+            <button
+              type="button"
+              onClick={() => {
+                stop();
+                setChatId(null);
+                setTurns([]);
+              }}
+              className="text-[11px] text-ink-body underline-offset-2 hover:underline"
+            >
+              New chat
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {chips.length ? (
-        <>
-          <p className="mt-3 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
-            Your workspace
-          </p>
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
-            {chips.map((chip) => (
-              <span
-                key={chip.id}
-                className="rounded-full border border-hairline bg-surface-muted px-2.5 py-1 text-[11px]"
-              >
-                <span className="text-ink-muted">{chip.label} </span>
-                <span className="font-medium">{chip.value}</span>
-              </span>
-            ))}
-          </div>
-          <p className="mt-1.5 text-[11px] text-ink-muted">
-            I use this to direct every run — no need to repeat it.
-          </p>
-        </>
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          {chips.map((chip) => (
+            <span
+              key={chip.id}
+              className="rounded-full border border-hairline bg-surface-muted px-2.5 py-1 text-[11px]"
+            >
+              <span className="text-ink-muted">{chip.label} </span>
+              <span className="font-medium">{chip.value}</span>
+            </span>
+          ))}
+          <span className="text-[11px] text-ink-muted">
+            — I use this on every answer, so you never repeat it.
+          </span>
+        </div>
       ) : (
         <p className="mt-3 text-[11px] text-ink-muted">
           Answer the discovery questions below and I will use them to direct
@@ -1029,48 +1173,143 @@ function GrowthChat({
         </p>
       )}
 
-      <div className="mt-4 space-y-2">
-        {turns.map((turn, index) => (
-          <div
-            key={`${turn.role}-${index}`}
-            className={
-              turn.role === 'user'
-                ? 'ml-auto max-w-[80%] rounded-xl bg-primary px-3 py-2 text-[11px] text-primary-foreground'
-                : 'max-w-[90%] rounded-xl border border-hairline bg-surface-muted px-3 py-2 text-[11px]'
-            }
-          >
-            <p className="whitespace-pre-wrap">{turn.content}</p>
-            {turn.grounded?.length ? (
-              <p className="mt-1.5 text-[11px] text-ink-muted">
-                ↳ answered from {turn.grounded.join(' · ')}
-              </p>
-            ) : null}
+      <div
+        ref={scrollRef}
+        className="mt-4 max-h-[26rem] min-h-[12rem] overflow-y-auto rounded-xl border border-hairline bg-surface-muted/40 p-3"
+      >
+        {turns.length === 0 ? (
+          <div className="flex h-full flex-col justify-center gap-2 py-4">
+            <p className="text-[12px] text-ink-body">
+              Ask about your calls, leads, website or what to do next. Answers
+              come from this workspace&rsquo;s own numbers.
+            </p>
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {starters.map((starter) => (
+                <button
+                  key={starter}
+                  type="button"
+                  onClick={() => void ask(starter)}
+                  className="rounded-lg border border-hairline bg-surface px-2.5 py-1.5 text-left text-[11px] text-ink-body hover:bg-surface-strong"
+                >
+                  {starter}
+                </button>
+              ))}
+            </div>
           </div>
-        ))}
-        {busy ? <p className="text-[11px] text-ink-muted">Thinking…</p> : null}
+        ) : (
+          <div className="space-y-3">
+            {turns.map((turn, index) => (
+              <div
+                key={`${turn.role}-${index}`}
+                className={
+                  turn.role === 'user'
+                    ? 'ml-auto max-w-[80%] rounded-xl rounded-br-sm bg-primary px-3 py-2 text-[12px] text-primary-foreground'
+                    : 'max-w-[92%] rounded-xl rounded-bl-sm border border-hairline bg-surface px-3 py-2 text-[12px]'
+                }
+              >
+                {turn.role === 'user' ? (
+                  <p className="whitespace-pre-wrap">{turn.content}</p>
+                ) : (
+                  <>
+                    <Markdown text={turn.content} />
+                    {turn.streaming && !turn.content ? (
+                      <p className="text-[12px] text-ink-muted">Thinking…</p>
+                    ) : null}
+                    {turn.streaming && turn.content ? (
+                      <span className="ml-0.5 inline-block h-3 w-1.5 animate-pulse bg-ink-muted align-middle" />
+                    ) : null}
+                    {turn.stopped ? (
+                      <p className="mt-1.5 text-[11px] text-ink-muted">
+                        Stopped. What arrived is saved.
+                      </p>
+                    ) : null}
+                    {turn.error ? (
+                      <p className="mt-1.5 text-[11px] text-warning-text">
+                        {turn.error}
+                      </p>
+                    ) : null}
+                    {turn.grounded?.length ? (
+                      <p className="mt-1.5 text-[11px] text-ink-muted">
+                        ↳ answered from {turn.grounded.join(' · ')}
+                      </p>
+                    ) : null}
+                    {!turn.streaming && turn.content ? (
+                      <div className="mt-2 flex gap-1">
+                        <button
+                          type="button"
+                          onClick={() => void copy(index, turn.content)}
+                          className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-ink-muted hover:bg-surface-strong hover:text-ink"
+                        >
+                          {copied === index ? (
+                            <Check className="size-3" />
+                          ) : (
+                            <Copy className="size-3" />
+                          )}
+                          {copied === index ? 'Copied' : 'Copy'}
+                        </button>
+                        {index === turns.length - 1 ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTurns((current) => current.slice(0, -2));
+                              void ask(lastAskedRef.current);
+                            }}
+                            className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-ink-muted hover:bg-surface-strong hover:text-ink"
+                          >
+                            <RefreshCw className="size-3" /> Again
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        <input
+      <div className="mt-3 flex items-end gap-2 rounded-xl border border-hairline bg-surface p-2">
+        <textarea
+          ref={composerRef}
           value={question}
-          onChange={(event) => setQuestion(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' && !event.shiftKey) void ask(question);
+          rows={1}
+          onChange={(event) => {
+            setQuestion(event.target.value);
+            grow(event.target);
           }}
-          placeholder={
-            suggestedGoal || 'Ask about your calls, leads or website'
-          }
+          onKeyDown={(event) => {
+            // Enter sends, Shift+Enter is a new line — the convention every
+            // chat uses, and the old single-line input could not do the second.
+            if (event.key === 'Enter' && !event.shiftKey) {
+              event.preventDefault();
+              void ask(question);
+            }
+          }}
+          placeholder="Ask anything about this workspace…"
           aria-label="Ask the growth manager"
-          className="h-9 flex-1 min-w-56 rounded-lg border border-hairline bg-surface px-3 text-[11px]"
+          className="max-h-40 flex-1 resize-none bg-transparent px-1.5 py-1.5 text-[12px] outline-none"
         />
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void ask(question || suggestedGoal)}
-          className="portal-primary rounded-lg px-4 py-2 text-[11px] disabled:opacity-60"
-        >
-          Ask
-        </button>
+        {busy ? (
+          <button
+            type="button"
+            onClick={stop}
+            aria-label="Stop generating"
+            className="rounded-lg border border-hairline px-2.5 py-2 text-[11px] text-ink-body hover:bg-surface-strong"
+          >
+            <Square className="size-3.5" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled={!question.trim()}
+            onClick={() => void ask(question)}
+            aria-label="Send"
+            className="portal-primary rounded-lg px-3 py-2 text-[11px] disabled:opacity-40"
+          >
+            <Send className="size-3.5" />
+          </button>
+        )}
       </div>
 
       {chats.length ? (
@@ -1097,5 +1336,116 @@ function GrowthChat({
         </div>
       ) : null}
     </section>
+  );
+}
+
+type Turn = {
+  role: 'user' | 'assistant';
+  content: string;
+  grounded?: string[];
+  streaming?: boolean;
+  stopped?: boolean;
+  error?: string;
+};
+
+/** What the answer rested on, in the reader's words rather than field names. */
+function describeGrounding(grounded?: {
+  observations: number;
+  scanRun: string | null;
+  missingSources: string[];
+}) {
+  if (!grounded) return undefined;
+  const parts: string[] = [];
+  if (grounded.observations)
+    parts.push(`${grounded.observations} measured figures`);
+  if (grounded.scanRun) parts.push(`website scan ${grounded.scanRun}`);
+  if (grounded.missingSources.length)
+    parts.push(`not connected: ${grounded.missingSources.join(', ')}`);
+  return parts;
+}
+
+/**
+ * Renders an answer's Markdown as elements.
+ *
+ * `lib/chat-markdown` parses to data and this turns that data into React
+ * nodes, so nothing the model writes is ever interpreted as HTML. A plan with
+ * seven numbered steps now reads as seven steps instead of one paragraph with
+ * asterisks in it.
+ */
+function Markdown({ text }: { text: string }) {
+  if (!text.trim()) return null;
+  return (
+    <div className="space-y-2 leading-relaxed">
+      {parseBlocks(text).map((block, index) => (
+        <MarkdownBlock key={index} block={block} />
+      ))}
+    </div>
+  );
+}
+
+function MarkdownBlock({ block }: { block: Block }) {
+  if (block.kind === 'heading')
+    return block.level === 2 ? (
+      <p className="text-[13px] font-semibold">
+        <Spans spans={block.spans} />
+      </p>
+    ) : (
+      <p className="text-[12px] font-semibold">
+        <Spans spans={block.spans} />
+      </p>
+    );
+  if (block.kind === 'code')
+    return (
+      <pre className="overflow-x-auto rounded-lg border border-hairline bg-surface-muted p-2.5 text-[11px]">
+        <code>{block.text}</code>
+      </pre>
+    );
+  if (block.kind === 'list')
+    return block.ordered ? (
+      <ol className="ml-4 list-decimal space-y-1">
+        {block.items.map((item, index) => (
+          <li key={index}>
+            <Spans spans={item} />
+          </li>
+        ))}
+      </ol>
+    ) : (
+      <ul className="ml-4 list-disc space-y-1">
+        {block.items.map((item, index) => (
+          <li key={index}>
+            <Spans spans={item} />
+          </li>
+        ))}
+      </ul>
+    );
+  return (
+    <p>
+      <Spans spans={block.spans} />
+    </p>
+  );
+}
+
+function Spans({ spans }: { spans: Inline[] }) {
+  return (
+    <>
+      {spans.map((span, index) => {
+        if (span.kind === 'bold')
+          return (
+            <strong key={index} className="font-semibold">
+              {span.text}
+            </strong>
+          );
+        if (span.kind === 'code')
+          return (
+            <code
+              key={index}
+              className="rounded border border-hairline bg-surface-muted px-1 py-0.5 text-[11px]"
+            >
+              {span.text}
+            </code>
+          );
+        return <span key={index}>{span.text}</span>;
+      })}
+    </>
   );
 }

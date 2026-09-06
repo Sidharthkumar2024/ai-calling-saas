@@ -415,7 +415,16 @@ export async function getRun(organizationId: string, runId: string) {
  * figures it may quote, and stores both turns along with what the answer was
  * grounded on — so a reply can be audited later instead of taken on trust.
  */
-export async function askGrowthManager(input: {
+/**
+ * Everything a growth answer needs before a model is called: the thread it
+ * belongs to, the system prompt with this workspace's measured facts, the
+ * recent turns, and what the answer will be grounded on.
+ *
+ * Split out of `askGrowthManager` so the streaming route can share it exactly.
+ * A second copy of this assembly would be a second prompt, and the two would
+ * drift — one screen grounded on the website scan and the other not.
+ */
+export async function prepareGrowthAsk(input: {
   organizationId: string;
   userId: string;
   chatId?: string | null;
@@ -428,7 +437,6 @@ export async function askGrowthManager(input: {
     CHAT_SYSTEM_PROMPT,
     recentTurns,
   } = await import('@/lib/growth-chat');
-  const { reasonWithTools } = await import('@/lib/provider-adapters');
 
   const board = await growthBoard(input.organizationId);
   const latest = await db
@@ -506,6 +514,87 @@ export async function askGrowthManager(input: {
     .bind(chatId, input.organizationId)
     .all<{ role: 'user' | 'assistant'; content: string }>();
 
+  return {
+    chatId,
+    system: `${CHAT_SYSTEM_PROMPT}${answerLanguageRule(workspaceLanguage)}\n\n${context}`,
+    messages: [
+      ...recentTurns(history.results ?? []),
+      { role: 'user' as const, content: input.question },
+    ],
+    groundedOn: {
+      observations: board.observations.length,
+      observationIds: board.observations.map((item) => item.id),
+      scanRun: latest?.id ?? null,
+      missingSourceIds: board.sources.pending.map((source) => source.id),
+      missingSources: board.sources.pending.map((source) => source.label),
+    },
+  };
+}
+
+export type GrowthAskPlan = Awaited<ReturnType<typeof prepareGrowthAsk>>;
+
+/**
+ * Writes the question and the answer to the thread.
+ *
+ * Both messages go in one batch, after the answer exists: a question stored
+ * before the model is called and an answer that never arrives leaves a thread
+ * that reads as if the manager ignored it.
+ */
+export async function finishGrowthAsk(input: {
+  organizationId: string;
+  plan: GrowthAskPlan;
+  question: string;
+  answer: string;
+  model: string | null;
+}) {
+  const db = getRawDb();
+  await db.batch([
+    db
+      .prepare(
+        `INSERT INTO growth_messages (id, chat_id, organization_id, role, content)
+         VALUES (?, ?, ?, 'user', ?)`,
+      )
+      .bind(
+        `msg_${crypto.randomUUID()}`,
+        input.plan.chatId,
+        input.organizationId,
+        input.question.slice(0, 4000),
+      ),
+    db
+      .prepare(
+        `INSERT INTO growth_messages
+           (id, chat_id, organization_id, role, content, grounded_on_json, model)
+         VALUES (?, ?, ?, 'assistant', ?, ?, ?)`,
+      )
+      .bind(
+        `msg_${crypto.randomUUID()}`,
+        input.plan.chatId,
+        input.organizationId,
+        input.answer,
+        JSON.stringify({
+          observations: input.plan.groundedOn.observationIds,
+          scanRun: input.plan.groundedOn.scanRun,
+          missingSources: input.plan.groundedOn.missingSourceIds,
+        }),
+        input.model,
+      ),
+    db
+      .prepare(
+        `UPDATE growth_chats SET updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      )
+      .bind(input.plan.chatId),
+  ]);
+}
+
+export async function askGrowthManager(input: {
+  organizationId: string;
+  userId: string;
+  chatId?: string | null;
+  question: string;
+}) {
+  const { reasonWithTools } = await import('@/lib/provider-adapters');
+  const plan = await prepareGrowthAsk(input);
+
   let answer =
     'The growth manager is not reachable right now. Nothing was lost — ask again in a moment.';
   let model: string | null = null;
@@ -515,12 +604,9 @@ export async function askGrowthManager(input: {
       // The workspace's own language, not whatever the model guesses from the
       // script a question happens to be typed in. A Hinglish question came
       // back in Urdu before this.
-      system: `${CHAT_SYSTEM_PROMPT}${answerLanguageRule(workspaceLanguage)}\n\n${context}`,
+      system: plan.system,
       maxTokens: 700,
-      messages: [
-        ...recentTurns(history.results ?? []),
-        { role: 'user' as const, content: input.question },
-      ],
+      messages: plan.messages,
     });
     const meta = response as unknown as { model?: unknown };
     model = typeof meta.model === 'string' ? meta.model : null;
@@ -541,51 +627,22 @@ export async function askGrowthManager(input: {
     console.error('growth chat failed', error);
   }
 
-  await db.batch([
-    db
-      .prepare(
-        `INSERT INTO growth_messages (id, chat_id, organization_id, role, content)
-         VALUES (?, ?, ?, 'user', ?)`,
-      )
-      .bind(
-        `msg_${crypto.randomUUID()}`,
-        chatId,
-        input.organizationId,
-        input.question.slice(0, 4000),
-      ),
-    db
-      .prepare(
-        `INSERT INTO growth_messages
-           (id, chat_id, organization_id, role, content, grounded_on_json, model)
-         VALUES (?, ?, ?, 'assistant', ?, ?, ?)`,
-      )
-      .bind(
-        `msg_${crypto.randomUUID()}`,
-        chatId,
-        input.organizationId,
-        answer,
-        JSON.stringify({
-          observations: board.observations.map((item) => item.id),
-          scanRun: latest?.id ?? null,
-          missingSources: board.sources.pending.map((source) => source.id),
-        }),
-        model,
-      ),
-    db
-      .prepare(
-        `UPDATE growth_chats SET updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-      )
-      .bind(chatId),
-  ]);
+  await finishGrowthAsk({
+    organizationId: input.organizationId,
+    plan,
+    question: input.question,
+    answer,
+    model,
+  });
 
   return {
-    chatId,
+    chatId: plan.chatId,
     answer,
     model,
     groundedOn: {
-      observations: board.observations.length,
-      scanRun: latest?.id ?? null,
-      missingSources: board.sources.pending.map((source) => source.label),
+      observations: plan.groundedOn.observations,
+      scanRun: plan.groundedOn.scanRun,
+      missingSources: plan.groundedOn.missingSources,
     },
   };
 }

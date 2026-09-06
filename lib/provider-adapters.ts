@@ -1503,3 +1503,115 @@ async function recordUsage(
     referenceId,
   });
 }
+
+/**
+ * The same reasoning turn, streamed.
+ *
+ * `reasonWithTools` answers when the whole reply exists, which for a 700-token
+ * plan is several seconds of a spinner. This is the same request with
+ * `stream: true`, handing back text as the provider produces it, and it picks
+ * the provider the same way — OpenAI if a key resolves, Anthropic otherwise —
+ * so a workspace does not get one model in chat and another everywhere else.
+ *
+ * No tools here. A streamed tool call has to be buffered whole before it can be
+ * run, which defeats the point; the growth chat does not use tools anyway, and
+ * anything that does should keep using `reasonWithTools`.
+ */
+export async function streamReasoning(input: {
+  organizationId: string;
+  system: string;
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+  maxTokens?: number;
+  signal?: AbortSignal;
+}): Promise<{
+  body: ReadableStream<Uint8Array>;
+  shape: 'openai' | 'anthropic';
+}> {
+  const maxTokens = Math.max(40, Math.min(1200, input.maxTokens ?? 700));
+  const [openaiCredentials, openaiPlatform] = await Promise.all([
+    connectionCredentials(input.organizationId, 'openai_platform'),
+    platformProviderSecret('openai'),
+  ]);
+  const openaiApiKey =
+    process.env.OPENAI_API_KEY ||
+    openaiPlatform.apiKey ||
+    openaiCredentials.secrets.apiKey;
+  if (openaiApiKey) {
+    const response = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${openaiApiKey}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model:
+          process.env.OPENAI_MODEL ||
+          configString(openaiPlatform.config, 'model') ||
+          'gpt-5.4-mini',
+        instructions: input.system,
+        input: input.messages,
+        max_output_tokens: maxTokens,
+        stream: true,
+      }),
+      signal: input.signal,
+    });
+    if (!response.ok || !response.body)
+      throw new Error(await describeStreamFailure(response));
+    return { body: response.body, shape: 'openai' };
+  }
+
+  const [credentials, anthropicPlatform] = await Promise.all([
+    connectionCredentials(input.organizationId, 'anthropic_reasoning'),
+    platformProviderSecret('anthropic'),
+  ]);
+  const apiKey =
+    process.env.ANTHROPIC_API_KEY ||
+    anthropicPlatform.apiKey ||
+    credentials.secrets.apiKey;
+  const model =
+    process.env.ANTHROPIC_MODEL ||
+    configString(anthropicPlatform.config, 'model') ||
+    configString(credentials.publicConfig, 'model');
+  if (!apiKey || !model)
+    throw new ProviderConfigurationError('Vaani Sense is not connected.');
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: maxTokens,
+      system: input.system,
+      messages: input.messages,
+      stream: true,
+    }),
+    signal: input.signal,
+  });
+  if (!response.ok || !response.body)
+    throw new Error(await describeStreamFailure(response));
+  return { body: response.body, shape: 'anthropic' };
+}
+
+/**
+ * Why a stream never started. The body is read as text rather than JSON because
+ * a gateway that refuses the request answers in HTML, and "Unexpected token <"
+ * tells the workspace nothing about a rate limit.
+ */
+async function describeStreamFailure(response: Response) {
+  let detail = '';
+  try {
+    detail = (await response.text()).slice(0, 300);
+  } catch {
+    detail = '';
+  }
+  try {
+    const parsed = JSON.parse(detail) as { error?: { message?: string } };
+    if (parsed.error?.message) detail = parsed.error.message;
+  } catch {
+    // Not JSON; the raw prefix is the most honest thing available.
+  }
+  return `Reasoning stream failed (${response.status})${detail ? `: ${detail}` : ''}.`;
+}

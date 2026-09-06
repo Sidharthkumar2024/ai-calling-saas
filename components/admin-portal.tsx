@@ -70,12 +70,20 @@ type AdminPayload = {
     call: { summary: string };
     message: { summary: string };
     fixed: { summary: string };
+    targetMargin: number;
     plans: Array<{
       id: string;
       name: string;
       includedMinutes: number;
       summary: string;
       complete: boolean;
+      suggestion: { summary: string; shortfallMicros: number | null };
+    }>;
+    credits: Array<{
+      packName: string;
+      sellPerMinuteMicros: number;
+      marginPerMinute: number | null;
+      summary: string;
     }>;
   };
   audits?: Record<string, unknown>[];
@@ -3544,7 +3552,27 @@ function CostModel({
     priceMicros: '',
   });
   const [notice, setNotice] = useState<string | null>(null);
-  const model = data.costModel;
+  // The panel refetches only itself when the target moves, so dragging the
+  // margin does not remount the whole admin screen.
+  const [override, setOverride] = useState<AdminPayload['costModel'] | null>(
+    null,
+  );
+  const model = override ?? data.costModel;
+  const targetMargin = model?.targetMargin ?? 0.7;
+
+  async function retarget(next: number) {
+    try {
+      const response = await fetch(`/api/admin/overview?targetMargin=${next}`, {
+        cache: 'no-store',
+      });
+      if (!response.ok) return;
+      const payload = (await response.json()) as AdminPayload;
+      setOverride(payload.costModel ?? null);
+    } catch {
+      /* leave the last good model on screen rather than blanking it */
+    }
+  }
+
   const field =
     'h-8 rounded-lg border border-hairline bg-surface px-2.5 text-[11px]';
 
@@ -3611,8 +3639,56 @@ function CostModel({
                 >
                   {plan.summary}
                 </span>
+                <br />
+                <span
+                  className={
+                    (plan.suggestion.shortfallMicros ?? 0) > 0
+                      ? 'text-warning-text'
+                      : 'text-ink-muted'
+                  }
+                >
+                  {plan.suggestion.summary}
+                </span>
               </p>
             ))}
+          </div>
+
+          {/* What a minute sells for, next to what it costs. */}
+          <div className="mt-4 space-y-1">
+            <p className="text-[11px] font-medium text-ink">
+              What a minute sells for
+            </p>
+            {model.credits.map((pack) => (
+              <p key={pack.packName} className="text-[10px] text-ink-muted">
+                <span className="text-ink-body">{pack.packName}</span>
+                {' · '}
+                {pack.summary}
+              </p>
+            ))}
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <label
+              htmlFor="target-margin"
+              className="text-[10px] text-ink-muted"
+            >
+              Target margin
+            </label>
+            <input
+              id="target-margin"
+              type="range"
+              min={0}
+              max={95}
+              step={5}
+              value={Math.round(targetMargin * 100)}
+              onChange={(event) =>
+                void retarget(Number(event.target.value) / 100)
+              }
+              className="w-48"
+            />
+            <span className="text-[11px] font-medium text-ink">
+              {Math.round(targetMargin * 100)}%
+            </span>
           </div>
 
           {/* An assumption said out loud is worth more than a number that

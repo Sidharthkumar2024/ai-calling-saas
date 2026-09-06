@@ -9,6 +9,9 @@ import {
   formatRupees,
   planEconomics,
   priceForMargin,
+  creditEconomics,
+  CREDITS_PER_MINUTE,
+  suggestPlanPrice,
 } from '../lib/unit-economics.ts';
 
 let checks = 0;
@@ -190,5 +193,121 @@ check(() => assert.equal(formatRupees(2_500_000), '₹2.5'));
 // rather than rounding to ₹0.
 check(() => assert.equal(formatRupees(500), '₹0.0005'));
 check(() => assert.equal(formatRupees(50_000), '₹0.05'));
+
+// --- what a credit is worth ---------------------------------------------------
+
+// Credits are the per-minute currency: ten buy a minute. That makes the sell
+// price of a minute a fact already sitting in the credit packages, which
+// nobody had ever compared to what a minute costs.
+check(() => assert.equal(CREDITS_PER_MINUTE, 10));
+
+const pack = creditEconomics({
+  packName: '1,000 credits',
+  credits: 1000,
+  pricePaidMicros: 999_000_000,
+  costPerMinuteMicros: minute.micros,
+});
+// 1000 credits = 100 minutes, so ₹999 is ₹9.99 a minute.
+check(() => assert.equal(pack.sellPerMinuteMicros, 9_990_000));
+check(() => assert.ok(pack.marginPerMinute > 0.9));
+check(() => assert.match(pack.summary, /on the variable cost alone/));
+
+// A pack with no minutes in it is said plainly, not divided by zero.
+const empty = creditEconomics({
+  packName: 'Empty',
+  credits: 0,
+  pricePaidMicros: 100,
+  costPerMinuteMicros: minute.micros,
+});
+check(() => assert.equal(empty.marginPerMinute, null));
+check(() => assert.match(empty.summary, /no minutes in it/));
+
+check(() =>
+  assert.match(
+    creditEconomics({
+      packName: 'P',
+      credits: 1000,
+      pricePaidMicros: 999_000_000,
+      costPerMinuteMicros: minute.micros,
+      complete: false,
+    }).summary,
+    /real margin is lower/,
+  ),
+);
+
+// --- what a plan should charge -------------------------------------------------
+
+const underpriced = suggestPlanPrice({
+  planName: 'Growth',
+  currentPriceMicros: 100_000_000,
+  includedMinutes: 1000,
+  costPerMinuteMicros: minute.micros,
+  fixedMicros: 400_000_000,
+  targetMargin: 0.7,
+});
+check(() => assert.ok(underpriced.shortfallMicros > 0));
+check(() => assert.match(underpriced.summary, /needs .* to hold 70%/));
+check(() => assert.match(underpriced.summary, /above the .* it charges today/));
+
+const comfortable = suggestPlanPrice({
+  planName: 'Scale',
+  currentPriceMicros: 5_000_000_000,
+  includedMinutes: 1000,
+  costPerMinuteMicros: minute.micros,
+  fixedMicros: 0,
+  targetMargin: 0.7,
+});
+check(() => assert.ok(comfortable.shortfallMicros <= 0));
+check(() => assert.match(comfortable.summary, /already clears 70%/));
+
+// A 100% margin has no price that satisfies it.
+const impossible = suggestPlanPrice({
+  planName: 'X',
+  currentPriceMicros: 1000,
+  includedMinutes: 10,
+  costPerMinuteMicros: minute.micros,
+  fixedMicros: 0,
+  targetMargin: 1,
+});
+check(() => assert.equal(impossible.suggestedMicros, null));
+check(() => assert.match(impossible.summary, /no price that satisfies it/));
+
+// A floor is called a floor when a cost is missing.
+check(() =>
+  assert.match(
+    suggestPlanPrice({
+      planName: 'Y',
+      currentPriceMicros: 1000,
+      includedMinutes: 10,
+      costPerMinuteMicros: incomplete.micros,
+      fixedMicros: null,
+      targetMargin: 0.5,
+    }).summary,
+    /this is a floor/,
+  ),
+);
+
+// The fixed bill raises the floor: the same plan needs more once the server is
+// counted.
+check(() =>
+  assert.ok(
+    suggestPlanPrice({
+      planName: 'Z',
+      currentPriceMicros: 0,
+      includedMinutes: 100,
+      costPerMinuteMicros: minute.micros,
+      fixedMicros: 400_000_000,
+      targetMargin: 0.6,
+    }).suggestedMicros >
+      suggestPlanPrice({
+        planName: 'Z',
+        currentPriceMicros: 0,
+        includedMinutes: 100,
+        costPerMinuteMicros: minute.micros,
+        fixedMicros: 0,
+        targetMargin: 0.6,
+      }).suggestedMicros,
+  ),
+);
 
 console.log(`unit-economics: ${checks} assertions passed`);

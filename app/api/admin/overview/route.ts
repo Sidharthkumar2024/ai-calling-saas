@@ -12,6 +12,8 @@ import {
   DEFAULT_ASSUMPTIONS,
   fixedCostPerWorkspace,
   planEconomics,
+  creditEconomics,
+  suggestPlanPrice,
 } from '@/lib/unit-economics';
 import { BASE_CURRENCY } from '@/lib/metering';
 
@@ -404,7 +406,20 @@ export async function GET(request: Request) {
     activeWorkspaces,
   );
 
+  // The target margin the suggestions are priced against. A query parameter so
+  // the panel can move it without a round trip through settings.
+  const askedParam = new URL(request.url).searchParams.get('targetMargin');
+  // `Number('')` is 0, not NaN, so an absent parameter used to pass the range
+  // check and pin every suggestion to a 0% target. Absent and zero are
+  // different answers and have to be told apart before the number is read.
+  const askedMargin = askedParam === null ? Number.NaN : Number(askedParam);
+  const targetMargin =
+    Number.isFinite(askedMargin) && askedMargin >= 0 && askedMargin < 1
+      ? askedMargin
+      : 0.7;
+
   const costModel = {
+    targetMargin,
     assumptions: DEFAULT_ASSUMPTIONS,
     minute,
     call: costPerCall(minute, averageCallMinutes || 1),
@@ -433,7 +448,29 @@ export async function GET(request: Request) {
           fixedMicros: fixed.micros,
           complete: minute.complete,
         }),
+        suggestion: suggestPlanPrice({
+          planName: row.name,
+          currentPriceMicros: Number(row.monthly_price ?? 0) * 10_000,
+          includedMinutes,
+          costPerMinuteMicros: minute.micros,
+          fixedMicros: fixed.micros,
+          targetMargin,
+          complete: minute.complete,
+        }),
       };
+    }),
+    // What a minute actually sells for. Credits are the per-minute currency —
+    // ten buy a minute — so the sell price was already sitting in the credit
+    // packages and had never been compared to the cost.
+    credits: (creditPackages.results ?? []).map((row) => {
+      const pack = row as { name: string; credits?: number; amount?: number };
+      return creditEconomics({
+        packName: pack.name,
+        credits: Number(pack.credits ?? 0),
+        pricePaidMicros: Number(pack.amount ?? 0) * 10_000,
+        costPerMinuteMicros: minute.micros,
+        complete: minute.complete,
+      });
     }),
   };
 

@@ -357,3 +357,112 @@ export function formatRupees(micros: number): string {
   if (Math.abs(rupees) < 1) return `₹${rupees.toFixed(rupees < 0.01 ? 4 : 2)}`;
   return `₹${rupees.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 }
+
+/* ------------------------------------------------------------------ *
+ * What to charge
+ * ------------------------------------------------------------------ */
+
+/**
+ * Credits are the per-minute currency, so a credit has a price on both sides.
+ *
+ * A workspace buys credits in packs and spends ten of them a minute. That
+ * makes the sell price of a minute a fact already sitting in the credit
+ * packages — nobody had ever compared it to what a minute costs.
+ */
+export const CREDITS_PER_MINUTE = 10;
+
+export type CreditEconomics = {
+  packName: string;
+  credits: number;
+  pricePaidMicros: number;
+  /** What one minute sells for, in micros. */
+  sellPerMinuteMicros: number;
+  costPerMinuteMicros: number;
+  marginPerMinute: number | null;
+  complete: boolean;
+  summary: string;
+};
+
+export function creditEconomics(input: {
+  packName: string;
+  credits: number;
+  pricePaidMicros: number;
+  costPerMinuteMicros: number;
+  complete?: boolean;
+}): CreditEconomics {
+  const minutes = input.credits / CREDITS_PER_MINUTE;
+  const sell = minutes > 0 ? Math.round(input.pricePaidMicros / minutes) : 0;
+  const margin = sell > 0 ? (sell - input.costPerMinuteMicros) / sell : null;
+  const complete = input.complete !== false;
+  return {
+    packName: input.packName,
+    credits: input.credits,
+    pricePaidMicros: input.pricePaidMicros,
+    sellPerMinuteMicros: sell,
+    costPerMinuteMicros: input.costPerMinuteMicros,
+    marginPerMinute: margin,
+    complete,
+    summary:
+      margin === null
+        ? `${input.packName} has no minutes in it to price.`
+        : `${formatRupees(sell)} a minute against ${formatRupees(input.costPerMinuteMicros)} of cost — ${Math.round(margin * 100)}% on the variable cost alone.${complete ? '' : ' Some costs have no rate card, so the real margin is lower.'}`,
+  };
+}
+
+export type PriceSuggestion = {
+  targetMargin: number;
+  /** What the plan should charge, in micros. Null when the target is invalid. */
+  suggestedMicros: number | null;
+  currentMicros: number;
+  /** Positive means it is underpriced against the target. */
+  shortfallMicros: number | null;
+  summary: string;
+};
+
+/**
+ * What a plan would have to charge to hit a target margin.
+ *
+ * Costed at the minutes the plan includes plus its share of the fixed bill,
+ * because that is what a customer is entitled to consume.
+ */
+export function suggestPlanPrice(input: {
+  planName: string;
+  currentPriceMicros: number;
+  includedMinutes: number;
+  costPerMinuteMicros: number;
+  fixedMicros?: number | null;
+  targetMargin: number;
+  complete?: boolean;
+}): PriceSuggestion {
+  const cost =
+    Math.round(input.costPerMinuteMicros * Math.max(0, input.includedMinutes)) +
+    Math.max(0, input.fixedMicros ?? 0);
+  const suggested = priceForMargin(cost, input.targetMargin);
+  const shortfall =
+    suggested === null ? null : suggested - input.currentPriceMicros;
+  const hedge =
+    input.complete === false || input.fixedMicros === null
+      ? ' Some costs have no rate card, so this is a floor.'
+      : '';
+
+  if (suggested === null)
+    return {
+      targetMargin: input.targetMargin,
+      suggestedMicros: null,
+      currentMicros: input.currentPriceMicros,
+      shortfallMicros: null,
+      summary:
+        'A margin of 100% or more has no price that satisfies it — every sale would have to be free to us and paid for by the customer at once.',
+    };
+
+  return {
+    targetMargin: input.targetMargin,
+    suggestedMicros: suggested,
+    currentMicros: input.currentPriceMicros,
+    shortfallMicros: shortfall,
+    summary:
+      shortfall === null || shortfall <= 0
+        ? `${input.planName} already clears ${Math.round(input.targetMargin * 100)}% — ${formatRupees(input.currentPriceMicros)} against a ${formatRupees(suggested)} floor.${hedge}`
+        : `${input.planName} needs ${formatRupees(suggested)} to hold ${Math.round(input.targetMargin * 100)}%, which is ${formatRupees(shortfall)} above the ${formatRupees(input.currentPriceMicros)} it charges today.${hedge}`,
+  };
+}

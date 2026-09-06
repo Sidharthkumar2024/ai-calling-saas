@@ -175,7 +175,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
             : 'border-b border-hairline bg-surface-muted/88'
         }`}
       >
-        <div className="mx-auto flex h-[70px] max-w-[1240px] items-center justify-between px-4 sm:px-6">
+        <div className="mx-auto flex h-[76px] max-w-[1180px] items-center justify-between px-5 sm:px-8">
           <a
             href="#top"
             className="flex items-center gap-3"
@@ -185,17 +185,17 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
               <Activity className="size-5" strokeWidth={2.4} />
             </span>
             <span>
-              <span className="block text-[15px] font-semibold tracking-tight">
+              <span className="block text-[18px] font-semibold leading-5 tracking-[-0.02em]">
                 V-A-N-I
               </span>
-              <span className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-muted">
+              <span className="block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-muted">
                 {t('landing.tagline')}
               </span>
             </span>
           </a>
 
           <nav
-            className="hidden items-center gap-7 text-xs text-ink-body lg:flex"
+            className="hidden items-center gap-6 text-[13px] text-ink-body xl:flex"
             aria-label={t('landing.nav.aria')}
           >
             {(

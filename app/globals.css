@@ -216,6 +216,20 @@
     box-shadow: 0 16px 55px rgba(15, 23, 42, 0.08);
   }
 
+  .landing-equal-theme > header a[aria-label] > span:last-child {
+    min-width: 122px;
+    color: #111827;
+  }
+
+  .landing-equal-theme > header a[aria-label] > span:last-child > span:last-child {
+    color: #475569;
+  }
+
+  .landing-equal-theme > header.text-white a[aria-label] > span:last-child,
+  .landing-equal-theme > header.text-white a[aria-label] > span:last-child > span:last-child {
+    color: #ffffff;
+  }
+
   .landing-equal-theme > header span.grid {
     background: #111827;
     color: var(--landing-green);

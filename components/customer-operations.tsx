@@ -54,6 +54,7 @@ import {
   type GraphAgentStatus,
 } from '@/lib/operations-status';
 import { nextQualityStatuses, openFindings } from '@/lib/call-quality';
+import { trunkReadiness } from '@/lib/sip-trunks';
 import type { TranslationKey } from '@/lib/i18n';
 import { RECORDING_PRESENT } from '@/lib/call-history';
 import { parseOpening, previewOpening } from '@/lib/campaign-opening';
@@ -402,22 +403,12 @@ function ResourceModule({
               </Button>
             ) : null}
             {module === 'sip_trunks' ? (
-              <Button
-                variant="outline"
-                onClick={() => validateTrunk(str(row.id))}
-                disabled={
-                  Boolean(loading) ||
-                  str(row.status) === 'provider_test_pending'
-                }
-                className="mt-4 w-full border-hairline bg-transparent text-[10px]"
-              >
-                {loading === str(row.id) ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  <ShieldCheck />
-                )}
-                Validate & queue provider test
-              </Button>
+              <TrunkReadiness
+                row={row}
+                busy={Boolean(loading)}
+                working={loading === str(row.id)}
+                onValidate={() => validateTrunk(str(row.id))}
+              />
             ) : null}
           </section>
         ))}
@@ -449,6 +440,71 @@ function ResourceModule({
           </div>
         </section>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * What a trunk can and cannot do.
+ *
+ * "Validate & queue provider test" reads like the last step before calls start
+ * crossing it. Nothing in this build sets a trunk active, nothing places a call
+ * through one, and the media gateway does not speak SIP — it terminates a
+ * carrier's media stream. So the ceiling is real, and saying so is more useful
+ * than a status that implies otherwise.
+ */
+function TrunkReadiness({
+  row,
+  busy,
+  working,
+  onValidate,
+}: {
+  row: Record<string, unknown>;
+  busy: boolean;
+  working: boolean;
+  onValidate: () => void;
+}) {
+  const readiness = trunkReadiness({
+    status: str(row.status),
+    transport: str(row.transport, 'tls'),
+    media_encryption: str(row.media_encryption, 'sdes'),
+    auth_type: str(row.auth_type, 'userpass'),
+    // `has_credentials` is a 0/1 the API sends deliberately — the secret
+    // itself never leaves the server, and reading `encrypted_credentials`
+    // here got `undefined` and reported credentials missing on every trunk.
+    encrypted_credentials: Number(row.has_credentials) === 1 ? 'stored' : null,
+    codecs_json: str(row.codecs_json, '[]'),
+  });
+  return (
+    <div className="mt-4 space-y-2">
+      <p className="text-[10px] leading-4 text-ink-body">{readiness.summary}</p>
+      {readiness.blockers.length > 0 ? (
+        <ul className="space-y-0.5">
+          {readiness.blockers.map((blocker) => (
+            <li key={blocker} className="text-[9px] text-warning-text">
+              {blocker}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {/* Named every time, not only on failure: a customer who has done
+          everything right should still know what they are waiting for. */}
+      <ul className="space-y-0.5">
+        {readiness.waitingOn.map((item) => (
+          <li key={item} className="text-[9px] leading-4 text-ink-muted">
+            {item}
+          </li>
+        ))}
+      </ul>
+      <Button
+        variant="outline"
+        onClick={onValidate}
+        disabled={busy || str(row.status) === 'provider_test_pending'}
+        className="w-full border-hairline bg-transparent text-[10px]"
+      >
+        {working ? <Loader2 className="animate-spin" /> : <ShieldCheck />}
+        Check this configuration
+      </Button>
     </div>
   );
 }

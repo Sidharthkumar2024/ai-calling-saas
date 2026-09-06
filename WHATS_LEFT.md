@@ -283,6 +283,31 @@ codebase had already decided against it in two comments and replaced it with
 steps derived from evidence. Both traces are gone; the column is marked
 superseded.
 
+### 12. [CODE] The invitation nobody could accept
+
+Walking the second persona — an owner inviting a colleague — found this.
+
+The API was already honest. With no transactional email provider connected it
+answers `delivery: "not_sent"`, explains why, and hands back the
+`invitationUrl` so an admin can share it by hand. Somebody had fixed that
+deliberately; the comment in the route says it used to report `email_pending`
+while nothing ever delivered anything.
+
+**The screen was never updated to match.** It read `payload.developmentToken`
+— a field this endpoint has never returned, belonging to password reset — so it
+rendered nothing at all. No warning, no link. The invitation appeared in the
+pending list, the admin believed a teammate had been invited, and the teammate
+never heard anything, with no way for anyone to find the link.
+
+Fixed: the screen now shows what actually happened and the link to share, with
+a copy button.
+
+Worth noting what kind of bug this is. `npm run audit:actions` catches a
+*request* field the server does not know; this was a *response* field the
+client invented, which no static check here would see. It was found by clicking
+Invite and watching nothing happen — which is the argument for walking the
+product rather than only reading it.
+
 ### 5. [KEY] Things only you can supply
 
 - **A male ElevenLabs voice id** (still outstanding) and a Punjabi voice id.

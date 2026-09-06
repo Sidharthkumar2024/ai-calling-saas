@@ -51,17 +51,38 @@ export function CustomerTeam({
   const [role, setRole] = useState('agent');
   const [loading, setLoading] = useState('');
   const [error, setError] = useState('');
-  const [developmentToken, setDevelopmentToken] = useState('');
+  /**
+   * What actually happened to the invitation.
+   *
+   * This screen used to read `payload.developmentToken`, which this endpoint
+   * has never returned — that field belongs to password reset. So when no
+   * email provider is connected the API said "the invitation was not emailed,
+   * share the link below instead" and handed over the link, and the screen
+   * rendered nothing at all. The invitation appeared in the pending list, the
+   * admin believed a teammate had been invited, and the teammate never heard
+   * anything.
+   */
+  const [inviteResult, setInviteResult] = useState<{
+    delivery: string;
+    detail: string;
+    url: string;
+  } | null>(null);
 
   async function invite() {
     setLoading('invite');
     setError('');
-    setDevelopmentToken('');
+    setInviteResult(null);
     try {
       const payload = (await mutate('POST', { email, role })) as {
-        developmentToken?: string;
+        delivery?: string;
+        deliveryDetail?: string;
+        invitationUrl?: string;
       };
-      setDevelopmentToken(payload.developmentToken ?? '');
+      setInviteResult({
+        delivery: payload.delivery ?? 'unknown',
+        detail: payload.deliveryDetail ?? '',
+        url: payload.invitationUrl ?? '',
+      });
       setEmail('');
       await onChanged();
     } catch (caught) {
@@ -164,19 +185,35 @@ export function CustomerTeam({
             Invite
           </Button>
         </div>
-        {developmentToken ? (
-          <div className="mt-4 flex items-center gap-3 rounded-xl border border-[#9eb0ff]/15 bg-primary/6 p-3 text-[10px] text-ink-body">
-            <ShieldCheck className="size-4 shrink-0 text-primary" />
-            <span className="min-w-0 flex-1 truncate font-mono">
-              Local invite token: {developmentToken}
-            </span>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => navigator.clipboard.writeText(developmentToken)}
-            >
-              <Copy className="size-3" />
-            </Button>
+        {inviteResult ? (
+          <div className="mt-4 rounded-xl border border-hairline bg-surface-muted p-3 text-[10px] text-ink-body">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="size-4 shrink-0 text-primary" />
+              <span>
+                {inviteResult.delivery === 'sent'
+                  ? 'Invitation emailed.'
+                  : inviteResult.detail ||
+                    'The invitation was not emailed. Share the link below instead.'}
+              </span>
+            </div>
+            {/* The link is the whole point when the email did not go: without
+                it the admin is left with an invitation nobody can accept. */}
+            {inviteResult.url ? (
+              <div className="mt-2 flex items-center gap-3">
+                <span className="min-w-0 flex-1 truncate font-mono">
+                  {inviteResult.url}
+                </span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    void navigator.clipboard.writeText(inviteResult.url)
+                  }
+                >
+                  <Copy className="size-3" />
+                </Button>
+              </div>
+            ) : null}
           </div>
         ) : null}
         {error ? (

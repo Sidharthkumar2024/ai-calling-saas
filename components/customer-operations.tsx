@@ -44,6 +44,7 @@ import {
 } from '@/components/analytics-charts';
 import { CustomerSecurity } from '@/components/customer-security';
 import { CustomerImport } from '@/components/customer-import';
+import { KnowledgeSources } from '@/components/customer-knowledge-sources';
 import { SupervisorMonitor } from '@/components/supervisor-monitor';
 import { useT } from '@/components/locale-provider';
 import {
@@ -200,11 +201,6 @@ function ResourceModule({
         });
       if (module === 'campaigns')
         Object.assign(payload, { audienceSize: 250, concurrency: 5 });
-      if (module === 'knowledge')
-        Object.assign(payload, {
-          description: 'Approved product and support content',
-          language: 'Hindi + English + Haryanvi',
-        });
       if (module === 'alerts')
         Object.assign(payload, { metric: 'call_failure_rate', threshold: 10 });
     }
@@ -254,7 +250,14 @@ function ResourceModule({
   }
 
   const hasStructuredCreator =
-    module === 'campaigns' || module === 'sip_trunks' || module === 'reports';
+    module === 'campaigns' ||
+    module === 'sip_trunks' ||
+    module === 'reports' ||
+    // Knowledge used to be name-only: the description and language were
+    // hardcoded in this file, so every knowledge base a customer created was
+    // labelled "Approved product and support content" in
+    // "Hindi + English + Haryanvi" whatever it actually held.
+    module === 'knowledge';
   return (
     <div className="space-y-6">
       <Header
@@ -298,6 +301,15 @@ function ResourceModule({
           campaigns={rows.map((row) => ({
             id: str(row.id),
             name: str(row.name, 'Untitled campaign'),
+          }))}
+          onChanged={onChanged}
+        />
+      ) : null}
+      {module === 'knowledge' ? (
+        <KnowledgeSources
+          bases={rows.map((row) => ({
+            id: str(row.id),
+            name: str(row.name, 'Untitled knowledge base'),
           }))}
           onChanged={onChanged}
         />
@@ -449,7 +461,7 @@ function OperationsCreator({
   loading,
   submit,
 }: {
-  module: 'campaigns' | 'sip_trunks' | 'reports';
+  module: 'campaigns' | 'sip_trunks' | 'reports' | 'knowledge';
   data: OperationsData;
   open: boolean;
   setOpen: (open: boolean) => void;
@@ -489,6 +501,12 @@ function OperationsCreator({
     transport: 'tls',
     mediaEncryption: 'sdes',
     codecs: 'PCMU, PCMA',
+  });
+  const [knowledge, setKnowledge] = useState({
+    name: '',
+    description: '',
+    language: 'multilingual',
+    scope: '',
   });
   const [report, setReport] = useState({
     name: '',
@@ -533,6 +551,19 @@ function OperationsCreator({
       });
       return;
     }
+    if (module === 'knowledge') {
+      await submit({
+        action: 'create_knowledge_base',
+        name: knowledge.name,
+        // What it is *for* is the description; the scope line is what the
+        // agent must not answer from. Both are the customer's words.
+        description: [knowledge.description.trim(), knowledge.scope.trim()]
+          .filter(Boolean)
+          .join(' — '),
+        language: knowledge.language,
+      });
+      return;
+    }
     await submit({
       action: 'create_report',
       ...report,
@@ -552,14 +583,18 @@ function OperationsCreator({
               ? 'Create outbound campaign'
               : module === 'sip_trunks'
                 ? 'Register SIP trunk'
-                : 'Create report'}
+                : module === 'knowledge'
+                  ? 'Create knowledge base'
+                  : 'Create report'}
           </DialogTitle>
           <DialogDescription className="text-xs leading-5 text-ink-muted">
             {module === 'campaigns'
               ? 'Configure the agent, workflow version, consent-aware contacts, retry policy and legal calling window.'
               : module === 'sip_trunks'
                 ? 'Credentials are encrypted before storage. Activation remains locked until the connectivity test passes.'
-                : 'Choose what it measures, how often it runs, and who receives it.'}
+                : module === 'knowledge'
+                  ? 'Say what this knowledge covers and in which languages. Your agents answer from it, so the description is what a person reads when deciding where an answer came from.'
+                  : 'Choose what it measures, how often it runs, and who receives it.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -966,6 +1001,67 @@ function OperationsCreator({
           </div>
         ) : null}
 
+        {module === 'knowledge' ? (
+          <div className="grid gap-5 p-6 sm:grid-cols-2">
+            <CreatorField label="Knowledge base name">
+              <Input
+                value={knowledge.name}
+                onChange={(event) =>
+                  setKnowledge({ ...knowledge, name: event.target.value })
+                }
+                placeholder="Dwarka Expressway inventory"
+              />
+            </CreatorField>
+            <CreatorField label="Languages it is written in">
+              <select
+                value={knowledge.language}
+                onChange={(event) =>
+                  setKnowledge({ ...knowledge, language: event.target.value })
+                }
+              >
+                <option value="multilingual">Multilingual</option>
+                <option value="hi-IN">Hindi</option>
+                <option value="hinglish">Hinglish</option>
+                <option value="en-IN">Indian English</option>
+                <option value="pa-IN">Punjabi</option>
+                <option value="mr-IN">Marathi</option>
+                <option value="gu-IN">Gujarati</option>
+                <option value="ta-IN">Tamil</option>
+                <option value="te-IN">Telugu</option>
+                <option value="bn-IN">Bengali</option>
+              </select>
+            </CreatorField>
+            <CreatorField label="What does this knowledge cover?">
+              <Textarea
+                rows={3}
+                value={knowledge.description}
+                onChange={(event) =>
+                  setKnowledge({
+                    ...knowledge,
+                    description: event.target.value,
+                  })
+                }
+                placeholder="Pricing, floor plans and possession dates for the Dwarka Expressway projects."
+              />
+            </CreatorField>
+            <CreatorField label="What must the agent NOT answer from it?">
+              <Textarea
+                rows={3}
+                value={knowledge.scope}
+                onChange={(event) =>
+                  setKnowledge({ ...knowledge, scope: event.target.value })
+                }
+                placeholder="No legal advice, no loan approvals, no discounts beyond the published price."
+              />
+              <p className="mt-2 text-[9px] text-ink-muted">
+                Both lines are kept on the knowledge base and shown wherever an
+                answer is traced back to it, so a person reviewing a call can
+                see what this content was meant to cover.
+              </p>
+            </CreatorField>
+          </div>
+        ) : null}
+
         <DialogFooter className="m-0 border-hairline bg-surface-muted px-6 py-4">
           <Button
             type="button"
@@ -994,7 +1090,9 @@ function OperationsCreator({
               ? 'Create draft campaign'
               : module === 'sip_trunks'
                 ? 'Save encrypted configuration'
-                : 'Create report'}
+                : module === 'knowledge'
+                  ? 'Create knowledge base'
+                  : 'Create report'}
           </Button>
         </DialogFooter>
       </DialogContent>

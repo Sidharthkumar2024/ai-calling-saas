@@ -27,7 +27,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ results: chunks.results });
   }
   const sources = await getRawDb()
-    .prepare(`SELECT s.*, k.name AS knowledge_base_name FROM knowledge_sources s
+    .prepare(`SELECT s.*, k.name AS knowledge_base_name,
+      (SELECT count(*) FROM knowledge_chunks c WHERE c.source_id = s.id) AS chunk_count
+    FROM knowledge_sources s
     INNER JOIN knowledge_bases k ON k.id = s.knowledge_base_id WHERE s.organization_id = ?
     ORDER BY s.created_at DESC`)
     .bind(organizationId)

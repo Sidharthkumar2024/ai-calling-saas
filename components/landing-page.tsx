@@ -36,6 +36,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { VAANI_ENGINES } from '@/lib/vaani-engine-catalog';
 import { LandingHeroStage } from '@/components/landing-hero-stage';
+import { LandingVideoIntro } from '@/components/landing-video-intro';
 import { LandingProofBand } from '@/components/landing-proof-band';
 import { LandingScrollStory } from '@/components/landing-scroll-story';
 import { useLocale } from '@/components/locale-provider';
@@ -150,6 +151,8 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
   // creating one.
   return (
     <main className="landing-equal-theme min-h-screen overflow-x-clip bg-surface-muted text-ink">
+      <LandingVideoIntro />
+      <div id="vani-platform" className="scroll-mt-4" />
       <div
         className={`px-4 py-2 text-center text-[11px] transition-colors duration-700 sm:text-xs ${
           overStage
@@ -254,6 +257,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
 
       <LandingHeroStage onEnterWorkspace={onEnterWorkspace} />
 
+
       <section className="border-y border-hairline bg-surface-muted">
         <div className="mx-auto grid max-w-[1240px] grid-cols-2 divide-x divide-y divide-white/8 px-4 sm:grid-cols-4 sm:px-6 lg:grid-cols-7 lg:divide-y-0">
           {[
@@ -267,7 +271,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
           ].map((source) => (
             <div
               key={source}
-              className="flex h-20 items-center justify-center gap-2 px-3 text-center text-[11px] font-medium text-ink-muted"
+              className="landing-source flex h-20 items-center justify-center gap-2 px-3 text-center text-sm font-medium text-ink-muted"
             >
               <span className="size-1.5 rounded-full bg-amber-300/70" />{' '}
               {source}

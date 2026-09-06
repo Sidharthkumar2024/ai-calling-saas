@@ -486,6 +486,13 @@ function WallboardView({
         </div>
       </section>
 
+      <QueueEditor
+        queues={data.queues}
+        strategies={data.strategies}
+        run={run}
+        busy={busy}
+      />
+
       <div className="grid gap-4 xl:grid-cols-2">
         <section className="rounded-2xl border border-hairline bg-surface-muted p-5">
           <h2 className="text-[11px] font-semibold text-ink">
@@ -543,6 +550,7 @@ function WallboardView({
           <p className="mt-1 text-[11px] text-ink-muted">
             {t('desk.routingRulesHint')}
           </p>
+          <RuleEditor queues={data.queues} run={run} busy={busy} />
           <div className="mt-3 space-y-2">
             {data.rules.length === 0 ? (
               <p className="text-[11px] text-ink-muted">
@@ -558,12 +566,34 @@ function WallboardView({
                 <span className="font-mono text-[11px] text-ink-muted">
                   {str(rule.priority)}
                 </span>
-                <span className="text-ink">
+                <span
+                  className={
+                    str(rule.status) === 'archived'
+                      ? 'text-ink-muted line-through'
+                      : 'text-ink'
+                  }
+                >
                   {str(rule.match_type)} = {str(rule.match_value)}
                 </span>
                 <span className="ml-auto rounded-md bg-surface-strong px-2 py-0.5 text-[11px] uppercase tracking-wide text-ink-body">
                   {str(rule.queue_slug, 'missing queue')}
                 </span>
+                <button
+                  type="button"
+                  disabled={busy === 'rule'}
+                  onClick={() =>
+                    void run('rule', {
+                      action:
+                        str(rule.status) === 'archived'
+                          ? 'restore_rule'
+                          : 'archive_rule',
+                      ruleId: str(rule.id),
+                    })
+                  }
+                  className="text-[11px] text-ink-muted hover:text-ink"
+                >
+                  {str(rule.status) === 'archived' ? 'Restore' : 'Archive'}
+                </button>
               </div>
             ))}
           </div>
@@ -746,6 +776,336 @@ function CopilotCard({ handoffId }: { handoffId: string }) {
           </p>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * Making and changing a queue.
+ *
+ * The desk has always listed queues and never let anyone create one — the API
+ * has taken `create_queue`, `update_queue` and `delete_queue` since it was
+ * written and no screen sent any of them, so a workspace's queues were whatever
+ * the seed happened to leave behind.
+ *
+ * Removal goes through the same button as everything else and the server
+ * decides: a queue nothing points at is deleted, one with conversations, rules,
+ * numbers or members behind it is archived, and the reason comes back in words
+ * rather than as a silent difference.
+ */
+function QueueEditor({
+  queues,
+  strategies,
+  run,
+  busy,
+}: {
+  queues: Row[];
+  strategies: string[];
+  run: (label: string, payload: Record<string, unknown>) => Promise<void>;
+  busy: string | null;
+}) {
+  const empty = {
+    queueId: '',
+    name: '',
+    slug: '',
+    strategy: strategies[0] ?? 'skill_first',
+    requiredSkill: '',
+    language: '',
+    slaSeconds: '60',
+    priority: '100',
+    overflowAction: 'callback',
+    overflowQueueId: '',
+  };
+  const [form, setForm] = useState(empty);
+  const editing = Boolean(form.queueId);
+
+  const set = (patch: Partial<typeof empty>) =>
+    setForm((current) => ({ ...current, ...patch }));
+
+  return (
+    <section className="rounded-2xl border border-hairline bg-surface-muted p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-[11px] font-semibold text-ink">
+          {editing ? 'Edit queue' : 'New queue'}
+        </h2>
+        {editing ? (
+          <button
+            type="button"
+            onClick={() => setForm(empty)}
+            className="text-[11px] text-ink-muted hover:text-ink"
+          >
+            Cancel
+          </button>
+        ) : null}
+      </div>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        <label className="text-[11px] text-ink-muted">
+          Name
+          <input
+            value={form.name}
+            onChange={(event) => set({ name: event.target.value })}
+            placeholder="Sales — Gurgaon"
+            className="mt-1 w-full rounded-lg border border-hairline bg-surface px-2.5 py-2 text-[11px] text-ink"
+          />
+        </label>
+        <label className="text-[11px] text-ink-muted">
+          Strategy
+          <select
+            value={form.strategy}
+            onChange={(event) => set({ strategy: event.target.value })}
+            className="mt-1 w-full rounded-lg border border-hairline bg-surface px-2.5 py-2 text-[11px] text-ink"
+          >
+            {strategies.map((strategy) => (
+              <option key={strategy} value={strategy}>
+                {strategy.replaceAll('_', ' ')}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-[11px] text-ink-muted">
+          Required skill
+          <input
+            value={form.requiredSkill}
+            onChange={(event) => set({ requiredSkill: event.target.value })}
+            placeholder="optional"
+            className="mt-1 w-full rounded-lg border border-hairline bg-surface px-2.5 py-2 text-[11px] text-ink"
+          />
+        </label>
+        <label className="text-[11px] text-ink-muted">
+          Answer within (seconds)
+          <input
+            type="number"
+            min={5}
+            max={3600}
+            value={form.slaSeconds}
+            onChange={(event) => set({ slaSeconds: event.target.value })}
+            className="mt-1 w-full rounded-lg border border-hairline bg-surface px-2.5 py-2 text-[11px] text-ink"
+          />
+        </label>
+        <label className="text-[11px] text-ink-muted">
+          Priority
+          <input
+            type="number"
+            min={1}
+            max={1000}
+            value={form.priority}
+            onChange={(event) => set({ priority: event.target.value })}
+            className="mt-1 w-full rounded-lg border border-hairline bg-surface px-2.5 py-2 text-[11px] text-ink"
+          />
+        </label>
+        <label className="text-[11px] text-ink-muted">
+          When nobody answers
+          <select
+            value={form.overflowAction}
+            onChange={(event) => set({ overflowAction: event.target.value })}
+            className="mt-1 w-full rounded-lg border border-hairline bg-surface px-2.5 py-2 text-[11px] text-ink"
+          >
+            <option value="callback">offer a callback</option>
+            <option value="ticket">raise a ticket</option>
+            <option value="ai_continue">let the AI carry on</option>
+            <option value="overflow_queue">send to another queue</option>
+          </select>
+        </label>
+        {/* Only asked for when it means something. The server refuses an
+            overflow queue that does not exist, because overflow that
+            dead-ends at routing time is worse than no overflow. */}
+        {form.overflowAction === 'overflow_queue' ? (
+          <label className="text-[11px] text-ink-muted">
+            Overflow into
+            <select
+              value={form.overflowQueueId}
+              onChange={(event) => set({ overflowQueueId: event.target.value })}
+              className="mt-1 w-full rounded-lg border border-hairline bg-surface px-2.5 py-2 text-[11px] text-ink"
+            >
+              <option value="">Choose a queue…</option>
+              {queues
+                .filter((queue) => str(queue.id) !== form.queueId)
+                .map((queue) => (
+                  <option key={str(queue.id)} value={str(queue.id)}>
+                    {str(queue.name)}
+                  </option>
+                ))}
+            </select>
+          </label>
+        ) : null}
+      </div>
+
+      <button
+        type="button"
+        disabled={!form.name.trim() || busy === 'queue'}
+        onClick={() =>
+          void run('queue', {
+            action: editing ? 'update_queue' : 'create_queue',
+            ...form,
+          }).then(() => setForm(empty))
+        }
+        className="portal-primary mt-3 rounded-lg px-4 py-2 text-[11px] disabled:opacity-50"
+      >
+        {editing ? 'Save queue' : 'Create queue'}
+      </button>
+
+      <div className="mt-4 space-y-2">
+        {queues.map((queue) => (
+          <div
+            key={str(queue.id)}
+            className="flex flex-wrap items-center gap-2 rounded-xl border border-hairline bg-surface px-3 py-2.5 text-[11px]"
+          >
+            <span
+              className={
+                str(queue.status) === 'archived'
+                  ? 'font-medium text-ink-muted line-through'
+                  : 'font-medium'
+              }
+            >
+              {str(queue.name)}
+            </span>
+            <span className="font-mono text-ink-muted">{str(queue.slug)}</span>
+            <span className="ml-auto text-ink-muted">
+              {str(queue.member_count, '0')} on it
+            </span>
+            <button
+              type="button"
+              disabled={busy === 'queue'}
+              onClick={() =>
+                setForm({
+                  queueId: str(queue.id),
+                  name: str(queue.name),
+                  slug: str(queue.slug),
+                  strategy: str(queue.strategy, 'skill_first'),
+                  requiredSkill: str(queue.required_skill),
+                  language: str(queue.language),
+                  slaSeconds: str(queue.sla_seconds, '60'),
+                  priority: str(queue.priority, '100'),
+                  overflowAction: str(queue.overflow_action, 'callback'),
+                  overflowQueueId: str(queue.overflow_queue_id),
+                })
+              }
+              className="rounded-md border border-hairline px-2 py-1 text-ink-body hover:bg-surface-strong"
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              disabled={busy === 'queue'}
+              onClick={() =>
+                void run('queue', {
+                  action: 'delete_queue',
+                  queueId: str(queue.id),
+                })
+              }
+              className="rounded-md px-2 py-1 text-ink-muted hover:bg-surface-strong hover:text-ink"
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Routing rules: what sends a conversation to which queue.
+ *
+ * Listed since the desk was built, never editable. Archived rather than
+ * deleted, on the API's own reasoning — a rule that decided how calls were
+ * routed last month is part of why they went where they went — so this offers
+ * Archive and Restore, and shows archived rules struck through rather than
+ * hiding them.
+ */
+function RuleEditor({
+  queues,
+  run,
+  busy,
+}: {
+  queues: Row[];
+  run: (label: string, payload: Record<string, unknown>) => Promise<void>;
+  busy: string | null;
+}) {
+  const [form, setForm] = useState({
+    matchType: 'skill',
+    matchValue: '',
+    queueId: '',
+    priority: '100',
+  });
+  const live = queues.filter((queue) => str(queue.status) !== 'archived');
+
+  return (
+    <div className="mt-3">
+      <div className="grid gap-2 sm:grid-cols-4">
+        <label className="text-[11px] text-ink-muted">
+          When
+          <select
+            value={form.matchType}
+            onChange={(event) =>
+              setForm({ ...form, matchType: event.target.value })
+            }
+            className="mt-1 w-full rounded-lg border border-hairline bg-surface px-2.5 py-2 text-[11px] text-ink"
+          >
+            {['skill', 'language', 'number', 'use_case', 'reason'].map(
+              (type) => (
+                <option key={type} value={type}>
+                  {type.replaceAll('_', ' ')}
+                </option>
+              ),
+            )}
+          </select>
+        </label>
+        <label className="text-[11px] text-ink-muted">
+          is
+          <input
+            value={form.matchValue}
+            onChange={(event) =>
+              setForm({ ...form, matchValue: event.target.value })
+            }
+            placeholder="hindi"
+            className="mt-1 w-full rounded-lg border border-hairline bg-surface px-2.5 py-2 text-[11px] text-ink"
+          />
+        </label>
+        <label className="text-[11px] text-ink-muted">
+          send to
+          <select
+            value={form.queueId}
+            onChange={(event) =>
+              setForm({ ...form, queueId: event.target.value })
+            }
+            className="mt-1 w-full rounded-lg border border-hairline bg-surface px-2.5 py-2 text-[11px] text-ink"
+          >
+            <option value="">Choose a queue…</option>
+            {live.map((queue) => (
+              <option key={str(queue.id)} value={str(queue.id)}>
+                {str(queue.name)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-[11px] text-ink-muted">
+          Priority
+          <input
+            type="number"
+            min={1}
+            max={1000}
+            value={form.priority}
+            onChange={(event) =>
+              setForm({ ...form, priority: event.target.value })
+            }
+            className="mt-1 w-full rounded-lg border border-hairline bg-surface px-2.5 py-2 text-[11px] text-ink"
+          />
+        </label>
+      </div>
+      <button
+        type="button"
+        disabled={!form.matchValue.trim() || !form.queueId || busy === 'rule'}
+        onClick={() =>
+          void run('rule', { action: 'create_rule', ...form }).then(() =>
+            setForm({ ...form, matchValue: '' }),
+          )
+        }
+        className="portal-primary mt-2.5 rounded-lg px-4 py-2 text-[11px] disabled:opacity-50"
+      >
+        Add rule
+      </button>
     </div>
   );
 }

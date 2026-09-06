@@ -209,7 +209,9 @@
 
   .landing-equal-theme > header > div {
     height: 4.5rem;
-    max-width: 880px;
+    max-width: 1320px;
+    width: calc(100% - 32px);
+    gap: 24px;
     border: 1px solid rgba(17, 24, 39, 0.06);
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.9);
@@ -220,6 +222,14 @@
     min-width: 122px;
     color: #111827;
   }
+
+  .landing-equal-theme > header nav { gap: 18px; white-space: nowrap; }
+  .landing-equal-theme > header > div > a,
+  .landing-equal-theme > header > div > div { flex-shrink: 0; }
+  .landing-source { animation: source-float 4s ease-in-out infinite; }
+  .landing-source:nth-child(even) { animation-delay: -2s; }
+  @keyframes source-float { 50% { transform: translateY(-5px); } }
+  @media (prefers-reduced-motion: reduce) { .landing-source { animation: none; } }
 
   .landing-equal-theme > header a[aria-label] > span:last-child > span:last-child {
     color: #475569;

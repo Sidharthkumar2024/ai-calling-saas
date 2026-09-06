@@ -2081,15 +2081,13 @@ function VoiceOrb({
           : 'Tap the orb to talk';
   const bars = [18, 34, 25, 46, 30, 54, 38, 48, 26, 40, 22];
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-hairline bg-[radial-gradient(circle_at_50%_10%,rgba(129,140,248,0.13),transparent_38%),linear-gradient(180deg,#ffffff_0%,#ffffff_100%)] px-5 py-8 text-center">
-      <div
-        aria-hidden="true"
-        className="absolute inset-x-10 top-1/2 h-24 -translate-y-1/2 rounded-full bg-cyan-300/[0.045] blur-3xl"
-      />
-      <div className="relative mx-auto size-64 sm:size-72">
+    <section className="relative rounded-3xl border border-hairline bg-surface px-5 py-7 text-center">
+      {/* The tinted radial behind the orb drew a visible square corner around
+          a round thing. The orb carries its own light now. */}
+      <div className="relative mx-auto size-40 sm:size-44">
         <div
           aria-hidden="true"
-          className={`absolute -inset-4 rounded-full bg-[radial-gradient(circle,rgba(139,140,248,0.4),transparent_70%)] blur-2xl transition-opacity duration-700 ${active ? 'opacity-80' : 'opacity-40'}`}
+          className={`absolute -inset-5 rounded-full bg-[radial-gradient(circle,rgba(37,99,235,0.28),transparent_70%)] blur-2xl transition-opacity duration-700 ${active ? 'opacity-90' : 'opacity-45'}`}
         />
         <button
           type="button"
@@ -2136,14 +2134,14 @@ function VoiceOrb({
               {bars.map((height, index) => (
                 <span
                   key={`${height}-${index}`}
-                  className={`w-1 rounded-full bg-white/90 shadow-[0_0_8px_rgba(255,255,255,0.5)] ${state === 'listening' || state === 'speaking' ? 'animate-pulse' : ''}`}
+                  className={`w-1 rounded-full bg-white shadow-[0_0_6px_rgba(255,255,255,0.6)] ${state === 'listening' || state === 'speaking' ? 'animate-pulse' : ''}`}
                   style={{ height, animationDelay: `${index * 55}ms` }}
                 />
               ))}
             </span>
           ) : (
-            <span className="relative z-10 grid size-16 place-items-center rounded-full bg-surface-strong text-ink shadow-lg ring-1 ring-white/30 backdrop-blur-md transition group-hover:bg-surface-strong">
-              <Mic2 className="size-7" />
+            <span className="relative z-10 grid size-14 place-items-center rounded-full bg-white/25 text-white shadow-[0_2px_10px_rgba(15,23,42,0.18)] ring-1 ring-white/50 backdrop-blur-sm transition group-hover:bg-white/35">
+              <Mic2 className="size-6" />
             </span>
           )}
         </button>

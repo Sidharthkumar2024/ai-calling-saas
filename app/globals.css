@@ -255,24 +255,23 @@
   position: relative;
   overflow: hidden;
   border-radius: 9999px;
-  /* A neutral product-console surface: the circular silhouette does the work,
-     while the restrained accent stays consistent with the SaaS shell. */
+  /* Was a grey 3D ball: a #7f8793 gradient under a heavy near-black inset
+     shadow, with an amber accent too faint to read. On a white page it looked
+     like a chrome sphere from a stock render, and the mic sat inside it as a
+     second white circle — a circle in a circle in a visible square. This is
+     the product's own blue, lit softly from above, with the depth coming from
+     one ring and one shadow rather than a baked-in highlight. */
   background:
     radial-gradient(
-      circle at 34% 26%,
-      rgba(255, 255, 255, 0.98),
-      transparent 24%
+      circle at 38% 24%,
+      rgba(255, 255, 255, 0.95),
+      transparent 46%
     ),
-    radial-gradient(
-      circle at 68% 72%,
-      rgba(255, 209, 74, 0.26),
-      transparent 40%
-    ),
-    linear-gradient(145deg, #f5f6f8 0%, #cdd2da 48%, #7f8793 100%);
+    linear-gradient(158deg, #dbe4ff 0%, #93aef8 46%, #2563eb 100%);
   box-shadow:
-    inset -28px -34px 74px rgba(8, 10, 34, 0.66),
-    inset 14px 12px 38px rgba(255, 255, 255, 0.12),
-    0 34px 90px -34px rgba(255, 209, 74, 0.26);
+    inset 0 1px 1px rgba(255, 255, 255, 0.7),
+    inset 0 -18px 44px rgba(29, 78, 216, 0.34),
+    0 22px 48px -26px rgba(37, 99, 235, 0.5);
   transition: transform 0.6s ease;
 }
 
@@ -280,9 +279,9 @@
   position: absolute;
   inset: -30%;
   border-radius: 9999px;
-  filter: blur(22px);
-  mix-blend-mode: screen;
-  opacity: 0.6;
+  filter: blur(24px);
+  mix-blend-mode: soft-light;
+  opacity: 0.75;
   transform-origin: 50% 50%;
   will-change: transform;
 }
@@ -299,8 +298,8 @@
 .vaani-orb__blob--b {
   background: radial-gradient(
     circle at 70% 34%,
-    rgba(255, 209, 74, 0.42),
-    transparent 42%
+    rgba(191, 219, 254, 0.55),
+    transparent 44%
   );
   animation: vaani-orb-spin 19s linear infinite reverse;
 }
@@ -308,8 +307,8 @@
 .vaani-orb__blob--c {
   background: radial-gradient(
     circle at 52% 74%,
-    rgba(27, 32, 40, 0.28),
-    transparent 44%
+    rgba(37, 99, 235, 0.34),
+    transparent 46%
   );
   animation: vaani-orb-spin 24s linear infinite;
 }

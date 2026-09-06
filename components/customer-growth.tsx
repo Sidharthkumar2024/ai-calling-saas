@@ -587,6 +587,37 @@ function Execution({
       .map((action) => action.kind),
   );
 
+  /**
+   * Moves an action to done or dropped.
+   *
+   * The API has taken `open | done | dropped` since the board was built and no
+   * screen ever sent it, so every action ever created read "Still open" for
+   * ever — a status nobody could change, which is decoration rather than a
+   * lifecycle. Dropping is reversible for the same reason archiving is: a
+   * one-way door on advice is a reason not to touch the button at all.
+   */
+  async function move(actionId: string, status: 'open' | 'done' | 'dropped') {
+    setBusy(actionId);
+    setProblem(null);
+    try {
+      const response = await fetch('/api/app/growth', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'update_action', actionId, status }),
+      });
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        setProblem(payload.error ?? 'That did not go through.');
+        return;
+      }
+      await onDone();
+    } catch {
+      setProblem('That did not go through.');
+    } finally {
+      setBusy('');
+    }
+  }
+
   async function run(kind: string) {
     setBusy(kind);
     setProblem(null);
@@ -643,9 +674,43 @@ function Execution({
         </p>
       ))}
       {actions.map((action) => (
-        <p key={action.id} className="mt-1 text-[11px] text-ink-muted">
-          {actionSummary(action)} {action.detail}
-        </p>
+        <div
+          key={action.id}
+          className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-ink-muted"
+        >
+          <span className="flex-1">
+            {actionSummary(action)} {action.detail}
+          </span>
+          {action.status === 'open' ? (
+            <>
+              <button
+                type="button"
+                disabled={busy === action.id}
+                onClick={() => void move(action.id, 'done')}
+                className="rounded-md border border-hairline px-2 py-1 text-ink-body hover:bg-surface-strong disabled:opacity-50"
+              >
+                Mark done
+              </button>
+              <button
+                type="button"
+                disabled={busy === action.id}
+                onClick={() => void move(action.id, 'dropped')}
+                className="rounded-md px-2 py-1 hover:bg-surface-strong disabled:opacity-50"
+              >
+                Drop
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              disabled={busy === action.id}
+              onClick={() => void move(action.id, 'open')}
+              className="rounded-md px-2 py-1 hover:bg-surface-strong disabled:opacity-50"
+            >
+              Reopen
+            </button>
+          )}
+        </div>
       ))}
       {problem ? (
         <p role="alert" className="mt-1 text-[11px] text-danger-text">

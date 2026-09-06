@@ -39,14 +39,35 @@ const clients = list(
 
 /** Every literal a route file mentions, whatever the comparison. */
 const namedIn = new Map();
+/**
+ * Names a route actually *dispatches on*, as opposed to every string in it.
+ *
+ * `namedIn` stays blunt — any quoted string counts — because for the failing
+ * direction over-matching is safe: it can only stop this from crying wolf about
+ * a button whose action the route does name. The note below is the opposite
+ * case, and bluntness there put `create_` in front of a reader as a screen
+ * nobody built. It came from `action.replace('create_', '')`.
+ */
+const dispatchedIn = new Set();
 for (const file of routes) {
   const source = readFileSync(file, 'utf8');
   namedIn.set(
     file,
     new Set([...source.matchAll(/'([a-z_0-9]{2,})'/g)].map((m) => m[1])),
   );
+  const patterns = [
+    /\baction\s*(?:===|!==|==|!=)\s*'([a-z_0-9]{2,})'/g,
+    /'([a-z_0-9]{2,})'\s*(?:===|!==|==|!=)\s*\w*\.?action\b/g,
+    /\bcase\s+'([a-z_0-9]{2,})'/g,
+    /\baction\??:\s*((?:'[a-z_0-9]{2,}'\s*\|\s*)*'[a-z_0-9]{2,}')/g,
+    /\[([^\]]*)\]\s*\.includes\(\s*(?:String\()?\w*\.?action/g,
+  ];
+  for (const pattern of patterns)
+    for (const match of source.matchAll(pattern))
+      for (const literal of match[1].matchAll(/'?([a-z_0-9]{2,})'?/g))
+        if (/^[a-z][a-z_0-9]*$/.test(literal[1])) dispatchedIn.add(literal[1]);
 }
-const namedAnywhere = new Set([...namedIn.values()].flatMap((set) => [...set]));
+const namedAnywhere = dispatchedIn;
 
 /**
  * Which endpoint a send belongs to.
@@ -85,14 +106,62 @@ function routeFilesFor(endpoint) {
 const findings = [];
 const sent = new Set();
 
+/**
+ * Every action name a client file sends.
+ *
+ * `action: 'x'` is the common shape, but not the only one. An archive button
+ * picks its action with a ternary — `action: archived ? 'restore_config' :
+ * 'archive_config'` — and a scan that only matched a literal after the colon
+ * saw neither, then reported both as actions no screen sends. Two real,
+ * working buttons listed as unbuilt screens; the note is only useful if what
+ * is in it is actually missing.
+ *
+ * So: take the literal after `action:`, and also every string literal in the
+ * expression that follows it up to the end of that property. Over-reading a
+ * string that happens to sit in the same expression is the safe direction —
+ * it can only remove a name from the "nobody sends this" note, never add a
+ * false "unhandled" failure, because those are checked against the route.
+ */
+function actionsSentIn(source) {
+  const found = new Set();
+  for (const match of source.matchAll(/action:\s*/g)) {
+    const start = match.index + match[0].length;
+    // The property ends at the comma or brace that closes it. Quotes are
+    // skipped over so a comma inside a string does not end it early.
+    let depth = 0;
+    let quote = null;
+    let end = start;
+    while (end < source.length) {
+      const char = source[end];
+      if (quote) {
+        if (char === '\\') end += 1;
+        else if (char === quote) quote = null;
+      } else if (char === "'" || char === '"' || char === '`') quote = char;
+      else if ('([{'.includes(char)) depth += 1;
+      else if (')]}'.includes(char)) {
+        if (depth === 0) break;
+        depth -= 1;
+      } else if (char === ',' && depth === 0) break;
+      else if (char === '\n' && depth === 0 && source[end - 1] !== '?') {
+        // A bare newline ends a one-line property; a dangling `?` means the
+        // ternary continues onto the next line.
+      }
+      end += 1;
+    }
+    const expression = source.slice(start, end);
+    for (const literal of expression.matchAll(/'([a-z_0-9]{2,})'/g))
+      found.add(literal[1]);
+  }
+  return found;
+}
+
 for (const file of clients) {
   const source = readFileSync(file, 'utf8');
   const endpoints = endpointsFor(source);
   const candidates = new Set(
     endpoints.flatMap((endpoint) => routeFilesFor(endpoint)),
   );
-  for (const match of source.matchAll(/action: '([a-z_0-9]{2,})'/g)) {
-    const action = match[1];
+  for (const action of actionsSentIn(source)) {
     sent.add(action);
     // No endpoint this scan could resolve: say nothing rather than guess.
     if (candidates.size === 0) continue;

@@ -228,16 +228,6 @@ export async function POST(request: Request) {
   // Archive, not delete. Agents and teams point at a branch, and a call
   // recorded against "Andheri" should still say so a year after Andheri
   // closed — which is exactly what deleting the row took away.
-  if (action === 'delete_branch' || action === 'archive_branch') {
-    return NextResponse.json(
-      await archiveOrgConfig({
-        organizationId,
-        kind: 'branch',
-        id: text(body.branchId, 80),
-      }),
-    );
-  }
-
   if (action === 'create_department') {
     const name = text(body.name, 80);
     if (!name)
@@ -389,16 +379,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, shiftId });
   }
 
-  if (action === 'delete_shift' || action === 'archive_shift') {
-    return NextResponse.json(
-      await archiveOrgConfig({
-        organizationId,
-        kind: 'shift',
-        id: text(body.shiftId, 80),
-      }),
-    );
-  }
-
   if (action === 'set_agent_languages') {
     const agentId = text(body.supportAgentId, 80);
     if (!(await owned('support_agents', agentId)))
@@ -498,18 +478,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, routeId });
   }
 
-  if (action === 'delete_number_route' || action === 'archive_number_route') {
-    return NextResponse.json(
-      await archiveOrgConfig({
-        organizationId,
-        kind: 'number_route',
-        id: text(body.routeId, 80),
-      }),
-    );
-  }
-
-  // The three kinds that had no removal at all — department, team, lead source
-  // — plus a restore for everything, so archiving is never a one-way door.
+  // Archiving and restoring, for every kind there is.
+  //
+  // Six narrower aliases stood here — `delete_branch`, `archive_branch`,
+  // `delete_shift`, `archive_shift`, `delete_number_route`,
+  // `archive_number_route` — each taking its own id field and each calling
+  // this same function. No screen ever sent one, nothing documented them, and
+  // three of the seven kinds had no alias at all, so the screen used this
+  // generic path for everything anyway. Six ways to reach one function, five
+  // of them unreachable, is a surface to keep in step for no one's benefit.
   if (action === 'archive_config' || action === 'restore_config') {
     const kind = body.kind;
     if (!isOrgConfigKind(kind))

@@ -80,8 +80,10 @@ export function LandingHeroStage({
 
   const screen = Math.min(SCREENS - 1, Math.floor(progress * SCREENS));
   // The stage starts dark and turns light as the call is answered, which is
-  // the same beat the phone screen is on.
-  const lit = progress > 0.34;
+  // the same beat the phone screen is on. Unpinned there is no dark stage at
+  // all, so it is lit from the start — otherwise the secondary button renders
+  // its on-dark styling onto a white page and disappears.
+  const lit = !pinned || progress > 0.34;
 
   const copy = (
     <div className="max-w-xl">
@@ -98,13 +100,17 @@ export function LandingHeroStage({
         <button
           type="button"
           onClick={onEnterWorkspace}
-          className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground"
+          className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[linear-gradient(96deg,#4f46e5_0%,#2563eb_52%,#0ea5e9_100%)] px-6 text-sm font-medium text-white shadow-[0_16px_40px_-16px_rgba(37,99,235,0.9),inset_0_1px_0_rgba(255,255,255,0.35)] transition-transform hover:-translate-y-px"
         >
           {t('landing.hero.cta')} <ArrowRight className="size-4" />
         </button>
         <a
           href="#story"
-          className="inline-flex h-12 items-center justify-center rounded-full border border-hairline bg-surface px-6 text-sm font-medium text-ink"
+          className={`inline-flex h-12 items-center justify-center rounded-full px-6 text-sm font-medium transition-colors ${
+            lit
+              ? 'border border-hairline bg-surface text-ink hover:bg-surface-strong'
+              : 'border border-white/20 bg-white/10 text-white backdrop-blur hover:bg-white/15'
+          }`}
         >
           {t('landing.hero.secondary')}
         </a>
@@ -131,12 +137,20 @@ export function LandingHeroStage({
       className="relative scroll-mt-24"
       style={{ height: `${SCREENS * 70}vh` }}
     >
-      <div className="sticky top-0 h-screen overflow-hidden">
-        {/* The stage floor. Dark first, light once the call is answered. */}
+      <div className="stage-grain sticky top-0 h-screen overflow-hidden bg-[#070b1c]">
+        {/* The floor: an aurora that drifts, with a light plate over it that
+            fades in on the beat the call is answered. Two layers rather than a
+            colour swap, so the light does not arrive as a flash. */}
+        <div className="stage-aurora absolute inset-0" />
         <div
-          className={`absolute inset-0 transition-colors duration-700 ${
-            lit ? 'bg-surface' : 'bg-[#0b1020]'
-          }`}
+          className="absolute inset-0 bg-surface transition-opacity duration-1000"
+          style={{ opacity: lit ? 1 : 0 }}
+        />
+        {/* Edges fall away rather than stopping at a hard rectangle. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_86%_at_50%_36%,transparent_46%,rgba(4,7,20,0.55)_100%)] transition-opacity duration-1000"
+          style={{ opacity: lit ? 0 : 1 }}
         />
 
         {/* The line sliding behind everything. `aria-hidden` because it is
@@ -147,11 +161,15 @@ export function LandingHeroStage({
           className="pointer-events-none absolute inset-x-0 top-[18%] overflow-hidden"
         >
           <p
-            className={`whitespace-nowrap text-[76px] font-semibold uppercase leading-none tracking-[-0.02em] transition-colors duration-700 sm:text-[128px] ${
-              lit ? 'text-ink/[0.045]' : 'text-white/[0.06]'
+            className={`whitespace-nowrap bg-clip-text text-[76px] font-semibold uppercase leading-none tracking-[-0.02em] text-transparent transition-opacity duration-700 sm:text-[136px] ${
+              lit
+                ? 'bg-[linear-gradient(92deg,rgba(17,24,39,0.10),rgba(17,24,39,0.04))]'
+                : 'bg-[linear-gradient(92deg,rgba(165,180,252,0.30),rgba(56,189,248,0.10))]'
             }`}
             style={{
-              transform: `translateX(${20 - progress * 42}%)`,
+              // Moves faster than the phone below it, which is what puts the
+              // two on different planes rather than on one flat card.
+              transform: `translateX(${18 - progress * 46}%)`,
             }}
           >
             {t('landing.stage.marquee')} · {t('landing.stage.marquee')}
@@ -166,7 +184,11 @@ export function LandingHeroStage({
               {copy}
             </div>
 
-            <div className="relative mx-auto flex w-full max-w-[420px] items-center justify-center">
+            <div className="stage-scene relative mx-auto flex w-full max-w-[420px] items-center justify-center">
+              <div
+                aria-hidden="true"
+                className="stage-halo absolute size-[380px] rounded-full"
+              />
               {/* The two glass panels either side of the phone, in from the
                   edges as the call gets going. */}
               <Glass
@@ -181,7 +203,14 @@ export function LandingHeroStage({
                 lit={lit}
                 label={t('landing.stage.widgetActs')}
               />
-              <div className="w-[248px] sm:w-[280px]">
+              <div
+                className="stage-device relative w-[248px] sm:w-[280px]"
+                style={{
+                  // The device turns towards the reader as the call is
+                  // answered: 14° away at the start, square on by the end.
+                  transform: `rotateY(${(1 - progress) * 14 - 3}deg) rotateX(${(1 - progress) * 5}deg) translateZ(0)`,
+                }}
+              >
                 <Phone screen={screen} />
               </div>
             </div>
@@ -224,13 +253,13 @@ function Glass({
   return (
     <div
       aria-hidden="true"
-      className={`pointer-events-none absolute z-10 hidden w-[190px] rounded-2xl border p-3 backdrop-blur-md transition-all duration-500 lg:block ${
-        side === 'left' ? '-left-24 top-[22%]' : '-right-24 bottom-[22%]'
+      className={`pointer-events-none absolute z-10 hidden w-[196px] rounded-2xl p-3.5 transition-all duration-700 lg:block ${
+        side === 'left' ? '-left-28 top-[18%]' : '-right-28 bottom-[18%]'
       } ${
         lit
-          ? 'border-hairline bg-surface/80'
-          : 'border-white/15 bg-white/10 text-white'
-      } ${shown ? 'translate-x-0 opacity-100' : `${side === 'left' ? '-translate-x-6' : 'translate-x-6'} opacity-0`}`}
+          ? 'border border-hairline bg-surface/85 shadow-xl'
+          : 'stage-glass text-white'
+      } ${shown ? 'translate-x-0 opacity-100 blur-0' : `${side === 'left' ? '-translate-x-8' : 'translate-x-8'} opacity-0 blur-[2px]`}`}
     >
       <p className="text-[11px] font-medium">{label}</p>
       <div className="mt-2 flex items-end gap-1">
@@ -252,9 +281,15 @@ function Glass({
 /** The phone itself. Its screen is whichever beat of the call we are on. */
 function Phone({ screen }: { screen: number }) {
   return (
-    <div className="relative aspect-[9/19] w-full rounded-[36px] border-[7px] border-[#111] bg-surface shadow-[0_40px_90px_-30px_rgba(8,12,30,0.55)]">
-      <div className="absolute left-1/2 top-0 z-10 h-5 w-24 -translate-x-1/2 rounded-b-2xl bg-[#111]" />
-      <div className="relative size-full overflow-hidden rounded-[29px] bg-surface-muted">
+    <div className="stage-sheen relative aspect-[9/19] w-full overflow-hidden rounded-[38px] bg-[linear-gradient(150deg,#4b5563_0%,#111827_28%,#0b1020_62%,#374151_100%)] p-[3px] shadow-[0_2px_0_rgba(255,255,255,0.28)_inset]">
+      <div className="relative size-full overflow-hidden rounded-[35px] border border-black/60 bg-surface-muted">
+        <div className="absolute left-1/2 top-0 z-20 h-5 w-24 -translate-x-1/2 rounded-b-2xl bg-[#0b0f1a]" />
+        {/* The screen's own reflection: brightest at the top edge, gone by a
+            third of the way down, the way glass under a ceiling light is. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-10 rounded-[35px] bg-[linear-gradient(168deg,rgba(255,255,255,0.22)_0%,rgba(255,255,255,0.05)_16%,transparent_34%)]"
+        />
         {[0, 1, 2, 3, 4].map((index) => (
           <div
             key={index}

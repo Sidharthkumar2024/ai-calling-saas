@@ -2810,6 +2810,22 @@ async function seedLocalDemo(db: D1Database) {
        '["RAZORPAY_KEY_ID","RAZORPAY_KEY_SECRET","RAZORPAY_WEBHOOK_SECRET"]', 'optional', 'sandbox', 'Payment links, subscriptions and webhook status', 0)`),
     db.prepare(`INSERT OR IGNORE INTO platform_providers
       (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
+      VALUES ('provider_payu', 'PayU', 'Vaani Payments · PayU', 'payments',
+       '["PAYU_MERCHANT_KEY","PAYU_MERCHANT_SALT","PAYU_WEBHOOK_SECRET"]', 'optional', 'not_connected', 'India payment links and checkout', 0)`),
+    db.prepare(`INSERT OR IGNORE INTO platform_providers
+      (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
+      VALUES ('provider_phonepe', 'PhonePe', 'Vaani Payments · PhonePe', 'payments',
+       '["PHONEPE_MERCHANT_ID","PHONEPE_SALT_KEY","PHONEPE_SALT_INDEX","PHONEPE_WEBHOOK_SECRET"]', 'optional', 'not_connected', 'UPI checkout and payment status', 0)`),
+    db.prepare(`INSERT OR IGNORE INTO platform_providers
+      (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
+      VALUES ('provider_paytm', 'Paytm', 'Vaani Payments · Paytm', 'payments',
+       '["PAYTM_MERCHANT_ID","PAYTM_MERCHANT_KEY","PAYTM_WEBSITE","PAYTM_WEBHOOK_SECRET"]', 'optional', 'not_connected', 'Paytm checkout and payment status', 0)`),
+    db.prepare(`INSERT OR IGNORE INTO platform_providers
+      (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
+      VALUES ('provider_bank_transfer', 'Manual bank transfer', 'Vaani Payments · Bank transfer', 'payments',
+       '["BANK_TRANSFER_ACCOUNT_NAME","BANK_TRANSFER_ACCOUNT_NUMBER","BANK_TRANSFER_IFSC"]', 'optional', 'admin_review', 'Manual proof upload and admin reconciliation', 0)`),
+    db.prepare(`INSERT OR IGNORE INTO platform_providers
+      (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
       VALUES ('provider_whatsapp', 'Meta WhatsApp Cloud', 'Vaani Messages', 'messaging',
        '["WHATSAPP_ACCESS_TOKEN","WHATSAPP_PHONE_NUMBER_ID","WHATSAPP_PAYMENT_TEMPLATE"]', 'optional', 'sandbox', 'Approved templates and follow-ups', 0)`),
     db.prepare(`INSERT OR IGNORE INTO platform_providers

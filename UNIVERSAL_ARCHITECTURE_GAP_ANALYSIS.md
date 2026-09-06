@@ -43,7 +43,9 @@ Compared with `Universal_AI_Business_Calling_OS_Architecture.pdf` on 2026-09-06.
    The catalog and encrypted connection model do not equal live provider sync.
 8. **Payment separation** — finish tenant merchant gateway onboarding, test/live
    mode separation, webhook reconciliation and refund/chargeback handling for
-   customer end-customer payments.
+   customer end-customer payments. The admin catalog now includes Razorpay,
+   Stripe, PayU, PhonePe, Paytm and manual bank transfer; provider adapters and
+   merchant verification are still activation work.
 9. **Historical-call intelligence** — complete 50–70-call ingestion, consent gate,
    transcription/mining, winning/failed pattern extraction, playbook/evaluation-set
    approval and regression scoring. Existing playbook and objection tools are the

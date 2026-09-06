@@ -25,7 +25,6 @@ import {
   Route,
   ShieldCheck,
   ShoppingBag,
-  Sparkles,
   Target,
   UsersRound,
   Webhook,
@@ -37,10 +36,11 @@ import { Button } from '@/components/ui/button';
 import { VAANI_ENGINES } from '@/lib/vaani-engine-catalog';
 import { LandingHeroStage } from '@/components/landing-hero-stage';
 import { LandingVideoIntro } from '@/components/landing-video-intro';
+import { LandingHeader } from '@/components/landing-header';
 import { LandingProofBand } from '@/components/landing-proof-band';
 import { LandingScrollStory } from '@/components/landing-scroll-story';
 import { useLocale } from '@/components/locale-provider';
-import { PORTAL_LOCALES, type TranslationKey } from '@/lib/i18n';
+import { type TranslationKey } from '@/lib/i18n';
 
 type LandingPageProps = {
   onEnterWorkspace: () => void;
@@ -76,43 +76,8 @@ const industryStories = [
 ] as const;
 
 export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
-  const { locale, setLocale, t } = useLocale();
+  const { t } = useLocale();
   const [activeUseCase, setActiveUseCase] = useState(0);
-  /**
-   * Whether the header is still over the hero's dark stage.
-   *
-   * A solid light bar sitting on top of a dark hero reads as a strip of
-   * another page. Over the stage the header goes transparent and light-on-dark;
-   * past it, it returns to its normal solid self.
-   */
-  const [overStage, setOverStage] = useState(true);
-
-  useEffect(() => {
-    let frame = 0;
-    const measure = () => {
-      frame = 0;
-      const stage = document.getElementById('top');
-      if (!stage) return setOverStage(false);
-      const rect = stage.getBoundingClientRect();
-      // The stage turns light at 34% of its own travel — the beat the call is
-      // answered — so the header follows it rather than the section's end.
-      const travel = rect.height - window.innerHeight;
-      const progress =
-        travel > 0 ? Math.min(1, Math.max(0, -rect.top / travel)) : 1;
-      setOverStage(rect.bottom > 0 && progress <= 0.34);
-    };
-    const onScroll = () => {
-      if (!frame) frame = window.requestAnimationFrame(measure);
-    };
-    measure();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
-      if (frame) window.cancelAnimationFrame(frame);
-    };
-  }, []);
   const currentStory = industryStories[activeUseCase];
   const CurrentStoryIcon = currentStory.icon;
 
@@ -151,114 +116,13 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
   // creating one.
   return (
     <main className="landing-equal-theme min-h-screen overflow-x-clip bg-surface-muted text-ink">
+      <LandingHeader onEnterWorkspace={onEnterWorkspace} />
       <LandingVideoIntro />
-      <div id="vani-platform" className="scroll-mt-4" />
-      <div
-        className={`px-4 py-2 text-center text-[11px] transition-colors duration-700 sm:text-xs ${
-          overStage
-            ? 'border-b border-white/10 bg-[#070b1c] text-white/70'
-            : 'border-b border-hairline bg-surface text-ink-body'
-        }`}
-      >
-        <span className="mr-2 inline-flex items-center gap-1.5 font-medium text-warning-text">
-          <Sparkles className="size-3" /> {t('landing.banner.new')}
-        </span>
-        {t('landing.banner.text')}
-      </div>
-
-      <header
-        className={`sticky top-0 z-50 backdrop-blur-xl transition-colors duration-700 ${
-          overStage
-            ? // Not transparent: at the top of the page the header sits *above*
-              // the hero, over the page's own light background, so white text on
-              // a see-through bar left the wordmark invisible. It carries the
-              // stage's own floor colour instead, which makes the two read as
-              // one dark area whether the header is over the stage or above it.
-              'border border-slate-200/80 bg-white text-ink shadow-[0_16px_55px_rgba(15,23,42,0.14)] [&_.text-ink-muted]:text-ink-muted [&_a]:text-ink [&_button]:text-ink'
-            : 'border-b border-hairline bg-surface-muted/88'
-        }`}
-      >
-        <div className="mx-auto flex h-[76px] max-w-[1180px] items-center justify-between px-5 sm:px-8">
-          <a
-            href="#top"
-            className="flex items-center gap-3"
-            aria-label={t('landing.home.aria')}
-          >
-            <span className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-[0_10px_35px_-12px_#fcd34d]">
-              <Activity className="size-5" strokeWidth={2.4} />
-            </span>
-            <span>
-              <span className="block text-[18px] font-semibold leading-5 tracking-[-0.02em]">
-                V-A-N-I
-              </span>
-              <span className="block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-muted">
-                {t('landing.tagline')}
-              </span>
-            </span>
-          </a>
-
-          <nav
-            className="hidden items-center gap-6 text-[13px] text-ink-body xl:flex"
-            aria-label={t('landing.nav.aria')}
-          >
-            {(
-              [
-                ['#product', 'landing.nav.product'],
-                ['#workflow', 'landing.nav.workflow'],
-                ['#agent-demos', 'landing.nav.demos'],
-                ['#solutions', 'landing.nav.solutions'],
-                ['#engines', 'landing.nav.engines'],
-                ['#pricing', 'landing.nav.pricing'],
-                ['#security', 'landing.nav.security'],
-              ] as Array<[string, TranslationKey]>
-            ).map(([href, key]) => (
-              <a
-                key={href}
-                className="transition-colors hover:text-ink"
-                href={href}
-              >
-                {t(key)}
-              </a>
-            ))}
-            <Link className="transition-colors hover:text-ink" href="/docs">
-              {t('landing.nav.apiDocs')}
-            </Link>
-          </nav>
-
-          <div className="flex items-center gap-2">
-            {/* A visitor whose browser is set to Hindi already lands in Hindi;
-                this is for everyone else, and for changing your mind. */}
-            <label>
-              <span className="sr-only">{t('shell.language')}</span>
-              <select
-                aria-label={t('shell.language')}
-                value={locale}
-                onChange={(event) =>
-                  setLocale(event.target.value as typeof locale)
-                }
-                className="rounded-full border border-hairline bg-surface-strong px-2.5 py-1.5 text-[11px] text-ink outline-none focus:border-hairline"
-              >
-                {PORTAL_LOCALES.map((option) => (
-                  <option key={option.code} value={option.code}>
-                    {option.nativeLabel}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <Button
-              onClick={onEnterWorkspace}
-              className="h-9 rounded-full bg-primary px-4 text-xs text-primary-foreground hover:bg-[#1d4ed8]"
-            >
-              {t('landing.openPlatform')} <ArrowRight className="size-3.5" />
-            </Button>
-          </div>
-        </div>
-      </header>
+      <div id="vani-platform" className="scroll-mt-0" />
 
       <LandingHeroStage onEnterWorkspace={onEnterWorkspace} />
 
-
-      <section className="border-y border-hairline bg-surface-muted">
+      <section className="bg-surface-muted">
         <div className="mx-auto grid max-w-[1240px] grid-cols-2 divide-x divide-y divide-white/8 px-4 sm:grid-cols-4 sm:px-6 lg:grid-cols-7 lg:divide-y-0">
           {[
             'Meta Lead Ads',
@@ -664,14 +528,14 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
         </div>
       </section>
 
-      <footer className="border-t border-hairline py-8">
-        <div className="mx-auto flex max-w-[1240px] flex-col gap-5 px-4 text-[11px] text-ink-muted sm:px-6 md:flex-row md:items-center md:justify-between">
+      <footer className="vani-site-footer py-12 sm:py-16">
+        <div className="mx-auto flex max-w-[1240px] flex-col gap-8 px-6 text-sm text-ink-muted sm:px-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-2 text-ink-body">
             <Activity className="size-4 text-warning-text" />
             <span className="font-medium">V-A-N-I</span>
             <span>{t('landing.footer.tagline')}</span>
           </div>
-          <div className="flex flex-wrap gap-5">
+          <div className="flex flex-wrap gap-x-6 gap-y-4">
             <Link href="/signup" className="hover:text-ink">
               {t('landing.footer.createAccount')}
             </Link>

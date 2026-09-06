@@ -1,74 +1,133 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { Volume2, VolumeX, ArrowDown } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 
+const OPENING_SECONDS = 1.2;
+
+/** A full-bleed visual introduction, not a video-player panel. */
 export function LandingVideoIntro() {
   const section = useRef<HTMLElement>(null);
   const video = useRef<HTMLVideoElement>(null);
-  const [sound, setSound] = useState(false);
-  const [notice, setNotice] = useState('');
 
   useEffect(() => {
     const element = video.current;
     const root = section.current;
     if (!element || !root) return;
-    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (!reduced) void element.play().catch(() => {});
+
+    const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
     let frame = 0;
+    let targetTime = 0;
+    let scrubbed = false;
+    let disposed = false;
+
+    // Finish each seek before requesting another: Safari is decoding a 4K clip.
+    const seek = () => {
+      if (disposed || element.seeking || element.readyState < 1) return;
+      if (Math.abs(element.currentTime - targetTime) > 0.035)
+        element.currentTime = targetTime;
+    };
     const update = () => {
       frame = 0;
-      const bounds = root.getBoundingClientRect();
-      if (bounds.bottom <= 0 || bounds.top >= innerHeight) {
+      if (motion.matches || document.hidden) {
         element.pause();
         return;
       }
-      if (sound || reduced || bounds.top >= 0) return;
-      const duration = element.duration;
-      if (!Number.isFinite(duration) || duration <= 0) return;
-      element.pause();
-      const progress = Math.max(0, Math.min(1, -bounds.top / Math.max(1, bounds.height - innerHeight)));
-      element.currentTime = progress * Math.max(0, duration - 0.05);
-    };
-    const scroll = () => { if (!frame) frame = requestAnimationFrame(update); };
-    window.addEventListener('scroll', scroll, { passive: true });
-    window.addEventListener('resize', scroll);
-    return () => {
-      window.removeEventListener('scroll', scroll);
-      window.removeEventListener('resize', scroll);
-      cancelAnimationFrame(frame);
-    };
-  }, [sound]);
+      const bounds = root.getBoundingClientRect();
+      if (bounds.bottom <= 0 || bounds.top >= window.innerHeight) {
+        element.pause();
+        return;
+      }
+      if (bounds.top >= -1 && !scrubbed) return;
+      if (!Number.isFinite(element.duration) || element.duration <= 0) return;
 
-  async function toggleSound() {
-    const element = video.current;
-    if (!element) return;
-    element.muted = sound;
-    setSound(!sound);
-    try { await element.play(); setNotice(''); }
-    catch { setNotice('Use the video play control to begin playback.'); }
-  }
+      scrubbed = true;
+      element.pause();
+      const travel = Math.max(1, bounds.height - window.innerHeight);
+      const progress = Math.max(0, Math.min(1, -bounds.top / travel));
+      const end = Math.max(0, element.duration - 0.08);
+      const start = Math.min(OPENING_SECONDS, end);
+      targetTime = start + progress * (end - start);
+      seek();
+    };
+    const schedule = () => {
+      if (!frame) frame = window.requestAnimationFrame(update);
+    };
+    const start = () => {
+      if (disposed) return;
+      update();
+      // A short opening movement, never an endless loop into the blank final frame.
+      // The rest follows the visitor's scroll, in either direction.
+      if (
+        !motion.matches &&
+        !document.hidden &&
+        !scrubbed &&
+        root.getBoundingClientRect().top >= -1
+      ) {
+        void element.play().catch(() => {});
+      }
+    };
+    const opening = () => {
+      if (!scrubbed && element.currentTime >= OPENING_SECONDS) element.pause();
+    };
+    const visibility = () => {
+      if (
+        !document.hidden &&
+        !scrubbed &&
+        element.currentTime < OPENING_SECONDS
+      )
+        start();
+      else schedule();
+    };
+    const onSeeked = () => {
+      if (scrubbed && !motion.matches) seek();
+    };
+    element.addEventListener('loadedmetadata', start);
+    element.addEventListener('timeupdate', opening);
+    element.addEventListener('seeked', onSeeked);
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+    document.addEventListener('visibilitychange', visibility);
+    motion.addEventListener('change', schedule);
+    if (element.readyState >= 1) start();
+
+    return () => {
+      disposed = true;
+      element.pause();
+      window.cancelAnimationFrame(frame);
+      element.removeEventListener('loadedmetadata', start);
+      element.removeEventListener('timeupdate', opening);
+      element.removeEventListener('seeked', onSeeked);
+      window.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
+      document.removeEventListener('visibilitychange', visibility);
+      motion.removeEventListener('change', schedule);
+    };
+  }, []);
 
   return (
-    <section ref={section} className="vani-video-intro relative h-[240svh] bg-[#101911] motion-reduce:h-auto" aria-label="VANI video introduction">
-      <div className="sticky top-0 flex h-[100svh] flex-col bg-[#101911] motion-reduce:relative">
-        <div className="flex shrink-0 items-center justify-between gap-3 px-5 py-4 text-white sm:px-10">
-          <a href="#vani-platform" className="text-xl font-semibold tracking-[0.15em]">V-A-N-I</a>
-          <div className="flex items-center gap-4">
-            <button type="button" onClick={toggleSound} aria-pressed={sound} className="flex items-center gap-2 rounded-full border border-white/30 px-4 py-2 text-sm">
-              {sound ? <Volume2 size={18} /> : <VolumeX size={18} />}{sound ? 'Mute' : 'Sound on'}
-            </button>
-            <a href="#vani-platform" className="text-sm underline underline-offset-4">Skip intro</a>
-          </div>
-        </div>
-        {/* The supplied clip has no accompanying caption file. Native controls remain available. */}
+    <section
+      ref={section}
+      id="video-intro"
+      className="vani-video-intro"
+      aria-label="VANI introduction"
+    >
+      <div className="vani-video-stage">
+        {/* Decorative, always-muted footage. The product description follows below. */}
         {/* oxlint-disable-next-line jsx-a11y/media-has-caption */}
-        <video ref={video} muted playsInline controls preload="auto" className="min-h-0 w-full flex-1 object-contain" aria-label="Video introduction; scroll to explore, or enable sound for playback">
+        <video
+          ref={video}
+          muted
+          playsInline
+          disablePictureInPicture
+          disableRemotePlayback
+          preload="auto"
+          poster="/media/landing-demo-poster.jpg"
+          className="vani-intro-film"
+          aria-hidden="true"
+          tabIndex={-1}
+        >
           <source src="/media/landing-demo.mp4" type="video/mp4" />
         </video>
-        <output className="flex shrink-0 items-center justify-center gap-2 px-4 py-3 text-center text-sm text-white/80">
-          <ArrowDown size={16} />{notice || (sound ? 'Playing with sound · scroll down to discover VANI' : 'Scroll to explore · enable sound to watch with audio')}
-        </output>
       </div>
     </section>
   );

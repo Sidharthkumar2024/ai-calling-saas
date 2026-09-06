@@ -196,53 +196,239 @@
     --landing-green: #a3ff12;
     --landing-green-ink: #355600;
     background:
-      radial-gradient(circle at 82% 10%, rgba(163, 255, 18, 0.16), transparent 24rem),
-      radial-gradient(circle at 16% 48%, rgba(163, 255, 18, 0.08), transparent 28rem),
+      radial-gradient(
+        circle at 82% 10%,
+        rgba(163, 255, 18, 0.16),
+        transparent 24rem
+      ),
+      radial-gradient(
+        circle at 16% 48%,
+        rgba(163, 255, 18, 0.08),
+        transparent 28rem
+      ),
       #ffffff;
   }
 
-  .landing-equal-theme > header {
+  .vani-video-intro {
+    position: relative;
+    height: 280svh;
+    background: #f4f4f4;
+  }
+  .vani-video-stage {
+    position: sticky;
+    top: 0;
+    height: 100svh;
+    overflow: clip;
+  }
+  .vani-intro-film {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
     border: 0;
-    background: transparent;
-    padding-top: 1rem;
+    border-radius: 0;
+    pointer-events: none;
   }
-
-  .landing-equal-theme > header > div {
-    height: 4.5rem;
-    max-width: 1320px;
-    width: calc(100% - 32px);
+  .vani-site-header {
+    position: fixed;
+    top: 20px;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    padding-inline: 24px;
+    pointer-events: none;
+  }
+  .vani-header-pill {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 80px;
+    max-width: 1360px;
+    margin-inline: auto;
+    padding: 12px 18px 12px 28px;
     gap: 24px;
-    border: 1px solid rgba(17, 24, 39, 0.06);
+    border: 0;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.9);
-    box-shadow: 0 16px 55px rgba(15, 23, 42, 0.08);
+    background: rgba(255, 255, 255, 0.94);
+    color: #17221e;
+    pointer-events: auto;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 8px 38px rgba(10, 25, 17, 0.09);
   }
-
-  .landing-equal-theme > header a[aria-label] > span:last-child {
-    min-width: 122px;
-    color: #111827;
+  .vani-wordmark {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    color: #17221e;
+    font-size: 26px;
+    font-weight: 650;
+    letter-spacing: -0.04em;
   }
-
-  .landing-equal-theme > header nav { gap: 18px; white-space: nowrap; }
-  .landing-equal-theme > header > div > a,
-  .landing-equal-theme > header > div > div { flex-shrink: 0; }
-  .landing-source { animation: source-float 4s ease-in-out infinite; }
-  .landing-source:nth-child(even) { animation-delay: -2s; }
-  @keyframes source-float { 50% { transform: translateY(-5px); } }
-  @media (prefers-reduced-motion: reduce) { .landing-source { animation: none; } }
-
-  .landing-equal-theme > header a[aria-label] > span:last-child > span:last-child {
-    color: #475569;
+  .vani-brand-icon {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: #17221e;
+    color: #b0ff6e;
   }
-
-  .landing-equal-theme > header span.grid {
-    background: #111827;
-    color: var(--landing-green);
+  .vani-desktop-nav {
+    display: flex;
+    align-items: center;
+    gap: clamp(18px, 2vw, 30px);
+    white-space: nowrap;
+  }
+  .vani-desktop-nav a {
+    color: #35443d;
+    font-size: 15px;
+    line-height: 1.5;
+    font-weight: 500;
+  }
+  .vani-desktop-nav a:hover {
+    color: #13764c;
+  }
+  .vani-header-actions {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    gap: 14px;
+  }
+  .vani-language select {
+    max-width: 110px;
+    padding: 10px 4px;
+    color: #35443d;
+    background: transparent;
+    font-size: 14px;
+  }
+  .vani-platform-button {
+    height: 48px;
+    padding: 0 22px;
+    gap: 10px;
     border-radius: 999px;
-    box-shadow: none;
+    font-size: 14px;
+    background: #17221e;
+    color: #fff;
+  }
+  .vani-platform-button:hover {
+    background: #2c4638;
+  }
+  .vani-menu-toggle {
+    display: none;
+    color: #17221e;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+  }
+  .vani-skip-link {
+    position: absolute;
+    top: -160px;
+    left: 32px;
+    padding: 12px 20px;
+    background: #17221e;
+    color: #fff;
+    border-radius: 12px;
+    pointer-events: auto;
+  }
+  .vani-skip-link:focus {
+    top: 90px;
+  }
+  .vani-site-footer {
+    background: #14221b;
+    color: #e5eee8;
+  }
+  .vani-site-footer .text-ink-muted,
+  .vani-site-footer .text-ink-body {
+    color: #d7e1da;
+  }
+  .vani-site-footer a:hover {
+    color: #b0ff6e;
+  }
+  .vani-site-footer .text-warning-text {
+    color: #b0ff6e !important;
+  }
+  .landing-equal-theme section[id]:not(#video-intro):not(#top):not(#story) {
+    scroll-margin-top: 110px;
+  }
+  @media (max-width: 1199px) {
+    .vani-desktop-nav {
+      display: none;
+    }
+    .vani-menu-toggle {
+      display: inline-flex;
+    }
+  }
+  @media (max-width: 599px) {
+    .vani-site-header {
+      top: 12px;
+      padding-inline: 12px;
+    }
+    .vani-header-pill {
+      min-height: 64px;
+      padding: 8px 10px 8px 16px;
+      gap: 8px;
+    }
+    .vani-wordmark {
+      font-size: 21px;
+      gap: 7px;
+    }
+    .vani-brand-icon {
+      width: 32px;
+      height: 32px;
+    }
+    .vani-brand-icon svg {
+      width: 19px;
+    }
+    .vani-desktop-language {
+      display: none;
+    }
+    .vani-header-actions {
+      gap: 4px;
+    }
+    .vani-platform-button {
+      height: 42px;
+      padding-inline: 14px;
+      font-size: 13px;
+      gap: 5px;
+    }
+    .vani-platform-button svg {
+      display: none;
+    }
+    .vani-menu-toggle {
+      width: 34px;
+      height: 40px;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .vani-video-intro {
+      height: 100svh;
+    }
+    .vani-video-stage {
+      position: relative;
+    }
+  }
+  .landing-source {
+    animation: source-float 4s ease-in-out infinite;
+  }
+  .landing-source:nth-child(even) {
+    animation-delay: -2s;
+  }
+  @keyframes source-float {
+    50% {
+      transform: translateY(-5px);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .landing-source {
+      animation: none;
+    }
   }
 
-  .landing-equal-theme > header .bg-primary,
   .landing-equal-theme #top .bg-primary {
     background: #111827 !important;
     color: white !important;
@@ -253,8 +439,15 @@
     background:
       linear-gradient(rgba(17, 24, 39, 0.045) 1px, transparent 1px),
       linear-gradient(90deg, rgba(17, 24, 39, 0.045) 1px, transparent 1px),
-      radial-gradient(circle at 70% 15%, rgba(163, 255, 18, 0.2), transparent 34rem);
-    background-size: 56px 56px, 56px 56px, auto;
+      radial-gradient(
+        circle at 70% 15%,
+        rgba(163, 255, 18, 0.2),
+        transparent 34rem
+      );
+    background-size:
+      56px 56px,
+      56px 56px,
+      auto;
   }
 
   .landing-equal-theme #top > div.relative {

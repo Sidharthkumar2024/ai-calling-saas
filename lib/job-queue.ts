@@ -169,6 +169,14 @@ function periodKey(schedule: ReportSchedule, now: Date): string {
   return `w${week}`;
 }
 
+/**
+ * How long a lock may go unrefreshed before the job counts as abandoned.
+ *
+ * Five minutes is longer than any worker here takes and short enough that a
+ * dropped job is retried within a cron tick or two.
+ */
+const STALE_LOCK = '-5 minutes';
+
 export async function processJobs(input?: {
   limit?: number;
   workerId?: string;
@@ -176,21 +184,37 @@ export async function processJobs(input?: {
   const limit = Math.min(50, Math.max(1, input?.limit || 10));
   const workerId = input?.workerId || `worker_${crypto.randomUUID()}`;
   const db = getRawDb();
+  // A job whose worker died mid-run is `running` with a lock nobody will ever
+  // release. The lock-age test was already here and could never fire, because
+  // the status filter above it excluded exactly the rows it was written for —
+  // so one stranded `call.intelligence` job sat at `running` for four days
+  // while the queue drained around it. A stale lock is now a claimable job.
   const candidates = await db
     .prepare(`SELECT id FROM background_jobs
-    WHERE status IN ('queued','retry') AND available_at <= ?
-      AND (locked_at IS NULL OR locked_at < datetime('now','-5 minutes'))
+    WHERE available_at <= ?
+      AND (
+        (status IN ('queued','retry')
+          AND (locked_at IS NULL OR locked_at < datetime('now', ?)))
+        OR (status = 'running' AND locked_at IS NOT NULL
+          AND locked_at < datetime('now', ?))
+      )
     ORDER BY priority ASC, available_at ASC LIMIT ?`)
-    .bind(new Date().toISOString(), limit)
+    .bind(new Date().toISOString(), STALE_LOCK, STALE_LOCK, limit)
     .all<{ id: string }>();
   const results: Array<Record<string, unknown>> = [];
 
   for (const candidate of candidates.results) {
+    // The staleness test is repeated in the claim, not just the search: two
+    // workers scanning at the same moment both see the same stranded job, and
+    // whichever writes first refreshes `locked_at`, which makes the other's
+    // update match nothing. Without it they would both run the same job.
     const claimed = await db
       .prepare(`UPDATE background_jobs SET status = 'running', locked_at = CURRENT_TIMESTAMP,
       locked_by = ?, attempts = attempts + 1, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ? AND status IN ('queued','retry')`)
-      .bind(workerId, candidate.id)
+      WHERE id = ?
+        AND (status IN ('queued','retry')
+          OR (status = 'running' AND locked_at < datetime('now', ?)))`)
+      .bind(workerId, candidate.id, STALE_LOCK)
       .run();
     if (!claimed.meta.changes) continue;
     const job = await db

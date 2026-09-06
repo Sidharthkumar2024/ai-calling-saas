@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  AudioLines,
   Bot,
   BrainCircuit,
   BriefcaseBusiness,
@@ -216,7 +215,7 @@ export function CustomerAgentStudio({
         <p className="mt-3 text-sm">No agent is configured.</p>
         <Button
           onClick={createAgent}
-          className="mt-5 bg-primary text-black hover:bg-[#1d4ed8]"
+          className="mt-5 bg-primary text-primary-foreground hover:bg-[#1d4ed8]"
         >
           <Plus /> Create first agent
         </Button>
@@ -1839,7 +1838,7 @@ function TestConsole({
               No phone call required
             </p>
           </div>
-          <span className="rounded-full border border-emerald-400/12 bg-emerald-400/6 px-2 py-1 text-[8px] text-success-text">
+          <span className="rounded-full border border-hairline bg-surface-muted px-2.5 py-1 text-[10px] text-ink-body">
             {credits} credits
           </span>
         </div>
@@ -1855,7 +1854,7 @@ function TestConsole({
                 key={id as string}
                 type="button"
                 onClick={() => changeMode(id as typeof mode)}
-                className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[9px] ${mode === id ? 'bg-surface-strong text-ink' : 'text-ink-muted'}`}
+                className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] transition ${mode === id ? 'bg-surface font-medium text-ink shadow-sm' : 'text-ink-muted hover:text-ink'}`}
               >
                 <ModeIcon className="size-3" />
                 {label as string}
@@ -1882,7 +1881,7 @@ function TestConsole({
             <Button
               type="button"
               onClick={() => changeMode('browser_voice')}
-              className="mt-5 bg-primary text-black hover:bg-[#1d4ed8]"
+              className="mt-5 bg-primary text-primary-foreground hover:bg-[#1d4ed8]"
             >
               <Mic2 /> Use browser voice
             </Button>
@@ -1905,11 +1904,14 @@ function TestConsole({
             ) : null}
             {messages.length === 0 && mode === 'text' ? (
               <div className="grid min-h-[420px] place-items-center">
-                <div className="max-w-xs text-center">
-                  <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-gradient-to-br from-cyan-300/15 to-violet-300/15">
-                    <AudioLines className="size-6 text-cyan-700" />
+                <div className="max-w-sm text-center">
+                  {/* Was a cyan-to-violet gradient tile — a leftover from the
+                      dark theme that reads as a stray coloured square on a
+                      white page. The agent's own initial says more. */}
+                  <span className="mx-auto grid size-12 place-items-center rounded-full border border-hairline bg-surface-muted text-base font-semibold text-ink">
+                    {agent.name.trim().charAt(0).toUpperCase() || 'A'}
                   </span>
-                  <h3 className="mt-5 text-base font-semibold">
+                  <h3 className="mt-4 text-base font-semibold">
                     Meet {agent.name}
                   </h3>
                   <p className="mt-2 text-xs leading-5 text-ink-muted">
@@ -1932,12 +1934,15 @@ function TestConsole({
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[90%] ${message.role === 'user' ? 'rounded-2xl rounded-tr-md bg-primary p-3 text-primary-foreground' : 'space-y-2'}`}
+                    className={`max-w-[85%] ${message.role === 'user' ? 'rounded-2xl rounded-br-sm bg-primary px-3.5 py-2.5 text-primary-foreground shadow-sm' : 'space-y-2'}`}
                   >
                     {message.role === 'assistant' ? (
-                      <div className="rounded-2xl rounded-tl-md bg-surface-strong p-3 text-xs leading-5 text-ink">
-                        <div className="mb-2 flex items-center gap-2 text-[9px] text-violet-700">
-                          <Sparkles className="size-3" /> {agent.name}
+                      <div className="rounded-2xl rounded-bl-sm border border-hairline bg-surface px-3.5 py-2.5 text-xs leading-5 text-ink">
+                        <div className="mb-2 flex items-center gap-2 text-[10px] text-ink-muted">
+                          <Sparkles className="size-3 text-primary" />{' '}
+                          <span className="font-medium text-ink">
+                            {agent.name}
+                          </span>
                           {message.latencyMs ? (
                             <span className="ml-auto font-mono text-ink-muted">
                               {message.latencyMs}ms
@@ -1958,7 +1963,7 @@ function TestConsole({
                           >
                             <CheckCircle2 className="size-3.5 shrink-0 text-success-text" />
                             <span className="flex-1">{action.label}</span>
-                            <span className="rounded bg-surface-strong px-1.5 py-0.5 text-[8px] text-ink-muted">
+                            <span className="rounded px-1.5 py-0.5 text-[10px] text-ink-muted">
                               preview
                             </span>
                           </div>
@@ -1984,7 +1989,7 @@ function TestConsole({
                   type="button"
                   onClick={() => void sendMessage(item)}
                   disabled={loading}
-                  className="shrink-0 rounded-full border border-hairline bg-surface-muted px-3 py-1.5 text-[8px] text-ink-muted hover:bg-surface-strong"
+                  className="shrink-0 rounded-full border border-hairline bg-surface-muted px-3 py-1.5 text-[10px] text-ink-body transition hover:border-primary/40 hover:text-ink"
                 >
                   {item}
                 </button>
@@ -2028,13 +2033,13 @@ function TestConsole({
                 size="icon"
                 onClick={() => void sendMessage()}
                 disabled={loading || !input.trim()}
-                className="bg-primary text-black hover:bg-[#1d4ed8]"
+                className="bg-primary text-primary-foreground hover:bg-[#1d4ed8]"
                 aria-label="Send test message"
               >
                 <Send />
               </Button>
             </div>
-            <div className="mt-2 flex items-center justify-between text-[8px] text-ink-muted">
+            <div className="mt-2 flex items-center justify-between text-[10px] text-ink-muted">
               <span>10 credits / turn</span>
               <span className="flex items-center gap-1">
                 <Clock3 className="size-2.5" /> Sandbox actions only
@@ -2094,7 +2099,7 @@ function VoiceOrb({
               ? 'End browser voice conversation'
               : `Start talking to ${agentName}`
           }
-          className={`vaani-orb group relative grid size-full place-items-center transition-transform duration-500 hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70 focus-visible:ring-offset-4 focus-visible:ring-offset-[#0b0f17] ${
+          className={`vaani-orb group relative grid size-full place-items-center transition-transform duration-500 hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface ${
             state === 'speaking'
               ? 'vaani-orb--speaking'
               : state === 'listening'

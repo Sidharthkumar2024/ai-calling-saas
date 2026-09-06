@@ -77,6 +77,41 @@ const industryStories = [
 export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
   const { locale, setLocale, t } = useLocale();
   const [activeUseCase, setActiveUseCase] = useState(0);
+  /**
+   * Whether the header is still over the hero's dark stage.
+   *
+   * A solid light bar sitting on top of a dark hero reads as a strip of
+   * another page. Over the stage the header goes transparent and light-on-dark;
+   * past it, it returns to its normal solid self.
+   */
+  const [overStage, setOverStage] = useState(true);
+
+  useEffect(() => {
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      const stage = document.getElementById('top');
+      if (!stage) return setOverStage(false);
+      const rect = stage.getBoundingClientRect();
+      // The stage turns light at 34% of its own travel — the beat the call is
+      // answered — so the header follows it rather than the section's end.
+      const travel = rect.height - window.innerHeight;
+      const progress =
+        travel > 0 ? Math.min(1, Math.max(0, -rect.top / travel)) : 1;
+      setOverStage(rect.bottom > 0 && progress <= 0.34);
+    };
+    const onScroll = () => {
+      if (!frame) frame = window.requestAnimationFrame(measure);
+    };
+    measure();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, []);
   const currentStory = industryStories[activeUseCase];
   const CurrentStoryIcon = currentStory.icon;
 
@@ -115,14 +150,26 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
   // creating one.
   return (
     <main className="min-h-screen overflow-x-clip bg-surface-muted text-ink">
-      <div className="border-b border-hairline bg-surface px-4 py-2 text-center text-[11px] text-ink-body sm:text-xs">
+      <div
+        className={`px-4 py-2 text-center text-[11px] transition-colors duration-700 sm:text-xs ${
+          overStage
+            ? 'border-b border-white/10 bg-[#070b1c] text-white/70'
+            : 'border-b border-hairline bg-surface text-ink-body'
+        }`}
+      >
         <span className="mr-2 inline-flex items-center gap-1.5 font-medium text-warning-text">
           <Sparkles className="size-3" /> {t('landing.banner.new')}
         </span>
         {t('landing.banner.text')}
       </div>
 
-      <header className="sticky top-0 z-50 border-b border-hairline bg-surface-muted/88 backdrop-blur-xl">
+      <header
+        className={`sticky top-0 z-50 backdrop-blur-xl transition-colors duration-700 ${
+          overStage
+            ? 'border-b border-white/10 bg-transparent text-white [&_.text-ink-muted]:text-white/60 [&_a]:text-white/80'
+            : 'border-b border-hairline bg-surface-muted/88'
+        }`}
+      >
         <div className="mx-auto flex h-[70px] max-w-[1240px] items-center justify-between px-4 sm:px-6">
           <a
             href="#top"

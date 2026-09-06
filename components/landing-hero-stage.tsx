@@ -91,13 +91,13 @@ export function LandingHeroStage({
       <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-warning-text">
         {t('landing.hero.badge')}
       </p>
-      <h1 className="mt-5 text-[40px] font-normal leading-[1.05] tracking-[-0.03em] sm:text-[56px] lg:text-[64px]">
+      <h1 className="mt-4 text-[30px] font-normal leading-[1.05] tracking-[-0.03em] sm:text-[44px] lg:text-[64px]">
         {t('landing.stage.title')}
       </h1>
-      <p className="mt-5 whitespace-pre-line text-lg leading-8 text-ink-body sm:text-xl">
+      <p className="mt-3 whitespace-pre-line text-base leading-7 text-ink-body sm:mt-5 sm:text-lg lg:text-xl">
         {t('landing.stage.sub')}
       </p>
-      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+      <div className="mt-5 flex flex-col gap-3 sm:mt-8 sm:flex-row">
         <button
           type="button"
           onClick={onEnterWorkspace}
@@ -178,7 +178,7 @@ export function LandingHeroStage({
         </div>
 
         <div className="relative mx-auto flex h-full max-w-[1240px] items-center px-4 sm:px-6">
-          <div className="grid w-full items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
+          <div className="grid w-full items-center gap-6 sm:gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
             <div
               className={`transition-colors duration-700 ${lit ? '' : 'text-white [&_p]:text-white/70'}`}
             >
@@ -186,7 +186,7 @@ export function LandingHeroStage({
             </div>
 
             <div className="stage-scene relative mx-auto flex w-full max-w-[420px] items-center justify-center">
-              <DeviceHalo className="size-[380px]" />
+              <DeviceHalo className="size-[240px] sm:size-[300px] lg:size-[380px]" />
               {/* The two glass panels either side of the phone, in from the
                   edges as the call gets going. */}
               <Glass
@@ -203,7 +203,10 @@ export function LandingHeroStage({
               />
               {/* The device turns towards the reader as the call is
                   answered: 14° away at the ring, square on by the end. */}
-              <div className="relative w-[248px] sm:w-[280px]">
+              {/* Sized so headline, sub, buttons and device together clear a
+                  812px phone screen: at 248px wide the device alone was 523px
+                  tall and the stage overflowed by 35px at each end. */}
+              <div className="relative w-[168px] sm:w-[220px] lg:w-[280px]">
                 <Phone screen={screen} tilt={(1 - progress) * 14 - 3} />
               </div>
             </div>

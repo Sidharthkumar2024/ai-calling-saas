@@ -516,6 +516,33 @@ export async function prepareGrowthAsk(input: {
 
   return {
     chatId,
+    language: workspaceLanguage,
+    // The same facts the prompt was built from, unrendered, so the specialist
+    // lanes can each be handed their own part of it rather than re-querying.
+    slice: {
+      observations: board.observations.map((observation) => ({
+        source: String(observation.source),
+        statement: observation.statement,
+        sampleSize: observation.sampleSize,
+      })),
+      siteFindings: (latest
+        ? (parse(latest.findings) as Array<{
+            page?: string;
+            title?: string;
+            severity?: string;
+          }>)
+        : []
+      ).map((finding) => ({
+        page: String(finding.page ?? ''),
+        title: String(finding.title ?? ''),
+        severity: String(finding.severity ?? 'medium'),
+      })),
+      objections: (objections.results ?? []).map((objection) => ({
+        label: objection.label,
+        occurrences: objection.occurrences,
+      })),
+      missingSources: board.sources.pending.map((source) => source.label),
+    },
     system: `${CHAT_SYSTEM_PROMPT}${answerLanguageRule(workspaceLanguage)}\n\n${context}`,
     messages: [
       ...recentTurns(history.results ?? []),

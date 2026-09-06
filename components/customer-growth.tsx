@@ -913,6 +913,9 @@ function GrowthChat({
   const [turns, setTurns] = useState<Turn[]>([]);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<number | null>(null);
+  // Off by default: the deep run costs four extra model calls, so it is asked
+  // for rather than assumed.
+  const [deep, setDeep] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
@@ -977,7 +980,11 @@ function GrowthChat({
       const response = await fetch('/api/app/growth/stream', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ question: asked, chatId }),
+        body: JSON.stringify({
+          question: asked,
+          chatId,
+          mode: deep ? 'deep' : 'quick',
+        }),
         signal: controller.signal,
       });
       if (!response.ok || !response.body) throw new Error('no stream');
@@ -1004,6 +1011,13 @@ function GrowthChat({
             text?: string;
             chatId?: string;
             message?: string;
+            id?: string;
+            label?: string;
+            ms?: number;
+            status?: string;
+            note?: string;
+            summary?: string;
+            findings?: LaneFinding[];
             groundedOn?: {
               observations: number;
               scanRun: string | null;
@@ -1014,6 +1028,21 @@ function GrowthChat({
             if (event.chatId) setChatId(event.chatId);
             const grounded = describeGrounding(event.groundedOn);
             writeAssistant((turn) => ({ ...turn, grounded }));
+          } else if (event.type === 'step' || event.type === 'lane') {
+            const step: TraceStep = {
+              id: String(event.id ?? ''),
+              label: String(event.label ?? ''),
+              ms: event.ms,
+              status: String(event.status ?? 'done'),
+              note: event.note,
+              findings: event.findings,
+            };
+            writeAssistant((turn) => ({
+              ...turn,
+              steps: [...(turn.steps ?? []), step],
+            }));
+          } else if (event.type === 'lanes_done') {
+            writeAssistant((turn) => ({ ...turn, laneSummary: event.summary }));
           } else if (event.type === 'delta' && event.text) {
             writeAssistant((turn) => ({
               ...turn,
@@ -1211,8 +1240,11 @@ function GrowthChat({
                   <p className="whitespace-pre-wrap">{turn.content}</p>
                 ) : (
                   <>
+                    {turn.steps?.length ? (
+                      <RunTrace steps={turn.steps} summary={turn.laneSummary} />
+                    ) : null}
                     <Markdown text={turn.content} />
-                    {turn.streaming && !turn.content ? (
+                    {turn.streaming && !turn.content && !turn.steps?.length ? (
                       <p className="text-[12px] text-ink-muted">Thinking…</p>
                     ) : null}
                     {turn.streaming && turn.content ? (
@@ -1290,6 +1322,19 @@ function GrowthChat({
           aria-label="Ask the growth manager"
           className="max-h-40 flex-1 resize-none bg-transparent px-1.5 py-1.5 text-[12px] outline-none"
         />
+        <button
+          type="button"
+          onClick={() => setDeep((value) => !value)}
+          aria-pressed={deep}
+          title="Read the calls, pipeline, website and what is not connected in four separate passes, and show the work"
+          className={`rounded-lg border px-2.5 py-2 text-[11px] ${
+            deep
+              ? 'border-primary/40 bg-primary/10 text-primary'
+              : 'border-hairline text-ink-muted hover:bg-surface-strong'
+          }`}
+        >
+          Deep run
+        </button>
         {busy ? (
           <button
             type="button"
@@ -1339,6 +1384,23 @@ function GrowthChat({
   );
 }
 
+type LaneFinding = {
+  specialist: string;
+  severity: 'high' | 'medium' | 'low';
+  title: string;
+  evidence: string;
+  doThis: string;
+};
+
+type TraceStep = {
+  id: string;
+  label: string;
+  ms?: number;
+  status: string;
+  note?: string;
+  findings?: LaneFinding[];
+};
+
 type Turn = {
   role: 'user' | 'assistant';
   content: string;
@@ -1346,6 +1408,8 @@ type Turn = {
   streaming?: boolean;
   stopped?: boolean;
   error?: string;
+  steps?: TraceStep[];
+  laneSummary?: string;
 };
 
 /** What the answer rested on, in the reader's words rather than field names. */
@@ -1447,5 +1511,116 @@ function Spans({ spans }: { spans: Inline[] }) {
         return <span key={index}>{span.text}</span>;
       })}
     </>
+  );
+}
+
+/**
+ * What the manager actually did, while it is doing it.
+ *
+ * Every row here is a step that really ran, with the time it really took: the
+ * evidence read, then one row per specialist lane. A lane that was skipped
+ * says why, and a lane whose answer could not be used says that too rather
+ * than showing a reassuring "0 findings" — those two look identical on a
+ * progress bar and mean opposite things.
+ */
+function RunTrace({
+  steps,
+  summary,
+}: {
+  steps: TraceStep[];
+  summary?: string;
+}) {
+  const [open, setOpen] = useState<string | null>(null);
+  const lanes = steps.filter((step) => step.findings !== undefined);
+  const plain = steps.filter((step) => step.findings === undefined);
+
+  return (
+    <div className="mb-2.5 rounded-lg border border-hairline bg-surface-muted/60 p-2.5">
+      {plain.map((step) => (
+        <p
+          key={step.id}
+          className="flex items-baseline gap-2 text-[11px] text-ink-muted"
+        >
+          <span className="text-success-text">✓</span>
+          <span className="flex-1">{step.label}</span>
+          {typeof step.ms === 'number' ? (
+            <span className="font-mono text-[11px]">{step.ms}ms</span>
+          ) : null}
+        </p>
+      ))}
+
+      {lanes.length ? (
+        <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+          {lanes.map((lane) => {
+            const found = lane.findings ?? [];
+            const high = found.filter(
+              (finding) => finding.severity === 'high',
+            ).length;
+            return (
+              <div
+                key={lane.id}
+                className={`rounded-lg border p-2 ${
+                  lane.status === 'skipped' || lane.status === 'unusable'
+                    ? 'border-hairline bg-surface/60'
+                    : 'border-hairline bg-surface'
+                }`}
+              >
+                <div className="flex items-baseline gap-2">
+                  <p className="flex-1 text-[11px] font-medium">{lane.label}</p>
+                  {typeof lane.ms === 'number' ? (
+                    <span className="font-mono text-[11px] text-ink-muted">
+                      {lane.ms}ms
+                    </span>
+                  ) : null}
+                </div>
+                {found.length ? (
+                  <button
+                    type="button"
+                    onClick={() => setOpen(open === lane.id ? null : lane.id)}
+                    className="mt-1 text-[11px] text-primary underline-offset-2 hover:underline"
+                  >
+                    {found.length} finding{found.length === 1 ? '' : 's'}
+                    {high ? ` · ${high} high` : ''}
+                  </button>
+                ) : (
+                  <p className="mt-1 text-[11px] text-ink-muted">
+                    {lane.note ?? 'Nothing here.'}
+                  </p>
+                )}
+                {open === lane.id ? (
+                  <ul className="mt-1.5 space-y-1.5">
+                    {found.map((finding, index) => (
+                      <li key={index} className="text-[11px]">
+                        <span
+                          className={
+                            finding.severity === 'high'
+                              ? 'font-medium text-warning-text'
+                              : 'font-medium'
+                          }
+                        >
+                          {finding.title}
+                        </span>
+                        <span className="block text-ink-muted">
+                          from: {finding.evidence}
+                        </span>
+                        {finding.doThis ? (
+                          <span className="block text-ink-body">
+                            → {finding.doThis}
+                          </span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {summary ? (
+        <p className="mt-2 text-[11px] font-medium text-ink-body">{summary}</p>
+      ) : null}
+    </div>
   );
 }

@@ -1,4 +1,5 @@
 import { getRawDb } from '@/db/index';
+import { summariseSilentRuns } from '@/lib/job-outcomes';
 import {
   DEFAULT_THRESHOLDS,
   classifyService,
@@ -43,6 +44,22 @@ export type HealthReport = {
     pattern: string;
     lastError: string | null;
     distinctErrors: string[];
+  }>;
+  /**
+   * Runs that completed while leaving their work undone.
+   *
+   * `failingJobs` above only looks at jobs in a failing state, so a run that
+   * succeeded at doing nothing was invisible — which is exactly what a
+   * reminder run looks like when the workspace has no WhatsApp connection.
+   * Nothing failed, so nothing was reported, and the customer was never
+   * reminded.
+   */
+  silentJobs: Array<{
+    type: string;
+    runs: number;
+    considered: number;
+    skipped: number;
+    message: string;
   }>;
   measuredAt: string;
 };
@@ -277,8 +294,22 @@ const PATTERN_URGENCY: Record<string, number> = {
 };
 
 /** The §29 component list, measured. */
+/** Completed runs, so a job that did nothing can be told from one that did. */
+async function silentJobs() {
+  const rows = await getRawDb()
+    .prepare(
+      `SELECT j.type, a.result_json AS result
+       FROM background_jobs j
+       INNER JOIN job_attempts a ON a.job_id = j.id
+       WHERE a.status = 'completed' AND a.created_at >= datetime('now', '-24 hours')
+       ORDER BY a.created_at DESC LIMIT 500`,
+    )
+    .all<{ type: string; result: string | null }>();
+  return summariseSilentRuns(rows.results ?? []);
+}
+
 export async function healthReport(): Promise<HealthReport> {
-  const [providers, stored, webhook, database, queue, readiness, jobs] =
+  const [providers, stored, webhook, database, queue, readiness, jobs, silent] =
     await Promise.all([
       providerSamples(),
       storedHealth(),
@@ -289,6 +320,7 @@ export async function healthReport(): Promise<HealthReport> {
       // Never allowed to take the panel down: the health screen exists to be
       // readable when things are broken.
       failingJobs().catch(() => []),
+      silentJobs().catch(() => []),
     ]);
 
   const configured = new Map<string, boolean>();
@@ -359,6 +391,7 @@ export async function healthReport(): Promise<HealthReport> {
     failingJobs: [...jobs].sort(
       (a, b) => PATTERN_URGENCY[b.pattern] - PATTERN_URGENCY[a.pattern],
     ),
+    silentJobs: silent,
     measuredAt: new Date().toISOString(),
   };
 }

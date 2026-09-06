@@ -80,6 +80,13 @@ type AdminPayload = {
       tokenState: string;
       breaker: string;
     }>;
+    silentJobs?: Array<{
+      type: string;
+      runs: number;
+      considered: number;
+      skipped: number;
+      message: string;
+    }>;
   };
   unitEconomics?: {
     currency: string;
@@ -2883,6 +2890,22 @@ function SystemAudit({ data }: { data: AdminPayload }) {
               measured {formatDate(data.health.measuredAt)}
             </span>
           </div>
+          {/* A job that completes while doing nothing looks exactly like one
+              that worked. Nothing failed, so nothing was reported — and the
+              customer was never reminded. */}
+          {data.health.silentJobs?.length ? (
+            <div className="mt-4 space-y-1.5">
+              {data.health.silentJobs.map((job) => (
+                <p
+                  key={job.type}
+                  className="rounded-lg border border-hairline bg-surface-muted px-3 py-2 text-[10px] leading-5 text-ink-body"
+                >
+                  {job.message}
+                  {job.runs > 1 ? ` Seen on ${job.runs} runs.` : ''}
+                </p>
+              ))}
+            </div>
+          ) : null}
           <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {data.health.components.map((component) => (
               <div

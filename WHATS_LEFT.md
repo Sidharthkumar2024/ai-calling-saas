@@ -198,6 +198,34 @@ person's own row. One false positive was the script's, not the code's — the
 per-workspace lead webhooks verify a `webhookSecret` column rather than an env
 var, and an env-var-shaped pattern called them wide open.
 
+### 9. A job that succeeds at doing nothing
+
+Two classes were checked and found **sound**, and are recorded here so nobody
+re-checks them: multi-tenant write isolation, and the background job chain.
+
+- **Tenant isolation.** 64 writes update or delete a tenant-owned row without
+  `organization_id` in the WHERE clause. Every one was read by hand and every
+  one is safe: the id was proven to belong to the workspace by a preceding
+  scoped lookup — `SELECT ... WHERE id = ? AND organization_id = ?`, or the
+  `owned()` helper. The load-then-write discipline is consistent across the
+  codebase. **No audit script was written for this**, because it would report
+  64 findings that are all correct, and a check that cries wolf is worse than
+  no check.
+- **The job chain runs.** `/api/internal/jobs` processes all 15 maintenance
+  jobs clean across three workspaces, including the two added this week.
+
+That run did surface one real gap. The health screen reads `job_attempts` only
+where the job is *failing*, so a run that **completes while leaving its work
+undone** was invisible. Taken from a real run: the appointment reminder found
+one due, could not send because this workspace has no WhatsApp connection, and
+correctly left `reminded_at` unset so the reminder is still owed — status
+`completed`, and nowhere for anyone to see it. A workspace whose every reminder
+is skipping had no way to find out, precisely because nothing failed.
+
+Completed runs that left work undone now appear on the health screen, rolled up
+per job type so a run that skips hourly is one line rather than twenty-four.
+"Nothing to do" is not reported — a quiet queue should stay quiet.
+
 ### 5. [KEY] Things only you can supply
 
 - **A male ElevenLabs voice id** (still outstanding) and a Punjabi voice id.

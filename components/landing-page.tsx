@@ -238,7 +238,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-warning-text">
                 {t('landing.loop.eyebrow')}
               </p>
-              <h2 className="mt-4 max-w-lg text-4xl font-semibold leading-[1.05] tracking-[-0.045em] sm:text-5xl">
+              <h2 className="stage-heading mt-4 max-w-lg text-[38px] sm:text-[52px]">
                 {t('landing.loop.title')}
               </h2>
             </div>
@@ -247,7 +247,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
             </p>
           </div>
 
-          <div className="mt-14 grid overflow-hidden rounded-2xl border border-hairline bg-surface-muted md:grid-cols-2 xl:grid-cols-4">
+          <div className="stage-card mt-14 grid overflow-hidden rounded-2xl md:grid-cols-2 xl:grid-cols-4">
             {revenueLoop.map((item, index) => (
               <div
                 key={item.step}
@@ -283,7 +283,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-700">
               {t('landing.product.eyebrow')}
             </p>
-            <h2 className="mt-4 text-4xl font-semibold tracking-[-0.045em] sm:text-5xl">
+            <h2 className="stage-heading mt-4 text-[38px] sm:text-[52px]">
               {t('landing.product.title')}
             </h2>
             <p className="mt-5 text-sm leading-6 text-ink-muted">
@@ -295,7 +295,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
             {capabilities.map((item, index) => (
               <article
                 key={item.key}
-                className={`group min-h-[230px] rounded-2xl border border-hairline bg-surface p-5 transition-colors hover:border-hairline hover:bg-surface ${index === 0 || index === 7 ? 'sm:col-span-2' : ''}`}
+                className={`stage-card group min-h-[230px] rounded-2xl p-5 transition-transform hover:-translate-y-0.5 ${index === 0 || index === 7 ? 'sm:col-span-2' : ''}`}
               >
                 <div className="flex items-start justify-between">
                   <span className="grid size-10 place-items-center rounded-xl border border-hairline bg-surface-strong text-warning-text">
@@ -327,7 +327,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-success-text">
                 {t('landing.solutions.eyebrow')}
               </p>
-              <h2 className="mt-4 text-4xl font-semibold tracking-[-0.045em]">
+              <h2 className="stage-heading mt-4 text-[38px] sm:text-[52px]">
                 {t('landing.solutions.title')}
               </h2>
               <div
@@ -375,7 +375,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                     ))}
                   </ul>
                 </div>
-                <div className="w-full max-w-[255px] rounded-2xl border border-hairline bg-surface-muted p-5">
+                <div className="w-full max-w-[255px] stage-card rounded-2xl p-5">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-muted">
                     {t('landing.solutions.liveOutcome')}
                   </p>
@@ -419,7 +419,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">
                 {t('landing.engines.eyebrow')}
               </p>
-              <h2 className="mt-4 text-4xl font-semibold leading-[1.05] tracking-[-0.045em] sm:text-5xl">
+              <h2 className="stage-heading mt-4 text-[38px] sm:text-[52px]">
                 {t('landing.engines.title')}
               </h2>
             </div>
@@ -429,10 +429,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
           </div>
           <div className="mt-14 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {VAANI_ENGINES.map((engine) => (
-              <article
-                key={engine.name}
-                className="rounded-2xl border border-hairline bg-surface-muted p-5"
-              >
+              <article key={engine.name} className="stage-card rounded-2xl p-5">
                 <div className="flex items-center gap-3">
                   <span className="grid size-9 place-items-center rounded-xl bg-cyan-300/10 text-cyan-700">
                     <engine.icon className="size-4" />
@@ -462,7 +459,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-warning-text">
               {t('landing.pricing.eyebrow')}
             </p>
-            <h2 className="mt-4 text-4xl font-semibold tracking-[-0.045em] sm:text-5xl">
+            <h2 className="stage-heading mt-4 text-[38px] sm:text-[52px]">
               {t('landing.pricing.title')}
             </h2>
             <p className="mt-5 text-sm leading-6 text-ink-muted">
@@ -556,7 +553,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
             >
               <ShieldCheck className="size-3.5" /> {t('landing.security.badge')}
             </Badge>
-            <h2 className="mt-6 text-4xl font-semibold tracking-[-0.045em]">
+            <h2 className="stage-heading mt-6 text-[38px] sm:text-[52px]">
               {t('landing.security.title')}
             </h2>
             <p className="mt-5 max-w-xl text-sm leading-6 text-ink-muted">
@@ -572,10 +569,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                 [Webhook, 'landing.security.audit'],
               ] as Array<[typeof LockKeyhole, string]>
             ).map(([SecurityIcon, key]) => (
-              <div
-                key={key}
-                className="rounded-2xl border border-hairline bg-surface-muted p-5"
-              >
+              <div key={key} className="stage-card rounded-2xl p-5">
                 <SecurityIcon className="size-4 text-success-text" />
                 <h3 className="mt-6 text-sm font-medium">
                   {sub(key, 'title')}
@@ -596,7 +590,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-warning-text">
                 {t('landing.cta.eyebrow')}
               </p>
-              <h2 className="mt-5 text-4xl font-semibold leading-tight tracking-[-0.045em] sm:text-5xl">
+              <h2 className="stage-heading mt-5 text-[38px] sm:text-[52px]">
                 {t('landing.cta.title')}
               </h2>
               <p className="mt-5 text-sm leading-6 text-ink-muted">

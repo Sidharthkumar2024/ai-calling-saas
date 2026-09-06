@@ -102,7 +102,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
             </span>
             <span>
               <span className="block text-[15px] font-semibold tracking-tight">
-                Vaani
+                V-A-N-I
               </span>
               <span className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-muted">
                 {t('landing.tagline')}
@@ -846,7 +846,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
         <div className="mx-auto flex max-w-[1240px] flex-col gap-5 px-4 text-[11px] text-ink-muted sm:px-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-2 text-ink-body">
             <Activity className="size-4 text-warning-text" />
-            <span className="font-medium">Vaani</span>
+            <span className="font-medium">V-A-N-I</span>
             <span>{t('landing.footer.tagline')}</span>
           </div>
           <div className="flex flex-wrap gap-5">

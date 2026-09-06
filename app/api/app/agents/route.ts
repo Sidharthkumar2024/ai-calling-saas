@@ -394,14 +394,7 @@ export async function PUT(request: Request) {
           (SELECT count(*) FROM agent_test_sessions WHERE agent_id = ?) AS tests,
           (SELECT count(*) FROM payment_links WHERE agent_id = ?) AS paymentLinks,
           (SELECT count(*) FROM scheduled_actions WHERE agent_id = ?) AS scheduled`)
-      .bind(
-        agent.id,
-        agent.id,
-        agent.id,
-        agent.id,
-        agent.id,
-        agent.id,
-      )
+      .bind(agent.id, agent.id, agent.id, agent.id, agent.id, agent.id)
       .first<{
         calls: number;
         campaigns: number;
@@ -421,9 +414,7 @@ export async function PUT(request: Request) {
       );
 
     await db
-      .prepare(
-        `DELETE FROM voice_agents WHERE id = ? AND organization_id = ?`,
-      )
+      .prepare(`DELETE FROM voice_agents WHERE id = ? AND organization_id = ?`)
       .bind(agent.id, auth.session.organizationId)
       .run();
     await recordAudit(auth.session, 'agent.deleted', 'voice_agent', agent.id, {

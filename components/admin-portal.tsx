@@ -308,7 +308,7 @@ export function AdminPortal({ session }: { session: AdminSession }) {
             Two-factor authentication required
           </h1>
           <p className="mt-2 text-[11px] text-ink-body">{mfaRequired}</p>
-          <p className="mt-3 text-[10px] text-ink-muted">
+          <p className="mt-3 text-[11px] text-ink-muted">
             Your password was accepted. This is the one step left before the
             admin console opens.
           </p>
@@ -404,11 +404,11 @@ function AdminOverview({
         <div className="relative flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/15 bg-emerald-300/[0.055] px-3 py-1.5 text-[9px] font-medium uppercase tracking-[0.14em] text-success-text">
+              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/15 bg-emerald-300/[0.055] px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-success-text">
                 <span className="size-1.5 animate-pulse rounded-full bg-emerald-300" />{' '}
                 Core operational
               </span>
-              <span className="text-[9px] uppercase tracking-[0.15em] text-ink-muted">
+              <span className="text-[11px] uppercase tracking-[0.15em] text-ink-muted">
                 Platform command center
               </span>
             </div>
@@ -470,13 +470,13 @@ function AdminOverview({
           ].map(([label, value, note, Icon, tone]) => (
             <div key={String(label)} className="bg-surface p-4">
               <div className="flex items-center justify-between">
-                <p className="text-[9px] uppercase tracking-[0.13em] text-ink-muted">
+                <p className="text-[11px] uppercase tracking-[0.13em] text-ink-muted">
                   {String(label)}
                 </p>
                 <Icon className={`size-4 ${String(tone)}`} />
               </div>
               <p className="mt-3 text-xl font-semibold">{String(value)}</p>
-              <p className="mt-1 text-[9px] text-ink-muted">{String(note)}</p>
+              <p className="mt-1 text-[11px] text-ink-muted">{String(note)}</p>
             </div>
           ))}
         </div>
@@ -572,7 +572,7 @@ function AdminOverview({
             className="mt-6 flex w-full items-center justify-between rounded-xl border border-hairline bg-surface-muted p-4 text-left transition hover:bg-surface-strong"
           >
             <div>
-              <p className="text-[10px] uppercase tracking-[0.16em] text-ink-muted">
+              <p className="text-[11px] uppercase tracking-[0.16em] text-ink-muted">
                 P95 conversation latency
               </p>
               <p className="mt-2 text-2xl font-semibold">
@@ -580,7 +580,7 @@ function AdminOverview({
                   ? `${num(data.system.p95LatencyMs)} ms`
                   : 'Not measured'}
               </p>
-              <p className="mt-1 text-[10px] text-ink-muted">
+              <p className="mt-1 text-[11px] text-ink-muted">
                 {Number(data.system?.latencySampleSize ?? 0)
                   ? `Provider calls · last ${num(data.system?.latencySampleSize)} samples`
                   : 'No provider calls recorded yet'}
@@ -638,13 +638,13 @@ function AdminOverview({
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium">{title}</p>
-                  <p className="mt-1 text-[10px] text-ink-muted">{note}</p>
+                  <p className="mt-1 text-[11px] text-ink-muted">{note}</p>
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => onNavigate(target)}
-                  className="border-hairline bg-transparent text-[10px]"
+                  className="border-hairline bg-transparent text-[11px]"
                 >
                   {action}
                 </Button>
@@ -763,13 +763,13 @@ function TenantLifecycle() {
           <h2 className="text-[11px] font-semibold text-ink">
             Create and suspend workspaces
           </h2>
-          <p className="mt-1 text-[10px] text-ink-muted">
+          <p className="mt-1 text-[11px] text-ink-muted">
             Suspending pauses running campaigns, cancels queued jobs and blocks
             the workspace&apos;s API access immediately.
           </p>
         </div>
         {adminRole ? (
-          <span className="rounded-md bg-surface-strong px-2 py-1 text-[9px] uppercase tracking-wide text-ink-body">
+          <span className="rounded-md bg-surface-strong px-2 py-1 text-[11px] uppercase tracking-wide text-ink-body">
             your role: {adminRole.replaceAll('_', ' ')}
           </span>
         ) : null}
@@ -841,11 +841,11 @@ function TenantLifecycle() {
               className="flex flex-wrap items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2.5 text-[11px]"
             >
               <span className="font-medium">{textValue(row.name)}</span>
-              <span className="font-mono text-[9px] text-ink-muted">
+              <span className="font-mono text-[11px] text-ink-muted">
                 {textValue(row.slug)}
               </span>
               <span
-                className={`rounded-md px-2 py-0.5 text-[9px] uppercase tracking-wide ${
+                className={`rounded-md px-2 py-0.5 text-[11px] uppercase tracking-wide ${
                   suspended
                     ? 'bg-rose-400/12 text-danger-text'
                     : 'bg-emerald-400/12 text-success-text'
@@ -853,12 +853,12 @@ function TenantLifecycle() {
               >
                 {textValue(row.status)}
               </span>
-              <span className="text-[9px] text-ink-muted">
+              <span className="text-[11px] text-ink-muted">
                 {textValue(row.plan_name, 'no plan')} · {num(row.users)} users ·{' '}
                 {num(row.calls_30d)} calls/30d
               </span>
               {row.suspension_reason ? (
-                <span className="text-[9px] text-danger-text">
+                <span className="text-[11px] text-danger-text">
                   {textValue(row.suspension_reason)}
                 </span>
               ) : null}
@@ -884,7 +884,7 @@ function TenantLifecycle() {
                       onChange={(event) =>
                         setReason({ ...reason, [id]: event.target.value })
                       }
-                      className="w-44 rounded-lg border border-hairline bg-surface-strong px-2.5 py-1.5 text-[10px] outline-none focus:border-hairline"
+                      className="w-44 rounded-lg border border-hairline bg-surface-strong px-2.5 py-1.5 text-[11px] outline-none focus:border-hairline"
                     />
                     <Button
                       disabled={
@@ -920,7 +920,7 @@ function CustomersTable({ rows }: { rows: Record<string, unknown>[] }) {
       />
       <div className="mt-4 overflow-x-auto">
         <table className="w-full min-w-[720px] text-left text-xs">
-          <thead className="border-y border-hairline text-[9px] uppercase tracking-[0.13em] text-ink-muted">
+          <thead className="border-y border-hairline text-[11px] uppercase tracking-[0.13em] text-ink-muted">
             <tr>
               <th className="px-3 py-3 font-medium">Organization</th>
               <th className="px-3 py-3 font-medium">Plan</th>
@@ -935,7 +935,7 @@ function CustomersTable({ rows }: { rows: Record<string, unknown>[] }) {
               <tr key={String(row.id)} className="hover:bg-surface-muted">
                 <td className="px-3 py-4">
                   <p className="font-medium">{textValue(row.name)}</p>
-                  <p className="mt-1 text-[10px] text-ink-muted">
+                  <p className="mt-1 text-[11px] text-ink-muted">
                     {textValue(row.owner_email, 'No owner')}
                   </p>
                 </td>
@@ -1018,7 +1018,7 @@ function CallOperations({ data }: { data: AdminPayload }) {
         {calls.length ? (
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[900px] text-left text-xs">
-              <thead className="border-y border-hairline text-[9px] uppercase tracking-wider text-ink-muted">
+              <thead className="border-y border-hairline text-[11px] uppercase tracking-wider text-ink-muted">
                 <tr>
                   {[
                     'Workspace',
@@ -1047,7 +1047,7 @@ function CallOperations({ data }: { data: AdminPayload }) {
                     <td className="px-3 py-3 text-ink-body">
                       {textValue(row.agent_name)}
                     </td>
-                    <td className="px-3 py-3 font-mono text-[10px] text-ink-body">
+                    <td className="px-3 py-3 font-mono text-[11px] text-ink-body">
                       {textValue(row.to_number)}
                     </td>
                     <td className="px-3 py-3">
@@ -1111,7 +1111,7 @@ function VoiceEngines({ data }: { data: AdminPayload }) {
                 <p className="truncate text-xs font-medium">
                   {textValue(entry.publicName)}
                 </p>
-                <p className="mt-1 text-[9px] text-ink-muted">
+                <p className="mt-1 text-[11px] text-ink-muted">
                   {textValue(entry.adapter)} ·{' '}
                   {entry.configured ? 'credentials present' : 'not configured'}
                 </p>
@@ -1148,7 +1148,7 @@ function VoiceEngines({ data }: { data: AdminPayload }) {
                           ? textValue(ready.publicName)
                           : providerId.replace('provider_', '')}
                       </p>
-                      <p className="mt-1 text-[9px] text-ink-muted">
+                      <p className="mt-1 text-[11px] text-ink-muted">
                         {(entry.operations as string[] | undefined)?.join(
                           ' · ',
                         ) ?? '—'}
@@ -1156,7 +1156,7 @@ function VoiceEngines({ data }: { data: AdminPayload }) {
                     </div>
                     <Badge
                       variant="outline"
-                      className={`text-[9px] ${errorRate > 0.05 ? 'border-red-400/25 bg-red-400/10 text-danger-text' : 'border-emerald-300/20 bg-emerald-300/8 text-success-text'}`}
+                      className={`text-[11px] ${errorRate > 0.05 ? 'border-red-400/25 bg-red-400/10 text-danger-text' : 'border-emerald-300/20 bg-emerald-300/8 text-success-text'}`}
                     >
                       {(errorRate * 100).toFixed(1)}% errors
                     </Badge>
@@ -1166,23 +1166,23 @@ function VoiceEngines({ data }: { data: AdminPayload }) {
                       <p className="text-sm font-semibold">
                         {num(entry.calls)}
                       </p>
-                      <p className="mt-1 text-[9px] text-ink-muted">calls</p>
+                      <p className="mt-1 text-[11px] text-ink-muted">calls</p>
                     </div>
                     <div>
                       <p className="text-sm font-semibold">
                         {num(entry.averageLatencyMs)}
-                        <span className="text-[9px] text-ink-muted"> ms</span>
+                        <span className="text-[11px] text-ink-muted"> ms</span>
                       </p>
-                      <p className="mt-1 text-[9px] text-ink-muted">average</p>
+                      <p className="mt-1 text-[11px] text-ink-muted">average</p>
                     </div>
                     <div>
                       <p className="text-sm font-semibold">
                         {entry.p95LatencyMs
                           ? `${num(entry.p95LatencyMs)}`
                           : '—'}
-                        <span className="text-[9px] text-ink-muted"> ms</span>
+                        <span className="text-[11px] text-ink-muted"> ms</span>
                       </p>
-                      <p className="mt-1 text-[9px] text-ink-muted">p95</p>
+                      <p className="mt-1 text-[11px] text-ink-muted">p95</p>
                     </div>
                   </div>
                 </div>
@@ -1242,7 +1242,7 @@ function VoiceEngines({ data }: { data: AdminPayload }) {
                 key={label}
                 className="rounded-xl border border-hairline bg-surface-muted p-3"
               >
-                <p className="text-[9px] uppercase tracking-wider text-ink-muted">
+                <p className="text-[11px] uppercase tracking-wider text-ink-muted">
                   {label}
                 </p>
                 <p className="mt-1 text-lg font-semibold">{value}</p>
@@ -1250,7 +1250,7 @@ function VoiceEngines({ data }: { data: AdminPayload }) {
             ))}
           </div>
           {!data.unitEconomics.complete ? (
-            <p className="mt-3 text-[10px] text-warning-text">
+            <p className="mt-3 text-[11px] text-warning-text">
               {num(data.unitEconomics.unpricedEvents)} usage events in this
               window had no rate card, so the cost above is a floor rather than
               a total and the margin is optimistic. Add the missing rate cards
@@ -1268,7 +1268,7 @@ function VoiceEngines({ data }: { data: AdminPayload }) {
           />
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[700px] text-left text-xs">
-              <thead className="border-y border-hairline text-[9px] uppercase tracking-wider text-ink-muted">
+              <thead className="border-y border-hairline text-[11px] uppercase tracking-wider text-ink-muted">
                 <tr>
                   {[
                     'Provider',
@@ -1436,7 +1436,7 @@ function NumbersKyc({
         />
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[1120px] text-left text-xs">
-            <thead className="border-y border-hairline text-[9px] uppercase tracking-[0.13em] text-ink-muted">
+            <thead className="border-y border-hairline text-[11px] uppercase tracking-[0.13em] text-ink-muted">
               <tr>
                 {[
                   'Number',
@@ -1468,7 +1468,7 @@ function NumbersKyc({
                     <p className="capitalize">
                       {textValue(row.provider_code, 'auto')}
                     </p>
-                    <p className="mt-1 text-[9px] text-ink-muted">
+                    <p className="mt-1 text-[11px] text-ink-muted">
                       {textValue(
                         row.connection_mode,
                         textValue(row.acquisition_type),
@@ -1490,7 +1490,7 @@ function NumbersKyc({
                         .length ?? 0}
                       {' accepted'}
                     </p>
-                    <p className="mt-1 text-[9px] leading-relaxed text-ink-muted">
+                    <p className="mt-1 text-[11px] leading-relaxed text-ink-muted">
                       {progressByNumber.get(textValue(row.id))?.message}
                     </p>
                   </td>
@@ -1610,7 +1610,7 @@ function KycDocumentReview({
         description="Each file a customer sent, decided one at a time. Approving a number's whole set at once meant accepting files nobody had read."
       />
       {problem ? (
-        <p role="alert" className="mt-3 text-[10px] text-danger-text">
+        <p role="alert" className="mt-3 text-[11px] text-danger-text">
           {problem}
         </p>
       ) : null}
@@ -1627,7 +1627,7 @@ function KycDocumentReview({
           return (
             <div
               key={id}
-              className="flex flex-wrap items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2.5 text-[10px]"
+              className="flex flex-wrap items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2.5 text-[11px]"
             >
               <span className="text-[11px] font-medium text-ink">
                 {KYC_DOCUMENT_LABEL[
@@ -1757,7 +1757,7 @@ function PlansBilling({
           <div className="grid gap-4 md:grid-cols-[1fr_0.6fr_0.6fr_auto]">
             <label
               htmlFor="credit-package-name"
-              className="text-[10px] text-ink-muted"
+              className="text-[11px] text-ink-muted"
             >
               Package name
               <Input
@@ -1769,7 +1769,7 @@ function PlansBilling({
             </label>
             <label
               htmlFor="credit-package-credits"
-              className="text-[10px] text-ink-muted"
+              className="text-[11px] text-ink-muted"
             >
               Credits
               <Input
@@ -1784,7 +1784,7 @@ function PlansBilling({
             </label>
             <label
               htmlFor="credit-package-price"
-              className="text-[10px] text-ink-muted"
+              className="text-[11px] text-ink-muted"
             >
               Price in paise
               <Input
@@ -1855,11 +1855,11 @@ function PlansBilling({
               <p className="mt-4 text-sm font-medium">{textValue(item.name)}</p>
               <p className="mt-2 text-xl font-semibold">
                 {num(item.credits)}{' '}
-                <span className="text-[10px] font-normal text-ink-muted">
+                <span className="text-[11px] font-normal text-ink-muted">
                   credits
                 </span>
               </p>
-              <p className="mt-1 text-[10px] text-ink-muted">
+              <p className="mt-1 text-[11px] text-ink-muted">
                 {money(item.price)}
               </p>
               {/* A pack could be created and never withdrawn, so an offer
@@ -1879,7 +1879,7 @@ function PlansBilling({
                     onChanged,
                   )
                 }
-                className="mt-3 text-[10px] text-ink-muted transition hover:text-ink-body"
+                className="mt-3 text-[11px] text-ink-muted transition hover:text-ink-body"
               >
                 {textValue(item.status) === 'active' ? 'Retire' : 'Bring back'}
               </button>
@@ -1974,7 +1974,7 @@ function NewPlan({ onChanged }: { onChanged: () => Promise<void> }) {
         <p className="mt-3 text-[11px] text-danger-text">{error}</p>
       ) : null}
       <div className="mt-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <label htmlFor="new-plan-code" className="text-[10px] text-ink-muted">
+        <label htmlFor="new-plan-code" className="text-[11px] text-ink-muted">
           Code
           <Input
             id="new-plan-code"
@@ -1986,7 +1986,7 @@ function NewPlan({ onChanged }: { onChanged: () => Promise<void> }) {
             className="mt-2 border-hairline bg-surface-muted"
           />
         </label>
-        <label htmlFor="new-plan-name" className="text-[10px] text-ink-muted">
+        <label htmlFor="new-plan-name" className="text-[11px] text-ink-muted">
           Name
           <Input
             id="new-plan-name"
@@ -2010,7 +2010,7 @@ function NewPlan({ onChanged }: { onChanged: () => Promise<void> }) {
           <label
             key={field}
             htmlFor={`new-plan-${field}`}
-            className="text-[10px] text-ink-muted"
+            className="text-[11px] text-ink-muted"
           >
             {label}
             <Input
@@ -2101,7 +2101,7 @@ function PlanCard({
       {editing ? (
         <div className="mt-5 space-y-3">
           {error ? (
-            <p className="rounded-lg border border-red-300/15 bg-red-300/[0.035] p-2 text-[10px] text-danger-text">
+            <p className="rounded-lg border border-red-300/15 bg-red-300/[0.035] p-2 text-[11px] text-danger-text">
               {error}
             </p>
           ) : null}
@@ -2151,7 +2151,7 @@ function PlanCard({
                 setDraft({ ...draft, concurrency: Number(value) })
               }
             />
-            <label className="text-[9px] text-ink-muted">
+            <label className="text-[11px] text-ink-muted">
               Status
               <select
                 value={draft.status}
@@ -2221,7 +2221,7 @@ function PlanField({
   number?: boolean;
 }) {
   return (
-    <label className="text-[9px] text-ink-muted">
+    <label className="text-[11px] text-ink-muted">
       {label}
       <Input
         type={number ? 'number' : 'text'}
@@ -2280,7 +2280,7 @@ function TrialsCommerce({ data }: { data: AdminPayload }) {
         />
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[920px] text-left text-xs">
-            <thead className="border-y border-hairline text-[9px] uppercase tracking-[0.13em] text-ink-muted">
+            <thead className="border-y border-hairline text-[11px] uppercase tracking-[0.13em] text-ink-muted">
               <tr>
                 {[
                   'Reference',
@@ -2320,7 +2320,7 @@ function TrialsCommerce({ data }: { data: AdminPayload }) {
                   <td className="px-3 py-4">
                     <Status value={textValue(row.status)} />
                   </td>
-                  <td className="px-3 py-4 text-[10px] text-ink-muted">
+                  <td className="px-3 py-4 text-[11px] text-ink-muted">
                     {formatDate(row.created_at)}
                   </td>
                 </tr>
@@ -2356,7 +2356,7 @@ function Integrations({ data }: { data: AdminPayload }) {
               </span>
               <div className="flex-1">
                 <p className="text-sm font-medium">{textValue(item.name)}</p>
-                <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-ink-muted">
+                <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-ink-muted">
                   {textValue(item.type).replaceAll('_', ' ')}
                 </p>
               </div>
@@ -2386,7 +2386,7 @@ function Integrations({ data }: { data: AdminPayload }) {
             >
               <Icon className="size-4 text-warning-text" />
               <p className="mt-4 text-xs font-medium">{String(title)}</p>
-              <p className="mt-1 text-[10px] text-ink-muted">{String(note)}</p>
+              <p className="mt-1 text-[11px] text-ink-muted">{String(note)}</p>
             </div>
           ))}
         </div>
@@ -2594,12 +2594,12 @@ function ProviderKeyCard({
       <div className="flex items-center justify-between">
         <div className="min-w-0">
           <p className="text-sm font-medium">{provider.name}</p>
-          <p className="mt-1 text-[9px] text-ink-muted">{provider.note}</p>
+          <p className="mt-1 text-[11px] text-ink-muted">{provider.note}</p>
         </div>
         <Status value={hasKey ? 'key set' : 'not set'} />
       </div>
 
-      <label className="mt-4 block text-[9px] uppercase tracking-wider text-ink-muted">
+      <label className="mt-4 block text-[11px] uppercase tracking-wider text-ink-muted">
         API key {hasKey ? '(leave blank to keep current)' : ''}
       </label>
       <Input
@@ -2612,7 +2612,7 @@ function ProviderKeyCard({
 
       {provider.fields.map((field) => (
         <div key={field.k}>
-          <label className="mt-3 block text-[9px] uppercase tracking-wider text-ink-muted">
+          <label className="mt-3 block text-[11px] uppercase tracking-wider text-ink-muted">
             {field.label}
           </label>
           <Input
@@ -2633,7 +2633,7 @@ function ProviderKeyCard({
         <Button
           disabled={busy === 'save'}
           onClick={save}
-          className="h-8 bg-primary text-[10px] text-primary-foreground hover:bg-[#1d4ed8]"
+          className="h-8 bg-primary text-[11px] text-primary-foreground hover:bg-[#1d4ed8]"
         >
           {busy === 'save' ? <Loader2 className="animate-spin" /> : null} Save
         </Button>
@@ -2642,7 +2642,7 @@ function ProviderKeyCard({
             variant="outline"
             disabled={busy === 'voices'}
             onClick={fetchVoices}
-            className="h-8 border-hairline bg-transparent text-[10px]"
+            className="h-8 border-hairline bg-transparent text-[11px]"
           >
             {busy === 'voices' ? (
               <Loader2 className="animate-spin" />
@@ -2657,7 +2657,7 @@ function ProviderKeyCard({
             variant="outline"
             disabled={busy === 'clear'}
             onClick={clear}
-            className="h-8 border-red-400/20 bg-transparent text-[10px] text-danger-text"
+            className="h-8 border-red-400/20 bg-transparent text-[11px] text-danger-text"
           >
             Clear
           </Button>
@@ -2665,17 +2665,17 @@ function ProviderKeyCard({
       </div>
 
       {error ? (
-        <p className="mt-2 text-[10px] text-danger-text">{error}</p>
+        <p className="mt-2 text-[11px] text-danger-text">{error}</p>
       ) : null}
       {notice ? (
-        <p className="mt-2 text-[10px] font-medium text-success-text">
+        <p className="mt-2 text-[11px] font-medium text-success-text">
           {notice}
         </p>
       ) : null}
 
       {voices.length ? (
         <div className="mt-3 max-h-44 overflow-y-auto rounded-lg border border-hairline bg-surface-muted p-2">
-          <p className="mb-1 px-1 text-[9px] uppercase tracking-wider text-ink-muted">
+          <p className="mb-1 px-1 text-[11px] uppercase tracking-wider text-ink-muted">
             {voices.length} voices · tap to select
           </p>
           {voices.map((voice) => (
@@ -2690,17 +2690,17 @@ function ProviderKeyCard({
               <span className="truncate">
                 {voice.name}
                 {voice.category ? (
-                  <span className="ml-2 text-[9px] text-ink-muted">
+                  <span className="ml-2 text-[11px] text-ink-muted">
                     {voice.category}
                   </span>
                 ) : null}
               </span>
               {config.voiceId === voice.voiceId ? (
-                <span className="text-[9px] text-success-text">selected</span>
+                <span className="text-[11px] text-success-text">selected</span>
               ) : null}
             </button>
           ))}
-          <p className="mt-1 px-1 text-[8px] text-ink-muted">
+          <p className="mt-1 px-1 text-[11px] text-ink-muted">
             Selecting a voice fills the Voice ID — press Save to apply.
           </p>
         </div>
@@ -2762,7 +2762,7 @@ function PlatformApis({
                     <p className="text-sm font-medium">
                       {textValue(provider.display_name)}
                     </p>
-                    <p className="mt-1 text-[9px] text-ink-muted">
+                    <p className="mt-1 text-[11px] text-ink-muted">
                       {textValue(provider.status).replaceAll('_', ' ')}
                     </p>
                   </div>
@@ -2786,7 +2786,7 @@ function PlatformApis({
                         key,
                       )
                     }
-                    className="border-hairline bg-transparent text-[10px]"
+                    className="border-hairline bg-transparent text-[11px]"
                   >
                     {visible ? 'Hide' : 'Show'}
                   </Button>
@@ -2803,7 +2803,7 @@ function PlatformApis({
                         key,
                       )
                     }
-                    className="border-hairline bg-transparent text-[10px]"
+                    className="border-hairline bg-transparent text-[11px]"
                   >
                     {busy === key ? (
                       <Loader2 className="animate-spin" />
@@ -2854,13 +2854,15 @@ function PlatformApis({
                 <Network className="size-4 text-cyan-700" />
                 <Badge
                   variant="outline"
-                  className="border-hairline text-[8px] text-ink-muted"
+                  className="border-hairline text-[11px] text-ink-muted"
                 >
                   {priority}
                 </Badge>
               </div>
               <p className="mt-4 text-xs font-medium">{title}</p>
-              <p className="mt-2 text-[9px] leading-4 text-ink-muted">{note}</p>
+              <p className="mt-2 text-[11px] leading-4 text-ink-muted">
+                {note}
+              </p>
             </div>
           ))}
         </div>
@@ -2881,21 +2883,21 @@ function PlatformApis({
               <h2 className="mt-5 text-sm font-semibold">
                 {textValue(provider.public_name)}
               </h2>
-              <p className="mt-1 text-[9px] uppercase tracking-wider text-ink-muted">
+              <p className="mt-1 text-[11px] uppercase tracking-wider text-ink-muted">
                 {textValue(provider.category)}
               </p>
               <p className="mt-3 text-xs leading-5 text-ink-muted">
                 {textValue(provider.usage_note)}
               </p>
               <div className="mt-4 rounded-xl border border-hairline bg-surface-muted p-3">
-                <p className="text-[8px] uppercase tracking-wider text-ink-muted">
+                <p className="text-[11px] uppercase tracking-wider text-ink-muted">
                   Required environment secrets
                 </p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {required.map((item) => (
                     <code
                       key={item}
-                      className="rounded bg-surface-strong px-2 py-1 text-[8px] text-ink-body"
+                      className="rounded bg-surface-strong px-2 py-1 text-[11px] text-ink-body"
                     >
                       {item}
                     </code>
@@ -2916,7 +2918,7 @@ function PlatformApis({
                     id,
                   )
                 }
-                className="mt-4 w-full border-hairline bg-transparent text-[10px]"
+                className="mt-4 w-full border-hairline bg-transparent text-[11px]"
               >
                 {busy === id ? (
                   <Loader2 className="animate-spin" />
@@ -3001,7 +3003,7 @@ function SupportDesk({
                   <h2 className="text-sm font-semibold">
                     {textValue(ticket.subject)}
                   </h2>
-                  <p className="mt-1 text-[9px] text-ink-muted">
+                  <p className="mt-1 text-[11px] text-ink-muted">
                     {textValue(ticket.organization_name)} ·{' '}
                     {textValue(ticket.creator_email)}
                   </p>
@@ -3012,9 +3014,9 @@ function SupportDesk({
                 {messages.map((message) => (
                   <div
                     key={textValue(message.id)}
-                    className={`rounded-xl border p-3 text-[10px] leading-5 ${message.sender_role === 'admin' ? 'border-violet-300/10 bg-violet-300/[0.035]' : 'border-hairline bg-surface-muted'}`}
+                    className={`rounded-xl border p-3 text-[11px] leading-5 ${message.sender_role === 'admin' ? 'border-violet-300/10 bg-violet-300/[0.035]' : 'border-hairline bg-surface-muted'}`}
                   >
-                    <p className="mb-1 text-[8px] uppercase tracking-wider text-ink-muted">
+                    <p className="mb-1 text-[11px] uppercase tracking-wider text-ink-muted">
                       {textValue(message.sender_name)} ·{' '}
                       {textValue(message.sender_role)}
                     </p>
@@ -3039,7 +3041,7 @@ function SupportDesk({
                   variant="outline"
                   disabled={busy === textValue(ticket.id)}
                   onClick={() => act(textValue(ticket.id), 'ticket_reply')}
-                  className="flex-1 border-hairline bg-transparent text-[9px]"
+                  className="flex-1 border-hairline bg-transparent text-[11px]"
                 >
                   Reply
                 </Button>
@@ -3081,7 +3083,7 @@ function SystemAudit({ data }: { data: AdminPayload }) {
               <span className="size-1.5 rounded-full bg-current" />
               Platform: {data.health.overall}
             </span>
-            <span className="text-[10px] text-ink-muted">
+            <span className="text-[11px] text-ink-muted">
               {/* `unknown` outranks `healthy` on purpose: a platform with an
                   unmeasured component is not known to be healthy. */}
               measured {formatDate(data.health.measuredAt)}
@@ -3095,7 +3097,7 @@ function SystemAudit({ data }: { data: AdminPayload }) {
               {data.health.silentJobs.map((job) => (
                 <p
                   key={job.type}
-                  className="rounded-lg border border-hairline bg-surface-muted px-3 py-2 text-[10px] leading-5 text-ink-body"
+                  className="rounded-lg border border-hairline bg-surface-muted px-3 py-2 text-[11px] leading-5 text-ink-body"
                 >
                   {job.message}
                   {job.runs > 1 ? ` Seen on ${job.runs} runs.` : ''}
@@ -3114,15 +3116,15 @@ function SystemAudit({ data }: { data: AdminPayload }) {
                     {component.component.replace(/^provider_/, '')}
                   </p>
                   <span
-                    className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] ${HEALTH_TONE[component.state] ?? HEALTH_TONE.unknown}`}
+                    className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] ${HEALTH_TONE[component.state] ?? HEALTH_TONE.unknown}`}
                   >
                     {component.state}
                   </span>
                 </div>
-                <p className="mt-1.5 text-[10px] leading-4 text-ink-muted">
+                <p className="mt-1.5 text-[11px] leading-4 text-ink-muted">
                   {component.reason}
                 </p>
-                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[9px] text-ink-faint">
+                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-ink-faint">
                   {component.p95LatencyMs !== null ? (
                     <span>p95 {num(component.p95LatencyMs)} ms</span>
                   ) : null}
@@ -3214,13 +3216,13 @@ function SystemAudit({ data }: { data: AdminPayload }) {
                 <p className="text-xs font-medium">
                   {textValue(row.action).replaceAll('.', ' · ')}
                 </p>
-                <p className="mt-1 text-[10px] text-ink-muted">
+                <p className="mt-1 text-[11px] text-ink-muted">
                   {textValue(row.actor_name, 'System')} ·{' '}
                   {textValue(row.organization_name, 'Platform')} ·{' '}
                   {textValue(row.target_type)}
                 </p>
               </div>
-              <span className="text-[9px] text-ink-muted">
+              <span className="text-[11px] text-ink-muted">
                 {formatDate(row.created_at)}
               </span>
             </div>
@@ -3245,7 +3247,7 @@ function SectionHeader({
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
           {eyebrow}
         </p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -3274,7 +3276,7 @@ function Stat({
   return (
     <div className="portal-stat">
       <div className="flex items-center justify-between">
-        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-ink-muted">
+        <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
           {label}
         </p>
         <Icon className="size-4 text-primary" />
@@ -3282,7 +3284,7 @@ function Stat({
       <p className="mt-4 text-2xl font-semibold tracking-tight">
         {String(value)}
       </p>
-      <p className="mt-1 text-[10px] text-ink-muted">{note}</p>
+      <p className="mt-1 text-[11px] text-ink-muted">{note}</p>
     </div>
   );
 }
@@ -3309,7 +3311,7 @@ function PanelHeader({
   return (
     <div>
       <h2 className="text-sm font-semibold">{title}</h2>
-      <p className="mt-1 text-[10px] text-ink-muted">{description}</p>
+      <p className="mt-1 text-[11px] text-ink-muted">{description}</p>
     </div>
   );
 }
@@ -3328,7 +3330,7 @@ function Status({ value }: { value: string }) {
   );
   return (
     <span
-      className={`inline-flex rounded-full border px-2 py-1 text-[9px] capitalize ${positive ? 'border-emerald-400/15 bg-emerald-400/7 text-success-text' : warning ? 'border-amber-300/15 bg-amber-300/7 text-warning-text' : 'border-hairline bg-surface-strong text-ink-muted'}`}
+      className={`inline-flex rounded-full border px-2 py-1 text-[11px] capitalize ${positive ? 'border-emerald-400/15 bg-emerald-400/7 text-success-text' : warning ? 'border-amber-300/15 bg-amber-300/7 text-warning-text' : 'border-hairline bg-surface-strong text-ink-muted'}`}
     >
       {value.replaceAll('_', ' ')}
     </span>
@@ -3417,7 +3419,7 @@ function CurrencyRates({
         description="What a workspace outside the base currency is charged. Without a rate or a price-book entry, pricing refuses rather than guessing."
       />
       {notice ? (
-        <p role="alert" className="mt-3 text-[10px] text-danger-text">
+        <p role="alert" className="mt-3 text-[11px] text-danger-text">
           {notice}
         </p>
       ) : null}
@@ -3467,12 +3469,12 @@ function CurrencyRates({
       </div>
       <div className="mt-3 space-y-1">
         {(data.fxRates ?? []).length === 0 ? (
-          <p className="text-[10px] text-ink-muted">
+          <p className="text-[11px] text-ink-muted">
             No rates yet, so only the base currency can be priced.
           </p>
         ) : null}
         {(data.fxRates ?? []).map((row: Record<string, unknown>) => (
-          <p key={textValue(row.id)} className="text-[10px] text-ink-body">
+          <p key={textValue(row.id)} className="text-[11px] text-ink-body">
             1 {textValue(row.base_currency)} = {num(row.rate)}{' '}
             {textValue(row.quote_currency)}
             <span className="text-ink-muted">
@@ -3555,13 +3557,13 @@ function CurrencyRates({
           Set price
         </button>
       </div>
-      <p className="mt-2 text-[10px] text-ink-muted">
+      <p className="mt-2 text-[11px] text-ink-muted">
         Minor units — 4999 is $49.99. Leave the country blank for anywhere using
         that currency.
       </p>
       <div className="mt-3 space-y-1">
         {(data.priceBooks ?? []).map((row: Record<string, unknown>) => (
-          <p key={textValue(row.id)} className="text-[10px] text-ink-body">
+          <p key={textValue(row.id)} className="text-[11px] text-ink-body">
             {textValue(row.product_type)} {textValue(row.product_id)} ·{' '}
             {textValue(row.country) || 'any country'} · {num(row.amount_minor)}{' '}
             {textValue(row.currency)}
@@ -3627,7 +3629,7 @@ function CostModel({
         description="Built from the rate cards below and this deployment's own measured usage. A provider with no rate card is reported as missing, never as free."
       />
       {notice ? (
-        <p role="alert" className="mt-3 text-[10px] text-danger-text">
+        <p role="alert" className="mt-3 text-[11px] text-danger-text">
           {notice}
         </p>
       ) : null}
@@ -3639,7 +3641,7 @@ function CostModel({
           </p>
           <div className="mt-3 space-y-1">
             {model.minute.components.map((component) => (
-              <p key={component.key} className="text-[10px] text-ink-muted">
+              <p key={component.key} className="text-[11px] text-ink-muted">
                 <span className="text-ink-body">{component.label}</span>
                 {' · '}
                 {component.quantity}
@@ -3652,7 +3654,7 @@ function CostModel({
               </p>
             ))}
           </div>
-          <div className="mt-3 space-y-1 text-[10px] text-ink-body">
+          <div className="mt-3 space-y-1 text-[11px] text-ink-body">
             <p>{model.call.summary}</p>
             <p>{model.message.summary}</p>
             <p>{model.fixed.summary}</p>
@@ -3662,7 +3664,7 @@ function CostModel({
             {model.plans.map((plan) => (
               <p
                 key={plan.id}
-                className="rounded-lg border border-hairline bg-surface-muted px-3 py-2 text-[10px]"
+                className="rounded-lg border border-hairline bg-surface-muted px-3 py-2 text-[11px]"
               >
                 <span className="text-[11px] font-medium text-ink">
                   {plan.name}
@@ -3703,7 +3705,7 @@ function CostModel({
               What a minute sells for
             </p>
             {model.credits.map((pack) => (
-              <p key={pack.packName} className="text-[10px] text-ink-muted">
+              <p key={pack.packName} className="text-[11px] text-ink-muted">
                 <span className="text-ink-body">{pack.packName}</span>
                 {' · '}
                 {pack.summary}
@@ -3714,7 +3716,7 @@ function CostModel({
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <label
               htmlFor="target-margin"
-              className="text-[10px] text-ink-muted"
+              className="text-[11px] text-ink-muted"
             >
               Target margin
             </label>
@@ -3737,7 +3739,7 @@ function CostModel({
 
           {/* An assumption said out loud is worth more than a number that
               looks measured. */}
-          <p className="mt-3 text-[9px] leading-4 text-ink-muted">
+          <p className="mt-3 text-[11px] leading-4 text-ink-muted">
             {model.assumptions.note}
           </p>
         </>
@@ -3829,7 +3831,7 @@ function CostModel({
           Set rate
         </button>
       </div>
-      <p className="mt-2 text-[10px] text-ink-muted">
+      <p className="mt-2 text-[11px] text-ink-muted">
         Micros of a rupee per batch — a million tokens, a thousand characters,
         an hour of audio, one message, one month. 1,000,000 micros is ₹1.
       </p>
@@ -3838,7 +3840,7 @@ function CostModel({
         {(data.rateCards ?? []).slice(0, 14).map((row, index) => (
           <p
             key={`${textValue(row.provider)}-${textValue(row.unit)}-${index}`}
-            className="text-[10px] text-ink-muted"
+            className="text-[11px] text-ink-muted"
           >
             {textValue(row.provider)}
             {row.model ? ` ${textValue(row.model)}` : ''} ·{' '}

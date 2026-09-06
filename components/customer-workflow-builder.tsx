@@ -201,7 +201,7 @@ export function CustomerWorkflowBuilder() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="text-sm font-semibold">Workflows</h2>
-              <p className="mt-1 text-[10px] text-ink-muted">
+              <p className="mt-1 text-[11px] text-ink-muted">
                 A workflow is a graph the agent follows: ask, look up, decide,
                 book, charge, transfer, close. It goes live only once every path
                 reaches an End step.
@@ -242,7 +242,7 @@ export function CustomerWorkflowBuilder() {
                   <span className="block truncate text-[11px] font-medium">
                     {workflow.name}
                   </span>
-                  <span className="mt-0.5 block text-[9px] text-ink-muted">
+                  <span className="mt-0.5 block text-[11px] text-ink-muted">
                     {workflow.trigger.replace(/_/g, ' ')} · {workflow.steps}{' '}
                     steps · {workflow.runCount} runs
                     {workflow.failureCount > 0
@@ -250,7 +250,7 @@ export function CustomerWorkflowBuilder() {
                       : ''}
                   </span>
                 </span>
-                <span className="shrink-0 text-[9px]">
+                <span className="shrink-0 text-[11px]">
                   {workflow.needsRebuild ? (
                     <span className="rounded-full border border-hairline px-2 py-0.5 text-warning-text">
                       needs rebuilding
@@ -269,7 +269,7 @@ export function CustomerWorkflowBuilder() {
 
         <section className="portal-panel p-5">
           <h2 className="text-sm font-semibold">Start from a template</h2>
-          <p className="mt-1 text-[10px] text-ink-muted">
+          <p className="mt-1 text-[11px] text-ink-muted">
             Each one installs as a draft, because the objects, queues and
             amounts in it belong to your workspace and not to the template.
           </p>
@@ -280,10 +280,10 @@ export function CustomerWorkflowBuilder() {
                 className="rounded-lg border border-hairline bg-surface p-3"
               >
                 <p className="text-[11px] font-medium">{template.name}</p>
-                <p className="mt-0.5 text-[9px] uppercase tracking-wide text-ink-muted">
+                <p className="mt-0.5 text-[11px] uppercase tracking-wide text-ink-muted">
                   {template.industry} · {template.steps} steps
                 </p>
-                <p className="mt-1.5 text-[10px] text-ink-muted">
+                <p className="mt-1.5 text-[11px] text-ink-muted">
                   {template.flow}
                 </p>
                 <button
@@ -301,7 +301,7 @@ export function CustomerWorkflowBuilder() {
                       await openWorkflow(payload.workflowId);
                     }
                   }}
-                  className="mt-2 rounded-lg border border-hairline px-3 py-1.5 text-[10px] disabled:opacity-60"
+                  className="mt-2 rounded-lg border border-hairline px-3 py-1.5 text-[11px] disabled:opacity-60"
                 >
                   {busy === template.key ? 'Installing…' : 'Use this'}
                 </button>
@@ -393,7 +393,7 @@ export function CustomerWorkflowBuilder() {
               setRun(null);
               void loadCatalogue();
             }}
-            className="rounded-lg border border-hairline px-3 py-1.5 text-[10px]"
+            className="rounded-lg border border-hairline px-3 py-1.5 text-[11px]"
           >
             ← All workflows
           </button>
@@ -435,7 +435,7 @@ export function CustomerWorkflowBuilder() {
               );
               void loadCatalogue();
             }}
-            className="rounded-lg border border-hairline px-3 py-1.5 text-[10px] disabled:opacity-60"
+            className="rounded-lg border border-hairline px-3 py-1.5 text-[11px] disabled:opacity-60"
           >
             {busy === 'save' ? 'Saving…' : 'Save draft'}
           </button>
@@ -464,7 +464,7 @@ export function CustomerWorkflowBuilder() {
               );
               void loadCatalogue();
             }}
-            className="portal-primary rounded-lg px-3 py-1.5 text-[10px] disabled:opacity-50"
+            className="portal-primary rounded-lg px-3 py-1.5 text-[11px] disabled:opacity-50"
           >
             {busy === 'publish' ? 'Publishing…' : 'Publish'}
           </button>
@@ -483,16 +483,16 @@ export function CustomerWorkflowBuilder() {
               if (payload.error)
                 setNotice(messageFrom(payload.error, 'The test run failed.'));
             }}
-            className="rounded-lg border border-hairline px-3 py-1.5 text-[10px] disabled:opacity-60"
+            className="rounded-lg border border-hairline px-3 py-1.5 text-[11px] disabled:opacity-60"
           >
             {busy === 'test' ? 'Running…' : 'Test run'}
           </button>
         </div>
         {notice ? (
-          <p className="mt-2 text-[10px] text-ink-muted">{notice}</p>
+          <p className="mt-2 text-[11px] text-ink-muted">{notice}</p>
         ) : null}
         {legacySteps && legacySteps.length > 0 ? (
-          <p className="mt-2 rounded-lg border border-hairline bg-surface-muted p-2.5 text-[10px] text-ink-muted">
+          <p className="mt-2 rounded-lg border border-hairline bg-surface-muted p-2.5 text-[11px] text-ink-muted">
             This workflow was written before the canvas existed, as a list of
             step names:{' '}
             <span className="font-medium">{legacySteps.join(' → ')}</span>.
@@ -505,7 +505,7 @@ export function CustomerWorkflowBuilder() {
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <section className="portal-panel overflow-hidden p-0">
           <div className="flex flex-wrap items-center gap-1.5 border-b border-hairline p-3">
-            <span className="mr-1 text-[9px] uppercase tracking-wide text-ink-muted">
+            <span className="mr-1 text-[11px] uppercase tracking-wide text-ink-muted">
               Add
             </span>
             {PALETTE.map((kind) => {
@@ -522,7 +522,7 @@ export function CustomerWorkflowBuilder() {
                       : spec.purpose
                   }
                   onClick={() => addNode(kind)}
-                  className="rounded-full border border-hairline px-2.5 py-1 text-[10px] disabled:opacity-40"
+                  className="rounded-full border border-hairline px-2.5 py-1 text-[11px] disabled:opacity-40"
                 >
                   {spec.label}
                 </button>
@@ -607,17 +607,17 @@ export function CustomerWorkflowBuilder() {
                           : 'border-hairline bg-surface'
                     }`}
                   >
-                    <span className="block text-[8px] uppercase tracking-wide text-ink-muted">
+                    <span className="block text-[11px] uppercase tracking-wide text-ink-muted">
                       {spec?.label ?? entry.kind}
                     </span>
                     <span className="mt-0.5 block truncate text-[11px] font-medium">
                       {entry.name?.trim() || spec?.label || entry.kind}
                     </span>
-                    <span className="mt-0.5 block truncate text-[9px] text-ink-muted">
+                    <span className="mt-0.5 block truncate text-[11px] text-ink-muted">
                       {summaryOf(entry)}
                     </span>
                     {issues.length > 0 ? (
-                      <span className="mt-0.5 block text-[9px] text-danger-text">
+                      <span className="mt-0.5 block text-[11px] text-danger-text">
                         {issues.length} problem{issues.length === 1 ? '' : 's'}
                       </span>
                     ) : null}
@@ -641,7 +641,7 @@ export function CustomerWorkflowBuilder() {
             />
           ) : (
             <section className="portal-panel p-4">
-              <p className="text-[10px] text-ink-muted">
+              <p className="text-[11px] text-ink-muted">
                 Pick a step on the canvas to edit it, or add one from the
                 palette.
               </p>
@@ -683,7 +683,7 @@ function ValidationPanel({
           : `${validation.errors.length} to fix before going live`}
       </h3>
       {issues.length === 0 ? (
-        <p className="mt-1 text-[10px] text-ink-muted">
+        <p className="mt-1 text-[11px] text-ink-muted">
           Every path reaches an End step and every exit is wired.
         </p>
       ) : (
@@ -694,7 +694,7 @@ function ValidationPanel({
                 type="button"
                 disabled={!issue.nodeId}
                 onClick={() => issue.nodeId && onSelect(issue.nodeId)}
-                className={`w-full text-left text-[10px] ${
+                className={`w-full text-left text-[11px] ${
                   issue.level === 'error'
                     ? 'text-danger-text'
                     : 'text-ink-muted'
@@ -714,32 +714,32 @@ function CallPlanPanel({ plan }: { plan: CallPlan }) {
   return (
     <section className="portal-panel p-4">
       <h3 className="text-[11px] font-semibold">On a live call</h3>
-      <p className="mt-1 text-[10px] text-ink-muted">
+      <p className="mt-1 text-[11px] text-ink-muted">
         On a phone call the agent drives the conversation and calls the tools,
         so this workflow becomes its plan rather than a script that seizes the
         audio. Webhook and scheduled workflows are the opposite — there the
         engine runs every step itself.
       </p>
       {plan.collect.length > 0 ? (
-        <p className="mt-2 text-[10px]">
+        <p className="mt-2 text-[11px]">
           <span className="text-ink-muted">Collects: </span>
           {plan.collect.join(', ')}
         </p>
       ) : null}
       <ol className="mt-2 space-y-1">
         {plan.steps.slice(0, 12).map((step, index) => (
-          <li key={step.nodeId} className="text-[10px] text-ink-muted">
+          <li key={step.nodeId} className="text-[11px] text-ink-muted">
             <span className="font-medium text-ink">
               {index + 1}. {step.label}
             </span>
             {step.tool ? (
-              <span className="ml-1 text-[9px]">({step.tool})</span>
+              <span className="ml-1 text-[11px]">({step.tool})</span>
             ) : null}
           </li>
         ))}
       </ol>
       {plan.notes.map((note) => (
-        <p key={note} className="mt-1.5 text-[10px] text-warning-text">
+        <p key={note} className="mt-1.5 text-[11px] text-warning-text">
           {note}
         </p>
       ))}
@@ -752,17 +752,17 @@ function RunPanel({ run }: { run: RunTrace }) {
   return (
     <section className="portal-panel p-4">
       <h3 className="text-[11px] font-semibold">Test run — {run.status}</h3>
-      <p className="mt-1 text-[10px] text-ink-muted">
+      <p className="mt-1 text-[11px] text-ink-muted">
         {run.steps} steps
         {skipped > 0 ? `, ${skipped} of them skipped` : ''}. A skipped step says
         why; it is not counted as done.
       </p>
       {run.error ? (
-        <p className="mt-1 text-[10px] text-danger-text">{run.error}</p>
+        <p className="mt-1 text-[11px] text-danger-text">{run.error}</p>
       ) : null}
       <ol className="mt-2 space-y-1">
         {run.trace.map((step, index) => (
-          <li key={`${step.nodeId}-${index}`} className="text-[10px]">
+          <li key={`${step.nodeId}-${index}`} className="text-[11px]">
             <span
               className={
                 step.status === 'failed'
@@ -819,13 +819,13 @@ function NodeEditor({
       <div className="flex items-start justify-between gap-2">
         <div>
           <h3 className="text-[11px] font-semibold">{spec.label}</h3>
-          <p className="mt-0.5 text-[9px] text-ink-muted">{spec.purpose}</p>
+          <p className="mt-0.5 text-[11px] text-ink-muted">{spec.purpose}</p>
         </div>
         {node.kind === 'trigger' ? null : (
           <button
             type="button"
             onClick={onDelete}
-            className="shrink-0 rounded-lg border border-hairline px-2 py-1 text-[9px]"
+            className="shrink-0 rounded-lg border border-hairline px-2 py-1 text-[11px]"
           >
             Delete
           </button>
@@ -833,7 +833,7 @@ function NodeEditor({
       </div>
 
       <label className="mt-3 block">
-        <span className="text-[10px] font-medium">Step name</span>
+        <span className="text-[11px] font-medium">Step name</span>
         <input
           value={node.name ?? ''}
           onChange={(event) => onChange({ name: event.target.value })}
@@ -851,14 +851,16 @@ function NodeEditor({
               : '';
         return (
           <label key={field.key} className="mt-2.5 block">
-            <span className="text-[10px] font-medium">
+            <span className="text-[11px] font-medium">
               {field.label}
               {field.required ? null : (
-                <span className="ml-1 text-[9px] text-ink-muted">optional</span>
+                <span className="ml-1 text-[11px] text-ink-muted">
+                  optional
+                </span>
               )}
             </span>
             {field.help ? (
-              <span className="mt-0.5 block text-[9px] text-ink-muted">
+              <span className="mt-0.5 block text-[11px] text-ink-muted">
                 {field.help}
               </span>
             ) : null}
@@ -906,10 +908,10 @@ function NodeEditor({
 
       {branchesOf(node).length > 0 ? (
         <div className="mt-3.5 border-t border-hairline pt-3">
-          <p className="text-[10px] font-medium">Where each exit goes</p>
+          <p className="text-[11px] font-medium">Where each exit goes</p>
           {branchesOf(node).map((branch) => (
             <label key={branch} className="mt-1.5 flex items-center gap-2">
-              <span className="w-24 shrink-0 truncate text-[10px] text-ink-muted">
+              <span className="w-24 shrink-0 truncate text-[11px] text-ink-muted">
                 {branch}
               </span>
               <select

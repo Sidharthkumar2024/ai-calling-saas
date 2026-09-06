@@ -237,7 +237,7 @@ export function CustomerNumbers({
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-warning-text">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-warning-text">
           Telephony onboarding
         </p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -254,7 +254,7 @@ export function CustomerNumbers({
         <section className="rounded-2xl border border-hairline bg-surface p-5">
           {/* §15: numbers come from the workspace's own telephony account. The
               platform does not resell them, so there is no second mode. */}
-          <p className="rounded-xl bg-surface-strong px-3 py-2.5 text-[10px] text-ink-body">
+          <p className="rounded-xl bg-surface-strong px-3 py-2.5 text-[11px] text-ink-body">
             Numbers come from your own telephony account. Vaani does not sell
             numbers — connect a Twilio, Exotel, Plivo or SIP number you already
             own.
@@ -274,7 +274,7 @@ export function CustomerNumbers({
                     className={`size-2 rounded-full ${providerCode === provider.id ? 'bg-primary' : 'bg-surface-strong'}`}
                   />
                 </div>
-                <p className="mt-2 text-[9px] leading-4 text-ink-muted">
+                <p className="mt-2 text-[11px] leading-4 text-ink-muted">
                   {provider.note}
                 </p>
               </button>
@@ -310,7 +310,7 @@ export function CustomerNumbers({
                 placeholder="Stored only as a masked hint here"
               />
             </Field>
-            <div className="rounded-xl border border-violet-300/12 bg-violet-300/[0.03] p-3 text-[9px] leading-4 text-ink-muted">
+            <div className="rounded-xl border border-violet-300/12 bg-violet-300/[0.03] p-3 text-[11px] leading-4 text-ink-muted">
               <LockKeyhole className="mb-2 size-4 text-violet-700" />
               API tokens are never stored in the number record. Add them in
               Integrations & API using encrypted secret storage.
@@ -342,12 +342,12 @@ export function CustomerNumbers({
             </Field>
           </div>
           {error ? (
-            <div className="mt-4 rounded-xl border border-red-400/15 bg-red-400/5 p-3 text-[10px] text-danger-text">
+            <div className="mt-4 rounded-xl border border-red-400/15 bg-red-400/5 p-3 text-[11px] text-danger-text">
               {error}
             </div>
           ) : null}
           {message ? (
-            <div className="mt-4 rounded-xl border border-emerald-400/15 bg-emerald-400/5 p-3 text-[10px] text-success-text">
+            <div className="mt-4 rounded-xl border border-emerald-400/15 bg-emerald-400/5 p-3 text-[11px] text-success-text">
               {message}
             </div>
           ) : null}
@@ -373,7 +373,7 @@ export function CustomerNumbers({
           {verification ? (
             <div className="mt-5 rounded-xl border border-amber-300/15 bg-amber-300/[0.035] p-4">
               <p className="text-xs font-medium">Verify number ownership</p>
-              <p className="mt-1 text-[10px] text-ink-muted">
+              <p className="mt-1 text-[11px] text-ink-muted">
                 Local demo code:{' '}
                 <span className="font-mono text-warning-text">
                   {verification.demoCode ?? 'sent to the number'}
@@ -407,7 +407,7 @@ export function CustomerNumbers({
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="text-sm font-semibold">KYC document vault</h2>
-              <p className="mt-1 text-[10px] text-ink-muted">
+              <p className="mt-1 text-[11px] text-ink-muted">
                 Documents are checksum-verified and stored outside the
                 application database
               </p>
@@ -454,7 +454,7 @@ export function CustomerNumbers({
                 </option>
               </select>
             </Field>
-            <label className="block rounded-xl border border-dashed border-hairline bg-surface-muted p-5 text-center text-[10px] text-ink-muted">
+            <label className="block rounded-xl border border-dashed border-hairline bg-surface-muted p-5 text-center text-[11px] text-ink-muted">
               <FileUp className="mx-auto mb-3 size-5 text-cyan-700" />
               <span>
                 {kycFile?.name || 'Choose PDF, JPEG or PNG · max 8 MB'}
@@ -514,12 +514,12 @@ export function CustomerNumbers({
                 key={String(step)}
                 className="flex items-start gap-3 rounded-xl border border-hairline bg-surface-muted p-3"
               >
-                <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-surface-strong text-[9px] text-ink-body">
+                <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-surface-strong text-[11px] text-ink-body">
                   {String(step)}
                 </span>
                 <div className="flex-1">
                   <p className="text-xs font-medium">{String(title)}</p>
-                  <p className="mt-1 text-[9px] leading-4 text-ink-muted">
+                  <p className="mt-1 text-[11px] leading-4 text-ink-muted">
                     {String(note)}
                   </p>
                 </div>
@@ -536,13 +536,13 @@ export function CustomerNumbers({
         <h2 className="text-sm font-semibold">
           Number inventory and activation state
         </h2>
-        <p className="mt-1 text-[10px] text-ink-muted">
+        <p className="mt-1 text-[11px] text-ink-muted">
           Provider routing is visible to workspace owners; voice-engine vendors
           remain private behind Vaani products.
         </p>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[1050px] text-left text-xs">
-            <thead className="border-y border-hairline text-[9px] uppercase tracking-wider text-ink-muted">
+            <thead className="border-y border-hairline text-[11px] uppercase tracking-wider text-ink-muted">
               <tr>
                 {[
                   'Number',
@@ -569,7 +569,7 @@ export function CustomerNumbers({
                     <p className="capitalize">
                       {(number.provider_code || 'auto').replaceAll('_', ' ')}
                     </p>
-                    <p className="mt-1 text-[9px] text-ink-muted">
+                    <p className="mt-1 text-[11px] text-ink-muted">
                       {(
                         number.connection_mode || number.acquisition_type
                       ).replaceAll('_', ' ')}{' '}
@@ -631,7 +631,7 @@ function DocumentTracker({ numbers }: { numbers: NumberRow[] }) {
   return (
     <section className="rounded-2xl border border-hairline bg-surface p-5">
       <h2 className="text-sm font-semibold">Document status</h2>
-      <p className="mt-1 max-w-2xl text-[10px] text-ink-muted">
+      <p className="mt-1 max-w-2xl text-[11px] text-ink-muted">
         Every file you have sent for each number, and what happened to it. A
         rejected document is replaced by uploading a new one — the old one stays
         on the record.
@@ -651,7 +651,7 @@ function DocumentTracker({ numbers }: { numbers: NumberRow[] }) {
                 </span>
                 {progress ? (
                   <span
-                    className={`text-[10px] ${progress.complete ? 'text-success-text' : 'text-ink-muted'}`}
+                    className={`text-[11px] ${progress.complete ? 'text-success-text' : 'text-ink-muted'}`}
                   >
                     {progress.message}
                   </span>
@@ -659,12 +659,12 @@ function DocumentTracker({ numbers }: { numbers: NumberRow[] }) {
               </div>
               <div className="mt-2 space-y-1">
                 {documents.length === 0 ? (
-                  <p className="text-[10px] text-ink-muted">
+                  <p className="text-[11px] text-ink-muted">
                     Nothing uploaded for this number yet.
                   </p>
                 ) : null}
                 {documents.map((document) => (
-                  <p key={document.id} className="text-[10px]">
+                  <p key={document.id} className="text-[11px]">
                     <span className="text-ink-body">
                       {KYC_DOCUMENT_LABEL[
                         document.document_type as keyof typeof KYC_DOCUMENT_LABEL
@@ -689,7 +689,7 @@ function DocumentTracker({ numbers }: { numbers: NumberRow[] }) {
                 ))}
                 {/* Named rather than left to be inferred from an absence. */}
                 {progress?.missing.length ? (
-                  <p className="text-[10px] text-warning-text">
+                  <p className="text-[11px] text-warning-text">
                     Not sent yet:{' '}
                     {progress.missing
                       .map(
@@ -741,7 +741,7 @@ function Status({ value }: { value: string }) {
   return (
     <Badge
       variant="outline"
-      className={`${positive ? 'border-emerald-400/15 text-success-text' : warning ? 'border-amber-300/15 text-warning-text' : 'border-hairline text-ink-muted'} text-[8px]`}
+      className={`${positive ? 'border-emerald-400/15 text-success-text' : warning ? 'border-amber-300/15 text-warning-text' : 'border-hairline text-ink-muted'} text-[11px]`}
     >
       {value.replaceAll('_', ' ')}
     </Badge>

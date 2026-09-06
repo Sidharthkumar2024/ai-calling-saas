@@ -213,7 +213,7 @@ export function CustomerIntegrationMarketplace() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[9px] uppercase tracking-wider text-ink-muted">
+          <p className="text-[11px] uppercase tracking-wider text-ink-muted">
             Bring your own providers
           </p>
           <h2 className="mt-1 text-sm font-semibold">Provider marketplace</h2>
@@ -292,17 +292,17 @@ export function CustomerIntegrationMarketplace() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-[12px] font-semibold">{entry.label}</p>
-                    <span className="rounded-md bg-surface-strong px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-ink-muted">
+                    <span className="rounded-md bg-surface-strong px-1.5 py-0.5 text-[11px] uppercase tracking-wide text-ink-muted">
                       {entry.category}
                     </span>
                   </div>
-                  <p className="mt-1 text-[10px] leading-relaxed text-ink-muted">
+                  <p className="mt-1 text-[11px] leading-relaxed text-ink-muted">
                     {entry.blurb}
                   </p>
                 </div>
                 {status ? (
                   <span
-                    className={`shrink-0 rounded-md border px-2 py-0.5 text-[9px] ${statusTone(status)}`}
+                    className={`shrink-0 rounded-md border px-2 py-0.5 text-[11px] ${statusTone(status)}`}
                   >
                     {STATUS_LABEL[status] ?? status}
                   </span>
@@ -313,7 +313,7 @@ export function CustomerIntegrationMarketplace() {
                 <div className="mt-4 space-y-2.5">
                   {entry.fields.map((field: CredentialField) => (
                     <label key={field.key} className="block">
-                      <span className="text-[10px] text-ink-muted">
+                      <span className="text-[11px] text-ink-muted">
                         {field.label}
                         {field.required ? '' : ' (optional)'}
                       </span>
@@ -328,13 +328,13 @@ export function CustomerIntegrationMarketplace() {
                         className="mt-1 w-full rounded-lg border border-hairline bg-surface-strong px-3 py-2 text-[11px] outline-none focus:border-hairline"
                       />
                       {field.hint ? (
-                        <span className="mt-1 block text-[9px] text-ink-muted">
+                        <span className="mt-1 block text-[11px] text-ink-muted">
                           {field.hint}
                         </span>
                       ) : null}
                     </label>
                   ))}
-                  <p className="text-[9px] leading-relaxed text-ink-muted">
+                  <p className="text-[11px] leading-relaxed text-ink-muted">
                     {entry.verifiable
                       ? 'Saved encrypted, then verified with a read-only call to the provider.'
                       : 'Saved encrypted. This provider has no read-only test endpoint, so it stays marked unverified until a real call uses it.'}
@@ -393,7 +393,7 @@ export function CustomerIntegrationMarketplace() {
           <h3 className="text-[11px] font-semibold text-warning-text">
             Stored connections outside the catalog
           </h3>
-          <p className="mt-1 text-[10px] leading-relaxed text-warning-text">
+          <p className="mt-1 text-[11px] leading-relaxed text-warning-text">
             These hold an encrypted secret but no longer match a provider in the
             catalog, so nothing above can manage them. Disconnect any you no
             longer use.
@@ -404,12 +404,12 @@ export function CustomerIntegrationMarketplace() {
                 key={row.id}
                 className="flex flex-wrap items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2.5 text-[11px]"
               >
-                <span className="font-mono text-[10px] text-ink">
+                <span className="font-mono text-[11px] text-ink">
                   {row.type}
                 </span>
                 <span className="text-ink-muted">{row.name}</span>
                 <span
-                  className={`rounded-md border px-2 py-0.5 text-[9px] ${statusTone(row.status)}`}
+                  className={`rounded-md border px-2 py-0.5 text-[11px] ${statusTone(row.status)}`}
                 >
                   {STATUS_LABEL[row.status] ?? row.status}
                 </span>

@@ -196,7 +196,7 @@ export function CustomerLeadCapture({
     <div className="space-y-6">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
             Lead capture studio
           </p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -245,7 +245,7 @@ export function CustomerLeadCapture({
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-semibold">Popup settings</h2>
-              <p className="mt-1 text-[10px] text-ink-muted">
+              <p className="mt-1 text-[11px] text-ink-muted">
                 Version {selected.version} · {selected.status}
               </p>
             </div>
@@ -375,7 +375,7 @@ export function CustomerLeadCapture({
                 onChange={(event) => setDomains(event.target.value)}
                 placeholder="https://example.com, https://shop.example.com"
               />
-              <p className="mt-2 text-[9px] leading-4 text-ink-muted">
+              <p className="mt-2 text-[11px] leading-4 text-ink-muted">
                 Comma-separated exact origins. Leave empty only while testing
                 locally.
               </p>
@@ -388,7 +388,7 @@ export function CustomerLeadCapture({
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-sm font-semibold">Live preview</h2>
-                <p className="mt-1 text-[10px] text-ink-muted">
+                <p className="mt-1 text-[11px] text-ink-muted">
                   Desktop and mobile responsive · no lead is submitted here
                 </p>
               </div>
@@ -433,13 +433,13 @@ export function CustomerLeadCapture({
                   <h2 className="text-sm font-semibold">
                     Install on your website
                   </h2>
-                  <p className="mt-1 text-[10px] text-ink-muted">
+                  <p className="mt-1 text-[11px] text-ink-muted">
                     Paste before the closing body tag
                   </p>
                 </div>
                 <Code2 className="size-4 text-cyan-700" />
               </div>
-              <pre className="mt-4 overflow-x-auto rounded-xl border border-hairline bg-surface-muted p-4 font-mono text-[9px] leading-5 text-cyan-700">
+              <pre className="mt-4 overflow-x-auto rounded-xl border border-hairline bg-surface-muted p-4 font-mono text-[11px] leading-5 text-cyan-700">
                 {selected.embedScript}
               </pre>
               <Button
@@ -456,7 +456,7 @@ export function CustomerLeadCapture({
                   <h2 className="text-sm font-semibold">
                     Lead-source connections
                   </h2>
-                  <p className="mt-1 text-[10px] text-ink-muted">
+                  <p className="mt-1 text-[11px] text-ink-muted">
                     Meta, Google and website attribution
                   </p>
                 </div>
@@ -478,10 +478,10 @@ export function CustomerLeadCapture({
                       <Globe2 className="size-3.5 text-primary" />
                     </span>
                     <span className="flex-1">
-                      <span className="block text-[10px] font-medium">
+                      <span className="block text-[11px] font-medium">
                         {source.name}
                       </span>
-                      <span className="mt-1 block text-[8px] capitalize text-ink-muted">
+                      <span className="mt-1 block text-[11px] capitalize text-ink-muted">
                         {source.status.replaceAll('_', ' ')}
                       </span>
                     </span>
@@ -600,7 +600,7 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className="block text-[10px] text-ink-muted">
+    <label className="block text-[11px] text-ink-muted">
       {label}
       <div className="mt-2 [&_input]:h-10 [&_input]:border-hairline [&_input]:bg-surface-muted [&_input]:text-xs">
         {children}
@@ -620,12 +620,12 @@ function Select({
   options: Array<[string, string]>;
 }) {
   return (
-    <label className="block text-[10px] text-ink-muted">
+    <label className="block text-[11px] text-ink-muted">
       {label}
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 h-10 w-full rounded-lg border border-hairline bg-surface px-3 text-[10px] text-ink"
+        className="mt-2 h-10 w-full rounded-lg border border-hairline bg-surface px-3 text-[11px] text-ink"
       >
         {options.map(([id, text]) => (
           <option key={id} value={id}>

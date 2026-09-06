@@ -459,7 +459,7 @@ export function CustomerDialer() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-[9px] uppercase tracking-wider text-ink-muted">
+        <p className="text-[11px] uppercase tracking-wider text-ink-muted">
           {t('screen.dialer.eyebrow')}
         </p>
         <h1 className="mt-1 text-lg font-semibold">
@@ -488,7 +488,7 @@ export function CustomerDialer() {
       <section className="portal-panel p-5">
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="block">
-            <span className="text-[10px] text-ink-muted">AI agent</span>
+            <span className="text-[11px] text-ink-muted">AI agent</span>
             <select
               value={agentId}
               disabled={live}
@@ -503,7 +503,7 @@ export function CustomerDialer() {
             </select>
           </label>
           <label className="block">
-            <span className="text-[10px] text-ink-muted">
+            <span className="text-[11px] text-ink-muted">
               {t('dialer.callerId')}
             </span>
             <select
@@ -521,7 +521,7 @@ export function CustomerDialer() {
             </select>
           </label>
           <label className="block">
-            <span className="text-[10px] text-ink-muted">
+            <span className="text-[11px] text-ink-muted">
               {t('dialer.customerNumber')}
             </span>
             <input
@@ -533,7 +533,7 @@ export function CustomerDialer() {
             />
           </label>
         </div>
-        <p className="mt-2 text-[10px] leading-relaxed text-ink-muted">
+        <p className="mt-2 text-[11px] leading-relaxed text-ink-muted">
           {t('dialer.carrierNote')}
         </p>
 
@@ -587,7 +587,7 @@ export function CustomerDialer() {
           )}
         </div>
         {muted || held ? (
-          <p className="mt-2 text-[10px] text-warning-text">
+          <p className="mt-2 text-[11px] text-warning-text">
             {muted ? `${t('dialer.mutedNotice')} ` : ''}
             {held ? `${t('dialer.heldNotice')} ` : ''}
             {t('dialer.resumeHint')}
@@ -603,7 +603,7 @@ export function CustomerDialer() {
               {transport.band} · {transport.score}/100
             </span>
           </div>
-          <p className="mt-1 text-[10px] leading-relaxed text-ink-muted">
+          <p className="mt-1 text-[11px] leading-relaxed text-ink-muted">
             {t('dialer.audioPathNote')}
           </p>
           <dl className="mt-3 grid gap-2 sm:grid-cols-3">
@@ -630,7 +630,7 @@ export function CustomerDialer() {
                 key={label}
                 className="rounded-lg border border-hairline bg-surface-muted px-2.5 py-2"
               >
-                <dt className="text-[9px] uppercase tracking-wider text-ink-muted">
+                <dt className="text-[11px] uppercase tracking-wider text-ink-muted">
                   {label}
                 </dt>
                 <dd className="mt-0.5 text-[12px] text-ink">{value}</dd>
@@ -642,14 +642,14 @@ export function CustomerDialer() {
               {transport.warnings.map((warning) => (
                 <li
                   key={warning.code}
-                  className="text-[10px] text-warning-text"
+                  className="text-[11px] text-warning-text"
                 >
                   {warning.message}
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="mt-3 text-[10px] text-success-text">
+            <p className="mt-3 text-[11px] text-success-text">
               {t('dialer.audioHealthy')}
             </p>
           )}
@@ -665,18 +665,18 @@ export function CustomerDialer() {
             {turns.map((turn, index) => (
               <div key={index} className="space-y-1">
                 <p className="rounded-xl border border-hairline bg-surface-muted px-3 py-2 text-[12px] text-ink">
-                  <span className="text-[9px] uppercase tracking-wider text-ink-muted">
+                  <span className="text-[11px] uppercase tracking-wider text-ink-muted">
                     {t('dialer.you')}{' '}
                   </span>
                   {turn.heard || '—'}
                 </p>
                 <p className="rounded-xl border border-emerald-400/15 bg-emerald-400/[0.05] px-3 py-2 text-[12px] text-ink">
-                  <span className="text-[9px] uppercase tracking-wider text-success-text">
+                  <span className="text-[11px] uppercase tracking-wider text-success-text">
                     {t('dialer.agentLabel')}{' '}
                   </span>
                   {turn.reply || '—'}
                   {turn.latency ? (
-                    <span className="mt-1 block text-[9px] text-ink-muted">
+                    <span className="mt-1 block text-[11px] text-ink-muted">
                       heard in {turn.latency.stt}ms · thought in{' '}
                       {turn.latency.llm}ms · spoke in {turn.latency.tts}ms
                     </span>
@@ -695,7 +695,7 @@ export function CustomerDialer() {
             {recent.slice(0, 6).map((call) => (
               <div
                 key={String(call.id)}
-                className="flex flex-wrap items-center gap-2 rounded-lg border border-hairline bg-surface-muted px-2.5 py-1.5 text-[10px]"
+                className="flex flex-wrap items-center gap-2 rounded-lg border border-hairline bg-surface-muted px-2.5 py-1.5 text-[11px]"
               >
                 <span className="text-ink">
                   {text(call.agent_name, 'unassigned')}

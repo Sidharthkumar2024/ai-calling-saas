@@ -460,7 +460,7 @@ export function ProductRoadmapPanel({
                 </CardHeader>
                 <CardContent className="grid gap-3 sm:grid-cols-2">
                   <div className="rounded-lg border border-border/75 bg-muted/30 p-3">
-                    <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-success-text">
+                    <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-success-text">
                       Available now
                     </p>
                     <p className="text-xs leading-5 text-muted-foreground">
@@ -468,7 +468,7 @@ export function ProductRoadmapPanel({
                     </p>
                   </div>
                   <div className="rounded-lg border border-border/75 bg-muted/30 p-3">
-                    <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-warning-text">
+                    <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-warning-text">
                       Next production gate
                     </p>
                     <p className="text-xs leading-5 text-muted-foreground">

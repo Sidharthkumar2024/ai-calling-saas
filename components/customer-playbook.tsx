@@ -125,7 +125,7 @@ export function CustomerPlaybook() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-sm font-semibold">Company playbook</h2>
-            <p className="mt-1 max-w-2xl text-[10px] text-ink-muted">
+            <p className="mt-1 max-w-2xl text-[11px] text-ink-muted">
               Reads your own past calls, splits the ones that closed from the
               ones that did not, and reports what separates them. Playground
               tests are left out — those are you talking to your own agent, not
@@ -146,11 +146,11 @@ export function CustomerPlaybook() {
           </button>
         </div>
         {notice ? (
-          <p className="mt-3 text-[10px] text-ink-muted">{notice}</p>
+          <p className="mt-3 text-[11px] text-ink-muted">{notice}</p>
         ) : null}
         {caveat ? (
           /* At the top, not the bottom. Every row below is a correlation. */
-          <p className="mt-3 rounded-lg border border-hairline bg-surface-muted p-2.5 text-[10px] text-ink-body">
+          <p className="mt-3 rounded-lg border border-hairline bg-surface-muted p-2.5 text-[11px] text-ink-body">
             {caveat}
           </p>
         ) : null}
@@ -167,7 +167,7 @@ export function CustomerPlaybook() {
                 ['Approved so far', playbook.approved],
               ].map(([label, value]) => (
                 <div key={String(label)}>
-                  <p className="text-[9px] uppercase tracking-wide text-ink-muted">
+                  <p className="text-[11px] uppercase tracking-wide text-ink-muted">
                     {label}
                   </p>
                   <p className="mt-0.5 text-lg font-semibold">{value}</p>
@@ -175,13 +175,13 @@ export function CustomerPlaybook() {
               ))}
             </div>
             {playbook.blocked ? (
-              <p className="mt-3 text-[10px] text-warning-text">
+              <p className="mt-3 text-[11px] text-warning-text">
                 {playbook.blocked}
               </p>
             ) : null}
             {playbook.excluded.length > 0 ? (
               /* What was left out, alongside what was used. */
-              <p className="mt-2 text-[9px] text-ink-muted">
+              <p className="mt-2 text-[11px] text-ink-muted">
                 Left out:{' '}
                 {playbook.excluded
                   .map(
@@ -218,7 +218,7 @@ export function CustomerPlaybook() {
                       }`}
                     >
                       <p className="text-[11px] font-medium">{entry.content}</p>
-                      <p className="mt-0.5 text-[9px] text-ink-muted">
+                      <p className="mt-0.5 text-[11px] text-ink-muted">
                         {entry.evidence} Confidence: {entry.confidence}, from
                         how many calls were read.
                       </p>
@@ -227,7 +227,7 @@ export function CustomerPlaybook() {
                           type="button"
                           disabled={entry.status === 'approved'}
                           onClick={() => void review(entry.id, 'approved')}
-                          className="rounded-full border border-hairline px-2.5 py-1 text-[10px] disabled:opacity-45"
+                          className="rounded-full border border-hairline px-2.5 py-1 text-[11px] disabled:opacity-45"
                         >
                           {entry.status === 'approved'
                             ? 'Approved ✓'
@@ -237,7 +237,7 @@ export function CustomerPlaybook() {
                           type="button"
                           disabled={entry.status === 'rejected'}
                           onClick={() => void review(entry.id, 'rejected')}
-                          className="rounded-full border border-hairline px-2.5 py-1 text-[10px] disabled:opacity-45"
+                          className="rounded-full border border-hairline px-2.5 py-1 text-[11px] disabled:opacity-45"
                         >
                           {entry.status === 'rejected' ? 'Rejected' : 'Reject'}
                         </button>
@@ -249,7 +249,7 @@ export function CustomerPlaybook() {
             );
           })}
 
-          <p className="text-[9px] text-ink-muted">
+          <p className="text-[11px] text-ink-muted">
             {playbook.approved > 0
               ? `${playbook.approved} approved ${playbook.approved === 1 ? 'entry is' : 'entries are'} in the agent’s instructions on live calls, with their counts attached so it can weigh them against what the caller is actually saying.`
               : 'Nothing is approved yet, so none of this reaches a live call.'}

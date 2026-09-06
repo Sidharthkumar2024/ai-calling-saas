@@ -55,7 +55,7 @@ export function CustomerTickets({
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-700">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-700">
           Customer support
         </p>
         <h1 className="mt-2 text-3xl font-semibold">Support tickets</h1>
@@ -72,7 +72,7 @@ export function CustomerTickets({
             </span>
             <div>
               <h2 className="text-sm font-semibold">Open a ticket</h2>
-              <p className="text-[9px] text-ink-muted">
+              <p className="text-[11px] text-ink-muted">
                 Sent to the admin portal
               </p>
             </div>
@@ -118,11 +118,11 @@ export function CustomerTickets({
                       <h2 className="text-sm font-semibold">
                         {String(ticket.subject)}
                       </h2>
-                      <span className="rounded-full bg-surface-strong px-2 py-1 text-[8px] capitalize text-ink-muted">
+                      <span className="rounded-full bg-surface-strong px-2 py-1 text-[11px] capitalize text-ink-muted">
                         {String(ticket.status).replaceAll('_', ' ')}
                       </span>
                     </div>
-                    <p className="mt-1 text-[9px] text-ink-muted">
+                    <p className="mt-1 text-[11px] text-ink-muted">
                       {String(ticket.category)} · {String(ticket.priority)}{' '}
                       priority
                     </p>
@@ -132,9 +132,9 @@ export function CustomerTickets({
                   {messages.map((item) => (
                     <div
                       key={String(item.id)}
-                      className={`rounded-xl border p-3 text-[10px] leading-5 ${item.sender_role === 'admin' ? 'border-cyan-300/10 bg-cyan-300/[0.035]' : 'border-hairline bg-surface-muted'}`}
+                      className={`rounded-xl border p-3 text-[11px] leading-5 ${item.sender_role === 'admin' ? 'border-cyan-300/10 bg-cyan-300/[0.035]' : 'border-hairline bg-surface-muted'}`}
                     >
-                      <p className="mb-1 text-[8px] uppercase tracking-wider text-ink-muted">
+                      <p className="mb-1 text-[11px] uppercase tracking-wider text-ink-muted">
                         {String(item.sender_name)} · {String(item.sender_role)}
                       </p>
                       {String(item.message)}

@@ -362,7 +362,7 @@ export function LeadCapturePanel({
                   <span className="grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
                     <step.icon className="size-4" />
                   </span>
-                  <span className="font-mono text-[10px] text-muted-foreground">
+                  <span className="font-mono text-[11px] text-muted-foreground">
                     0{index + 1}
                   </span>
                 </div>
@@ -399,7 +399,7 @@ export function LeadCapturePanel({
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium">{source.label}</p>
-                    <p className="truncate text-[10px] text-muted-foreground">
+                    <p className="truncate text-[11px] text-muted-foreground">
                       {source.description}
                     </p>
                   </div>
@@ -441,7 +441,7 @@ export function LeadCapturePanel({
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium">{connection.name}</p>
-                      <p className="truncate font-mono text-[10px] text-muted-foreground">
+                      <p className="truncate font-mono text-[11px] text-muted-foreground">
                         {connection.webhookEndpoint}
                       </p>
                     </div>
@@ -515,7 +515,7 @@ export function LeadCapturePanel({
                   <TableRow key={lead.id} title={lead.aiSummary}>
                     <TableCell className="px-4 py-3">
                       <p className="font-medium">{lead.name}</p>
-                      <p className="mt-0.5 text-[10px] text-muted-foreground">
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
                         {lead.productInterest ??
                           lead.campaignName ??
                           lead.phone}
@@ -577,7 +577,7 @@ export function LeadCapturePanel({
                       Active
                     </Badge>
                   </div>
-                  <p className="break-all font-mono text-[10px] leading-5 text-muted-foreground">
+                  <p className="break-all font-mono text-[11px] leading-5 text-muted-foreground">
                     POST {form.embedEndpoint}
                   </p>
                 </div>
@@ -585,7 +585,7 @@ export function LeadCapturePanel({
                   <div className="mb-2 flex items-center gap-2 text-xs font-medium">
                     <Code2 className="size-3.5 text-primary" /> Embed payload
                   </div>
-                  <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-[10px] leading-5 text-muted-foreground">
+                  <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-[11px] leading-5 text-muted-foreground">
                     {`{
   "name": "{{name}}",
   "phone": "{{phone}}",

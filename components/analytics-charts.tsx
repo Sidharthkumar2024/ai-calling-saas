@@ -153,7 +153,7 @@ export function DistributionChart({
       </div>
       <div className="space-y-3">
         {rows.slice(0, 5).map((item, index) => (
-          <div key={item.name} className="flex items-center gap-2 text-[10px]">
+          <div key={item.name} className="flex items-center gap-2 text-[11px]">
             <span
               className="size-1.5 rounded-full"
               style={{ background: colors[index % colors.length] }}
@@ -234,13 +234,13 @@ function GlassTooltip({
   if (!active || !payload?.length) return null;
   return (
     <div className="min-w-32 rounded-xl border border-hairline bg-surface p-3 shadow-2xl backdrop-blur-xl">
-      <p className="mb-2 text-[9px] uppercase tracking-wider text-ink-muted">
+      <p className="mb-2 text-[11px] uppercase tracking-wider text-ink-muted">
         {label}
       </p>
       {payload.map((item) => (
         <div
           key={item.name}
-          className="flex items-center justify-between gap-5 text-[10px]"
+          className="flex items-center justify-between gap-5 text-[11px]"
         >
           <span style={{ color: item.color }} className="capitalize">
             {item.name}

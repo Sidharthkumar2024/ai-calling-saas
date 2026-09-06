@@ -409,7 +409,7 @@ export function NotificationCenter({
                 {toast.title || spec.title}
               </p>
               {toast.detail ? (
-                <p className="mt-0.5 text-[10px] opacity-80">{toast.detail}</p>
+                <p className="mt-0.5 text-[11px] opacity-80">{toast.detail}</p>
               ) : null}
               {/* §3.2: these do not time out, so there has to be a way to
                   clear them — and acknowledging records who saw it. */}
@@ -423,7 +423,7 @@ export function NotificationCenter({
                           current.filter((t) => t.id !== toast.id),
                         )
                   }
-                  className="mt-2 rounded-lg border border-current px-2 py-1 text-[9px] font-semibold"
+                  className="mt-2 rounded-lg border border-current px-2 py-1 text-[11px] font-semibold"
                 >
                   Acknowledge
                 </button>
@@ -488,7 +488,7 @@ export function SoundSettings() {
         />
         <button
           type="button"
-          className="rounded-lg border border-hairline bg-surface px-2.5 py-1 text-[10px] text-ink-body hover:text-ink"
+          className="rounded-lg border border-hairline bg-surface px-2.5 py-1 text-[11px] text-ink-body hover:text-ink"
           onClick={() =>
             notify({
               event: 'payment_success',
@@ -499,7 +499,7 @@ export function SoundSettings() {
           Test
         </button>
       </div>
-      <p className="mt-2 text-[10px] text-ink-muted">
+      <p className="mt-2 text-[11px] text-ink-muted">
         {preferences.muted
           ? 'Sound is off. Notifications still appear on screen — muting the chime does not mute the message.'
           : soundReady
@@ -598,7 +598,7 @@ export function NotificationBell() {
               <button
                 type="button"
                 onClick={() => void markRead()}
-                className="text-[9px] text-ink-body underline-offset-2 hover:underline"
+                className="text-[11px] text-ink-body underline-offset-2 hover:underline"
               >
                 Mark all read
               </button>
@@ -606,7 +606,7 @@ export function NotificationBell() {
           </div>
           <div className="mt-3 max-h-80 space-y-1.5 overflow-y-auto">
             {inbox.length === 0 ? (
-              <p className="text-[10px] text-ink-muted">
+              <p className="text-[11px] text-ink-muted">
                 Nothing yet. Calls, transfers, payments and credit warnings
                 appear here.
               </p>
@@ -632,13 +632,13 @@ export function NotificationBell() {
                       />
                     ) : null}
                     <div className="min-w-0 flex-1">
-                      <p className="text-[10px] font-medium">{row.title}</p>
+                      <p className="text-[11px] font-medium">{row.title}</p>
                       {row.detail ? (
-                        <p className="mt-0.5 text-[9px] text-ink-muted">
+                        <p className="mt-0.5 text-[11px] text-ink-muted">
                           {row.detail}
                         </p>
                       ) : null}
-                      <p className="mt-1 text-[8px] text-ink-muted">
+                      <p className="mt-1 text-[11px] text-ink-muted">
                         {row.createdAt}
                         {row.acknowledgedAt ? ' · acknowledged' : ''}
                       </p>
@@ -647,7 +647,7 @@ export function NotificationBell() {
                       <button
                         type="button"
                         onClick={() => void acknowledge(row.id)}
-                        className="shrink-0 rounded-lg border border-danger-text px-2 py-0.5 text-[8px] font-semibold text-danger-text"
+                        className="shrink-0 rounded-lg border border-danger-text px-2 py-0.5 text-[11px] font-semibold text-danger-text"
                       >
                         Acknowledge
                       </button>
@@ -655,7 +655,7 @@ export function NotificationBell() {
                       <button
                         type="button"
                         onClick={() => void markRead(row.id)}
-                        className="shrink-0 text-[8px] text-ink-muted underline-offset-2 hover:underline"
+                        className="shrink-0 text-[11px] text-ink-muted underline-offset-2 hover:underline"
                       >
                         Read
                       </button>

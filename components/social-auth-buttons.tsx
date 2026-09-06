@@ -37,7 +37,7 @@ export function SocialAuthButtons() {
 
   if (loading)
     return (
-      <div className="mt-5 flex h-11 items-center justify-center rounded-xl border border-hairline bg-surface-muted text-[10px] text-ink-muted">
+      <div className="mt-5 flex h-11 items-center justify-center rounded-xl border border-hairline bg-surface-muted text-[11px] text-ink-muted">
         <Loader2 className="mr-2 size-3.5 animate-spin" /> Loading sign-in
         options
       </div>
@@ -69,14 +69,14 @@ export function SocialAuthButtons() {
             </span>
             {t('login.continueWith', { provider: provider.display_name })}
             {!ready ? (
-              <span className="rounded-full bg-surface-strong px-2 py-1 text-[8px] font-normal text-ink-body">
+              <span className="rounded-full bg-surface-strong px-2 py-1 text-[11px] font-normal text-ink-body">
                 {t('login.adminDisabled')}
               </span>
             ) : null}
           </button>
         );
       })}
-      <div className="flex items-center gap-3 py-2 text-[9px] uppercase tracking-[0.16em] text-ink-muted">
+      <div className="flex items-center gap-3 py-2 text-[11px] uppercase tracking-[0.16em] text-ink-muted">
         <span className="h-px flex-1 bg-surface-strong" />{' '}
         {t('login.orUseEmail')}{' '}
         <span className="h-px flex-1 bg-surface-strong" />

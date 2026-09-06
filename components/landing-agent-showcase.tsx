@@ -105,7 +105,7 @@ export function LandingAgentShowcase() {
                   key={item.key}
                   type="button"
                   onClick={() => setActive(index)}
-                  className={`rounded-full border px-3 py-2 text-[10px] font-medium transition-colors ${active === index ? 'border-[#18203a] bg-[#18203a] text-white' : 'border-[#d8dce8] bg-white text-[#5c6375] hover:border-[#b5bbca]'}`}
+                  className={`rounded-full border px-3 py-2 text-[11px] font-medium transition-colors ${active === index ? 'border-[#18203a] bg-[#18203a] text-white' : 'border-[#d8dce8] bg-white text-[#5c6375] hover:border-[#b5bbca]'}`}
                 >
                   {t(item.key)}
                 </button>
@@ -117,10 +117,10 @@ export function LandingAgentShowcase() {
         <div className="mt-12 grid overflow-hidden rounded-[26px] border border-[#dfe2eb] bg-white shadow-[0_24px_80px_-48px_rgba(28,34,58,0.35)] xl:grid-cols-[0.88fr_1.12fr]">
           <div className="relative flex min-h-[400px] flex-col overflow-hidden border-b border-[#e4e7ef] bg-[radial-gradient(circle_at_50%_30%,rgba(103,232,249,0.23),transparent_26%),radial-gradient(circle_at_58%_34%,rgba(167,139,250,0.25),transparent_36%),#fbfcff] p-5 sm:min-h-[480px] sm:p-6 xl:min-h-[520px] xl:border-b-0 xl:border-r xl:p-8">
             <div className="flex items-center justify-between">
-              <span className="inline-flex items-center gap-2 rounded-full border border-[#dfe2eb] bg-surface-strong px-3 py-1.5 text-[10px] font-medium text-[#596077]">
+              <span className="inline-flex items-center gap-2 rounded-full border border-[#dfe2eb] bg-surface-strong px-3 py-1.5 text-[11px] font-medium text-[#596077]">
                 <Icon className="size-3.5 text-[#6e58d8]" /> {t(example.key)}
               </span>
-              <span className="flex items-center gap-1.5 text-[9px] text-[#5b6478]">
+              <span className="flex items-center gap-1.5 text-[11px] text-[#5b6478]">
                 <span className="size-1.5 rounded-full bg-emerald-500" />{' '}
                 {t('showcase.sandboxLive')}
               </span>
@@ -149,7 +149,7 @@ export function LandingAgentShowcase() {
                 </p>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-2 text-center text-[9px] text-[#5b6478]">
+            <div className="grid grid-cols-3 gap-2 text-center text-[11px] text-[#5b6478]">
               {(
                 [
                   'showcase.noCall',
@@ -169,7 +169,7 @@ export function LandingAgentShowcase() {
 
           <div className="flex min-h-[520px] flex-col bg-[#f3f4f9] p-6 sm:p-8">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#6e58d8]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6e58d8]">
                 {t('showcase.previewEyebrow')}
               </p>
               <h3 className="mt-3 max-w-lg text-2xl font-semibold tracking-tight">
@@ -178,13 +178,13 @@ export function LandingAgentShowcase() {
             </div>
             <div className="mt-8 space-y-4">
               <div className="ml-auto max-w-[88%] rounded-2xl rounded-tr-md bg-[#18203a] p-4 text-sm leading-6 text-white">
-                <p className="mb-2 text-[9px] uppercase tracking-wider text-white/60">
+                <p className="mb-2 text-[11px] uppercase tracking-wider text-white/60">
                   {t('showcase.customer')}
                 </p>
                 {example.customer}
               </div>
               <div className="max-w-[92%] rounded-2xl rounded-tl-md border border-[#dfe2eb] bg-white p-4 text-sm leading-6 text-[#4e566c]">
-                <p className="mb-2 flex items-center gap-2 text-[9px] font-semibold uppercase tracking-wider text-[#6e58d8]">
+                <p className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-[#6e58d8]">
                   <Sparkles className="size-3" /> {t('showcase.response')}
                 </p>
                 {example.response}
@@ -194,20 +194,20 @@ export function LandingAgentShowcase() {
               {['action1', 'action2', 'action3'].map((leaf) => (
                 <div
                   key={leaf}
-                  className="flex items-center gap-3 rounded-xl border border-emerald-600/10 bg-emerald-500/[0.045] p-3 text-[10px] text-[#365b50]"
+                  className="flex items-center gap-3 rounded-xl border border-emerald-600/10 bg-emerald-500/[0.045] p-3 text-[11px] text-[#365b50]"
                 >
                   <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
                   <span className="flex-1">
                     {t(`${example.actionKey}.${leaf}` as TranslationKey)}
                   </span>
-                  <span className="rounded-full bg-white px-2 py-1 text-[8px] text-[#5b6478]">
+                  <span className="rounded-full bg-white px-2 py-1 text-[11px] text-[#5b6478]">
                     {t('showcase.preview')}
                   </span>
                 </div>
               ))}
             </div>
             <div className="mt-auto flex flex-col gap-3 border-t border-[#dee1ea] pt-6 sm:flex-row sm:items-center">
-              <div className="flex items-center gap-2 text-[10px] text-[#777f92]">
+              <div className="flex items-center gap-2 text-[11px] text-[#777f92]">
                 <IndianRupee className="size-3.5" /> {t('showcase.testMode')}
               </div>
               <Link

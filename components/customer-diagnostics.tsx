@@ -588,7 +588,7 @@ export function CustomerDiagnostics() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-[9px] uppercase tracking-wider text-ink-muted">
+        <p className="text-[11px] uppercase tracking-wider text-ink-muted">
           {t('screen.diagnostics.eyebrow')}
         </p>
         <h1 className="mt-1 text-lg font-semibold">
@@ -639,7 +639,7 @@ export function CustomerDiagnostics() {
             {listening ? t('diag.stop') : t('diag.testMic')}
           </Button>
           {permission === 'granted' && !inputs[0]?.label ? (
-            <span className="text-[10px] text-ink-muted">
+            <span className="text-[11px] text-ink-muted">
               {t('diag.namesAfterPermission')}
             </span>
           ) : null}
@@ -657,7 +657,7 @@ export function CustomerDiagnostics() {
               style={{ width: `${meter}%` }}
             />
           </div>
-          <p className="mt-1.5 text-[10px] text-ink-muted">
+          <p className="mt-1.5 text-[11px] text-ink-muted">
             {!listening
               ? t('diag.notListening')
               : meter < 6
@@ -702,7 +702,7 @@ export function CustomerDiagnostics() {
             {t('diag.rememberDevices')}
           </Button>
         </div>
-        <p className="mt-2 text-[10px] text-ink-muted">{t('diag.monoNote')}</p>
+        <p className="mt-2 text-[11px] text-ink-muted">{t('diag.monoNote')}</p>
       </section>
 
       <section className="portal-panel p-5">
@@ -719,7 +719,7 @@ export function CustomerDiagnostics() {
             {t('diag.runFullTest')}
           </Button>
         </div>
-        <p className="mt-2 text-[10px] text-ink-muted">
+        <p className="mt-2 text-[11px] text-ink-muted">
           {t('diag.measuresNote')}
         </p>
 
@@ -758,7 +758,7 @@ export function CustomerDiagnostics() {
                   key={String(label)}
                   className="rounded-xl border border-hairline bg-surface-muted px-3 py-2.5"
                 >
-                  <p className="text-[9px] uppercase tracking-wider text-ink-muted">
+                  <p className="text-[11px] uppercase tracking-wider text-ink-muted">
                     {String(label)}
                   </p>
                   <p className={`mt-1 text-sm font-semibold ${String(tone)}`}>
@@ -769,7 +769,7 @@ export function CustomerDiagnostics() {
             </div>
             {webrtc ? (
               <div className="rounded-xl border border-hairline bg-surface-muted px-3 py-2.5">
-                <p className="text-[9px] uppercase tracking-wider text-ink-muted">
+                <p className="text-[11px] uppercase tracking-wider text-ink-muted">
                   {t('diag.webrtcTitle')}
                 </p>
                 {!webrtc.supported ? (
@@ -812,7 +812,7 @@ export function CustomerDiagnostics() {
                         ] as Array<[string, string]>
                       ).map(([label, value]) => (
                         <div key={label}>
-                          <p className="text-[9px] uppercase tracking-wider text-ink-muted">
+                          <p className="text-[11px] uppercase tracking-wider text-ink-muted">
                             {label}
                           </p>
                           <p className="mt-0.5 text-[12px] text-ink">{value}</p>
@@ -820,15 +820,15 @@ export function CustomerDiagnostics() {
                       ))}
                     </div>
                     {webrtc.ice?.reason ? (
-                      <p className="mt-2 text-[10px] leading-relaxed text-ink-muted">
+                      <p className="mt-2 text-[11px] leading-relaxed text-ink-muted">
                         {webrtc.ice.reason}
                       </p>
                     ) : null}
-                    <p className="mt-2 text-[10px] leading-relaxed text-ink-muted">
+                    <p className="mt-2 text-[11px] leading-relaxed text-ink-muted">
                       {t('diag.webrtcScope')}
                     </p>
                     {webrtc.error ? (
-                      <p className="mt-1.5 text-[10px] text-warning-text">
+                      <p className="mt-1.5 text-[11px] text-warning-text">
                         {webrtc.error}
                       </p>
                     ) : null}
@@ -836,7 +836,7 @@ export function CustomerDiagnostics() {
                 )}
               </div>
             ) : null}
-            <p className="text-[10px] text-ink-muted">
+            <p className="text-[11px] text-ink-muted">
               Support code{' '}
               <span className="font-mono text-ink">{result.supportCode}</span> —{' '}
               {t('diag.supportCodeNote')}
@@ -846,14 +846,14 @@ export function CustomerDiagnostics() {
 
         {runs.length ? (
           <div className="mt-5">
-            <p className="text-[10px] uppercase tracking-wider text-ink-muted">
+            <p className="text-[11px] uppercase tracking-wider text-ink-muted">
               {t('diag.recentTests')}
             </p>
             <div className="mt-2 space-y-1">
               {runs.slice(0, 5).map((run) => (
                 <div
                   key={String(run.id)}
-                  className="flex flex-wrap items-center gap-2 rounded-lg border border-hairline bg-surface-muted px-2.5 py-1.5 text-[10px]"
+                  className="flex flex-wrap items-center gap-2 rounded-lg border border-hairline bg-surface-muted px-2.5 py-1.5 text-[11px]"
                 >
                   <span className="font-mono text-ink">
                     {String(run.support_code)}

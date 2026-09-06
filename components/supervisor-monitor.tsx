@@ -269,7 +269,7 @@ export function SupervisorMonitor({
   return (
     <div className="mt-4 rounded-xl border border-sky-400/20 bg-sky-400/[0.05] p-3.5">
       <div className="flex flex-wrap items-center gap-2">
-        <p className="mr-auto text-[9px] uppercase tracking-wider text-sky-700">
+        <p className="mr-auto text-[11px] uppercase tracking-wider text-sky-700">
           {t('sup.title')}
           {mode ? ` · ${mode === 'duplex' ? 'joined' : mode}` : ''}
           {mode ? ` · ${frames} frames` : ''}
@@ -309,14 +309,14 @@ export function SupervisorMonitor({
       {/* Always say who can hear the supervisor: getting this wrong means a
           customer overhears coaching. */}
       <p
-        className={`mt-2 text-[10px] leading-relaxed ${
+        className={`mt-2 text-[11px] leading-relaxed ${
           mode === 'duplex' ? 'text-warning-text' : 'text-ink-muted'
         }`}
       >
         {mode ? t(AUDIENCE[mode]) : t('sup.choose')}
       </p>
       {notice ? (
-        <p className="mt-1.5 text-[10px] text-ink-body">{notice}</p>
+        <p className="mt-1.5 text-[11px] text-ink-body">{notice}</p>
       ) : null}
     </div>
   );

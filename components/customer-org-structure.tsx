@@ -142,7 +142,7 @@ export function CustomerOrgStructure() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-[9px] uppercase tracking-wider text-ink-muted">
+        <p className="text-[11px] uppercase tracking-wider text-ink-muted">
           {t('screen.org_structure.eyebrow')}
         </p>
         <h1 className="mt-1 text-lg font-semibold">
@@ -189,7 +189,7 @@ function Panel({
   return (
     <section className="rounded-2xl border border-hairline bg-surface-muted p-5">
       <h2 className="text-[11px] font-semibold text-ink">{title}</h2>
-      {hint ? <p className="mt-1 text-[10px] text-ink-muted">{hint}</p> : null}
+      {hint ? <p className="mt-1 text-[11px] text-ink-muted">{hint}</p> : null}
       <div className="mt-4">{children}</div>
     </section>
   );
@@ -232,7 +232,7 @@ function ArchiveControl({
           archived ? 'Restored.' : 'Archived.',
         )
       }
-      className="text-[9px] text-ink-muted transition hover:text-ink-body"
+      className="text-[11px] text-ink-muted transition hover:text-ink-body"
     >
       {archived ? 'Restore' : 'Archive'}
     </button>
@@ -315,7 +315,7 @@ function BranchesAndTeams({
                   {str(row.name)}
                 </span>
                 <span className="text-ink-muted">{str(row.city, '—')}</span>
-                <span className="ml-auto text-[9px] text-ink-muted">
+                <span className="ml-auto text-[11px] text-ink-muted">
                   {str(row.agent_count, '0')} agents
                 </span>
                 <ArchiveControl
@@ -379,7 +379,7 @@ function BranchesAndTeams({
                 <span className="text-ink-muted">
                   {str(row.branch_name, 'unassigned')}
                 </span>
-                <span className="ml-auto text-[9px] text-ink-muted">
+                <span className="ml-auto text-[11px] text-ink-muted">
                   {str(row.member_count, '0')} members
                 </span>
                 <ArchiveControl
@@ -535,7 +535,7 @@ function Shifts({
             key={label}
             type="button"
             onClick={() => toggleDay(day)}
-            className={`rounded-md border px-2.5 py-1 text-[10px] transition ${
+            className={`rounded-md border px-2.5 py-1 text-[11px] transition ${
               form.days.includes(day)
                 ? 'border-emerald-400/40 bg-emerald-400/12 text-success-text'
                 : 'border-hairline text-ink-muted hover:text-ink'
@@ -575,14 +575,14 @@ function Shifts({
               <span className="text-ink-body">
                 {str(row.start_label)}–{str(row.end_label)}
               </span>
-              <span className="text-[9px] text-ink-muted">
+              <span className="text-[11px] text-ink-muted">
                 {days.map((day) => DAY_LABELS[day]).join(' ')}
               </span>
               {row.break_start_minute !== null ? (
-                <span className="text-[9px] text-ink-muted">with break</span>
+                <span className="text-[11px] text-ink-muted">with break</span>
               ) : null}
               <span
-                className={`ml-auto rounded-md px-2 py-0.5 text-[9px] uppercase tracking-wide ${
+                className={`ml-auto rounded-md px-2 py-0.5 text-[11px] uppercase tracking-wide ${
                   covering
                     ? 'bg-emerald-400/12 text-success-text'
                     : 'bg-surface-strong text-ink-muted'
@@ -731,10 +731,10 @@ function NumberRoutes({
             key={str(row.id)}
             className="flex flex-wrap items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2.5 text-[11px]"
           >
-            <span className="font-mono text-[10px]">
+            <span className="font-mono text-[11px]">
               {str(row.phone_number)}
             </span>
-            <span className="rounded-md bg-surface-strong px-2 py-0.5 text-[9px] uppercase tracking-wide text-ink-body">
+            <span className="rounded-md bg-surface-strong px-2 py-0.5 text-[11px] uppercase tracking-wide text-ink-body">
               {str(row.route_type)}
             </span>
             <span className="text-ink">
@@ -743,7 +743,7 @@ function NumberRoutes({
                 str(row.agent_name) ||
                 str(row.campaign_name, 'nothing')}
             </span>
-            <span className="text-[9px] text-ink-muted">
+            <span className="text-[11px] text-ink-muted">
               off hours: {str(row.off_hours_action)}
             </span>
             <span className="ml-auto">
@@ -831,15 +831,15 @@ function Contacts({
             <span className="font-medium">
               {str(row.full_name, 'Unnamed contact')}
             </span>
-            <span className="font-mono text-[10px] text-ink-muted">
+            <span className="font-mono text-[11px] text-ink-muted">
               {str(row.phone)}
             </span>
             {str(row.preferred_language) ? (
-              <span className="text-[9px] text-ink-muted">
+              <span className="text-[11px] text-ink-muted">
                 {str(row.preferred_language)}
               </span>
             ) : null}
-            <span className="ml-auto text-[9px] text-ink-muted">
+            <span className="ml-auto text-[11px] text-ink-muted">
               {str(row.lead_id) ? 'linked to a lead' : 'contact only'}
             </span>
           </div>

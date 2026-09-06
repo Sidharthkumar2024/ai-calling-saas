@@ -270,7 +270,7 @@ export function CustomerCrm({
     <div className="space-y-6">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-warning-text">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-warning-text">
             Advanced CRM
           </p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -329,7 +329,7 @@ export function CustomerCrm({
               key={item}
               type="button"
               onClick={() => setView(item)}
-              className={`rounded-md px-3 py-2 text-[10px] font-medium capitalize ${view === item ? 'bg-surface-strong text-ink' : 'text-ink-muted'}`}
+              className={`rounded-md px-3 py-2 text-[11px] font-medium capitalize ${view === item ? 'bg-surface-strong text-ink' : 'text-ink-muted'}`}
             >
               {item}
             </button>
@@ -355,7 +355,7 @@ export function CustomerCrm({
             aria-label="Filter leads by source"
             value={sourceFilter}
             onChange={(event) => setSourceFilter(event.target.value)}
-            className="h-9 rounded-lg border border-hairline bg-surface px-2.5 text-[10px] text-ink"
+            className="h-9 rounded-lg border border-hairline bg-surface px-2.5 text-[11px] text-ink"
           >
             <option value="all">Source · All</option>
             {Array.from(
@@ -380,7 +380,7 @@ export function CustomerCrm({
               key={option}
               type="button"
               onClick={() => setLayout(option)}
-              className={`flex-1 rounded-md px-2.5 py-1 text-[10px] capitalize sm:flex-none ${
+              className={`flex-1 rounded-md px-2.5 py-1 text-[11px] capitalize sm:flex-none ${
                 layout === option
                   ? 'bg-surface text-ink shadow-sm'
                   : 'text-ink-muted hover:text-ink'
@@ -406,7 +406,7 @@ export function CustomerCrm({
               onChange={(event) =>
                 setFilters({ ...filters, [field]: event.target.value })
               }
-              className="h-8 w-full rounded-lg border border-hairline bg-surface px-2 text-[10px] text-ink sm:w-auto"
+              className="h-8 w-full rounded-lg border border-hairline bg-surface px-2 text-[11px] text-ink sm:w-auto"
             >
               <option value="all">{`${label} · All`}</option>
               {values.map((value) => (
@@ -417,7 +417,7 @@ export function CustomerCrm({
             </select>
           </span>
         ))}
-        <label className="flex min-w-0 items-center gap-1 text-[10px] text-ink-muted">
+        <label className="flex min-w-0 items-center gap-1 text-[11px] text-ink-muted">
           Score
           <input
             type="number"
@@ -433,10 +433,10 @@ export function CustomerCrm({
                   event.target.value === '' ? null : Number(event.target.value),
               })
             }
-            className="h-8 w-full min-w-0 rounded-lg border border-hairline bg-surface px-2 text-[10px] sm:w-14"
+            className="h-8 w-full min-w-0 rounded-lg border border-hairline bg-surface px-2 text-[11px] sm:w-14"
           />
         </label>
-        <label className="flex min-w-0 items-center gap-1 text-[10px] text-ink-muted">
+        <label className="flex min-w-0 items-center gap-1 text-[11px] text-ink-muted">
           From
           <input
             type="date"
@@ -448,7 +448,7 @@ export function CustomerCrm({
                 capturedFrom: event.target.value || null,
               })
             }
-            className="h-8 w-full min-w-0 rounded-lg border border-hairline bg-surface px-2 text-[10px] sm:w-auto"
+            className="h-8 w-full min-w-0 rounded-lg border border-hairline bg-surface px-2 text-[11px] sm:w-auto"
           />
         </label>
         <button
@@ -458,18 +458,18 @@ export function CustomerCrm({
             setQuery('');
             setSourceFilter('all');
           }}
-          className="text-[10px] text-ink-muted underline-offset-2 hover:underline"
+          className="text-[11px] text-ink-muted underline-offset-2 hover:underline"
         >
           Clear
         </button>
-        <span className="text-[10px] text-ink-muted">
+        <span className="text-[11px] text-ink-muted">
           {filtered.length} of {leads.length}
         </span>
         {duplicates.length ? (
           <button
             type="button"
             onClick={() => setShowDuplicates(!showDuplicates)}
-            className="ml-auto rounded-lg border border-amber-400/40 bg-amber-50 px-2.5 py-1 text-[10px] text-warning-text"
+            className="ml-auto rounded-lg border border-amber-400/40 bg-amber-50 px-2.5 py-1 text-[11px] text-warning-text"
           >
             {duplicates.length} possible duplicate
             {duplicates.length === 1 ? '' : 's'}
@@ -478,7 +478,7 @@ export function CustomerCrm({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <label className="flex items-center gap-1 text-[10px] text-ink-muted">
+        <label className="flex items-center gap-1 text-[11px] text-ink-muted">
           <span className="sr-only">Saved view</span>
           <select
             aria-label="Open a saved view"
@@ -491,7 +491,7 @@ export function CustomerCrm({
               setFilters(found.filters as LeadFilters);
               setLayout(found.view === 'list' ? 'list' : 'kanban');
             }}
-            className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[10px] text-ink"
+            className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[11px] text-ink"
           >
             <option value="">Saved views…</option>
             {(savedViews ?? []).map((item) => (
@@ -507,7 +507,7 @@ export function CustomerCrm({
           onChange={(event) => setViewName(event.target.value)}
           placeholder="Name this view"
           aria-label="Name this view"
-          className="h-8 w-40 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+          className="h-8 w-40 rounded-lg border border-hairline bg-surface px-2 text-[11px]"
         />
         <button
           type="button"
@@ -520,7 +520,7 @@ export function CustomerCrm({
               filters: { ...filters, query, sourceType: sourceFilter },
             }).then(() => setViewName(''))
           }
-          className="rounded-lg border border-hairline bg-surface-strong px-2.5 py-1 text-[10px] text-ink-body disabled:opacity-50"
+          className="rounded-lg border border-hairline bg-surface-strong px-2.5 py-1 text-[11px] text-ink-body disabled:opacity-50"
         >
           Save view
         </button>
@@ -530,7 +530,7 @@ export function CustomerCrm({
           one click on a multi-select is not something to offer. */}
       {selected.size ? (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2">
-          <span className="text-[10px] font-medium">
+          <span className="text-[11px] font-medium">
             {selected.size} selected
           </span>
           <select
@@ -544,7 +544,7 @@ export function CustomerCrm({
                 owner: event.target.value,
               })
             }
-            className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+            className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[11px]"
           >
             <option value="">Assign to…</option>
             {options.owners.map((owner) => (
@@ -564,7 +564,7 @@ export function CustomerCrm({
                 stage: event.target.value,
               })
             }
-            className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+            className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[11px]"
           >
             <option value="">Move to…</option>
             {stages.map((stage) => (
@@ -576,7 +576,7 @@ export function CustomerCrm({
           <button
             type="button"
             onClick={exportSelected}
-            className="rounded-lg border border-hairline bg-surface px-2.5 py-1 text-[10px] text-ink-body"
+            className="rounded-lg border border-hairline bg-surface px-2.5 py-1 text-[11px] text-ink-body"
           >
             Export CSV
           </button>
@@ -586,14 +586,14 @@ export function CustomerCrm({
             onClick={() =>
               void bulk({ action: 'archive', leadIds: [...selected] })
             }
-            className="rounded-lg border border-hairline bg-surface px-2.5 py-1 text-[10px] text-danger-text disabled:opacity-50"
+            className="rounded-lg border border-hairline bg-surface px-2.5 py-1 text-[11px] text-danger-text disabled:opacity-50"
           >
             Archive
           </button>
           <button
             type="button"
             onClick={() => setSelected(new Set())}
-            className="text-[10px] text-ink-muted underline-offset-2 hover:underline"
+            className="text-[11px] text-ink-muted underline-offset-2 hover:underline"
           >
             Clear selection
           </button>
@@ -638,7 +638,7 @@ export function CustomerCrm({
                 <h2 className="text-base font-semibold">
                   Import leads from CSV
                 </h2>
-                <p className="mt-1 text-[10px] text-ink-muted">
+                <p className="mt-1 text-[11px] text-ink-muted">
                   Up to 100 rows · required headers: name, phone
                 </p>
               </div>
@@ -654,7 +654,7 @@ export function CustomerCrm({
             <textarea
               value={importText}
               onChange={(event) => setImportText(event.target.value)}
-              className="mt-5 min-h-64 w-full rounded-xl border border-hairline bg-surface-muted p-4 font-mono text-[10px] leading-5 text-ink-body outline-none focus:border-indigo-300/35"
+              className="mt-5 min-h-64 w-full rounded-xl border border-hairline bg-surface-muted p-4 font-mono text-[11px] leading-5 text-ink-body outline-none focus:border-indigo-300/35"
             />
             <div className="mt-4 flex justify-end gap-2">
               <Button
@@ -739,10 +739,10 @@ export function CustomerCrm({
                   <div className="mb-3 flex items-center gap-2 px-1">
                     <span className={`size-2 rounded-full ${stage.color}`} />
                     <h2 className="text-xs font-semibold">{stage.label}</h2>
-                    <span className="rounded-md bg-surface-strong px-1.5 py-0.5 text-[9px] text-ink-muted">
+                    <span className="rounded-md bg-surface-strong px-1.5 py-0.5 text-[11px] text-ink-muted">
                       {stageLeads.length}
                     </span>
-                    <span className="ml-auto text-[9px] text-ink-muted">
+                    <span className="ml-auto text-[11px] text-ink-muted">
                       {money(value)}
                     </span>
                   </div>
@@ -772,14 +772,14 @@ export function CustomerCrm({
                               <p className="truncate text-xs font-medium">
                                 {lead.name}
                               </p>
-                              <p className="mt-1 truncate text-[9px] text-ink-muted">
+                              <p className="mt-1 truncate text-[11px] text-ink-muted">
                                 {lead.source_name} ·{' '}
                                 {lead.campaign_name || 'Organic'}
                               </p>
                             </div>
                           </div>
                           <span
-                            className={`grid size-8 shrink-0 place-items-center rounded-lg font-mono text-[10px] font-semibold ${lead.score >= 75 ? 'bg-amber-300/12 text-warning-text' : 'bg-cyan-300/10 text-cyan-700'}`}
+                            className={`grid size-8 shrink-0 place-items-center rounded-lg font-mono text-[11px] font-semibold ${lead.score >= 75 ? 'bg-amber-300/12 text-warning-text' : 'bg-cyan-300/10 text-cyan-700'}`}
                           >
                             {lead.score}
                           </span>
@@ -787,14 +787,14 @@ export function CustomerCrm({
                         <div className="mt-3 flex flex-wrap gap-1.5">
                           <Badge
                             variant="outline"
-                            className="border-hairline bg-surface-muted text-[8px] text-ink-muted"
+                            className="border-hairline bg-surface-muted text-[11px] text-ink-muted"
                           >
                             {lead.intent.replaceAll('_', ' ')}
                           </Badge>
                           {lead.product_interest ? (
                             <Badge
                               variant="outline"
-                              className="max-w-[135px] truncate border-hairline bg-surface-muted text-[8px] text-ink-muted"
+                              className="max-w-[135px] truncate border-hairline bg-surface-muted text-[11px] text-ink-muted"
                             >
                               {lead.product_interest}
                             </Badge>
@@ -811,10 +811,10 @@ export function CustomerCrm({
                           <ScoreChange event={(timeline?.[lead.id] ?? [])[0]} />
                         ) : null}
                         <div className="mt-3 rounded-lg border border-violet-300/8 bg-violet-300/[0.035] p-2.5">
-                          <div className="flex items-center gap-1.5 text-[8px] font-semibold uppercase tracking-[0.12em] text-violet-700">
+                          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-violet-700">
                             <Bot className="size-3" /> AI next action
                           </div>
-                          <p className="mt-1.5 line-clamp-2 text-[9px] leading-4 text-ink-muted">
+                          <p className="mt-1.5 line-clamp-2 text-[11px] leading-4 text-ink-muted">
                             {lead.next_action}
                           </p>
                         </div>
@@ -824,7 +824,7 @@ export function CustomerCrm({
                             <Mail className="size-3" />
                           </div>
                           {stageIndex < stages.length - 1 ? (
-                            <label className="relative inline-flex items-center gap-1 text-[9px] text-warning-text">
+                            <label className="relative inline-flex items-center gap-1 text-[11px] text-warning-text">
                               <span className="sr-only">
                                 Move {lead.name} to another stage
                               </span>
@@ -835,7 +835,7 @@ export function CustomerCrm({
                                 onChange={(event) =>
                                   void move(lead, event.target.value)
                                 }
-                                className="appearance-none bg-transparent pr-4 text-right text-[9px] text-warning-text outline-none disabled:opacity-40"
+                                className="appearance-none bg-transparent pr-4 text-right text-[11px] text-warning-text outline-none disabled:opacity-40"
                               >
                                 {stages.map((option) => (
                                   <option
@@ -859,7 +859,7 @@ export function CustomerCrm({
                       </article>
                     ))}
                     {!stageLeads.length ? (
-                      <div className="grid min-h-28 place-items-center rounded-xl border border-dashed border-hairline text-[9px] text-ink-muted">
+                      <div className="grid min-h-28 place-items-center rounded-xl border border-dashed border-hairline text-[11px] text-ink-muted">
                         Drop opportunities here
                       </div>
                     ) : null}
@@ -882,19 +882,19 @@ export function CustomerCrm({
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium">{activity.subject}</p>
-                  <p className="mt-1 text-[10px] text-ink-muted">
+                  <p className="mt-1 text-[11px] text-ink-muted">
                     {activity.lead_name} · {activity.created_by || 'System'} ·{' '}
                     {formatDate(activity.created_at)}
                   </p>
                   {activity.notes ? (
-                    <p className="mt-2 line-clamp-2 text-[10px] leading-4 text-ink-muted">
+                    <p className="mt-2 line-clamp-2 text-[11px] leading-4 text-ink-muted">
                       {activity.notes}
                     </p>
                   ) : null}
                 </div>
                 <Badge
                   variant="outline"
-                  className="h-fit border-hairline bg-surface-muted text-[8px] text-ink-muted"
+                  className="h-fit border-hairline bg-surface-muted text-[11px] text-ink-muted"
                 >
                   {activity.type.replaceAll('_', ' ')}
                 </Badge>
@@ -921,7 +921,7 @@ function Metric({
   return (
     <div className="group rounded-2xl border border-hairline bg-surface p-4">
       <div className="flex items-center justify-between">
-        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-ink-muted">
+        <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
           {label}
         </p>
         <span className="grid size-9 place-items-center rounded-xl border border-amber-200/10 bg-amber-300/[0.065] transition group-hover:border-amber-200/20">
@@ -929,7 +929,7 @@ function Metric({
         </span>
       </div>
       <p className="mt-3 text-xl font-semibold text-ink sm:text-2xl">{value}</p>
-      <p className="mt-1 text-[10px] text-ink-muted">{note}</p>
+      <p className="mt-1 text-[11px] text-ink-muted">{note}</p>
     </div>
   );
 }
@@ -998,7 +998,7 @@ function ScoreChange({ event }: { event: LeadTimelineEvent }) {
         className="flex w-full items-center gap-1.5 text-left"
       >
         <span
-          className={`text-[9px] font-semibold ${
+          className={`text-[11px] font-semibold ${
             event.direction === 'up'
               ? 'text-success-text'
               : event.direction === 'down'
@@ -1010,11 +1010,11 @@ function ScoreChange({ event }: { event: LeadTimelineEvent }) {
             ? '±0'
             : `${event.delta > 0 ? '+' : ''}${event.delta}`}
         </span>
-        <span className="flex-1 truncate text-[9px] text-ink-body">
+        <span className="flex-1 truncate text-[11px] text-ink-body">
           {event.headline}
         </span>
         {event.reasons.length ? (
-          <span className="text-[8px] text-ink-muted">
+          <span className="text-[11px] text-ink-muted">
             {open ? 'hide' : 'why'}
           </span>
         ) : null}
@@ -1024,7 +1024,7 @@ function ScoreChange({ event }: { event: LeadTimelineEvent }) {
           {event.reasons.map((reason) => (
             <li
               key={`${reason.signal}-${reason.delta}`}
-              className="flex gap-2 text-[9px] text-ink-muted"
+              className="flex gap-2 text-[11px] text-ink-muted"
             >
               <span
                 className={`w-8 shrink-0 text-right font-mono ${
@@ -1074,7 +1074,7 @@ function DuplicatePanel({
   return (
     <section className="portal-panel p-4">
       <h2 className="text-sm font-semibold">Possible duplicates</h2>
-      <p className="mt-1 text-[10px] text-ink-muted">
+      <p className="mt-1 text-[11px] text-ink-muted">
         Matched on phone or email. Choose which lead survives — its history
         keeps everything from the others, and the highest score in the group is
         kept.
@@ -1085,7 +1085,7 @@ function DuplicatePanel({
             key={`${group.on}-${group.key}`}
             className="rounded-xl border border-hairline bg-surface-muted p-3"
           >
-            <p className="text-[10px] text-ink-muted">
+            <p className="text-[11px] text-ink-muted">
               Same {group.on}: <span className="font-mono">{group.key}</span>
             </p>
             <div className="mt-2 space-y-1.5">
@@ -1094,7 +1094,7 @@ function DuplicatePanel({
                 return (
                   <div
                     key={candidate.id}
-                    className="flex flex-wrap items-center gap-2 rounded-lg border border-hairline bg-surface px-2.5 py-2 text-[10px]"
+                    className="flex flex-wrap items-center gap-2 rounded-lg border border-hairline bg-surface px-2.5 py-2 text-[11px]"
                   >
                     <span className="font-medium">{candidate.name}</span>
                     <span className="text-ink-muted">{candidate.phone}</span>
@@ -1109,7 +1109,7 @@ function DuplicatePanel({
                     </span>
                     {plan.conflicts.length ? (
                       <span
-                        className="text-[9px] text-warning-text"
+                        className="text-[11px] text-warning-text"
                         title={plan.conflicts
                           .map((c) => `${c.field}: ${c.values.join(' vs ')}`)
                           .join('; ')}
@@ -1123,7 +1123,7 @@ function DuplicatePanel({
                       type="button"
                       disabled={busy}
                       onClick={() => void onMerge(candidate, group.leads)}
-                      className="ml-auto rounded-lg border border-hairline bg-surface-strong px-2 py-0.5 text-[9px] text-ink-body disabled:opacity-50"
+                      className="ml-auto rounded-lg border border-hairline bg-surface-strong px-2 py-0.5 text-[11px] text-ink-body disabled:opacity-50"
                     >
                       Keep this one
                     </button>
@@ -1163,7 +1163,7 @@ function LeadTable({
   return (
     <div className="overflow-x-auto rounded-xl border border-hairline">
       <table className="w-full min-w-[900px] text-[11px]">
-        <thead className="bg-surface-muted text-left text-[9px] uppercase tracking-wide text-ink-muted">
+        <thead className="bg-surface-muted text-left text-[11px] uppercase tracking-wide text-ink-muted">
           <tr>
             <th className="px-3 py-2">
               <input
@@ -1203,12 +1203,12 @@ function LeadTable({
               <td className="px-3 py-2">
                 <span className="font-medium">{lead.name}</span>
                 {lead.email ? (
-                  <span className="block text-[9px] text-ink-muted">
+                  <span className="block text-[11px] text-ink-muted">
                     {lead.email}
                   </span>
                 ) : null}
               </td>
-              <td className="px-3 py-2 font-mono text-[10px]">{lead.phone}</td>
+              <td className="px-3 py-2 font-mono text-[11px]">{lead.phone}</td>
               <td className="px-3 py-2">
                 <span
                   className={
@@ -1224,7 +1224,7 @@ function LeadTable({
                   value={normalizeStage(lead.stage)}
                   disabled={moving === lead.id}
                   onChange={(event) => void onMove(lead, event.target.value)}
-                  className="h-7 rounded-lg border border-hairline bg-surface px-1.5 text-[10px]"
+                  className="h-7 rounded-lg border border-hairline bg-surface px-1.5 text-[11px]"
                 >
                   {stages.map((stage) => (
                     <option key={stage.id} value={stage.id}>

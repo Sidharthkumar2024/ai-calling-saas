@@ -157,7 +157,7 @@ export function CustomerGrowth() {
     <div className="space-y-6">
       <section className="portal-panel p-5">
         <h2 className="text-sm font-semibold">Tell me about your business</h2>
-        <p className="mt-1 text-[10px] text-ink-muted">
+        <p className="mt-1 text-[11px] text-ink-muted">
           Every answer changes something: the agent’s opening, what it qualifies
           for, and how this board ranks its advice.
         </p>
@@ -170,7 +170,7 @@ export function CustomerGrowth() {
             ).map((q) => (
               <span
                 key={q.id}
-                className="rounded-full border border-hairline bg-surface-muted px-2.5 py-1 text-[10px]"
+                className="rounded-full border border-hairline bg-surface-muted px-2.5 py-1 text-[11px]"
               >
                 <span className="text-ink-muted">{q.chip} </span>
                 <span className="font-medium">
@@ -192,12 +192,12 @@ export function CustomerGrowth() {
               <span className="text-[11px] font-medium">
                 {question.question}
                 {question.required ? null : (
-                  <span className="ml-1 text-[9px] text-ink-muted">
+                  <span className="ml-1 text-[11px] text-ink-muted">
                     optional
                   </span>
                 )}
               </span>
-              <span className="mt-0.5 block text-[9px] text-ink-muted">
+              <span className="mt-0.5 block text-[11px] text-ink-muted">
                 {question.purpose}
               </span>
               <textarea
@@ -233,11 +233,11 @@ export function CustomerGrowth() {
       <section className="portal-panel p-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-sm font-semibold">Evidence board</h2>
-          <span className="text-[9px] text-ink-muted">
+          <span className="text-[11px] text-ink-muted">
             measured {board.measuredAt.slice(0, 16).replace('T', ' ')}
           </span>
         </div>
-        <p className="mt-1 text-[10px] text-ink-muted">
+        <p className="mt-1 text-[11px] text-ink-muted">
           Every line is measured from your own calls and leads. Nothing here is
           an opinion, and anything with too little data behind it is left out
           rather than shown faintly.
@@ -260,11 +260,11 @@ export function CustomerGrowth() {
                 {item.metric.unit ?? ''}
               </span>
               <span className="flex-1">{item.statement}</span>
-              <span className="text-[9px] text-ink-muted">
+              <span className="text-[11px] text-ink-muted">
                 from {item.source} · {item.sampleSize} records
               </span>
               <span
-                className={`text-[9px] font-semibold ${CONFIDENCE_STYLE[item.confidence]}`}
+                className={`text-[11px] font-semibold ${CONFIDENCE_STYLE[item.confidence]}`}
               >
                 {item.confidence} confidence
               </span>
@@ -275,7 +275,7 @@ export function CustomerGrowth() {
         {/* Which evidence this board has and which it does not. Saying so is
             the difference between an empty board and a complete one — silence
             here would read as "nothing to report". */}
-        <p className="mt-4 text-[9px] text-ink-muted">
+        <p className="mt-4 text-[11px] text-ink-muted">
           Reading from: {board.sources.connected.join(', ')}. Not yet connected:{' '}
           {board.sources.pending
             .map((item) =>
@@ -290,7 +290,7 @@ export function CustomerGrowth() {
 
       <section className="portal-panel p-5">
         <h2 className="text-sm font-semibold">Growth plan</h2>
-        <p className="mt-1 text-[10px] text-ink-muted">
+        <p className="mt-1 text-[11px] text-ink-muted">
           Ordered by how much evidence is behind each one, not by how important
           it sounds.
         </p>
@@ -308,17 +308,17 @@ export function CustomerGrowth() {
             >
               <div className="flex flex-wrap items-baseline gap-2">
                 <span className="text-[11px] font-medium">{item.title}</span>
-                <span className="text-[9px] text-ink-muted">{item.area}</span>
+                <span className="text-[11px] text-ink-muted">{item.area}</span>
                 <span
-                  className={`ml-auto text-[9px] font-semibold ${CONFIDENCE_STYLE[item.confidence]}`}
+                  className={`ml-auto text-[11px] font-semibold ${CONFIDENCE_STYLE[item.confidence]}`}
                 >
                   {item.confidence} confidence
                 </span>
               </div>
-              <p className="mt-1 text-[10px] text-ink-body">{item.action}</p>
+              <p className="mt-1 text-[11px] text-ink-body">{item.action}</p>
               <ul className="mt-2 space-y-0.5">
                 {item.evidence.map((id) => (
-                  <li key={id} className="text-[9px] text-ink-muted">
+                  <li key={id} className="text-[11px] text-ink-muted">
                     ↳ {byId.get(id)?.statement ?? id}
                   </li>
                 ))}
@@ -434,7 +434,7 @@ function Connectors() {
   return (
     <section className="portal-panel p-5">
       <h2 className="text-sm font-semibold">Connect your other numbers</h2>
-      <p className="mt-1 text-[10px] text-ink-muted">
+      <p className="mt-1 text-[11px] text-ink-muted">
         Each one adds evidence to the board above, with its source shown like
         everything else. Until then the manager will keep saying it does not
         have these numbers rather than estimating them.
@@ -448,7 +448,7 @@ function Connectors() {
             <div className="flex flex-wrap items-baseline gap-2">
               <span className="text-[11px] font-medium">{connector.label}</span>
               <span
-                className={`ml-auto text-[9px] ${
+                className={`ml-auto text-[11px] ${
                   connector.state === 'connected'
                     ? 'text-success-text'
                     : connector.state === 'platform_not_configured'
@@ -459,11 +459,11 @@ function Connectors() {
                 {connector.state.replaceAll('_', ' ')}
               </span>
             </div>
-            <p className="mt-1 text-[10px] text-ink-muted">
+            <p className="mt-1 text-[11px] text-ink-muted">
               {connector.message}
             </p>
             {connector.selection ? (
-              <p className="mt-0.5 text-[9px] text-ink-muted">
+              <p className="mt-0.5 text-[11px] text-ink-muted">
                 Reading: {connector.selection}
               </p>
             ) : null}
@@ -473,7 +473,7 @@ function Connectors() {
                   type="button"
                   disabled={busy === connector.id}
                   onClick={() => void connect(connector.id)}
-                  className="rounded-full border border-hairline px-2.5 py-1 text-[10px] disabled:opacity-50"
+                  className="rounded-full border border-hairline px-2.5 py-1 text-[11px] disabled:opacity-50"
                 >
                   {connector.state === 'needs_selection'
                     ? 'Re-authorise'
@@ -486,7 +486,7 @@ function Connectors() {
                   type="button"
                   disabled={busy === connector.id}
                   onClick={() => void loadChoices(connector.id)}
-                  className="rounded-full border border-hairline px-2.5 py-1 text-[10px] disabled:opacity-50"
+                  className="rounded-full border border-hairline px-2.5 py-1 text-[11px] disabled:opacity-50"
                 >
                   Choose what to read
                 </button>
@@ -502,7 +502,7 @@ function Connectors() {
                     });
                     await load();
                   }}
-                  className="rounded-full border border-hairline px-2.5 py-1 text-[10px]"
+                  className="rounded-full border border-hairline px-2.5 py-1 text-[11px]"
                 >
                   Disconnect
                 </button>
@@ -511,7 +511,7 @@ function Connectors() {
             {choices[connector.id] ? (
               <div className="mt-2">
                 {choices[connector.id].length === 0 ? (
-                  <p className="text-[9px] text-warning-text">
+                  <p className="text-[11px] text-warning-text">
                     This account has nothing this connector can read.
                   </p>
                 ) : (
@@ -529,7 +529,7 @@ function Connectors() {
                           setChoices({ ...choices, [connector.id]: [] });
                           await load();
                         }}
-                        className="rounded-full border border-hairline px-2.5 py-1 text-[10px]"
+                        className="rounded-full border border-hairline px-2.5 py-1 text-[11px]"
                       >
                         {choice.label}
                       </button>
@@ -542,7 +542,7 @@ function Connectors() {
         ))}
       </div>
       {problem ? (
-        <p role="alert" className="mt-2 text-[10px] text-danger-text">
+        <p role="alert" className="mt-2 text-[11px] text-danger-text">
           {problem}
         </p>
       ) : null}
@@ -619,7 +619,7 @@ function Execution({
             }
             title={offer.blockedBy ?? offer.effect}
             onClick={() => void run(offer.kind)}
-            className="rounded-full border border-hairline bg-surface px-2.5 py-1 text-[10px] disabled:opacity-45"
+            className="rounded-full border border-hairline bg-surface px-2.5 py-1 text-[11px] disabled:opacity-45"
           >
             {busy === offer.kind
               ? 'Working…'
@@ -635,18 +635,18 @@ function Execution({
       {offers.map((offer) => (
         <p
           key={`${offer.id}-effect`}
-          className={`mt-1 text-[9px] ${offer.blockedBy ? 'text-warning-text' : 'text-ink-muted'}`}
+          className={`mt-1 text-[11px] ${offer.blockedBy ? 'text-warning-text' : 'text-ink-muted'}`}
         >
           {offer.blockedBy ?? offer.effect}
         </p>
       ))}
       {actions.map((action) => (
-        <p key={action.id} className="mt-1 text-[9px] text-ink-muted">
+        <p key={action.id} className="mt-1 text-[11px] text-ink-muted">
           {actionSummary(action)} {action.detail}
         </p>
       ))}
       {problem ? (
-        <p role="alert" className="mt-1 text-[9px] text-danger-text">
+        <p role="alert" className="mt-1 text-[11px] text-danger-text">
           {problem}
         </p>
       ) : null}
@@ -736,7 +736,7 @@ function SiteScan({
   return (
     <section className="portal-panel p-5">
       <h2 className="text-sm font-semibold">Read my website</h2>
-      <p className="mt-1 text-[10px] text-ink-muted">
+      <p className="mt-1 text-[11px] text-ink-muted">
         Fetches your own pages and reports what is measurably wrong with each
         one — the title, the heading, the amount of copy, whether the page asks
         the visitor to do anything.
@@ -759,15 +759,15 @@ function SiteScan({
         </button>
       </div>
       {message ? (
-        <p className="mt-2 text-[10px] text-warning-text">{message}</p>
+        <p className="mt-2 text-[11px] text-warning-text">{message}</p>
       ) : null}
 
       {shown?.steps?.length ? (
         <div className="mt-4">
-          <p className="text-[9px] font-semibold uppercase tracking-wide text-ink-muted">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
             What it actually did
           </p>
-          <div className="mt-2 space-y-0.5 font-mono text-[9px]">
+          <div className="mt-2 space-y-0.5 font-mono text-[11px]">
             {shown.steps.map((step, index) => (
               <div
                 key={`${step.label}-${index}`}
@@ -797,13 +797,13 @@ function SiteScan({
               Report — {shown.findings.length} action
               {shown.findings.length === 1 ? '' : 's'} for {shown.host}
             </p>
-            <span className="text-[9px] text-danger-text">
+            <span className="text-[11px] text-danger-text">
               {shown.high} high
             </span>
-            <span className="text-[9px] text-warning-text">
+            <span className="text-[11px] text-warning-text">
               {shown.medium} medium
             </span>
-            <span className="text-[9px] text-ink-muted">{shown.low} low</span>
+            <span className="text-[11px] text-ink-muted">{shown.low} low</span>
           </div>
           <div className="mt-3 space-y-2">
             {shown.findings.map((finding, index) => (
@@ -812,30 +812,30 @@ function SiteScan({
                 className="rounded-xl border border-hairline bg-surface-muted px-3 py-2.5"
               >
                 <div className="flex flex-wrap items-baseline gap-2">
-                  <span className="text-[10px] text-ink-muted">
+                  <span className="text-[11px] text-ink-muted">
                     {index + 1}
                   </span>
                   <span className="text-[11px] font-medium">
                     {finding.title}
                   </span>
-                  <code className="rounded bg-surface-strong px-1.5 py-0.5 text-[9px]">
+                  <code className="rounded bg-surface-strong px-1.5 py-0.5 text-[11px]">
                     {finding.page}
                   </code>
                   <span
-                    className={`ml-auto text-[9px] font-semibold ${SEVERITY_STYLE[finding.severity]}`}
+                    className={`ml-auto text-[11px] font-semibold ${SEVERITY_STYLE[finding.severity]}`}
                   >
                     {finding.severity}
                   </span>
                 </div>
-                <p className="mt-1.5 text-[10px]">
+                <p className="mt-1.5 text-[11px]">
                   <span className="font-semibold text-ink-muted">DO THIS </span>
                   {finding.doThis}
                 </p>
-                <p className="mt-1 text-[10px] text-ink-muted">
+                <p className="mt-1 text-[11px] text-ink-muted">
                   <span className="font-semibold">WHY </span>
                   {finding.why}
                 </p>
-                <p className="mt-1 text-[9px] text-ink-muted">
+                <p className="mt-1 text-[11px] text-ink-muted">
                   ↳ measured: {finding.evidence}
                 </p>
               </div>
@@ -846,7 +846,7 @@ function SiteScan({
 
       {runs.length ? (
         <div className="mt-5">
-          <p className="text-[9px] font-semibold uppercase tracking-wide text-ink-muted">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
             Previous runs
           </p>
           <div className="mt-2 space-y-1">
@@ -855,7 +855,7 @@ function SiteScan({
                 key={run.id}
                 type="button"
                 onClick={() => void openReport(run.id)}
-                className="flex w-full flex-wrap items-center gap-2 rounded-lg border border-hairline bg-surface px-2.5 py-1.5 text-left text-[10px] hover:bg-surface-strong"
+                className="flex w-full flex-wrap items-center gap-2 rounded-lg border border-hairline bg-surface px-2.5 py-1.5 text-left text-[11px] hover:bg-surface-strong"
               >
                 <span className="font-medium">{run.host ?? run.siteUrl}</span>
                 <span className="text-ink-muted">
@@ -870,7 +870,7 @@ function SiteScan({
                     {run.high} high · {run.medium} medium · {run.low} low
                   </span>
                 )}
-                <span className="ml-auto font-mono text-[9px] text-ink-muted">
+                <span className="ml-auto font-mono text-[11px] text-ink-muted">
                   {run.id}
                 </span>
               </button>
@@ -995,7 +995,7 @@ function GrowthChat({
               setChatId(null);
               setTurns([]);
             }}
-            className="text-[10px] text-ink-body underline-offset-2 hover:underline"
+            className="text-[11px] text-ink-body underline-offset-2 hover:underline"
           >
             New chat
           </button>
@@ -1004,26 +1004,26 @@ function GrowthChat({
 
       {chips.length ? (
         <>
-          <p className="mt-3 text-[9px] font-semibold uppercase tracking-wide text-ink-muted">
+          <p className="mt-3 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
             Your workspace
           </p>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {chips.map((chip) => (
               <span
                 key={chip.id}
-                className="rounded-full border border-hairline bg-surface-muted px-2.5 py-1 text-[10px]"
+                className="rounded-full border border-hairline bg-surface-muted px-2.5 py-1 text-[11px]"
               >
                 <span className="text-ink-muted">{chip.label} </span>
                 <span className="font-medium">{chip.value}</span>
               </span>
             ))}
           </div>
-          <p className="mt-1.5 text-[9px] text-ink-muted">
+          <p className="mt-1.5 text-[11px] text-ink-muted">
             I use this to direct every run — no need to repeat it.
           </p>
         </>
       ) : (
-        <p className="mt-3 text-[10px] text-ink-muted">
+        <p className="mt-3 text-[11px] text-ink-muted">
           Answer the discovery questions below and I will use them to direct
           every answer.
         </p>
@@ -1041,13 +1041,13 @@ function GrowthChat({
           >
             <p className="whitespace-pre-wrap">{turn.content}</p>
             {turn.grounded?.length ? (
-              <p className="mt-1.5 text-[9px] text-ink-muted">
+              <p className="mt-1.5 text-[11px] text-ink-muted">
                 ↳ answered from {turn.grounded.join(' · ')}
               </p>
             ) : null}
           </div>
         ))}
-        {busy ? <p className="text-[10px] text-ink-muted">Thinking…</p> : null}
+        {busy ? <p className="text-[11px] text-ink-muted">Thinking…</p> : null}
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
@@ -1075,7 +1075,7 @@ function GrowthChat({
 
       {chats.length ? (
         <div className="mt-4">
-          <p className="text-[9px] font-semibold uppercase tracking-wide text-ink-muted">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
             History
           </p>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -1084,7 +1084,7 @@ function GrowthChat({
                 key={chat.id}
                 type="button"
                 onClick={() => void openChat(chat.id)}
-                className={`max-w-64 truncate rounded-lg border px-2.5 py-1 text-[10px] ${
+                className={`max-w-64 truncate rounded-lg border px-2.5 py-1 text-[11px] ${
                   chat.id === chatId
                     ? 'border-hairline bg-surface-strong'
                     : 'border-hairline bg-surface hover:bg-surface-strong'

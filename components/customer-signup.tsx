@@ -142,7 +142,7 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
             </span>
             <span>
               <span className="block text-sm font-semibold">Vaani</span>
-              <span className="block text-[9px] uppercase tracking-[0.18em] text-ink-muted">
+              <span className="block text-[11px] uppercase tracking-[0.18em] text-ink-muted">
                 Revenue Voice OS
               </span>
             </span>
@@ -154,7 +154,7 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
 
         <div className="mt-8 grid overflow-hidden rounded-[30px] border border-hairline bg-surface/95 shadow-2xl shadow-black/40 lg:grid-cols-[0.78fr_1.22fr]">
           <aside className="border-b border-hairline bg-surface-muted p-6 sm:p-8 lg:min-h-[700px] lg:border-b-0 lg:border-r lg:p-10">
-            <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/15 bg-amber-300/5 px-3 py-1.5 text-[10px] text-warning-text">
+            <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/15 bg-amber-300/5 px-3 py-1.5 text-[11px] text-warning-text">
               <Sparkles className="size-3.5" />{' '}
               {inviteToken
                 ? `Team invitation · ${inviteRole.replaceAll('_', ' ') || 'checking'}`
@@ -185,7 +185,7 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
                   </span>
                   <div>
                     <p className="text-xs font-medium">{item.label}</p>
-                    <p className="mt-1 text-[9px] text-ink-muted">
+                    <p className="mt-1 text-[11px] text-ink-muted">
                       Step {index + 1} of 3
                     </p>
                   </div>
@@ -196,7 +196,7 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
 
           <section className="flex min-h-[620px] items-center justify-center p-6 sm:p-10 lg:p-14">
             <div className="w-full max-w-xl">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-warning-text">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-warning-text">
                 Step {step + 1}
               </p>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight">
@@ -339,7 +339,7 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
                         ].map((item) => (
                           <span
                             key={item}
-                            className="flex items-center gap-2 text-[10px] text-ink-muted"
+                            className="flex items-center gap-2 text-[11px] text-ink-muted"
                           >
                             <Check className="size-3 text-success-text" />
                             {item}

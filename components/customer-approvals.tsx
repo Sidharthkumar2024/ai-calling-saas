@@ -205,7 +205,7 @@ export function CustomerApprovals() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
           Approvals & human handoff
         </p>
         <h2 className="mt-2 text-2xl font-semibold tracking-tight">
@@ -234,7 +234,7 @@ export function CustomerApprovals() {
           <Headphones className="size-3.5 text-primary" />
           <p className="text-sm font-medium">Agent presence</p>
         </div>
-        <p className="mt-1 text-[10px] text-ink-muted">
+        <p className="mt-1 text-[11px] text-ink-muted">
           Routing picks an online agent by skill, then language, then least
           busy. With nobody online the AI offers a callback instead of
           pretending to transfer.
@@ -248,7 +248,7 @@ export function CustomerApprovals() {
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <p className="truncate text-xs font-medium">{agent.name}</p>
-                  <p className="mt-0.5 text-[9px] text-ink-muted">
+                  <p className="mt-0.5 text-[11px] text-ink-muted">
                     {agent.role} ·{' '}
                     {parseList(agent.skills_json).join(', ') || 'no skills'} ·{' '}
                     {parseList(agent.languages_json).join('/')} ·{' '}
@@ -257,7 +257,7 @@ export function CustomerApprovals() {
                 </div>
                 <Badge
                   variant="outline"
-                  className={`text-[9px] ${agent.availability === 'online' ? 'border-emerald-300/20 bg-emerald-300/8 text-success-text' : 'border-hairline text-ink-muted'}`}
+                  className={`text-[11px] ${agent.availability === 'online' ? 'border-emerald-300/20 bg-emerald-300/8 text-success-text' : 'border-hairline text-ink-muted'}`}
                 >
                   {agent.availability}
                 </Badge>
@@ -279,7 +279,7 @@ export function CustomerApprovals() {
                       );
                       if (ok) flash(`${agent.name} → ${state}`);
                     }}
-                    className={`rounded-full border px-2 py-0.5 text-[9px] transition ${agent.availability === state ? 'border-hairline bg-surface-strong text-ink' : 'border-hairline text-ink-muted hover:bg-surface-strong'}`}
+                    className={`rounded-full border px-2 py-0.5 text-[11px] transition ${agent.availability === state ? 'border-hairline bg-surface-strong text-ink' : 'border-hairline text-ink-muted hover:bg-surface-strong'}`}
                   >
                     {state}
                   </button>
@@ -332,19 +332,19 @@ export function CustomerApprovals() {
                   <div className="flex flex-wrap gap-1.5">
                     <Badge
                       variant="outline"
-                      className={`text-[9px] ${RISK_STYLE[card.risk_level] ?? 'border-hairline text-ink-body'}`}
+                      className={`text-[11px] ${RISK_STYLE[card.risk_level] ?? 'border-hairline text-ink-body'}`}
                     >
                       risk: {card.risk_level}
                     </Badge>
                     <Badge
                       variant="outline"
-                      className="border-hairline text-[9px] text-ink-body"
+                      className="border-hairline text-[11px] text-ink-body"
                     >
                       {card.policy_decision}
                     </Badge>
                     <Badge
                       variant="outline"
-                      className="border-hairline text-[9px] text-ink-muted"
+                      className="border-hairline text-[11px] text-ink-muted"
                     >
                       policy v{card.policy_version}
                     </Badge>
@@ -393,7 +393,7 @@ export function CustomerApprovals() {
                           'Approved ✓ — refund recorded, awaiting provider',
                         );
                     }}
-                    className="h-8 bg-emerald-400/90 text-[10px] text-black hover:bg-emerald-400"
+                    className="h-8 bg-emerald-400/90 text-[11px] text-black hover:bg-emerald-400"
                   >
                     {busy === `${card.id}:approved` ? (
                       <Loader2 className="animate-spin" />
@@ -417,7 +417,7 @@ export function CustomerApprovals() {
                       );
                       if (ok) flash('Rejected');
                     }}
-                    className="h-8 border-red-400/25 bg-transparent text-[10px] text-danger-text"
+                    className="h-8 border-red-400/25 bg-transparent text-[11px] text-danger-text"
                   >
                     <X /> Reject
                   </Button>
@@ -436,7 +436,7 @@ export function CustomerApprovals() {
                       );
                       if (ok) flash('Asked the AI to collect more information');
                     }}
-                    className="h-8 border-hairline bg-transparent text-[10px]"
+                    className="h-8 border-hairline bg-transparent text-[11px]"
                   >
                     Ask AI for more info
                   </Button>
@@ -466,7 +466,7 @@ export function CustomerApprovals() {
             >
               <div className="min-w-0">
                 <p className="truncate text-[11px] text-ink">{row.reason}</p>
-                <p className="mt-0.5 text-[9px] text-ink-muted">
+                <p className="mt-0.5 text-[11px] text-ink-muted">
                   {row.skill ? `skill: ${row.skill} · ` : ''}
                   {row.agent_name
                     ? `assigned: ${row.agent_name} (${row.agent_role})`
@@ -475,7 +475,7 @@ export function CustomerApprovals() {
               </div>
               <Badge
                 variant="outline"
-                className={`text-[9px] ${row.queue_status === 'assigned' ? 'border-emerald-300/20 bg-emerald-300/8 text-success-text' : 'border-amber-300/20 bg-amber-300/8 text-warning-text'}`}
+                className={`text-[11px] ${row.queue_status === 'assigned' ? 'border-emerald-300/20 bg-emerald-300/8 text-success-text' : 'border-amber-300/20 bg-amber-300/8 text-warning-text'}`}
               >
                 {row.queue_status ?? row.status}
               </Badge>
@@ -557,10 +557,10 @@ function Detail({
 }) {
   return (
     <div className="rounded-lg border border-hairline bg-surface-muted p-2.5">
-      <p className="text-[9px] uppercase tracking-wider text-ink-muted">
+      <p className="text-[11px] uppercase tracking-wider text-ink-muted">
         {label}
       </p>
-      <p className="mt-1 text-[10px] text-ink-body">{children}</p>
+      <p className="mt-1 text-[11px] text-ink-body">{children}</p>
     </div>
   );
 }
@@ -638,9 +638,9 @@ function CallbackQueue() {
   return (
     <div className="portal-panel p-4">
       <p className="text-sm font-medium">Callbacks promised</p>
-      <p className="mt-1 text-[10px] text-ink-muted">{summary}</p>
+      <p className="mt-1 text-[11px] text-ink-muted">{summary}</p>
       {problem ? (
-        <p role="alert" className="mt-2 text-[10px] text-danger-text">
+        <p role="alert" className="mt-2 text-[11px] text-danger-text">
           {problem}
         </p>
       ) : null}
@@ -658,12 +658,12 @@ function CallbackQueue() {
               <span className="text-[11px] font-medium">
                 {row.customer_name || row.customer_phone}
               </span>
-              <span className="text-[9px] text-ink-muted">
+              <span className="text-[11px] text-ink-muted">
                 {row.customer_phone}
                 {row.requested_window ? ` · ${row.requested_window}` : ''}
               </span>
               <span
-                className={`ml-auto text-[9px] ${
+                className={`ml-auto text-[11px] ${
                   row.status === 'completed'
                     ? 'text-success-text'
                     : row.status === 'cancelled'
@@ -678,17 +678,17 @@ function CallbackQueue() {
               </span>
             </div>
             {row.reason ? (
-              <p className="mt-0.5 text-[10px] text-ink-body">{row.reason}</p>
+              <p className="mt-0.5 text-[11px] text-ink-body">{row.reason}</p>
             ) : null}
             {/* How far past the promise, at the top of the row rather than
                 implied by position. */}
             {row.lateness?.late ? (
-              <p className="mt-0.5 text-[10px] text-warning-text">
+              <p className="mt-0.5 text-[11px] text-warning-text">
                 {row.lateness.message}
               </p>
             ) : null}
             {row.outcome_note ? (
-              <p className="mt-0.5 text-[9px] text-ink-muted">
+              <p className="mt-0.5 text-[11px] text-ink-muted">
                 {row.outcome_note}
               </p>
             ) : null}
@@ -699,7 +699,7 @@ function CallbackQueue() {
                   type="button"
                   disabled={busy === row.id + next}
                   onClick={() => void move(row.id, next)}
-                  className="rounded-full border border-hairline px-2.5 py-1 text-[10px] disabled:opacity-50"
+                  className="rounded-full border border-hairline px-2.5 py-1 text-[11px] disabled:opacity-50"
                 >
                   {next === 'in_progress'
                     ? row.attempts > 0
@@ -713,7 +713,7 @@ function CallbackQueue() {
                 </button>
               ))}
               {nextCallbackStatuses(row.status).length === 0 ? (
-                <span className="text-[9px] text-ink-muted">
+                <span className="text-[11px] text-ink-muted">
                   Closed{row.resolved_by ? ` by ${row.resolved_by}` : ''}.
                 </span>
               ) : null}
@@ -814,7 +814,7 @@ function MediaReleaseQueue() {
   return (
     <div className="portal-panel p-4">
       <p className="text-sm font-medium">Files waiting to be released</p>
-      <p className="mt-1 max-w-2xl text-[10px] text-ink-muted">
+      <p className="mt-1 max-w-2xl text-[11px] text-ink-muted">
         An agent asked to send these and was not allowed to on its own, so it
         told the caller a colleague would.{' '}
         {pendingFiles > 0
@@ -822,7 +822,7 @@ function MediaReleaseQueue() {
           : 'Nothing is owed right now.'}
       </p>
       {problem ? (
-        <p role="alert" className="mt-2 text-[10px] text-danger-text">
+        <p role="alert" className="mt-2 text-[11px] text-danger-text">
           {problem}
         </p>
       ) : null}
@@ -844,7 +844,7 @@ function MediaReleaseQueue() {
               {row.withheld.map((entry) => (
                 <label
                   key={entry.id}
-                  className="flex items-start gap-2 text-[10px] text-ink-muted"
+                  className="flex items-start gap-2 text-[11px] text-ink-muted"
                 >
                   <input
                     type="checkbox"
@@ -880,14 +880,14 @@ function MediaReleaseQueue() {
                       .map((entry) => entry.id),
                   })
                 }
-                className="portal-primary h-6 rounded-md px-2 text-[10px] disabled:opacity-40"
+                className="portal-primary h-6 rounded-md px-2 text-[11px] disabled:opacity-40"
               >
                 Release chosen
               </button>
               <button
                 type="button"
                 onClick={() => void post({ action: 'cancel', sendId: row.id })}
-                className="h-6 rounded-md border border-hairline px-2 text-[10px] text-ink-muted"
+                className="h-6 rounded-md border border-hairline px-2 text-[11px] text-ink-muted"
               >
                 Do not send
               </button>

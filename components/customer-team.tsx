@@ -127,7 +127,7 @@ export function CustomerTeam({
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
           Workspace access
         </p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -145,7 +145,7 @@ export function CustomerTeam({
           </span>
           <div>
             <h2 className="text-sm font-semibold">Invite a teammate</h2>
-            <p className="mt-1 text-[10px] text-ink-muted">
+            <p className="mt-1 text-[11px] text-ink-muted">
               Invitation expires after seven days.
             </p>
           </div>
@@ -186,7 +186,7 @@ export function CustomerTeam({
           </Button>
         </div>
         {inviteResult ? (
-          <div className="mt-4 rounded-xl border border-hairline bg-surface-muted p-3 text-[10px] text-ink-body">
+          <div className="mt-4 rounded-xl border border-hairline bg-surface-muted p-3 text-[11px] text-ink-body">
             <div className="flex items-center gap-2">
               <ShieldCheck className="size-4 shrink-0 text-primary" />
               <span>
@@ -226,7 +226,7 @@ export function CustomerTeam({
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-sm font-semibold">Active members</h2>
-            <p className="mt-1 text-[10px] text-ink-muted">
+            <p className="mt-1 text-[11px] text-ink-muted">
               {data.members.length} people in this isolated tenant
             </p>
           </div>
@@ -234,7 +234,7 @@ export function CustomerTeam({
         </div>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-xs">
-            <thead className="border-y border-hairline text-[9px] uppercase tracking-wider text-ink-muted">
+            <thead className="border-y border-hairline text-[11px] uppercase tracking-wider text-ink-muted">
               <tr>
                 <th className="px-3 py-3 font-medium">Member</th>
                 <th className="px-3 py-3 font-medium">Role</th>
@@ -248,7 +248,7 @@ export function CustomerTeam({
                 <tr key={member.id}>
                   <td className="px-3 py-4">
                     <p className="font-medium">{member.name || member.email}</p>
-                    <p className="mt-1 text-[9px] text-ink-muted">
+                    <p className="mt-1 text-[11px] text-ink-muted">
                       {member.email}
                     </p>
                   </td>
@@ -262,7 +262,7 @@ export function CustomerTeam({
                       onChange={(event) =>
                         updateMember(member.id, event.target.value)
                       }
-                      className="rounded-lg border border-hairline bg-surface-strong px-2 py-1.5 text-[10px]"
+                      className="rounded-lg border border-hairline bg-surface-strong px-2 py-1.5 text-[11px]"
                     >
                       {(data.roleCatalog ?? [])
                         .filter((item) => item.id !== 'owner')
@@ -306,40 +306,61 @@ export function CustomerTeam({
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-sm font-semibold">Permission matrix</h2>
-            <p className="mt-1 text-[10px] text-ink-muted">
+            <p className="mt-1 text-[12px] text-ink-body">
               Your current role:{' '}
-              {(data.access?.role ?? 'member').replaceAll('_', ' ')}
+              <span className="font-medium text-ink">
+                {(data.access?.role ?? 'member').replaceAll('_', ' ')}
+              </span>
             </p>
           </div>
           <ShieldCheck className="size-4 text-primary" />
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {(data.roleCatalog ?? []).map((item) => (
-            <div
-              key={item.id}
-              className="rounded-xl border border-hairline bg-surface-muted p-4"
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-medium">{item.label}</p>
-                <span className="rounded-md bg-surface-strong px-2 py-1 text-[8px] text-ink-muted">
-                  {item.permissions.length} permissions
-                </span>
-              </div>
-              <p className="mt-2 text-[9px] leading-4 text-ink-muted">
-                {item.description}
-              </p>
-              <div className="mt-3 flex flex-wrap gap-1">
-                {item.permissions.map((permission) => (
-                  <span
-                    key={permission}
-                    className="rounded-md border border-hairline px-1.5 py-1 text-[7px] text-ink-muted"
-                  >
-                    {permission.replace('.', ' · ')}
+          {(data.roleCatalog ?? []).map((item) => {
+            // The reader's own role is the one thing they came here to find,
+            // and nothing on this screen used to say which card it was.
+            const isCurrent = item.id === (data.access?.role ?? '');
+            return (
+              <div
+                key={item.id}
+                className={`rounded-xl border p-4 ${
+                  isCurrent
+                    ? 'border-primary/40 bg-primary/[0.04]'
+                    : 'border-hairline bg-surface-muted'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold">{item.label}</p>
+                    {isCurrent ? (
+                      <p className="mt-0.5 text-[11px] font-medium text-primary">
+                        Your role
+                      </p>
+                    ) : null}
+                  </div>
+                  <span className="shrink-0 rounded-md bg-surface-strong px-2 py-1 text-[11px] text-ink-body">
+                    {item.permissions.length}{' '}
+                    {item.permissions.length === 1
+                      ? 'permission'
+                      : 'permissions'}
                   </span>
-                ))}
+                </div>
+                <p className="mt-2 text-[12px] leading-5 text-ink-body">
+                  {item.description}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {item.permissions.map((permission) => (
+                    <span
+                      key={permission}
+                      className="rounded-md border border-hairline bg-surface px-2 py-1 text-[11px] leading-4 text-ink-body"
+                    >
+                      {permission.replace('.', ' · ')}
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
       {data.invitations.length ? (
@@ -352,7 +373,7 @@ export function CustomerTeam({
                 className="rounded-xl border border-hairline bg-surface-muted p-4"
               >
                 <p className="text-xs font-medium">{invite.email}</p>
-                <p className="mt-2 text-[9px] capitalize text-ink-muted">
+                <p className="mt-2 text-[11px] capitalize text-ink-muted">
                   {invite.role.replaceAll('_', ' ')} · expires{' '}
                   {formatDate(invite.expires_at)}
                 </p>

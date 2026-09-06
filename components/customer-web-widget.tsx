@@ -128,7 +128,7 @@ export function CustomerWebWidget() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-sm font-semibold">Website voice assistant</h2>
-            <p className="mt-1 max-w-2xl text-[10px] text-ink-muted">
+            <p className="mt-1 max-w-2xl text-[11px] text-ink-muted">
               One script tag on your site and visitors talk to the same agent
               that answers your calls — same knowledge, same tools, same CRM. It
               cannot answer anybody until you list the websites it may run on.
@@ -149,7 +149,7 @@ export function CustomerWebWidget() {
           </button>
         </div>
         {notice ? (
-          <p className="mt-3 text-[10px] text-ink-muted">{notice}</p>
+          <p className="mt-3 text-[11px] text-ink-muted">{notice}</p>
         ) : null}
       </section>
 
@@ -158,27 +158,27 @@ export function CustomerWebWidget() {
           <div className="flex flex-wrap items-baseline gap-2">
             <span className="text-[11px] font-medium">{widget.name}</span>
             <span
-              className={`text-[9px] ${widget.status === 'active' ? 'text-success-text' : 'text-ink-muted'}`}
+              className={`text-[11px] ${widget.status === 'active' ? 'text-success-text' : 'text-ink-muted'}`}
             >
               {widget.status === 'active' ? 'live' : 'paused'}
             </span>
             <button
               type="button"
               onClick={() => edit(widget)}
-              className="ml-auto rounded-lg border border-hairline px-3 py-1.5 text-[10px]"
+              className="ml-auto rounded-lg border border-hairline px-3 py-1.5 text-[11px]"
             >
               {draft?.id === widget.id ? 'Editing' : 'Settings'}
             </button>
           </div>
 
-          <p className="mt-2 text-[10px] text-ink-muted">
+          <p className="mt-2 text-[11px] text-ink-muted">
             {widget.allowedOrigins.length === 0
               ? 'No websites listed, so it cannot run anywhere yet.'
               : `Runs on: ${widget.allowedOrigins.join(', ')}`}
           </p>
 
           <label className="mt-3 block">
-            <span className="text-[10px] font-medium">
+            <span className="text-[11px] font-medium">
               Paste this into your site
             </span>
             <textarea
@@ -186,18 +186,18 @@ export function CustomerWebWidget() {
               rows={2}
               value={widget.embedCode}
               onFocus={(event) => event.currentTarget.select()}
-              className="mt-1 w-full rounded-lg border border-hairline bg-surface-muted px-3 py-2 font-mono text-[10px]"
+              className="mt-1 w-full rounded-lg border border-hairline bg-surface-muted px-3 py-2 font-mono text-[11px]"
             />
           </label>
 
           {widget.activity.length > 0 ? (
             <div className="mt-3 border-t border-hairline pt-3">
-              <p className="text-[10px] font-medium">Last 7 days</p>
+              <p className="text-[11px] font-medium">Last 7 days</p>
               <ul className="mt-1 space-y-0.5">
                 {widget.activity.map((entry) => (
                   <li
                     key={`${entry.outcome}-${entry.reason ?? ''}`}
-                    className={`text-[10px] ${entry.outcome === 'refused' ? 'text-warning-text' : 'text-ink-muted'}`}
+                    className={`text-[11px] ${entry.outcome === 'refused' ? 'text-warning-text' : 'text-ink-muted'}`}
                   >
                     {entry.count} × {entry.outcome.replaceAll('_', ' ')}
                     {/* The reason is the whole value of this line. */}
@@ -213,10 +213,10 @@ export function CustomerWebWidget() {
           {draft?.id === widget.id ? (
             <div className="mt-4 space-y-3 border-t border-hairline pt-4">
               <label className="block">
-                <span className="text-[10px] font-medium">
+                <span className="text-[11px] font-medium">
                   Websites this may run on
                 </span>
-                <span className="mt-0.5 block text-[9px] text-ink-muted">
+                <span className="mt-0.5 block text-[11px] text-ink-muted">
                   One per line. `example.com` means https only; `*.example.com`
                   covers one level of subdomain and not the bare domain.
                   Anything not listed is refused.
@@ -226,12 +226,12 @@ export function CustomerWebWidget() {
                   value={originText}
                   onChange={(event) => setOriginText(event.target.value)}
                   placeholder={'https://yourcompany.com\n*.yourcompany.com'}
-                  className="mt-1 w-full rounded-lg border border-hairline bg-surface px-3 py-2 font-mono text-[10px]"
+                  className="mt-1 w-full rounded-lg border border-hairline bg-surface px-3 py-2 font-mono text-[11px]"
                 />
               </label>
 
               <div>
-                <span className="text-[10px] font-medium">
+                <span className="text-[11px] font-medium">
                   What visitors can do
                 </span>
                 <div className="mt-1 space-y-1">
@@ -254,7 +254,7 @@ export function CustomerWebWidget() {
                         }
                         className="mt-0.5"
                       />
-                      <span className="text-[10px]">
+                      <span className="text-[11px]">
                         <span className="font-medium capitalize">{mode}</span>
                         <span className="text-ink-muted">
                           {' '}
@@ -268,7 +268,7 @@ export function CustomerWebWidget() {
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block">
-                  <span className="text-[10px] font-medium">Agent</span>
+                  <span className="text-[11px] font-medium">Agent</span>
                   <select
                     value={draft.agentId ?? ''}
                     onChange={(event) =>
@@ -288,7 +288,7 @@ export function CustomerWebWidget() {
                   </select>
                 </label>
                 <label className="block">
-                  <span className="text-[10px] font-medium">Button text</span>
+                  <span className="text-[11px] font-medium">Button text</span>
                   <input
                     value={draft.branding.greeting}
                     onChange={(event) =>
@@ -304,7 +304,7 @@ export function CustomerWebWidget() {
                   />
                 </label>
                 <label className="block">
-                  <span className="text-[10px] font-medium">Accent colour</span>
+                  <span className="text-[11px] font-medium">Accent colour</span>
                   <input
                     value={draft.branding.accent}
                     placeholder="#2563EB"
@@ -321,7 +321,7 @@ export function CustomerWebWidget() {
                   />
                 </label>
                 <label className="block">
-                  <span className="text-[10px] font-medium">
+                  <span className="text-[11px] font-medium">
                     Logo URL (https)
                   </span>
                   <input
@@ -339,7 +339,7 @@ export function CustomerWebWidget() {
                   />
                 </label>
                 <label className="block">
-                  <span className="text-[10px] font-medium">
+                  <span className="text-[11px] font-medium">
                     Calls per hour
                   </span>
                   <input
@@ -356,7 +356,7 @@ export function CustomerWebWidget() {
                   />
                 </label>
                 <label className="block">
-                  <span className="text-[10px] font-medium">Calls per day</span>
+                  <span className="text-[11px] font-medium">Calls per day</span>
                   <input
                     type="number"
                     min={1}
@@ -371,7 +371,7 @@ export function CustomerWebWidget() {
                   />
                 </label>
               </div>
-              <p className="text-[9px] text-ink-muted">
+              <p className="text-[11px] text-ink-muted">
                 {/* Said plainly, because the number is a spending limit. */}
                 Past either cap the widget stops starting calls and offers the
                 callback form instead. Visitors are never told which limit they
@@ -402,7 +402,7 @@ export function CustomerWebWidget() {
                     setDraft(null);
                     await load();
                   }}
-                  className="ml-auto rounded-lg border border-hairline px-3 py-2 text-[10px]"
+                  className="ml-auto rounded-lg border border-hairline px-3 py-2 text-[11px]"
                 >
                   Delete
                 </button>

@@ -328,10 +328,10 @@ function ResourceModule({
               <Status value={str(row.status, 'ready')} />
             </div>
             <h2 className="mt-5 text-sm font-semibold">{str(row.name)}</h2>
-            <p className="mt-2 min-h-10 text-[10px] leading-5 text-ink-muted">
+            <p className="mt-2 min-h-10 text-[11px] leading-5 text-ink-muted">
               {resourceDescription(module, row)}
             </p>
-            <div className="mt-5 grid grid-cols-2 gap-2 border-t border-hairline pt-4 text-[9px] text-ink-muted">
+            <div className="mt-5 grid grid-cols-2 gap-2 border-t border-hairline pt-4 text-[11px] text-ink-muted">
               {resourceFacts(module, row).map(([label, value]) => (
                 <div key={label}>
                   <p>{label}</p>
@@ -361,7 +361,7 @@ function ResourceModule({
                           setError,
                         )
                       }
-                      className="h-7 border-hairline bg-transparent text-[10px]"
+                      className="h-7 border-hairline bg-transparent text-[11px]"
                     >
                       {GRAPH_ACTION_LABEL[next]}
                     </Button>
@@ -380,7 +380,7 @@ function ResourceModule({
                     setError,
                   )
                 }
-                className="mt-4 h-7 w-full border-hairline bg-transparent text-[10px]"
+                className="mt-4 h-7 w-full border-hairline bg-transparent text-[11px]"
               >
                 {normaliseAlertStatus(row.status) === 'active'
                   ? 'Disable'
@@ -392,7 +392,7 @@ function ResourceModule({
                 variant="outline"
                 onClick={() => generate(str(row.id))}
                 disabled={Boolean(loading)}
-                className="mt-4 w-full border-hairline bg-transparent text-[10px]"
+                className="mt-4 w-full border-hairline bg-transparent text-[11px]"
               >
                 {loading === str(row.id) ? (
                   <Loader2 className="animate-spin" />
@@ -477,11 +477,11 @@ function TrunkReadiness({
   });
   return (
     <div className="mt-4 space-y-2">
-      <p className="text-[10px] leading-4 text-ink-body">{readiness.summary}</p>
+      <p className="text-[11px] leading-4 text-ink-body">{readiness.summary}</p>
       {readiness.blockers.length > 0 ? (
         <ul className="space-y-0.5">
           {readiness.blockers.map((blocker) => (
-            <li key={blocker} className="text-[9px] text-warning-text">
+            <li key={blocker} className="text-[11px] text-warning-text">
               {blocker}
             </li>
           ))}
@@ -491,7 +491,7 @@ function TrunkReadiness({
           everything right should still know what they are waiting for. */}
       <ul className="space-y-0.5">
         {readiness.waitingOn.map((item) => (
-          <li key={item} className="text-[9px] leading-4 text-ink-muted">
+          <li key={item} className="text-[11px] leading-4 text-ink-muted">
             {item}
           </li>
         ))}
@@ -500,7 +500,7 @@ function TrunkReadiness({
         variant="outline"
         onClick={onValidate}
         disabled={busy || str(row.status) === 'provider_test_pending'}
-        className="w-full border-hairline bg-transparent text-[10px]"
+        className="w-full border-hairline bg-transparent text-[11px]"
       >
         {working ? <Loader2 className="animate-spin" /> : <ShieldCheck />}
         Check this configuration
@@ -752,7 +752,7 @@ function OperationsCreator({
                       a contact with no name gets the company line instead of
                       "Hello , this is" — the failure any template system
                       produces by default. */}
-                  <p className="mt-2 text-[9px] text-ink-muted">
+                  <p className="mt-2 text-[11px] text-ink-muted">
                     A contact will hear:{' '}
                     <span className="text-ink">
                       {previewOpening({
@@ -885,7 +885,7 @@ function OperationsCreator({
                   className="min-h-28"
                 />
               </CreatorField>
-              <p className="mt-2 flex items-center gap-2 text-[9px] text-ink-muted">
+              <p className="mt-2 flex items-center gap-2 text-[11px] text-ink-muted">
                 <ShieldCheck className="size-3 text-success-text" /> Duplicates
                 are removed; consent and suppression are checked again before
                 any call is queued.
@@ -1032,7 +1032,7 @@ function OperationsCreator({
                   </option>
                 ))}
               </select>
-              <p className="mt-2 text-[9px] text-ink-muted">
+              <p className="mt-2 text-[11px] text-ink-muted">
                 {/* The cadence used to be a free-text field that ran daily
                     whatever it said. It is a closed set now, and the scheduler
                     honours it. */}
@@ -1048,7 +1048,7 @@ function OperationsCreator({
                 }
                 placeholder="ops@yourcompany.com, finance@yourcompany.com"
               />
-              <p className="mt-2 text-[9px] text-ink-muted">
+              <p className="mt-2 text-[11px] text-ink-muted">
                 Up to {MAX_RECIPIENTS}. Leave it empty and the report is
                 generated for download only — it will say so rather than
                 implying it was sent.
@@ -1109,7 +1109,7 @@ function OperationsCreator({
                 }
                 placeholder="No legal advice, no loan approvals, no discounts beyond the published price."
               />
-              <p className="mt-2 text-[9px] text-ink-muted">
+              <p className="mt-2 text-[11px] text-ink-muted">
                 Both lines are kept on the knowledge base and shown wherever an
                 answer is traced back to it, so a person reviewing a call can
                 see what this content was meant to cover.
@@ -1164,7 +1164,7 @@ function CreatorField({
   children: React.ReactNode;
 }) {
   return (
-    <label className="block text-[10px] font-medium text-ink-muted">
+    <label className="block text-[11px] font-medium text-ink-muted">
       {label}
       <div className="mt-2 [&_input]:h-10 [&_input]:border-hairline [&_input]:bg-surface-strong [&_input]:text-xs [&_select]:h-10 [&_select]:w-full [&_select]:rounded-lg [&_select]:border [&_select]:border-hairline [&_select]:bg-surface [&_select]:px-3 [&_select]:text-xs [&_textarea]:border-hairline [&_textarea]:bg-surface-strong [&_textarea]:text-xs">
         {children}
@@ -1248,7 +1248,7 @@ function CallHistory({ data }: { data: OperationsData }) {
             onChange={(event) => set('search', event.target.value)}
             placeholder="Name or number"
             aria-label="Search calls by name or number"
-            className="h-8 min-w-[170px] flex-1 rounded-lg border border-hairline bg-surface px-2.5 text-[10px]"
+            className="h-8 min-w-[170px] flex-1 rounded-lg border border-hairline bg-surface px-2.5 text-[11px]"
           />
           <Choice
             label="Outcome"
@@ -1288,25 +1288,25 @@ function CallHistory({ data }: { data: OperationsData }) {
           />
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-1 text-[10px] text-ink-muted">
+          <label className="flex items-center gap-1 text-[11px] text-ink-muted">
             From
             <input
               type="date"
               value={filters.from ?? ''}
               onChange={(event) => set('from', event.target.value)}
-              className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+              className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[11px]"
             />
           </label>
-          <label className="flex items-center gap-1 text-[10px] text-ink-muted">
+          <label className="flex items-center gap-1 text-[11px] text-ink-muted">
             To
             <input
               type="date"
               value={filters.to ?? ''}
               onChange={(event) => set('to', event.target.value)}
-              className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+              className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[11px]"
             />
           </label>
-          <label className="flex items-center gap-1 text-[10px] text-ink-muted">
+          <label className="flex items-center gap-1 text-[11px] text-ink-muted">
             Seconds
             <input
               type="number"
@@ -1314,7 +1314,7 @@ function CallHistory({ data }: { data: OperationsData }) {
               value={filters.minSeconds ?? ''}
               onChange={(event) => set('minSeconds', event.target.value)}
               placeholder="min"
-              className="h-8 w-16 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+              className="h-8 w-16 rounded-lg border border-hairline bg-surface px-2 text-[11px]"
             />
             <input
               type="number"
@@ -1322,10 +1322,10 @@ function CallHistory({ data }: { data: OperationsData }) {
               value={filters.maxSeconds ?? ''}
               onChange={(event) => set('maxSeconds', event.target.value)}
               placeholder="max"
-              className="h-8 w-16 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+              className="h-8 w-16 rounded-lg border border-hairline bg-surface px-2 text-[11px]"
             />
           </label>
-          <label className="flex items-center gap-1 text-[10px] text-ink-muted">
+          <label className="flex items-center gap-1 text-[11px] text-ink-muted">
             Credits
             <input
               type="number"
@@ -1333,7 +1333,7 @@ function CallHistory({ data }: { data: OperationsData }) {
               value={filters.minCredits ?? ''}
               onChange={(event) => set('minCredits', event.target.value)}
               placeholder="min"
-              className="h-8 w-16 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+              className="h-8 w-16 rounded-lg border border-hairline bg-surface px-2 text-[11px]"
             />
             <input
               type="number"
@@ -1341,7 +1341,7 @@ function CallHistory({ data }: { data: OperationsData }) {
               value={filters.maxCredits ?? ''}
               onChange={(event) => set('maxCredits', event.target.value)}
               placeholder="max"
-              className="h-8 w-16 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+              className="h-8 w-16 rounded-lg border border-hairline bg-surface px-2 text-[11px]"
             />
           </label>
           <TriState
@@ -1361,13 +1361,13 @@ function CallHistory({ data }: { data: OperationsData }) {
                 setFilters({});
                 setPage(1);
               }}
-              className="h-8 rounded-lg border border-hairline px-2.5 text-[10px]"
+              className="h-8 rounded-lg border border-hairline px-2.5 text-[11px]"
             >
               Clear
             </button>
           ) : null}
         </div>
-        <p className="mt-2 text-[10px] text-ink-muted">
+        <p className="mt-2 text-[11px] text-ink-muted">
           {/* The total, so nobody reads a page of fifty as the whole history —
               and the cost of what is selected, not of the whole workspace. */}
           {loading ? 'Loading…' : (result?.range ?? '')}
@@ -1380,7 +1380,7 @@ function CallHistory({ data }: { data: OperationsData }) {
       <section className="overflow-hidden rounded-2xl border border-hairline bg-surface">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[980px] text-left text-xs">
-            <thead className="border-b border-hairline bg-surface-muted text-[9px] uppercase tracking-wider text-ink-muted">
+            <thead className="border-b border-hairline bg-surface-muted text-[11px] uppercase tracking-wider text-ink-muted">
               <tr>
                 {[
                   'Customer',
@@ -1408,7 +1408,7 @@ function CallHistory({ data }: { data: OperationsData }) {
                     <p className="font-medium">
                       {str(call.customer_name, 'Unknown')}
                     </p>
-                    <p className="mt-1 font-mono text-[9px] text-ink-muted">
+                    <p className="mt-1 font-mono text-[11px] text-ink-muted">
                       {str(call.channel, 'phone') === 'playground'
                         ? 'browser test'
                         : str(call.to_number)}
@@ -1424,7 +1424,7 @@ function CallHistory({ data }: { data: OperationsData }) {
                     {/* A playground conversation is real telemetry but not a
                         phone call, so it is labelled rather than blended in. */}
                     <span
-                      className={`rounded-md px-2 py-1 text-[9px] uppercase tracking-wide ${
+                      className={`rounded-md px-2 py-1 text-[11px] uppercase tracking-wide ${
                         str(call.channel, 'phone') === 'playground'
                           ? 'bg-sky-400/12 text-sky-700'
                           : 'bg-surface-strong text-ink-muted'
@@ -1453,7 +1453,7 @@ function CallHistory({ data }: { data: OperationsData }) {
                       <button
                         type="button"
                         onClick={() => setOpenCallId(str(call.id))}
-                        className="rounded-lg border border-hairline px-2.5 py-1.5 text-[10px] text-ink"
+                        className="rounded-lg border border-hairline px-2.5 py-1.5 text-[11px] text-ink"
                       >
                         Read
                       </button>
@@ -1500,18 +1500,18 @@ function CallHistory({ data }: { data: OperationsData }) {
             type="button"
             disabled={page <= 1}
             onClick={() => setPage((current) => Math.max(1, current - 1))}
-            className="rounded-lg border border-hairline px-3 py-1.5 text-[10px] disabled:opacity-40"
+            className="rounded-lg border border-hairline px-3 py-1.5 text-[11px] disabled:opacity-40"
           >
             Previous
           </button>
-          <span className="text-[10px] text-ink-muted">
+          <span className="text-[11px] text-ink-muted">
             Page {result.page} of {result.totalPages}
           </span>
           <button
             type="button"
             disabled={page >= result.totalPages}
             onClick={() => setPage((current) => current + 1)}
-            className="rounded-lg border border-hairline px-3 py-1.5 text-[10px] disabled:opacity-40"
+            className="rounded-lg border border-hairline px-3 py-1.5 text-[11px] disabled:opacity-40"
           >
             Next
           </button>
@@ -1562,7 +1562,7 @@ function Choice({
       aria-label={`Filter by ${label}`}
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+      className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[11px]"
     >
       <option value="">{label} · All</option>
       {values.map((entry) => (
@@ -1591,7 +1591,7 @@ function Named({
       aria-label={`Filter by ${label}`}
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+      className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[11px]"
     >
       <option value="">{label} · All</option>
       {values.map((entry) => (
@@ -1617,7 +1617,7 @@ function TriState({
       aria-label={`Filter by ${label}`}
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+      className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[11px]"
     >
       <option value="any">{label} · Any</option>
       <option value="yes">Has {label.toLowerCase()}</option>
@@ -1689,13 +1689,13 @@ function CallDetail({
       <section className="relative flex h-full w-full max-w-2xl flex-col overflow-hidden rounded-none border border-hairline bg-surface sm:rounded-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-hairline px-5 py-4">
           <div>
-            <p className="text-[9px] uppercase tracking-wider text-ink-muted">
+            <p className="text-[11px] uppercase tracking-wider text-ink-muted">
               Call detail
             </p>
             <h2 className="mt-1 text-sm font-semibold">
               {str(call.customer_name, 'Unknown caller')}
             </h2>
-            <p className="mt-1 text-[10px] text-ink-muted">
+            <p className="mt-1 text-[11px] text-ink-muted">
               {str(call.agent_name)} · {callTimestamp(call.started_at)} ·{' '}
               {duration(call.duration_seconds)} · {str(call.latency_ms, '—')}ms
               avg
@@ -1715,7 +1715,7 @@ function CallDetail({
           {detail ? (
             <>
               <div className="rounded-xl border border-hairline bg-surface-muted p-4">
-                <p className="text-[9px] uppercase tracking-wider text-ink-muted">
+                <p className="text-[11px] uppercase tracking-wider text-ink-muted">
                   Post-call intelligence
                 </p>
                 {summary ? (
@@ -1749,7 +1749,7 @@ function CallDetail({
                         {str(summary.next_action)}
                       </p>
                     ) : null}
-                    <p className="mt-3 text-[9px] text-ink-muted">
+                    <p className="mt-3 text-[11px] text-ink-muted">
                       Generated by {str(summary.model, 'the configured model')}
                     </p>
                   </>
@@ -1769,7 +1769,7 @@ function CallDetail({
               {review ? (
                 <div className="rounded-xl border border-hairline bg-surface-muted p-4">
                   <div className="flex items-center justify-between">
-                    <p className="text-[9px] uppercase tracking-wider text-ink-muted">
+                    <p className="text-[11px] uppercase tracking-wider text-ink-muted">
                       AI quality review
                     </p>
                     <Status value={str(review.status)} />
@@ -1801,10 +1801,10 @@ function CallDetail({
 
               {transport.length ? (
                 <div className="rounded-xl border border-hairline bg-surface-muted p-4">
-                  <p className="text-[9px] uppercase tracking-wider text-ink-muted">
+                  <p className="text-[11px] uppercase tracking-wider text-ink-muted">
                     {t('field.audioPath')}
                   </p>
-                  <p className="mt-1 text-[10px] text-ink-muted">
+                  <p className="mt-1 text-[11px] text-ink-muted">
                     {t('field.audioPathNote')}
                   </p>
                   {transport.map((leg, legIndex) => {
@@ -1820,7 +1820,7 @@ function CallDetail({
                     }
                     return (
                       <div key={legIndex} className="mt-3">
-                        <p className="text-[10px] text-ink-muted">
+                        <p className="text-[11px] text-ink-muted">
                           {str(leg.leg_role, 'agent')} ·{' '}
                           {str(leg.transport, 'websocket')} ·{' '}
                           {str(leg.band, '—')} {str(leg.score)}/100
@@ -1881,7 +1881,7 @@ function CallDetail({
                             {warnings.map((warning, index) => (
                               <li
                                 key={`${legIndex}-${index}`}
-                                className="text-[10px] text-warning-text"
+                                className="text-[11px] text-warning-text"
                               >
                                 {str(warning.message)}
                               </li>
@@ -1895,7 +1895,7 @@ function CallDetail({
               ) : null}
 
               <div>
-                <p className="text-[9px] uppercase tracking-wider text-ink-muted">
+                <p className="text-[11px] uppercase tracking-wider text-ink-muted">
                   Transcript · {turns.length} turns
                 </p>
                 <div className="mt-3 space-y-2">
@@ -1921,7 +1921,7 @@ function CallDetail({
                             : 'border-emerald-400/15 bg-emerald-400/[0.05]'
                         }`}
                       >
-                        <div className="flex items-center justify-between text-[9px] uppercase tracking-wider text-ink-muted">
+                        <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-ink-muted">
                           <span>{isCustomer ? 'Customer' : 'Agent'}</span>
                           <span>
                             {turn.latency_ms ? `${str(turn.latency_ms)}ms` : ''}
@@ -1935,7 +1935,7 @@ function CallDetail({
                             {tools.map((tool, index) => (
                               <span
                                 key={`${str(turn.turn_index)}-${index}`}
-                                className="rounded-md bg-amber-400/12 px-2 py-1 text-[9px] text-warning-text"
+                                className="rounded-md bg-amber-400/12 px-2 py-1 text-[11px] text-warning-text"
                               >
                                 {str(tool.name).replaceAll('_', ' ')}
                               </span>
@@ -2018,11 +2018,11 @@ function LiveMonitor({ data }: { data: OperationsData }) {
             className="rounded-2xl border border-emerald-400/12 bg-[linear-gradient(145deg,rgba(52,211,153,0.055),#ffffff_55%)] p-5"
           >
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-2 text-[10px] text-success-text">
+              <span className="flex items-center gap-2 text-[11px] text-success-text">
                 <span className="size-2 animate-pulse rounded-full bg-emerald-400" />{' '}
                 Live conversation
               </span>
-              <span className="font-mono text-[10px] text-ink-muted">
+              <span className="font-mono text-[11px] text-ink-muted">
                 {duration(call.duration_seconds)}
               </span>
             </div>
@@ -2044,7 +2044,7 @@ function LiveMonitor({ data }: { data: OperationsData }) {
               <Button
                 size="sm"
                 variant="outline"
-                className="border-hairline bg-transparent text-[9px]"
+                className="border-hairline bg-transparent text-[11px]"
                 onClick={() => setOpenCallId(str(call.id))}
               >
                 <Headphones /> Transcript
@@ -2052,7 +2052,7 @@ function LiveMonitor({ data }: { data: OperationsData }) {
               <Button
                 size="sm"
                 variant="outline"
-                className="border-hairline bg-transparent text-[9px]"
+                className="border-hairline bg-transparent text-[11px]"
                 onClick={() =>
                   setMonitorCallId(
                     monitorCallId === str(call.id) ? null : str(call.id),
@@ -2065,7 +2065,7 @@ function LiveMonitor({ data }: { data: OperationsData }) {
               <Button
                 size="sm"
                 variant="outline"
-                className="border-hairline bg-transparent text-[9px]"
+                className="border-hairline bg-transparent text-[11px]"
                 disabled={busy === str(call.id)}
                 onClick={() => void takeOver(str(call.id))}
               >
@@ -2206,7 +2206,7 @@ function Analytics() {
           </button>
         ))}
         {payload ? (
-          <span className="text-[10px] text-ink-muted">
+          <span className="text-[11px] text-ink-muted">
             {payload.totals.calls} calls in window
           </span>
         ) : null}
@@ -2246,14 +2246,14 @@ function Analytics() {
           <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
             <section className="portal-panel p-5">
               <h2 className="text-sm font-semibold">Conversation trend</h2>
-              <p className="mt-1 text-[10px] text-ink-muted">
+              <p className="mt-1 text-[11px] text-ink-muted">
                 {payload.windowDays} days · calls, conversions and leads
               </p>
               <ActivityAreaChart data={payload.series} />
             </section>
             <section className="portal-panel p-5">
               <h2 className="text-sm font-semibold">Outcome distribution</h2>
-              <p className="mt-1 text-[10px] text-ink-muted">
+              <p className="mt-1 text-[11px] text-ink-muted">
                 Every recorded outcome in the window
               </p>
               <DistributionChart
@@ -2268,7 +2268,7 @@ function Analytics() {
           <div className="grid gap-4 xl:grid-cols-2">
             <section className="portal-panel p-5">
               <h2 className="text-sm font-semibold">Performance by language</h2>
-              <p className="mt-1 text-[10px] text-ink-muted">
+              <p className="mt-1 text-[11px] text-ink-muted">
                 A drop in one language is invisible in a blended average
               </p>
               <div className="mt-4 space-y-2">
@@ -2290,7 +2290,7 @@ function Analytics() {
                     <span className="text-ink-muted">
                       {row.transferred} transferred
                     </span>
-                    <span className="ml-auto text-[9px] text-ink-muted">
+                    <span className="ml-auto text-[11px] text-ink-muted">
                       {row.avgQuality ? `QA ${row.avgQuality}` : 'not reviewed'}
                     </span>
                   </div>
@@ -2299,7 +2299,7 @@ function Analytics() {
             </section>
             <section className="portal-panel p-5">
               <h2 className="text-sm font-semibold">Performance by agent</h2>
-              <p className="mt-1 text-[10px] text-ink-muted">
+              <p className="mt-1 text-[11px] text-ink-muted">
                 Calls, latency and resolved conversations
               </p>
               <div className="mt-4 space-y-2">
@@ -2318,7 +2318,7 @@ function Analytics() {
                     <span className="text-ink-muted">
                       {row.avgLatencyMs ? `${row.avgLatencyMs}ms` : '—'}
                     </span>
-                    <span className="ml-auto text-[9px] text-ink-muted">
+                    <span className="ml-auto text-[11px] text-ink-muted">
                       {row.resolved} resolved
                     </span>
                   </div>
@@ -2329,7 +2329,7 @@ function Analytics() {
           {payload.tools?.length ? (
             <section className="portal-panel p-5">
               <h2 className="text-sm font-semibold">Actions the agent took</h2>
-              <p className="mt-1 text-[10px] text-ink-muted">
+              <p className="mt-1 text-[11px] text-ink-muted">
                 Every tool call is recorded; this is what your agents actually
                 used in this window
               </p>
@@ -2354,7 +2354,7 @@ function Analytics() {
                       </span>
                     ) : null}
                     <span
-                      className={`ml-auto text-[9px] ${
+                      className={`ml-auto text-[11px] ${
                         tool.failed > 0
                           ? 'text-danger-text'
                           : 'text-success-text'
@@ -2450,13 +2450,13 @@ function ObjectionLibrary() {
     <section className="portal-panel p-5">
       <div className="flex flex-wrap items-baseline gap-2">
         <h2 className="text-sm font-semibold">Objection library</h2>
-        <span className="text-[10px] text-ink-muted">
+        <span className="text-[11px] text-ink-muted">
           {entries.length
             ? `${briefed} of ${entries.length} briefed to your agents`
             : 'Built from what callers actually said'}
         </span>
       </div>
-      <p className="mt-1 text-[10px] text-ink-muted">
+      <p className="mt-1 text-[11px] text-ink-muted">
         An objection reaches your agents once it has been heard more than once,
         or as soon as you write an approved answer for it. Agents are never
         given an answer you did not write.
@@ -2480,18 +2480,18 @@ function ObjectionLibrary() {
                 {entry.count === 1 ? ' time' : ' times'}
               </span>
               {entry.rebuttal ? (
-                <span className="text-[9px] text-success-text">
+                <span className="text-[11px] text-success-text">
                   approved answer in use
                 </span>
               ) : entry.count > 1 ? (
-                <span className="text-[9px] text-warning-text">
+                <span className="text-[11px] text-warning-text">
                   no approved answer
                 </span>
               ) : null}
               <span className="ml-auto flex gap-2">
                 <button
                   type="button"
-                  className="text-[10px] text-ink-body underline-offset-2 hover:underline"
+                  className="text-[11px] text-ink-body underline-offset-2 hover:underline"
                   onClick={() => {
                     setEditing(entry.id);
                     setDraft(entry.rebuttal ?? '');
@@ -2501,7 +2501,7 @@ function ObjectionLibrary() {
                 </button>
                 <button
                   type="button"
-                  className="text-[10px] text-ink-muted underline-offset-2 hover:underline"
+                  className="text-[11px] text-ink-muted underline-offset-2 hover:underline"
                   onClick={() =>
                     void send({ action: 'dismiss', objectionId: entry.id })
                   }
@@ -2511,7 +2511,7 @@ function ObjectionLibrary() {
               </span>
             </div>
             {entry.rebuttal && editing !== entry.id ? (
-              <p className="mt-2 text-[10px] text-ink-body">{entry.rebuttal}</p>
+              <p className="mt-2 text-[11px] text-ink-body">{entry.rebuttal}</p>
             ) : null}
             {editing === entry.id ? (
               <div className="mt-2 space-y-2">
@@ -2527,7 +2527,7 @@ function ObjectionLibrary() {
                   <button
                     type="button"
                     disabled={saving}
-                    className="portal-primary rounded-lg px-3 py-1.5 text-[10px] disabled:opacity-60"
+                    className="portal-primary rounded-lg px-3 py-1.5 text-[11px] disabled:opacity-60"
                     onClick={() =>
                       void send({
                         action: 'set_rebuttal',
@@ -2540,7 +2540,7 @@ function ObjectionLibrary() {
                   </button>
                   <button
                     type="button"
-                    className="text-[10px] text-ink-muted"
+                    className="text-[11px] text-ink-muted"
                     onClick={() => setEditing(null)}
                   >
                     Cancel
@@ -2600,7 +2600,7 @@ function Quality({
         />
       </div>
       {problem ? (
-        <p role="alert" className="text-[10px] text-danger-text">
+        <p role="alert" className="text-[11px] text-danger-text">
           {problem}
         </p>
       ) : null}
@@ -2615,7 +2615,7 @@ function Quality({
                 <p className="text-sm font-semibold">
                   {str(review.customer_name)}
                 </p>
-                <p className="mt-1 text-[10px] text-ink-muted">
+                <p className="mt-1 text-[11px] text-ink-muted">
                   {str(review.outcome).replaceAll('_', ' ')}
                 </p>
               </div>
@@ -2641,7 +2641,7 @@ function Quality({
                 value={str(review.policy_score)}
               />
             </div>
-            <div className="mt-4 flex gap-2 text-[9px] text-ink-muted">
+            <div className="mt-4 flex gap-2 text-[11px] text-ink-muted">
               <span className="rounded-lg bg-surface-strong px-2 py-1">
                 Hallucinations {str(review.hallucination_count)}
               </span>
@@ -2669,7 +2669,7 @@ function Quality({
                         setProblem,
                       )
                     }
-                    className="h-7 border-hairline bg-transparent text-[10px]"
+                    className="h-7 border-hairline bg-transparent text-[11px]"
                   >
                     {next === 'reviewed' ? 'Acted on it' : 'Not a problem'}
                   </Button>
@@ -2820,12 +2820,12 @@ function WorkspaceSettings({
             <p className="text-[11px] font-semibold text-ink">
               {t('settings.languages.title')}
             </p>
-            <p className="mt-1 text-[10px] text-ink-muted">
+            <p className="mt-1 text-[11px] text-ink-muted">
               {t('settings.languages.hint')}
             </p>
             {(['india', 'global'] as const).map((region) => (
               <div key={region} className="mt-3">
-                <p className="text-[9px] uppercase tracking-wide text-ink-muted">
+                <p className="text-[11px] uppercase tracking-wide text-ink-muted">
                   {region === 'india' ? 'India' : 'Global'}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -2861,7 +2861,7 @@ function WorkspaceSettings({
             <p className="text-[11px] font-semibold text-ink">
               Notification sound
             </p>
-            <p className="mt-1 text-[10px] text-ink-muted">
+            <p className="mt-1 text-[11px] text-ink-muted">
               Plays for ringing, transfers, payments and credit warnings (§33)
             </p>
             <div className="mt-3">
@@ -2921,7 +2921,7 @@ function WorkspaceSettings({
           <h2 className="text-sm font-semibold">
             {t('settings.compliance.title')}
           </h2>
-          <p className="mt-1 text-[10px] text-ink-muted">
+          <p className="mt-1 text-[11px] text-ink-muted">
             {t('settings.compliance.hint')}
           </p>
           <div className="mt-5 grid gap-3">
@@ -2941,7 +2941,7 @@ function WorkspaceSettings({
               value={String(compliance.kycDocuments.length)}
             />
           </div>
-          <p className="mt-4 text-[9px] leading-4 text-ink-muted">
+          <p className="mt-4 text-[11px] leading-4 text-ink-muted">
             Outbound call creation is rejected unless consent is valid, the
             number is not suppressed and at least 10 credits remain.
           </p>
@@ -3000,7 +3000,7 @@ function Metric({
         <Icon className="size-[17px] text-[#bdc7ff]" />
       </span>
       <p className="mt-3 text-2xl font-semibold text-ink">{value}</p>
-      <p className="mt-1 text-[9px] font-medium uppercase tracking-wider text-ink-muted">
+      <p className="mt-1 text-[11px] font-medium uppercase tracking-wider text-ink-muted">
         {label}
       </p>
     </section>
@@ -3020,7 +3020,7 @@ function Header({
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
           {eyebrow}
         </p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -3041,7 +3041,7 @@ function Status({ value }: { value: string }) {
     );
   return (
     <span
-      className={`inline-flex rounded-full px-2 py-1 text-[8px] capitalize ${good ? 'bg-emerald-400/8 text-success-text' : 'bg-amber-300/8 text-warning-text'}`}
+      className={`inline-flex rounded-full px-2 py-1 text-[11px] capitalize ${good ? 'bg-emerald-400/8 text-success-text' : 'bg-amber-300/8 text-warning-text'}`}
     >
       {value.replaceAll('_', ' ')}
     </span>
@@ -3063,11 +3063,11 @@ function Mini({
 }) {
   return (
     <div className="rounded-xl border border-hairline bg-surface-muted p-3">
-      <p className="text-[8px] uppercase tracking-wider text-ink-muted">
+      <p className="text-[11px] uppercase tracking-wider text-ink-muted">
         {label}
       </p>
       <p
-        className={`mt-1 truncate text-[10px] font-medium text-ink-body ${raw ? '' : 'capitalize'}`}
+        className={`mt-1 truncate text-[11px] font-medium text-ink-body ${raw ? '' : 'capitalize'}`}
       >
         {value}
       </p>

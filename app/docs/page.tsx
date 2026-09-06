@@ -69,7 +69,7 @@ export default function DocsPage() {
             </span>
             <span>
               <span className="block text-sm font-semibold">Vaani</span>
-              <span className="block text-[9px] uppercase tracking-[0.18em] text-ink-muted">
+              <span className="block text-[11px] uppercase tracking-[0.18em] text-ink-muted">
                 Developer docs
               </span>
             </span>
@@ -93,7 +93,7 @@ export default function DocsPage() {
 
       <div className="mx-auto grid max-w-[1320px] lg:grid-cols-[230px_minmax(0,1fr)]">
         <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] border-r border-hairline px-4 py-8 lg:block">
-          <p className="px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-ink-muted">
+          <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-muted">
             Get started
           </p>
           <nav className="mt-3 space-y-1 text-xs text-ink-muted">
@@ -124,7 +124,7 @@ export default function DocsPage() {
 
         <article className="min-w-0 px-4 py-12 sm:px-8 lg:px-12 lg:py-16">
           <section id="overview" className="scroll-mt-24">
-            <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/15 bg-amber-300/5 px-3 py-1.5 text-[10px] text-warning-text">
+            <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/15 bg-amber-300/5 px-3 py-1.5 text-[11px] text-warning-text">
               <BookOpenText className="size-3.5" /> API v1 · Localhost
             </span>
             <h1 className="mt-6 max-w-4xl text-4xl font-semibold leading-[1.02] tracking-[-0.05em] sm:text-6xl">
@@ -569,7 +569,7 @@ function DocSection({
       id={id}
       className="scroll-mt-24 border-t border-hairline py-12 first:border-t-0 sm:py-16"
     >
-      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-warning-text">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-warning-text">
         {eyebrow}
       </p>
       <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -595,11 +595,11 @@ function Endpoint({
 }) {
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface p-4 sm:flex-row sm:items-center">
-      <span className="w-fit rounded-md bg-emerald-400/10 px-2 py-1 font-mono text-[9px] font-semibold text-success-text">
+      <span className="w-fit rounded-md bg-emerald-400/10 px-2 py-1 font-mono text-[11px] font-semibold text-success-text">
         {method}
       </span>
       <code className="font-mono text-xs text-ink">{path}</code>
-      <span className="text-[10px] text-ink-muted sm:ml-auto">{note}</span>
+      <span className="text-[11px] text-ink-muted sm:ml-auto">{note}</span>
     </div>
   );
 }
@@ -615,7 +615,7 @@ function Info({
   return (
     <div className="rounded-2xl border border-hairline bg-surface p-4">
       <Icon className="size-4 text-warning-text" />
-      <p className="mt-4 text-[9px] uppercase tracking-[0.14em] text-ink-muted">
+      <p className="mt-4 text-[11px] uppercase tracking-[0.14em] text-ink-muted">
         {label}
       </p>
       <p className="mt-2 text-xs font-medium text-ink">{value}</p>
@@ -640,7 +640,7 @@ function FlowCard({
       <div className="flex items-center justify-between">
         <Icon className="size-4 text-warning-text" />
         {recommended ? (
-          <span className="rounded-full bg-amber-300 px-2 py-1 text-[8px] font-semibold text-black">
+          <span className="rounded-full bg-amber-300 px-2 py-1 text-[11px] font-semibold text-black">
             Recommended
           </span>
         ) : null}

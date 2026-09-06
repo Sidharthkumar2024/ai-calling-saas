@@ -192,11 +192,11 @@ export function CustomerImport({
             <FileSpreadsheet className="size-4 text-primary" />
             {t('import.title')}
           </h2>
-          <p className="mt-1 text-[10px] leading-relaxed text-ink-muted">
+          <p className="mt-1 text-[11px] leading-relaxed text-ink-muted">
             {t('import.hint')}
           </p>
         </div>
-        <label className="flex items-center gap-2 text-[10px] text-ink-muted">
+        <label className="flex items-center gap-2 text-[11px] text-ink-muted">
           {t('import.countryCode')}
           <input
             value={countryCode}
@@ -220,7 +220,7 @@ export function CustomerImport({
           className="text-[11px] text-ink-body file:mr-3 file:rounded-lg file:border file:border-hairline file:bg-surface-strong file:px-3 file:py-1.5 file:text-[11px] file:text-ink"
         />
         {busy ? (
-          <span className="flex items-center gap-1.5 text-[10px] text-ink-muted">
+          <span className="flex items-center gap-1.5 text-[11px] text-ink-muted">
             <Loader2 className="size-3 animate-spin" /> {t('import.reading')}
           </span>
         ) : null}
@@ -262,7 +262,7 @@ export function CustomerImport({
                 key={String(label)}
                 className="rounded-xl border border-hairline bg-surface-muted px-3 py-2.5"
               >
-                <p className="text-[9px] uppercase tracking-wider text-ink-muted">
+                <p className="text-[11px] uppercase tracking-wider text-ink-muted">
                   {String(label)}
                 </p>
                 <p className={`mt-1 text-base font-semibold ${String(colour)}`}>
@@ -278,13 +278,13 @@ export function CustomerImport({
           ) : null}
 
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-ink-muted">
+            <p className="text-[11px] uppercase tracking-wider text-ink-muted">
               {t('import.mapping')} · {preview.format.toUpperCase()}
             </p>
             <div className="mt-2 grid gap-2 sm:grid-cols-3">
               {FIELD_LABELS.map((field) => (
                 <label key={field.key} className="block">
-                  <span className="text-[10px] text-ink-muted">
+                  <span className="text-[11px] text-ink-muted">
                     {field.label}
                     {field.required ? ' *' : ''}
                   </span>
@@ -306,7 +306,7 @@ export function CustomerImport({
           </div>
 
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-ink-muted">
+            <p className="text-[11px] uppercase tracking-wider text-ink-muted">
               {t('import.firstRows')}
             </p>
             <div className="mt-2 space-y-1">
@@ -315,14 +315,14 @@ export function CustomerImport({
                   key={row.rowNumber}
                   className="flex flex-wrap items-center gap-2 rounded-lg border border-hairline bg-surface-muted px-2.5 py-1.5 text-[11px]"
                 >
-                  <span className="w-8 font-mono text-[9px] text-ink-muted">
+                  <span className="w-8 font-mono text-[11px] text-ink-muted">
                     {row.rowNumber}
                   </span>
-                  <span className="font-mono text-[10px]">
+                  <span className="font-mono text-[11px]">
                     {row.phone ?? '—'}
                   </span>
                   <span className="text-ink-body">{row.name || '—'}</span>
-                  <span className={`ml-auto text-[9px] ${tone(row.status)}`}>
+                  <span className={`ml-auto text-[11px] ${tone(row.status)}`}>
                     {row.status}
                     {row.reason ? ` · ${row.reason}` : ''}
                   </span>
@@ -340,7 +340,7 @@ export function CustomerImport({
                 {rejected.slice(0, 50).map((row) => (
                   <div
                     key={str(row.row_number)}
-                    className="flex flex-wrap items-center gap-2 text-[10px]"
+                    className="flex flex-wrap items-center gap-2 text-[11px]"
                   >
                     <span className="w-8 font-mono text-ink-muted">
                       {str(row.row_number)}
@@ -378,7 +378,7 @@ export function CustomerImport({
               Add {preview.totals.accepted} contact(s)
             </Button>
             {!preview.totals.accepted ? (
-              <span className="text-[10px] text-ink-muted">
+              <span className="text-[11px] text-ink-muted">
                 {t('import.nothingToAdd')}
               </span>
             ) : null}
@@ -388,14 +388,14 @@ export function CustomerImport({
 
       {jobs.length ? (
         <div className="mt-6">
-          <p className="text-[10px] uppercase tracking-wider text-ink-muted">
+          <p className="text-[11px] uppercase tracking-wider text-ink-muted">
             {t('import.recent')}
           </p>
           <div className="mt-2 space-y-1">
             {jobs.slice(0, 6).map((job) => (
               <div
                 key={str(job.id)}
-                className="flex flex-wrap items-center gap-2 rounded-lg border border-hairline bg-surface-muted px-2.5 py-1.5 text-[10px]"
+                className="flex flex-wrap items-center gap-2 rounded-lg border border-hairline bg-surface-muted px-2.5 py-1.5 text-[11px]"
               >
                 <span className="text-ink">{str(job.filename)}</span>
                 <span className="text-ink-muted">

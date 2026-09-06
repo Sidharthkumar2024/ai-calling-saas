@@ -154,7 +154,7 @@ export function CustomerVoiceProfiles() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
           Voice profile engine
         </p>
         <h2 className="mt-2 text-2xl font-semibold tracking-tight">
@@ -279,7 +279,7 @@ export function CustomerVoiceProfiles() {
             </Field>
           </div>
 
-          <p className="mt-4 text-[9px] uppercase tracking-wider text-ink-muted">
+          <p className="mt-4 text-[11px] uppercase tracking-wider text-ink-muted">
             Allowed languages
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -296,7 +296,7 @@ export function CustomerVoiceProfiles() {
                         : [...current, code],
                     )
                   }
-                  className={`rounded-full border px-2.5 py-1 text-[10px] transition ${on ? 'border-hairline bg-surface-strong text-ink' : 'border-hairline text-ink-muted hover:bg-surface-strong'}`}
+                  className={`rounded-full border px-2.5 py-1 text-[11px] transition ${on ? 'border-hairline bg-surface-strong text-ink' : 'border-hairline text-ink-muted hover:bg-surface-strong'}`}
                 >
                   {label}
                 </button>
@@ -333,7 +333,7 @@ export function CustomerVoiceProfiles() {
                   <Mic2 className="size-3.5 text-primary" />
                   <p className="truncate text-sm font-medium">{profile.name}</p>
                 </div>
-                <p className="mt-1 text-[10px] text-ink-muted">
+                <p className="mt-1 text-[11px] text-ink-muted">
                   {profile.presentation} · {profile.provider}
                   {profile.modelId ? ` · ${profile.modelId}` : ''}
                   {profile.hasVoiceId ? '' : ' · no voice id yet'}
@@ -341,14 +341,14 @@ export function CustomerVoiceProfiles() {
               </div>
               <Badge
                 variant="outline"
-                className={`text-[9px] ${profile.voiceLock ? 'border-amber-300/20 bg-amber-300/8 text-warning-text' : 'border-hairline text-ink-body'}`}
+                className={`text-[11px] ${profile.voiceLock ? 'border-amber-300/20 bg-amber-300/8 text-warning-text' : 'border-hairline text-ink-body'}`}
               >
                 {profile.voiceLock ? 'locked' : 'unlocked'}
               </Badge>
             </div>
 
             {profile.removalNoticeAt ? (
-              <p className="mt-3 rounded-lg border border-rose-400/25 bg-rose-400/[0.07] px-2.5 py-2 text-[10px] leading-relaxed text-danger-text">
+              <p className="mt-3 rounded-lg border border-rose-400/25 bg-rose-400/[0.07] px-2.5 py-2 text-[11px] leading-relaxed text-danger-text">
                 <strong>Voice scheduled for removal.</strong> The provider is
                 withdrawing this voice; agents using this profile will stop
                 speaking once it is gone. Pick a replacement voice id.
@@ -360,14 +360,14 @@ export function CustomerVoiceProfiles() {
               {profile.allowedLanguages.map((code) => (
                 <span
                   key={code}
-                  className="rounded-md border border-hairline bg-surface-strong px-1.5 py-0.5 text-[9px] text-ink-body"
+                  className="rounded-md border border-hairline bg-surface-strong px-1.5 py-0.5 text-[11px] text-ink-body"
                 >
                   {code}
                 </span>
               ))}
             </div>
 
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] text-ink-muted">
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-ink-muted">
               <span>rate: {profile.speakingRate}</span>
               <span>·</span>
               <span>style: {profile.style}</span>
@@ -388,7 +388,7 @@ export function CustomerVoiceProfiles() {
                       profile.voiceLock ? 'Voice unlocked' : 'Voice locked ✓',
                     );
                 }}
-                className="h-8 border-hairline bg-transparent text-[10px]"
+                className="h-8 border-hairline bg-transparent text-[11px]"
               >
                 {profile.voiceLock ? <LockOpen /> : <Lock />}
                 {profile.voiceLock ? 'Unlock' : 'Lock voice'}
@@ -413,7 +413,7 @@ export function CustomerVoiceProfiles() {
                     );
                     if (ok) flash(`${agent.name} now uses ${profile.name} ✓`);
                   }}
-                  className="h-8 border-hairline bg-transparent text-[10px]"
+                  className="h-8 border-hairline bg-transparent text-[11px]"
                 >
                   {agent.voice_profile_id === profile.id
                     ? `✓ ${agent.name}`
@@ -444,7 +444,7 @@ function Field({
 }) {
   return (
     <div>
-      <p className="mb-1 text-[9px] uppercase tracking-wider text-ink-muted">
+      <p className="mb-1 text-[11px] uppercase tracking-wider text-ink-muted">
         {label}
       </p>
       {children}

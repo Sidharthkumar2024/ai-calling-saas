@@ -322,7 +322,7 @@ export function RetargetingPanel({
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-xs font-medium">{source.name}</p>
                       <span
-                        className={`text-[10px] ${source.state === 'Ready' ? 'text-success-text' : 'text-warning-text'}`}
+                        className={`text-[11px] ${source.state === 'Ready' ? 'text-success-text' : 'text-warning-text'}`}
                       >
                         {source.state}
                       </span>

@@ -6,7 +6,10 @@ import { requireAnyCustomerPermission } from '@/lib/customer-rbac';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-  const auth = await requireAnyCustomerPermission(request, ['crm.manage', 'support.manage']);
+  const auth = await requireAnyCustomerPermission(request, [
+    'crm.manage',
+    'support.manage',
+  ]);
   if (auth.response) return auth.response;
   await ensureSchema();
   const rows = await getRawDb()

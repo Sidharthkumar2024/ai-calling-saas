@@ -124,7 +124,7 @@ export function CustomerBilling({
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-warning-text">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-warning-text">
           Subscription and wallet
         </p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -140,7 +140,7 @@ export function CustomerBilling({
           <ShieldCheck className="mt-0.5 size-4 shrink-0 text-cyan-700" />
           <div>
             <p className="font-medium">Local sandbox billing is active</p>
-            <p className="mt-1 text-[10px] leading-4 text-ink-muted">
+            <p className="mt-1 text-[11px] leading-4 text-ink-muted">
               Checkout buttons simulate a successful payment, add credits and
               generate invoices locally. Add Stripe keys to use hosted checkout
               and signed webhooks.
@@ -166,17 +166,17 @@ export function CustomerBilling({
             </span>
             <Badge
               variant="outline"
-              className="border-emerald-400/15 text-[8px] text-success-text"
+              className="border-emerald-400/15 text-[11px] text-success-text"
             >
               {subscription.status || 'active'}
             </Badge>
           </div>
-          <p className="mt-8 text-[10px] uppercase tracking-[0.14em] text-ink-muted">
+          <p className="mt-8 text-[11px] uppercase tracking-[0.14em] text-ink-muted">
             Available credits
           </p>
           <p className="mt-2 text-4xl font-semibold">{num(wallet.balance)}</p>
           <div className="mt-5">
-            <div className="mb-2 flex justify-between text-[9px] text-ink-muted">
+            <div className="mb-2 flex justify-between text-[11px] text-ink-muted">
               <span>Low-balance alert</span>
               <span>{num(wallet.low_balance_threshold)}</span>
             </div>
@@ -189,14 +189,14 @@ export function CustomerBilling({
             <p className="text-xs font-medium">
               {subscription.name || 'Growth'} plan
             </p>
-            <p className="mt-1 text-[10px] text-ink-muted">
+            <p className="mt-1 text-[11px] text-ink-muted">
               Renews {formatDate(subscription.current_period_end)}
             </p>
           </div>
         </section>
         <section className="rounded-2xl border border-hairline bg-surface p-5">
           <h2 className="text-sm font-semibold">Instant credit top-up</h2>
-          <p className="mt-1 text-[10px] text-ink-muted">
+          <p className="mt-1 text-[11px] text-ink-muted">
             Credits are consumed by calling and AI usage
           </p>
           <div className="mt-5 grid gap-3 md:grid-cols-3">
@@ -209,7 +209,7 @@ export function CustomerBilling({
                 <p className="mt-4 text-lg font-semibold">
                   {num(item.credits)}
                 </p>
-                <p className="text-[9px] text-ink-muted">credits</p>
+                <p className="text-[11px] text-ink-muted">credits</p>
                 <p className="mt-4 text-sm font-medium">{money(item.amount)}</p>
                 <Button
                   onClick={() =>
@@ -249,7 +249,7 @@ export function CustomerBilling({
                 <div className="flex items-center justify-between">
                   <p className="text-lg font-semibold">{plan.name}</p>
                   {current ? (
-                    <Badge className="bg-primary text-[8px] text-primary-foreground">
+                    <Badge className="bg-primary text-[11px] text-primary-foreground">
                       Current
                     </Badge>
                   ) : null}
@@ -265,7 +265,7 @@ export function CustomerBilling({
                   {features.map((feature) => (
                     <div
                       key={feature}
-                      className="flex gap-2 text-[10px] text-ink-muted"
+                      className="flex gap-2 text-[11px] text-ink-muted"
                     >
                       <Check className="size-3.5 text-success-text" /> {feature}
                     </div>
@@ -293,12 +293,12 @@ export function CustomerBilling({
 
       <section className="overflow-hidden rounded-2xl border border-hairline bg-surface p-5">
         <h2 className="text-sm font-semibold">Invoices</h2>
-        <p className="mt-1 text-[10px] text-ink-muted">
+        <p className="mt-1 text-[11px] text-ink-muted">
           GST-ready invoice records and payment status
         </p>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-xs">
-            <thead className="border-y border-hairline text-[9px] uppercase tracking-wider text-ink-muted">
+            <thead className="border-y border-hairline text-[11px] uppercase tracking-wider text-ink-muted">
               <tr>
                 {[
                   'Invoice',
@@ -339,7 +339,7 @@ export function CustomerBilling({
                   <td className="px-3 py-4">
                     <Badge
                       variant="outline"
-                      className="border-emerald-400/15 text-[8px] text-success-text"
+                      className="border-emerald-400/15 text-[11px] text-success-text"
                     >
                       {invoice.status}
                     </Badge>
@@ -384,7 +384,7 @@ export function CustomerBilling({
               </span>
               <div className="flex-1">
                 <p className="text-xs">{entry.description}</p>
-                <p className="mt-1 text-[9px] text-ink-muted">
+                <p className="mt-1 text-[11px] text-ink-muted">
                   {formatDate(entry.created_at)}
                 </p>
               </div>
@@ -395,7 +395,7 @@ export function CustomerBilling({
                   {entry.amount >= 0 ? '+' : ''}
                   {num(entry.amount)}
                 </p>
-                <p className="mt-1 text-[9px] text-ink-muted">
+                <p className="mt-1 text-[11px] text-ink-muted">
                   bal {num(entry.balance_after)}
                 </p>
               </div>

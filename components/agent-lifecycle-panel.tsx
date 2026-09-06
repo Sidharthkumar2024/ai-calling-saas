@@ -130,7 +130,7 @@ export function AgentLifecyclePanel({
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-[11px] font-semibold">Lifecycle</span>
         <span
-          className={`text-[10px] ${STATE_TONE[state] ?? 'text-ink-muted'}`}
+          className={`text-[11px] ${STATE_TONE[state] ?? 'text-ink-muted'}`}
         >
           {STATE_LABEL[state]}
         </span>
@@ -149,7 +149,7 @@ export function AgentLifecyclePanel({
               onClick={() =>
                 void act({ action: 'set_state', status: next }, next)
               }
-              className={`rounded-full border px-2.5 py-1 text-[10px] disabled:opacity-50 ${
+              className={`rounded-full border px-2.5 py-1 text-[11px] disabled:opacity-50 ${
                 next === LIVE_STATE
                   ? 'border-primary text-primary'
                   : 'border-hairline'
@@ -162,7 +162,7 @@ export function AgentLifecyclePanel({
             type="button"
             disabled={busy === 'clone'}
             onClick={() => void act({ action: 'clone' }, 'clone')}
-            className="rounded-full border border-hairline px-2.5 py-1 text-[10px] disabled:opacity-50"
+            className="rounded-full border border-hairline px-2.5 py-1 text-[11px] disabled:opacity-50"
           >
             Duplicate
           </button>
@@ -180,7 +180,7 @@ export function AgentLifecyclePanel({
               )
                 void act({ action: 'delete' }, 'delete');
             }}
-            className="rounded-full border border-hairline px-2.5 py-1 text-[10px] text-danger-text disabled:opacity-50"
+            className="rounded-full border border-hairline px-2.5 py-1 text-[11px] text-danger-text disabled:opacity-50"
           >
             Delete
           </button>
@@ -189,17 +189,17 @@ export function AgentLifecyclePanel({
 
       {/* Not a greyed-out button: the missing pieces, by name. */}
       {readiness && !readiness.ready ? (
-        <p className="mt-2 text-[10px] text-warning-text">
+        <p className="mt-2 text-[11px] text-warning-text">
           Not ready to go live — still needs {readiness.missing.join(', ')}.
         </p>
       ) : null}
       {readiness?.warnings.map((warning) => (
-        <p key={warning} className="mt-1 text-[10px] text-ink-muted">
+        <p key={warning} className="mt-1 text-[11px] text-ink-muted">
           {warning}
         </p>
       ))}
       {notice ? (
-        <output className="mt-2 block text-[10px] text-ink-body">
+        <output className="mt-2 block text-[11px] text-ink-body">
           {notice}
         </output>
       ) : null}
@@ -207,7 +207,7 @@ export function AgentLifecyclePanel({
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className="mt-3 text-[10px] text-ink-muted underline decoration-dotted underline-offset-2"
+        className="mt-3 text-[11px] text-ink-muted underline decoration-dotted underline-offset-2"
       >
         {open
           ? 'Hide history'
@@ -217,7 +217,7 @@ export function AgentLifecyclePanel({
       {open ? (
         <div className="mt-2 space-y-1.5">
           {versions.length === 0 ? (
-            <p className="text-[10px] text-ink-muted">
+            <p className="text-[11px] text-ink-muted">
               Nothing saved yet. A version is kept every time you save this
               agent, so the configuration you are replacing is always
               recoverable.
@@ -229,10 +229,10 @@ export function AgentLifecyclePanel({
               className="rounded-lg border border-hairline bg-surface-muted px-2.5 py-2"
             >
               <div className="flex flex-wrap items-baseline gap-2">
-                <span className="text-[10px] font-medium">
+                <span className="text-[11px] font-medium">
                   v{version.version}
                 </span>
-                <span className="text-[9px] text-ink-muted">
+                <span className="text-[11px] text-ink-muted">
                   {version.note} · {version.createdAt}
                 </span>
                 <button
@@ -247,13 +247,13 @@ export function AgentLifecyclePanel({
                       `restore-${version.version}`,
                     )
                   }
-                  className="ml-auto rounded-full border border-hairline px-2.5 py-1 text-[10px] disabled:opacity-45"
+                  className="ml-auto rounded-full border border-hairline px-2.5 py-1 text-[11px] disabled:opacity-45"
                 >
                   Restore
                 </button>
               </div>
               {/* What it would actually move, and whether the agent is live. */}
-              <p className="mt-1 text-[9px] text-ink-muted">
+              <p className="mt-1 text-[11px] text-ink-muted">
                 {describeRollback({
                   version: version.version,
                   changed: version.changesFromCurrent,

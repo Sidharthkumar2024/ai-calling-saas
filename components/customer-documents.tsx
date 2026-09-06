@@ -175,7 +175,7 @@ export function CustomerDocuments() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-sm font-semibold">Document inbox</h2>
-            <p className="mt-1 max-w-2xl text-[10px] text-ink-muted">
+            <p className="mt-1 max-w-2xl text-[11px] text-ink-muted">
               Files your customers send over WhatsApp, kept in your own storage
               rather than left on the provider — WhatsApp media stops resolving
               after a while, and a business record cannot depend on it.
@@ -185,7 +185,7 @@ export function CustomerDocuments() {
             aria-label="Filter by status"
             value={filter}
             onChange={(event) => setFilter(event.target.value)}
-            className="h-8 rounded-lg border border-hairline bg-surface px-2.5 text-[10px]"
+            className="h-8 rounded-lg border border-hairline bg-surface px-2.5 text-[11px]"
           >
             <option value="">All</option>
             {DOCUMENT_STATUSES.map((status) => (
@@ -197,12 +197,12 @@ export function CustomerDocuments() {
         </div>
         {note ? (
           /* Said out loud, because the next click opens a stranger's file. */
-          <p className="mt-3 rounded-lg border border-hairline bg-surface-muted p-2.5 text-[10px] text-ink-body">
+          <p className="mt-3 rounded-lg border border-hairline bg-surface-muted p-2.5 text-[11px] text-ink-body">
             {note}
           </p>
         ) : null}
         {problem ? (
-          <p role="alert" className="mt-2 text-[10px] text-danger-text">
+          <p role="alert" className="mt-2 text-[11px] text-danger-text">
             {problem}
           </p>
         ) : null}
@@ -210,13 +210,13 @@ export function CustomerDocuments() {
 
       <section className="portal-panel p-5">
         <h2 className="text-sm font-semibold">Ask for a document</h2>
-        <p className="mt-1 max-w-2xl text-[10px] text-ink-muted">
+        <p className="mt-1 max-w-2xl text-[11px] text-ink-muted">
           Creates a real upload link and returns it once. Nothing is sent from
           here — copy it, or let an agent or a workflow message it. The link
           works for three days and closes as soon as one file arrives.
         </p>
         <div className="mt-3 flex flex-wrap items-end gap-2">
-          <label className="flex flex-col gap-1 text-[10px] text-ink-muted">
+          <label className="flex flex-col gap-1 text-[11px] text-ink-muted">
             What to ask for
             <input
               value={asking.document}
@@ -230,7 +230,7 @@ export function CustomerDocuments() {
               className="h-8 w-48 rounded-lg border border-hairline bg-surface px-2.5 text-[11px] text-ink-body"
             />
           </label>
-          <label className="flex flex-col gap-1 text-[10px] text-ink-muted">
+          <label className="flex flex-col gap-1 text-[11px] text-ink-muted">
             Their number (optional)
             <input
               value={asking.phone}
@@ -254,20 +254,20 @@ export function CustomerDocuments() {
           </button>
         </div>
         {askProblem ? (
-          <p role="alert" className="mt-3 text-[10px] text-danger-text">
+          <p role="alert" className="mt-3 text-[11px] text-danger-text">
             {askProblem}
           </p>
         ) : null}
         {minted ? (
           <div className="mt-3 rounded-lg border border-hairline bg-surface-muted p-2.5">
-            <p className="text-[10px] text-ink-muted">
+            <p className="text-[11px] text-ink-muted">
               Copy this now — it is not shown again.
             </p>
             <p className="mt-1 break-all text-[11px] text-ink-body">
               {minted.url}
             </p>
             {minted.message ? (
-              <p className="mt-2 text-[10px] text-ink-muted">
+              <p className="mt-2 text-[11px] text-ink-muted">
                 Suggested message: {minted.message}
               </p>
             ) : null}
@@ -297,7 +297,7 @@ export function CustomerDocuments() {
                         requestId: row.id,
                       })
                     }
-                    className="h-6 rounded-md border border-hairline px-2 text-[10px] text-ink-muted"
+                    className="h-6 rounded-md border border-hairline px-2 text-[11px] text-ink-muted"
                   >
                     Withdraw
                   </button>
@@ -326,18 +326,18 @@ export function CustomerDocuments() {
                 <span className="text-[11px] font-medium">
                   {document.filename || document.document_type}
                 </span>
-                <span className="text-[9px] text-ink-muted">
+                <span className="text-[11px] text-ink-muted">
                   {document.lead_name
                     ? document.lead_name
                     : (document.contact_phone ?? 'unknown number')}
                 </span>
                 <span
-                  className={`ml-auto text-[9px] ${STATUS_TONE[document.status] ?? 'text-ink-muted'}`}
+                  className={`ml-auto text-[11px] ${STATUS_TONE[document.status] ?? 'text-ink-muted'}`}
                 >
                   {document.status.replaceAll('_', ' ')}
                 </span>
               </div>
-              <p className="mt-0.5 text-[9px] text-ink-muted">
+              <p className="mt-0.5 text-[11px] text-ink-muted">
                 {document.mime_type ?? 'unknown type'} ·{' '}
                 {Math.max(1, Math.round(document.size_bytes / 1024))} KB ·{' '}
                 {document.source} · {document.created_at}
@@ -345,13 +345,13 @@ export function CustomerDocuments() {
               {document.rejection_reason ? (
                 /* Why it was turned away, so nobody waits for a file that was
                    refused an hour ago. */
-                <p className="mt-1 text-[10px] text-warning-text">
+                <p className="mt-1 text-[11px] text-warning-text">
                   {document.rejection_reason}
                 </p>
               ) : null}
               {/* Where it was filed. A link to a row somebody has since deleted
                   reads as handled, so a missing target is said out loud. */}
-              <p className="mt-1 text-[10px] text-ink-muted">
+              <p className="mt-1 text-[11px] text-ink-muted">
                 {describeAssociation({
                   kind: document.association_type,
                   id: document.association_id,
@@ -374,12 +374,12 @@ export function CustomerDocuments() {
                 {document.has_file ? (
                   <a
                     href={`/api/app/documents/${encodeURIComponent(document.id)}`}
-                    className="rounded-full border border-hairline px-2.5 py-1 text-[10px]"
+                    className="rounded-full border border-hairline px-2.5 py-1 text-[11px]"
                   >
                     Download
                   </a>
                 ) : (
-                  <span className="text-[9px] text-ink-muted">
+                  <span className="text-[11px] text-ink-muted">
                     No file was stored.
                   </span>
                 )}
@@ -388,7 +388,7 @@ export function CustomerDocuments() {
                     key={status}
                     type="button"
                     onClick={() => void review(document.id, status)}
-                    className="rounded-full border border-hairline px-2.5 py-1 text-[10px]"
+                    className="rounded-full border border-hairline px-2.5 py-1 text-[11px]"
                   >
                     {status === 'under_review'
                       ? 'Start review'
@@ -398,7 +398,7 @@ export function CustomerDocuments() {
                   </button>
                 ))}
                 {nextStatuses(document.status).length === 0 ? (
-                  <span className="text-[9px] text-ink-muted">
+                  <span className="text-[11px] text-ink-muted">
                     Accepted — this one is settled.
                   </span>
                 ) : null}
@@ -459,7 +459,7 @@ function FilePicker({
         aria-label="What to file this document against"
         value={kind}
         onChange={(event) => void chooseKind(event.target.value)}
-        className="h-7 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+        className="h-7 rounded-lg border border-hairline bg-surface px-2 text-[11px]"
       >
         <option value="">File against…</option>
         {ASSOCIATION_KINDS.map((entry) => (
@@ -470,9 +470,9 @@ function FilePicker({
       </select>
       {kind ? (
         loading ? (
-          <span className="text-[9px] text-ink-muted">Loading…</span>
+          <span className="text-[11px] text-ink-muted">Loading…</span>
         ) : targets.length === 0 ? (
-          <span className="text-[9px] text-ink-muted">
+          <span className="text-[11px] text-ink-muted">
             No {ASSOCIATION_LABEL[kind].toLowerCase()} records in this workspace
             yet.
           </span>
@@ -483,7 +483,7 @@ function FilePicker({
             onChange={(event) => {
               if (event.target.value) void onPick(kind, event.target.value);
             }}
-            className="h-7 max-w-[220px] rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+            className="h-7 max-w-[220px] rounded-lg border border-hairline bg-surface px-2 text-[11px]"
           >
             <option value="">Choose…</option>
             {targets.map((target) => (
@@ -498,7 +498,7 @@ function FilePicker({
         <button
           type="button"
           onClick={() => void onPick(null, null)}
-          className="rounded-full border border-hairline px-2 py-0.5 text-[9px]"
+          className="rounded-full border border-hairline px-2 py-0.5 text-[11px]"
         >
           Unfile
         </button>

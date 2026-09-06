@@ -80,7 +80,7 @@ export function CustomerSecurity() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-sm font-semibold">Account security</h2>
-          <p className="mt-1 text-[10px] text-ink-muted">
+          <p className="mt-1 text-[11px] text-ink-muted">
             Authenticator MFA and revocable HttpOnly sessions
           </p>
         </div>
@@ -99,12 +99,12 @@ export function CustomerSecurity() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium">Authenticator app</p>
-                <p className="mt-1 text-[9px] text-ink-muted">
+                <p className="mt-1 text-[11px] text-ink-muted">
                   Required after password sign-in
                 </p>
               </div>
               <span
-                className={`rounded-full px-2 py-1 text-[9px] ${data.settings.mfa_enabled ? 'bg-emerald-400/8 text-success-text' : 'bg-surface-strong text-ink-muted'}`}
+                className={`rounded-full px-2 py-1 text-[11px] ${data.settings.mfa_enabled ? 'bg-emerald-400/8 text-success-text' : 'bg-surface-strong text-ink-muted'}`}
               >
                 {data.settings.mfa_enabled ? 'Enabled' : 'Disabled'}
               </span>
@@ -126,7 +126,7 @@ export function CustomerSecurity() {
             ) : null}
             {secret ? (
               <div className="mt-4 space-y-3">
-                <div className="flex items-center gap-2 rounded-lg bg-surface-muted p-3 font-mono text-[10px] text-ink-body">
+                <div className="flex items-center gap-2 rounded-lg bg-surface-muted p-3 font-mono text-[11px] text-ink-body">
                   <span className="min-w-0 flex-1 break-all">{secret}</span>
                   <Button
                     size="sm"
@@ -165,10 +165,10 @@ export function CustomerSecurity() {
             ) : null}
             {recoveryCodes.length ? (
               <div className="mt-4 rounded-xl border border-amber-300/15 bg-amber-300/5 p-3">
-                <p className="text-[10px] font-medium text-warning-text">
+                <p className="text-[11px] font-medium text-warning-text">
                   Save these recovery codes once
                 </p>
-                <p className="mt-2 break-words font-mono text-[9px] leading-5 text-ink-body">
+                <p className="mt-2 break-words font-mono text-[11px] leading-5 text-ink-body">
                   {recoveryCodes.join(' · ')}
                 </p>
               </div>
@@ -186,10 +186,10 @@ export function CustomerSecurity() {
                     <LogOut className="size-3.5 text-ink-muted" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-mono text-[9px] text-ink-body">
+                    <p className="truncate font-mono text-[11px] text-ink-body">
                       {session.id}
                     </p>
-                    <p className="mt-1 text-[8px] text-ink-muted">
+                    <p className="mt-1 text-[11px] text-ink-muted">
                       Expires {formatDate(session.expires_at)}
                     </p>
                   </div>
@@ -212,7 +212,7 @@ export function CustomerSecurity() {
                       )}
                     </Button>
                   ) : (
-                    <span className="text-[8px] text-success-text">
+                    <span className="text-[11px] text-success-text">
                       Current
                     </span>
                   )}

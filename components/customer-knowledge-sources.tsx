@@ -118,7 +118,7 @@ export function KnowledgeSources({
   return (
     <section className="portal-panel p-5">
       <h2 className="text-sm font-semibold">What is in your knowledge bases</h2>
-      <p className="mt-1 max-w-2xl text-[10px] text-ink-muted">
+      <p className="mt-1 max-w-2xl text-[11px] text-ink-muted">
         Your agents are told to answer only from approved knowledge. This is
         that knowledge — paste the text, or give a public page to read. An empty
         base means the agent has nothing to answer from.
@@ -131,7 +131,7 @@ export function KnowledgeSources({
       ) : (
         <>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <label className="flex flex-col gap-1 text-[10px] text-ink-muted">
+            <label className="flex flex-col gap-1 text-[11px] text-ink-muted">
               Add to
               <select
                 value={draft.knowledgeBaseId || bases[0]?.id}
@@ -149,7 +149,7 @@ export function KnowledgeSources({
             </label>
             <label
               htmlFor="kb-source-name"
-              className="flex flex-col gap-1 text-[10px] text-ink-muted"
+              className="flex flex-col gap-1 text-[11px] text-ink-muted"
             >
               What is this source called?
               <Input
@@ -163,7 +163,7 @@ export function KnowledgeSources({
             </label>
             <label
               htmlFor="kb-source-text"
-              className="flex flex-col gap-1 text-[10px] text-ink-muted sm:col-span-2"
+              className="flex flex-col gap-1 text-[11px] text-ink-muted sm:col-span-2"
             >
               Paste the content
               <Textarea
@@ -178,7 +178,7 @@ export function KnowledgeSources({
             </label>
             <label
               htmlFor="kb-source-url"
-              className="flex flex-col gap-1 text-[10px] text-ink-muted sm:col-span-2"
+              className="flex flex-col gap-1 text-[11px] text-ink-muted sm:col-span-2"
             >
               …or read a public page instead
               <Input
@@ -210,10 +210,10 @@ export function KnowledgeSources({
               Add source
             </Button>
             {notice ? (
-              <span className="text-[10px] text-ink-body">{notice}</span>
+              <span className="text-[11px] text-ink-body">{notice}</span>
             ) : null}
             {problem ? (
-              <span role="alert" className="text-[10px] text-danger-text">
+              <span role="alert" className="text-[11px] text-danger-text">
                 {problem}
               </span>
             ) : null}
@@ -231,14 +231,14 @@ export function KnowledgeSources({
             >
               <p className="text-[11px] font-medium">
                 {base.name}
-                <span className="ml-2 text-[10px] font-normal text-ink-muted">
+                <span className="ml-2 text-[11px] font-normal text-ink-muted">
                   {list.length === 0
                     ? 'empty — your agents have nothing to answer from here'
                     : `${list.length} ${list.length === 1 ? 'source' : 'sources'}`}
                 </span>
               </p>
               {list.map((source) => (
-                <p key={source.id} className="mt-1 text-[10px] text-ink-muted">
+                <p key={source.id} className="mt-1 text-[11px] text-ink-muted">
                   {source.name}
                   {' · '}
                   {source.chunk_count}{' '}

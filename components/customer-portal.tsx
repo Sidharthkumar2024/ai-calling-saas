@@ -644,7 +644,7 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
             Two-factor authentication required
           </h1>
           <p className="mt-2 text-[11px] text-ink-body">{mfaRequired}</p>
-          <p className="mt-3 text-[10px] text-ink-muted">
+          <p className="mt-3 text-[11px] text-ink-muted">
             Your password was accepted. This is the one step left before the
             workspace opens.
           </p>
@@ -841,11 +841,11 @@ function CustomerOverview({
             />
             <div className="relative flex items-start justify-between gap-4">
               <div>
-                <div className="flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.18em] text-success-text">
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-success-text">
                   <span className="size-1.5 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,.8)]" />{' '}
                   Revenue pipeline live
                 </div>
-                <p className="mt-5 text-[10px] uppercase tracking-[0.14em] text-ink-muted">
+                <p className="mt-5 text-[11px] uppercase tracking-[0.14em] text-ink-muted">
                   Open pipeline value
                 </p>
                 <p className="mt-2 text-4xl font-semibold tracking-[-0.04em] text-ink sm:text-5xl">
@@ -890,7 +890,7 @@ function CustomerOverview({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold">System readiness</p>
-                <p className="mt-1 text-[10px] text-ink-muted">
+                <p className="mt-1 text-[11px] text-ink-muted">
                   Private provider adapters
                 </p>
               </div>
@@ -905,11 +905,11 @@ function CustomerOverview({
                   <span
                     className={`size-1.5 rounded-full ${provider.configured ? 'bg-emerald-300' : 'bg-primary'}`}
                   />
-                  <span className="min-w-0 flex-1 truncate text-[10px] text-ink-body">
+                  <span className="min-w-0 flex-1 truncate text-[11px] text-ink-body">
                     {provider.publicName}
                   </span>
                   <span
-                    className={`text-[8px] uppercase tracking-wider ${provider.configured ? 'text-success-text' : 'text-warning-text'}`}
+                    className={`text-[11px] uppercase tracking-wider ${provider.configured ? 'text-success-text' : 'text-warning-text'}`}
                   >
                     {provider.configured ? 'connected' : 'sandbox'}
                   </span>
@@ -984,7 +984,7 @@ function CustomerOverview({
           />
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[700px] text-left text-xs">
-              <thead className="border-y border-hairline text-[9px] uppercase tracking-wider text-ink-muted">
+              <thead className="border-y border-hairline text-[11px] uppercase tracking-wider text-ink-muted">
                 <tr>
                   {['Lead', 'Source', 'Score', 'Intent', 'Value', 'Stage'].map(
                     (h) => (
@@ -1000,7 +1000,7 @@ function CustomerOverview({
                   <tr key={lead.id}>
                     <td className="px-3 py-4">
                       <p className="font-medium">{lead.name}</p>
-                      <p className="mt-1 font-mono text-[9px] text-ink-muted">
+                      <p className="mt-1 font-mono text-[11px] text-ink-muted">
                         {lead.phone}
                       </p>
                     </td>
@@ -1048,7 +1048,7 @@ function CustomerOverview({
                 </span>
                 <div className="flex-1">
                   <p className="text-xs font-medium">{source.name}</p>
-                  <p className="mt-1 text-[9px] text-ink-muted">
+                  <p className="mt-1 text-[11px] text-ink-muted">
                     {source.status.replaceAll('_', ' ')}
                   </p>
                 </div>
@@ -1180,7 +1180,7 @@ function Retargeting({
                 <p className="text-xl font-semibold">
                   {num(audience.eligible_count)}
                 </p>
-                <p className="text-[9px] text-ink-muted">eligible contacts</p>
+                <p className="text-[11px] text-ink-muted">eligible contacts</p>
               </div>
               <Button
                 size="sm"
@@ -1253,7 +1253,7 @@ function Header({
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
           {eyebrow}
         </p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -1294,7 +1294,7 @@ function Metric({
   return (
     <div className="portal-stat group overflow-hidden p-4">
       <div className="flex items-center justify-between">
-        <p className="text-[9px] font-medium uppercase tracking-[0.14em] text-ink-muted">
+        <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-ink-muted">
           {label}
         </p>
         <span
@@ -1308,7 +1308,7 @@ function Metric({
           <p className="text-xl font-semibold tracking-tight text-ink sm:text-2xl">
             {value}
           </p>
-          <p className="mt-1 text-[9px] text-ink-muted">{note}</p>
+          <p className="mt-1 text-[11px] text-ink-muted">{note}</p>
         </div>
         <ArrowUpRight className="mb-1 size-3.5 text-ink-muted" />
       </div>
@@ -1336,7 +1336,7 @@ function PanelTitle({ title, note }: { title: string; note: string }) {
   return (
     <div>
       <h2 className="text-sm font-semibold">{title}</h2>
-      <p className="mt-1 text-[10px] text-ink-muted">{note}</p>
+      <p className="mt-1 text-[11px] text-ink-muted">{note}</p>
     </div>
   );
 }
@@ -1355,7 +1355,7 @@ function Status({ value }: { value: string }) {
   );
   return (
     <span
-      className={`inline-flex rounded-full border px-2 py-1 text-[9px] capitalize ${positive ? 'border-emerald-400/15 bg-emerald-400/7 text-success-text' : warning ? 'border-amber-300/15 bg-amber-300/7 text-warning-text' : 'border-hairline bg-surface-strong text-ink-muted'}`}
+      className={`inline-flex rounded-full border px-2 py-1 text-[11px] capitalize ${positive ? 'border-emerald-400/15 bg-emerald-400/7 text-success-text' : warning ? 'border-amber-300/15 bg-amber-300/7 text-warning-text' : 'border-hairline bg-surface-strong text-ink-muted'}`}
     >
       {value.replaceAll('_', ' ')}
     </span>

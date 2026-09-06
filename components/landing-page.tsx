@@ -104,7 +104,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
               <span className="block text-[15px] font-semibold tracking-tight">
                 Vaani
               </span>
-              <span className="block text-[9px] font-semibold uppercase tracking-[0.2em] text-ink-muted">
+              <span className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-muted">
                 {t('landing.tagline')}
               </span>
             </span>
@@ -237,7 +237,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                   <p className="text-lg font-semibold tracking-tight text-ink">
                     {value}
                   </p>
-                  <p className="mt-1 text-[9px] leading-4 text-ink-muted">
+                  <p className="mt-1 text-[11px] leading-4 text-ink-muted">
                     {t(key)}
                   </p>
                 </div>
@@ -257,12 +257,12 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                     <p className="text-xs font-medium">
                       Vaani Sara · {t('landing.demo.live')}
                     </p>
-                    <p className="text-[9px] text-ink-muted">
+                    <p className="text-[11px] text-ink-muted">
                       {t('landing.demo.context')}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 text-[10px] text-success-text">
+                <div className="flex items-center gap-1.5 text-[11px] text-success-text">
                   <span className="relative flex size-2">
                     <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-50" />
                     <span className="relative inline-flex size-2 rounded-full bg-emerald-400" />
@@ -281,11 +281,11 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                       <p className="truncate text-xs font-medium">
                         Aditi Mehra
                       </p>
-                      <p className="truncate text-[10px] text-ink-muted">
+                      <p className="truncate text-[11px] text-ink-muted">
                         {t('landing.demo.source')}
                       </p>
                     </div>
-                    <Badge className="border-0 bg-emerald-400/10 text-[9px] text-success-text">
+                    <Badge className="border-0 bg-emerald-400/10 text-[11px] text-success-text">
                       {t('landing.demo.highIntent')}
                     </Badge>
                   </div>
@@ -325,14 +325,14 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
 
                 <div className="space-y-4 p-4">
                   <div>
-                    <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
                       {t('landing.demo.leadScore')}
                     </p>
                     <div className="mt-2 flex items-end gap-2">
                       <span className="font-mono text-3xl font-semibold text-success-text">
                         92
                       </span>
-                      <span className="mb-1 text-[10px] text-ink-muted">
+                      <span className="mb-1 text-[11px] text-ink-muted">
                         / 100
                       </span>
                     </div>
@@ -353,28 +353,28 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                   ).map(([label, value]) => (
                     <div
                       key={label}
-                      className="flex items-center justify-between border-b border-hairline pb-2 text-[10px]"
+                      className="flex items-center justify-between border-b border-hairline pb-2 text-[11px]"
                     >
                       <span className="text-ink-muted">{label}</span>
                       <span className="font-medium text-ink">{value}</span>
                     </div>
                   ))}
                   <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/8 p-3">
-                    <p className="flex items-center gap-1.5 text-[10px] font-medium text-success-text">
+                    <p className="flex items-center gap-1.5 text-[11px] font-medium text-success-text">
                       <CheckCircle2 className="size-3" />{' '}
                       {t('landing.demo.appointmentReady')}
                     </p>
-                    <p className="mt-1 text-[9px] leading-4 text-ink-muted">
+                    <p className="mt-1 text-[11px] leading-4 text-ink-muted">
                       {t('landing.demo.appointmentWhen')}
                       <br />
                       {t('landing.demo.crmOwner')}
                     </p>
                   </div>
                   <div className="rounded-xl border border-violet-300/15 bg-violet-300/[0.055] p-3">
-                    <p className="flex items-center gap-1.5 text-[10px] font-medium text-violet-700">
+                    <p className="flex items-center gap-1.5 text-[11px] font-medium text-violet-700">
                       <Zap className="size-3" /> {t('landing.demo.turnTaking')}
                     </p>
-                    <p className="mt-1 text-[9px] leading-4 text-ink-muted">
+                    <p className="mt-1 text-[11px] leading-4 text-ink-muted">
                       {t('landing.demo.duplex')}
                       <br />
                       {t('landing.demo.codeSwitch')}
@@ -440,7 +440,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                   <ArrowRight className="absolute -right-3 top-8 z-10 hidden size-6 rounded-full border border-hairline bg-surface p-1 text-ink-muted xl:block" />
                 ) : null}
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-[10px] text-ink-muted">
+                  <span className="font-mono text-[11px] text-ink-muted">
                     {item.step}
                   </span>
                   <item.icon className="size-4 text-warning-text" />
@@ -484,7 +484,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                   <span className="grid size-10 place-items-center rounded-xl border border-hairline bg-surface-strong text-warning-text">
                     <item.icon className="size-4.5" />
                   </span>
-                  <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-ink-muted">
+                  <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-muted">
                     {sub(item.key, 'meta')}
                   </span>
                 </div>
@@ -559,7 +559,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                   </ul>
                 </div>
                 <div className="w-full max-w-[255px] rounded-2xl border border-hairline bg-surface-muted p-5">
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-ink-muted">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-muted">
                     {t('landing.solutions.liveOutcome')}
                   </p>
                   <p className="mt-5 text-lg font-medium leading-7">
@@ -576,7 +576,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                     ).map((key, index) => (
                       <div
                         key={key}
-                        className="flex items-center gap-2 text-[10px] text-ink-muted"
+                        className="flex items-center gap-2 text-[11px] text-ink-muted"
                       >
                         <span
                           className={`size-1.5 rounded-full ${index < 3 ? 'bg-emerald-400' : 'bg-primary'}`}
@@ -622,7 +622,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                   </span>
                   <div>
                     <h3 className="text-sm font-medium">{engine.name}</h3>
-                    <p className="mt-0.5 text-[9px] uppercase tracking-[0.14em] text-ink-muted">
+                    <p className="mt-0.5 text-[11px] uppercase tracking-[0.14em] text-ink-muted">
                       {sub(engine.key, 'role')}
                     </p>
                   </div>
@@ -680,7 +680,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                 className={`relative rounded-2xl border p-6 ${plan.featured ? 'border-amber-300/30 bg-amber-300/[0.045]' : 'border-hairline bg-surface-muted'}`}
               >
                 {plan.featured ? (
-                  <span className="absolute -top-3 left-6 rounded-full bg-primary px-3 py-1 text-[9px] font-semibold uppercase tracking-wider text-primary-foreground">
+                  <span className="absolute -top-3 left-6 rounded-full bg-primary px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-primary-foreground">
                     {t('landing.pricing.recommended')}
                   </span>
                 ) : null}

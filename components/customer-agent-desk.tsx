@@ -113,7 +113,7 @@ export function CustomerAgentDesk({ view }: { view: 'desk' | 'wallboard' }) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[9px] uppercase tracking-wider text-ink-muted">
+          <p className="text-[11px] uppercase tracking-wider text-ink-muted">
             {view === 'desk'
               ? t('screen.agent_desk.eyebrow')
               : t('screen.wallboard.eyebrow')}
@@ -129,7 +129,7 @@ export function CustomerAgentDesk({ view }: { view: 'desk' | 'wallboard' }) {
               : t('screen.wallboard.description')}
           </p>
         </div>
-        <div className="flex items-center gap-2 text-[10px] text-ink-muted">
+        <div className="flex items-center gap-2 text-[11px] text-ink-muted">
           <RefreshCw className="h-3 w-3" />
           {t('desk.refreshInterval', { seconds: POLL_MS / 1000 })}
         </div>
@@ -152,7 +152,7 @@ export function CustomerAgentDesk({ view }: { view: 'desk' | 'wallboard' }) {
 function Tile({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-xl border border-hairline bg-surface-muted p-3.5">
-      <p className="text-[9px] uppercase tracking-wider text-ink-muted">
+      <p className="text-[11px] uppercase tracking-wider text-ink-muted">
         {label}
       </p>
       <p className="mt-1.5 text-lg font-semibold">{value}</p>
@@ -198,7 +198,7 @@ function AgentDeskView({
       <div className="flex flex-wrap items-center gap-2.5 rounded-2xl border border-hairline bg-surface-muted p-4">
         <div className="mr-auto">
           <p className="text-[11px] font-medium">{str(me.name)}</p>
-          <p className="mt-0.5 text-[10px] text-ink-muted">
+          <p className="mt-0.5 text-[11px] text-ink-muted">
             {str(me.active_calls, '0')} of {str(me.max_concurrent_calls, '1')}{' '}
             {t('desk.slotsInUse')}
           </p>
@@ -248,7 +248,7 @@ function AgentDeskView({
                     : 'border-hairline bg-surface-muted'
                 }`}
               >
-                <div className="flex flex-wrap items-center gap-2 text-[10px] text-ink-muted">
+                <div className="flex flex-wrap items-center gap-2 text-[11px] text-ink-muted">
                   <PhoneIncoming className="h-3 w-3" />
                   <span className="rounded-md bg-surface-strong px-2 py-0.5 uppercase tracking-wide">
                     {str(row.queue_slug, 'unrouted')}
@@ -286,7 +286,7 @@ function AgentDeskView({
                     {t('desk.accept')}
                   </Button>
                   {availability !== 'online' ? (
-                    <span className="self-center text-[10px] text-ink-muted">
+                    <span className="self-center text-[11px] text-ink-muted">
                       {t('desk.goOnlineToAccept')}
                     </span>
                   ) : null}
@@ -310,7 +310,7 @@ function AgentDeskView({
               key={str(row.id)}
               className="rounded-xl border border-hairline bg-surface-muted p-4"
             >
-              <div className="flex flex-wrap items-center gap-2 text-[10px] text-ink-muted">
+              <div className="flex flex-wrap items-center gap-2 text-[11px] text-ink-muted">
                 <span className="rounded-md bg-surface-strong px-2 py-0.5 uppercase tracking-wide">
                   {str(row.queue_slug, 'unrouted')}
                 </span>
@@ -427,7 +427,7 @@ function WallboardView({
       <section className="overflow-hidden rounded-2xl border border-hairline bg-surface">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[820px] text-left text-xs">
-            <thead className="border-b border-hairline bg-surface-muted text-[9px] uppercase tracking-wider text-ink-muted">
+            <thead className="border-b border-hairline bg-surface-muted text-[11px] uppercase tracking-wider text-ink-muted">
               <tr>
                 {[
                   'Queue',
@@ -450,7 +450,7 @@ function WallboardView({
                 <tr key={str(queue.id)}>
                   <td className="px-4 py-3.5">
                     <p className="font-medium">{str(queue.name)}</p>
-                    <p className="mt-0.5 font-mono text-[9px] text-ink-muted">
+                    <p className="mt-0.5 font-mono text-[11px] text-ink-muted">
                       {str(queue.slug)}
                     </p>
                   </td>
@@ -504,7 +504,7 @@ function WallboardView({
               >
                 <div className="mr-auto">
                   <p className="text-[11px] font-medium">{str(agent.name)}</p>
-                  <p className="mt-0.5 text-[9px] text-ink-muted">
+                  <p className="mt-0.5 text-[11px] text-ink-muted">
                     {str(agent.role).replaceAll('_', ' ')} ·{' '}
                     {str(agent.active_calls)}/{str(agent.max_concurrent_calls)}{' '}
                     slots
@@ -522,7 +522,7 @@ function WallboardView({
                         availability: state,
                       })
                     }
-                    className={`rounded-md border px-2 py-1 text-[9px] capitalize transition ${
+                    className={`rounded-md border px-2 py-1 text-[11px] capitalize transition ${
                       str(agent.availability) === state
                         ? 'border-emerald-400/40 bg-emerald-400/12 text-success-text'
                         : 'border-hairline text-ink-muted hover:text-ink'
@@ -540,7 +540,7 @@ function WallboardView({
           <h2 className="text-[11px] font-semibold text-ink">
             {t('desk.routingRules')}
           </h2>
-          <p className="mt-1 text-[10px] text-ink-muted">
+          <p className="mt-1 text-[11px] text-ink-muted">
             {t('desk.routingRulesHint')}
           </p>
           <div className="mt-3 space-y-2">
@@ -555,13 +555,13 @@ function WallboardView({
                 key={str(rule.id)}
                 className="flex items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2.5 text-[11px]"
               >
-                <span className="font-mono text-[9px] text-ink-muted">
+                <span className="font-mono text-[11px] text-ink-muted">
                   {str(rule.priority)}
                 </span>
                 <span className="text-ink">
                   {str(rule.match_type)} = {str(rule.match_value)}
                 </span>
-                <span className="ml-auto rounded-md bg-surface-strong px-2 py-0.5 text-[9px] uppercase tracking-wide text-ink-body">
+                <span className="ml-auto rounded-md bg-surface-strong px-2 py-0.5 text-[11px] uppercase tracking-wide text-ink-body">
                   {str(rule.queue_slug, 'missing queue')}
                 </span>
               </div>
@@ -585,7 +585,7 @@ function WallboardView({
               key={str(row.id)}
               className="rounded-xl border border-hairline bg-surface-muted px-3 py-2.5"
             >
-              <div className="flex flex-wrap items-center gap-2 text-[10px] text-ink-muted">
+              <div className="flex flex-wrap items-center gap-2 text-[11px] text-ink-muted">
                 <span className="rounded-md bg-surface-strong px-2 py-0.5 uppercase tracking-wide">
                   {str(row.disposition, 'no disposition').replaceAll('_', ' ')}
                 </span>
@@ -654,7 +654,7 @@ function CopilotCard({ handoffId }: { handoffId: string }) {
   return (
     <div className="mt-3 rounded-xl border border-sky-400/18 bg-sky-400/[0.05] p-3.5">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-[9px] uppercase tracking-wider text-sky-700">
+        <p className="text-[11px] uppercase tracking-wider text-sky-700">
           {t('desk.copilot')}
           {data?.turnCount ? ` · ${data.turnCount}` : ''}
         </p>
@@ -662,7 +662,7 @@ function CopilotCard({ handoffId }: { handoffId: string }) {
           type="button"
           disabled={loading}
           onClick={() => void fetchCopilot()}
-          className="rounded-md border border-hairline px-2 py-1 text-[9px] text-ink-body transition hover:text-ink"
+          className="rounded-md border border-hairline px-2 py-1 text-[11px] text-ink-body transition hover:text-ink"
         >
           {loading ? t('import.reading') : t('desk.refresh')}
         </button>
@@ -699,7 +699,7 @@ function CopilotCard({ handoffId }: { handoffId: string }) {
               {data.risks.map((risk, index) => (
                 <li
                   key={`risk-${index}`}
-                  className="rounded-lg border border-amber-400/25 bg-amber-400/[0.07] px-2.5 py-1.5 text-[10px] text-warning-text"
+                  className="rounded-lg border border-amber-400/25 bg-amber-400/[0.07] px-2.5 py-1.5 text-[11px] text-warning-text"
                 >
                   {risk}
                 </li>
@@ -719,7 +719,7 @@ function CopilotCard({ handoffId }: { handoffId: string }) {
                   className="block w-full rounded-lg border border-hairline bg-surface-muted px-2.5 py-2 text-left text-[11px] leading-relaxed text-ink transition hover:border-hairline"
                 >
                   {line}
-                  <span className="mt-1 block text-[9px] text-ink-muted">
+                  <span className="mt-1 block text-[11px] text-ink-muted">
                     {copied === index ? 'copied' : 'click to copy'}
                   </span>
                 </button>
@@ -727,18 +727,18 @@ function CopilotCard({ handoffId }: { handoffId: string }) {
             </div>
           ) : null}
           {data.facts.length ? (
-            <p className="text-[10px] leading-relaxed text-ink-muted">
+            <p className="text-[11px] leading-relaxed text-ink-muted">
               <span className="text-ink-muted">{t('desk.copilotFacts')} </span>
               {data.facts.join(' · ')}
             </p>
           ) : null}
           {data.nextAction ? (
-            <p className="text-[10px] leading-relaxed text-ink-muted">
+            <p className="text-[11px] leading-relaxed text-ink-muted">
               <span className="text-ink-muted">{t('desk.copilotNext')} </span>
               {data.nextAction}
             </p>
           ) : null}
-          <p className="text-[9px] text-ink-muted">
+          <p className="text-[11px] text-ink-muted">
             {data.cached
               ? 'Cached for this transcript length'
               : 'Freshly generated'}

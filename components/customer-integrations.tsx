@@ -108,7 +108,7 @@ export function CustomerIntegrations({
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-warning-text">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-warning-text">
             Developer platform
           </p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -133,7 +133,7 @@ export function CustomerIntegrations({
             key={item}
             type="button"
             onClick={() => setTab(item)}
-            className={`rounded-lg px-4 py-2 text-[10px] capitalize ${tab === item ? 'bg-surface-strong text-ink' : 'text-ink-muted'}`}
+            className={`rounded-lg px-4 py-2 text-[11px] capitalize ${tab === item ? 'bg-surface-strong text-ink' : 'text-ink-muted'}`}
           >
             {item === 'keys' ? 'API keys' : item}
           </button>
@@ -151,7 +151,7 @@ export function CustomerIntegrations({
             <KeyRound className="size-4" /> Copy this value now
           </div>
           <div className="mt-3 flex gap-2">
-            <code className="min-w-0 flex-1 overflow-x-auto rounded-lg bg-surface-muted px-3 py-2.5 text-[10px] text-warning-text">
+            <code className="min-w-0 flex-1 overflow-x-auto rounded-lg bg-surface-muted px-3 py-2.5 text-[11px] text-warning-text">
               {revealedSecret}
             </code>
             <Button
@@ -217,7 +217,7 @@ function ApiKeys({
     <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
       <section className="overflow-hidden rounded-2xl border border-hairline bg-surface p-5">
         <h2 className="text-sm font-semibold">API keys</h2>
-        <p className="mt-1 text-[10px] text-ink-muted">
+        <p className="mt-1 text-[11px] text-ink-muted">
           Keys are visible once, then only their hash and prefix remain
         </p>
         <div className="mt-4 divide-y divide-white/7">
@@ -228,7 +228,7 @@ function ApiKeys({
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-medium">{item.name}</p>
-                <p className="mt-1 font-mono text-[9px] text-ink-muted">
+                <p className="mt-1 font-mono text-[11px] text-ink-muted">
                   {item.key_prefix}•••••• ·{' '}
                   {safeStringList(item.scopes_json).join(', ')}
                 </p>
@@ -240,7 +240,7 @@ function ApiKeys({
       </section>
       <section className="rounded-2xl border border-hairline bg-surface p-5">
         <h2 className="text-sm font-semibold">Create scoped key</h2>
-        <p className="mt-1 text-[10px] text-ink-muted">
+        <p className="mt-1 text-[11px] text-ink-muted">
           Use separate keys per website, server or integration
         </p>
         <label
@@ -259,7 +259,7 @@ function ApiKeys({
           {['leads:write', 'leads:read', 'credits:read'].map((scope) => (
             <div
               key={scope}
-              className="flex items-center gap-2 rounded-lg bg-surface-muted px-3 py-2.5 text-[10px] text-ink-muted"
+              className="flex items-center gap-2 rounded-lg bg-surface-muted px-3 py-2.5 text-[11px] text-ink-muted"
             >
               <CheckCircle2 className="size-3.5 text-success-text" /> {scope}
             </div>
@@ -295,7 +295,7 @@ function Webhooks({
     <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
       <section className="rounded-2xl border border-hairline bg-surface p-5">
         <h2 className="text-sm font-semibold">Webhook endpoints</h2>
-        <p className="mt-1 text-[10px] text-ink-muted">
+        <p className="mt-1 text-[11px] text-ink-muted">
           Signed with HMAC SHA-256 and delivery attempts logged
         </p>
         <div className="mt-4 space-y-3">
@@ -309,10 +309,10 @@ function Webhooks({
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-medium">{item.name}</p>
-                <p className="mt-1 truncate font-mono text-[9px] text-ink-muted">
+                <p className="mt-1 truncate font-mono text-[11px] text-ink-muted">
                   {item.url}
                 </p>
-                <p className="mt-1 text-[9px] text-ink-muted">
+                <p className="mt-1 text-[11px] text-ink-muted">
                   {safeStringList(item.events_json).join(' · ')}
                 </p>
               </div>
@@ -347,7 +347,7 @@ function Webhooks({
           onChange={(event) => setForm({ ...form, url: event.target.value })}
           className="mt-2 h-10 border-hairline bg-surface-muted"
         />
-        <div className="mt-4 rounded-xl border border-hairline bg-surface-muted p-3 text-[10px] leading-4 text-ink-muted">
+        <div className="mt-4 rounded-xl border border-hairline bg-surface-muted p-3 text-[11px] leading-4 text-ink-muted">
           <ShieldCheck className="mb-2 size-4 text-success-text" /> Localhost
           HTTP is accepted in development. Production endpoints must use HTTPS.
         </div>
@@ -372,7 +372,7 @@ function Status({ value }: { value: string }) {
   return (
     <Badge
       variant="outline"
-      className={`${positive ? 'border-emerald-400/15 text-success-text' : warning ? 'border-amber-300/15 text-warning-text' : 'border-hairline text-ink-muted'} text-[8px]`}
+      className={`${positive ? 'border-emerald-400/15 text-success-text' : warning ? 'border-amber-300/15 text-warning-text' : 'border-hairline text-ink-muted'} text-[11px]`}
     >
       {value.replaceAll('_', ' ')}
     </Badge>

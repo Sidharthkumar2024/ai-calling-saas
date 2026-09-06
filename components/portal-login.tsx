@@ -186,7 +186,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
               </span>
               <span>
                 <span className="block text-base font-semibold">Vaani</span>
-                <span className="block text-[10px] uppercase tracking-[0.2em] text-ink-muted">
+                <span className="block text-[11px] uppercase tracking-[0.2em] text-ink-muted">
                   {t('login.tagline')}
                 </span>
               </span>
@@ -242,7 +242,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
               <div className="mt-6 rounded-2xl border border-hairline bg-surface-strong p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
                       {t('login.demoCredentials')}
                     </p>
                     <p className="mt-2 font-mono text-xs text-ink">
@@ -304,7 +304,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                             setResetToken(event.target.value)
                           }
                           autoComplete="one-time-code"
-                          className="mt-2 h-11 border-hairline bg-surface-strong font-mono text-[10px]"
+                          className="mt-2 h-11 border-hairline bg-surface-strong font-mono text-[11px]"
                         />
                       </label>
                       <label

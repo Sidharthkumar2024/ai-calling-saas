@@ -110,7 +110,7 @@ export function CustomerAppointments() {
     <div className="space-y-6">
       <section className="portal-panel p-5">
         <h2 className="text-sm font-semibold">Appointments</h2>
-        <p className="mt-1 max-w-2xl text-[10px] text-ink-muted">
+        <p className="mt-1 max-w-2xl text-[11px] text-ink-muted">
           Everything your agents have booked. Whoever is on the phone promised
           these, so they need an outcome — the ones whose time has passed
           without one are at the top.
@@ -119,7 +119,7 @@ export function CustomerAppointments() {
           <p className="mt-3 text-[11px] text-ink-body">{summary}</p>
         ) : null}
         {problem ? (
-          <p role="alert" className="mt-2 text-[10px] text-danger-text">
+          <p role="alert" className="mt-2 text-[11px] text-danger-text">
             {problem}
           </p>
         ) : null}
@@ -143,24 +143,24 @@ export function CustomerAppointments() {
                   {appointment.customer_name || 'Unnamed'}
                 </span>
                 {appointment.customer_phone ? (
-                  <span className="text-[10px] text-ink-muted">
+                  <span className="text-[11px] text-ink-muted">
                     {appointment.customer_phone}
                   </span>
                 ) : null}
-                <span className="text-[10px] text-ink-muted">
+                <span className="text-[11px] text-ink-muted">
                   {describeSlot(
                     appointment.slot_start,
                     appointment.timezone || undefined,
                   )}
                 </span>
                 <span
-                  className={`text-[10px] ${PHASE_TONE[appointment.timing.phase] ?? 'text-ink-muted'}`}
+                  className={`text-[11px] ${PHASE_TONE[appointment.timing.phase] ?? 'text-ink-muted'}`}
                 >
                   {appointment.timing.message}
                 </span>
               </div>
 
-              <p className="mt-1 text-[10px] text-ink-muted">
+              <p className="mt-1 text-[11px] text-ink-muted">
                 {[
                   appointment.service,
                   appointment.mode.replace('_', ' '),
@@ -178,7 +178,7 @@ export function CustomerAppointments() {
               </p>
 
               {appointment.outcome_note ? (
-                <p className="mt-1 text-[10px] text-ink-body">
+                <p className="mt-1 text-[11px] text-ink-body">
                   {appointment.outcome_note}
                 </p>
               ) : null}
@@ -189,13 +189,13 @@ export function CustomerAppointments() {
                     key={status}
                     type="button"
                     onClick={() => void move(appointment, status)}
-                    className="h-6 rounded-md border border-hairline px-2 text-[10px] text-ink-body"
+                    className="h-6 rounded-md border border-hairline px-2 text-[11px] text-ink-body"
                   >
                     {ACTION_LABEL[status]}
                   </button>
                 ))}
                 {nextAppointmentStatuses(appointment.status).length === 0 ? (
-                  <span className="text-[10px] text-ink-muted">
+                  <span className="text-[11px] text-ink-muted">
                     Closed — a customer who turns up later gets a new booking,
                     so this record still shows that somebody waited.
                   </span>

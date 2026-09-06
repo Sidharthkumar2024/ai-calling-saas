@@ -227,7 +227,7 @@ export function CustomerAgentStudio({
     <div className="space-y-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-warning-text">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-warning-text">
             Build · Test · Publish
           </p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -281,7 +281,7 @@ export function CustomerAgentStudio({
       <div className="grid gap-4 2xl:grid-cols-[230px_minmax(0,1fr)_430px]">
         <aside className="rounded-2xl border border-hairline bg-surface p-3">
           <div className="flex items-center justify-between px-2 py-2">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
               Your agents
             </p>
             <Button
@@ -307,13 +307,13 @@ export function CustomerAgentStudio({
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-xs font-medium">{agent.name}</p>
-                    <p className="mt-1 truncate text-[9px] capitalize text-ink-muted">
+                    <p className="mt-1 truncate text-[11px] capitalize text-ink-muted">
                       {agent.use_case.replaceAll('_', ' ')}
                     </p>
                   </div>
                   <ChevronRight className="mt-2 size-3 text-ink-muted" />
                 </div>
-                <div className="mt-3 flex items-center justify-between text-[9px]">
+                <div className="mt-3 flex items-center justify-between text-[11px]">
                   {/* Was green whatever the status, so a paused or archived
                       agent read as live in the one place people scan. */}
                   <span
@@ -338,10 +338,10 @@ export function CustomerAgentStudio({
             ))}
           </div>
           <div className="mt-4 rounded-xl border border-cyan-300/10 bg-cyan-300/[0.025] p-3">
-            <p className="text-[10px] font-medium text-cyan-700">
+            <p className="text-[11px] font-medium text-cyan-700">
               Trial safety
             </p>
-            <p className="mt-2 text-[9px] leading-4 text-ink-muted">
+            <p className="mt-2 text-[11px] leading-4 text-ink-muted">
               Text and browser voice work immediately. Phone calls stay locked
               until number verification and KYC.
             </p>
@@ -358,12 +358,12 @@ export function CustomerAgentStudio({
                 }
                 className="h-9 max-w-sm border-transparent bg-transparent px-0 text-lg font-semibold focus-visible:border-hairline"
               />
-              <p className="mt-1 text-[10px] text-ink-muted">
+              <p className="mt-1 text-[11px] text-ink-muted">
                 Vaani Voice · India routing · customer-safe provider abstraction
               </p>
             </div>
             <div className="rounded-xl border border-hairline bg-surface-muted px-3 py-2 text-right">
-              <p className="text-[9px] text-ink-muted">Estimated live cost</p>
+              <p className="text-[11px] text-ink-muted">Estimated live cost</p>
               <p className="mt-1 text-xs font-medium">
                 ₹{(selected.cost_per_minute / 100).toFixed(2)} / minute
               </p>
@@ -377,7 +377,7 @@ export function CustomerAgentStudio({
                   key={item.id}
                   type="button"
                   onClick={() => setTab(item.id)}
-                  className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-[10px] ${tab === item.id ? 'bg-surface-strong text-ink' : 'text-ink-muted hover:bg-surface-strong hover:text-ink-body'}`}
+                  className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-[11px] ${tab === item.id ? 'bg-surface-strong text-ink' : 'text-ink-muted hover:bg-surface-strong hover:text-ink-body'}`}
                 >
                   <item.icon className="size-3.5" />
                   {item.label}
@@ -456,13 +456,13 @@ function SettingsPanel({
                   </span>
                   <Badge
                     variant="outline"
-                    className="border-hairline text-[8px] text-ink-muted"
+                    className="border-hairline text-[11px] text-ink-muted"
                   >
                     {preset.industry}
                   </Badge>
                 </div>
                 <p className="mt-3 text-xs font-medium">{preset.name}</p>
-                <p className="mt-2 text-[9px] leading-4 text-ink-muted">
+                <p className="mt-2 text-[11px] leading-4 text-ink-muted">
                   {preset.description}
                 </p>
               </button>
@@ -504,7 +504,7 @@ function SettingsPanel({
             ].map((token) => (
               <code
                 key={token}
-                className="rounded-lg bg-surface-strong px-2 py-1 text-[9px] text-cyan-700"
+                className="rounded-lg bg-surface-strong px-2 py-1 text-[11px] text-cyan-700"
               >
                 {token}
               </code>
@@ -679,11 +679,11 @@ function SettingsPanel({
               >
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-medium">{voice.publicName}</p>
-                  <span className="text-[8px] capitalize text-ink-muted">
+                  <span className="text-[11px] capitalize text-ink-muted">
                     {voice.style}
                   </span>
                 </div>
-                <p className="mt-2 text-[9px] text-ink-muted">
+                <p className="mt-2 text-[11px] text-ink-muted">
                   {voice.bestFor.join(' · ')}
                 </p>
               </button>
@@ -791,13 +791,13 @@ function SettingsPanel({
                   />
                 </div>
                 <p className="mt-4 text-xs font-medium">{title}</p>
-                <p className="mt-2 text-[9px] leading-4 text-ink-muted">
+                <p className="mt-2 text-[11px] leading-4 text-ink-muted">
                   {note}
                 </p>
               </button>
             ))}
           </div>
-          <p className="mt-3 text-[10px] text-ink-muted">
+          <p className="mt-3 text-[11px] text-ink-muted">
             Always available and not switchable:{' '}
             {MANDATORY_TOOL_NAMES.join(', ').replaceAll('_', ' ')}. The agent is
             instructed to escalate or end the call on the turn a caller asks, so
@@ -831,7 +831,7 @@ function SettingsPanel({
                       },
                     })
                   }
-                  className={`rounded-full border px-3 py-1.5 text-[10px] capitalize ${
+                  className={`rounded-full border px-3 py-1.5 text-[11px] capitalize ${
                     on
                       ? 'border-amber-300/25 bg-amber-300/[0.06] text-warning-text'
                       : 'border-hairline bg-surface-muted text-ink-muted'
@@ -844,7 +844,7 @@ function SettingsPanel({
           </div>
 
           <label className="mt-4 block">
-            <span className="text-[10px] font-medium">
+            <span className="text-[11px] font-medium">
               Most files in one message
             </span>
             <input
@@ -863,7 +863,7 @@ function SettingsPanel({
               }
               className="mt-1 w-24 rounded-lg border border-hairline bg-surface px-2.5 py-1.5 text-[11px]"
             />
-            <span className="mt-1 block text-[9px] text-ink-muted">
+            <span className="mt-1 block text-[11px] text-ink-muted">
               Anything past this is held back and the agent is told to say so,
               rather than sending a subset and calling it the lot.
             </span>
@@ -887,7 +887,7 @@ function SettingsPanel({
               }
               className="mt-0.5"
             />
-            <span className="text-[10px]">
+            <span className="text-[11px]">
               <span className="font-medium">
                 Let this agent send files marked sensitive
               </span>
@@ -917,10 +917,10 @@ function SettingsPanel({
                 className="flex items-center gap-3 rounded-xl border border-hairline bg-surface-muted p-3"
               >
                 <Code2 className="size-4 text-cyan-700" />
-                <span className="flex-1 font-mono text-[10px]">{item}</span>
+                <span className="flex-1 font-mono text-[11px]">{item}</span>
                 <Badge
                   variant="outline"
-                  className="border-hairline text-[8px] text-ink-muted"
+                  className="border-hairline text-[11px] text-ink-muted"
                 >
                   string / number
                 </Badge>
@@ -948,8 +948,10 @@ function SettingsPanel({
               className="rounded-xl border border-hairline bg-surface-muted p-4"
             >
               <p className="text-xs font-medium">{title}</p>
-              <p className="mt-2 text-[9px] leading-4 text-ink-muted">{note}</p>
-              <span className="mt-4 inline-flex rounded-full border border-amber-300/12 bg-amber-300/5 px-2 py-1 text-[8px] text-warning-text">
+              <p className="mt-2 text-[11px] leading-4 text-ink-muted">
+                {note}
+              </p>
+              <span className="mt-4 inline-flex rounded-full border border-amber-300/12 bg-amber-300/5 px-2 py-1 text-[11px] text-warning-text">
                 Publish gate
               </span>
             </div>
@@ -1834,11 +1836,11 @@ function TestConsole({
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold">Test playground</p>
-            <p className="mt-1 text-[9px] text-ink-muted">
+            <p className="mt-1 text-[11px] text-ink-muted">
               No phone call required
             </p>
           </div>
-          <span className="rounded-full border border-hairline bg-surface-muted px-2.5 py-1 text-[10px] text-ink-body">
+          <span className="rounded-full border border-hairline bg-surface-muted px-2.5 py-1 text-[11px] text-ink-body">
             {credits} credits
           </span>
         </div>
@@ -1938,7 +1940,7 @@ function TestConsole({
                   >
                     {message.role === 'assistant' ? (
                       <div className="rounded-2xl rounded-bl-sm border border-hairline bg-surface px-3.5 py-2.5 text-xs leading-5 text-ink">
-                        <div className="mb-2 flex items-center gap-2 text-[10px] text-ink-muted">
+                        <div className="mb-2 flex items-center gap-2 text-[11px] text-ink-muted">
                           <Sparkles className="size-3 text-primary" />{' '}
                           <span className="font-medium text-ink">
                             {agent.name}
@@ -1959,11 +1961,11 @@ function TestConsole({
                         {message.actions.map((action) => (
                           <div
                             key={`${message.id}-${action.type}`}
-                            className="flex items-center gap-2 rounded-xl border border-emerald-400/12 bg-emerald-400/[0.035] p-2.5 text-[9px] text-success-text"
+                            className="flex items-center gap-2 rounded-xl border border-emerald-400/12 bg-emerald-400/[0.035] p-2.5 text-[11px] text-success-text"
                           >
                             <CheckCircle2 className="size-3.5 shrink-0 text-success-text" />
                             <span className="flex-1">{action.label}</span>
-                            <span className="rounded px-1.5 py-0.5 text-[10px] text-ink-muted">
+                            <span className="rounded px-1.5 py-0.5 text-[11px] text-ink-muted">
                               preview
                             </span>
                           </div>
@@ -1975,7 +1977,7 @@ function TestConsole({
               ))
             )}
             {loading ? (
-              <div className="flex items-center gap-2 text-[10px] text-ink-muted">
+              <div className="flex items-center gap-2 text-[11px] text-ink-muted">
                 <Loader2 className="size-3.5 animate-spin" /> Vaani is
                 understanding the request…
               </div>
@@ -1989,14 +1991,14 @@ function TestConsole({
                   type="button"
                   onClick={() => void sendMessage(item)}
                   disabled={loading}
-                  className="shrink-0 rounded-full border border-hairline bg-surface-muted px-3 py-1.5 text-[10px] text-ink-body transition hover:border-primary/40 hover:text-ink"
+                  className="shrink-0 rounded-full border border-hairline bg-surface-muted px-3 py-1.5 text-[11px] text-ink-body transition hover:border-primary/40 hover:text-ink"
                 >
                   {item}
                 </button>
               ))}
             </div>
             {error ? (
-              <p className="mb-3 rounded-lg bg-red-400/7 p-2 text-[9px] text-danger-text">
+              <p className="mb-3 rounded-lg bg-red-400/7 p-2 text-[11px] text-danger-text">
                 {error}
               </p>
             ) : null}
@@ -2039,7 +2041,7 @@ function TestConsole({
                 <Send />
               </Button>
             </div>
-            <div className="mt-2 flex items-center justify-between text-[10px] text-ink-muted">
+            <div className="mt-2 flex items-center justify-between text-[11px] text-ink-muted">
               <span>10 credits / turn</span>
               <span className="flex items-center gap-1">
                 <Clock3 className="size-2.5" /> Sandbox actions only
@@ -2157,7 +2159,7 @@ function VoiceOrb({
             {agentName} · Voice playground
           </h3>
           <span
-            className={`rounded-full border px-2 py-1 text-[8px] ${pipelineMode === 'realtime' || pipelineMode === 'connected' || pipelineMode === 'instant' ? 'border-emerald-300/15 bg-emerald-300/7 text-success-text' : 'border-amber-300/15 bg-amber-300/7 text-warning-text'}`}
+            className={`rounded-full border px-2 py-1 text-[11px] ${pipelineMode === 'realtime' || pipelineMode === 'connected' || pipelineMode === 'instant' ? 'border-emerald-300/15 bg-emerald-300/7 text-success-text' : 'border-amber-300/15 bg-amber-300/7 text-warning-text'}`}
           >
             {pipelineMode === 'realtime'
               ? 'Realtime WebRTC'
@@ -2174,7 +2176,7 @@ function VoiceOrb({
           {interimTranscript || stateLabel}
         </p>
         {active ? (
-          <p className="mt-2 font-mono text-[10px] text-cyan-700">
+          <p className="mt-2 font-mono text-[11px] text-cyan-700">
             {formatElapsed(elapsed)} ·{' '}
             {pipelineMode === 'realtime'
               ? 'full-duplex audio'
@@ -2186,7 +2188,7 @@ function VoiceOrb({
             · interruption ready
           </p>
         ) : (
-          <p className="mt-2 text-[9px] text-ink-muted">
+          <p className="mt-2 text-[11px] text-ink-muted">
             Realtime mode streams microphone audio directly and supports natural
             interruption. No phone number is dialled.
           </p>
@@ -2258,7 +2260,7 @@ function SettingSection({
     <section>
       <div className="mb-5">
         <h2 className="text-sm font-semibold">{title}</h2>
-        <p className="mt-1 text-[10px] text-ink-muted">{note}</p>
+        <p className="mt-1 text-[11px] text-ink-muted">{note}</p>
       </div>
       {children}
     </section>
@@ -2274,7 +2276,7 @@ function Field({
   return (
     <label className="block text-xs text-ink-muted">
       {label}
-      <div className="mt-2 [&_.input-select]:h-10 [&_.input-select]:w-full [&_.input-select]:rounded-lg [&_.input-select]:border [&_.input-select]:border-hairline [&_.input-select]:bg-surface [&_.input-select]:px-3 [&_.input-select]:text-xs [&_.input-static]:flex [&_.input-static]:h-10 [&_.input-static]:items-center [&_.input-static]:gap-2 [&_.input-static]:rounded-lg [&_.input-static]:border [&_.input-static]:border-hairline [&_.input-static]:bg-surface-muted [&_.input-static]:px-3 [&_.input-static]:text-[10px] [&_.input-static]:text-ink-muted [&_input]:border-hairline [&_input]:bg-surface-muted [&_textarea]:border-hairline [&_textarea]:bg-surface-muted">
+      <div className="mt-2 [&_.input-select]:h-10 [&_.input-select]:w-full [&_.input-select]:rounded-lg [&_.input-select]:border [&_.input-select]:border-hairline [&_.input-select]:bg-surface [&_.input-select]:px-3 [&_.input-select]:text-xs [&_.input-static]:flex [&_.input-static]:h-10 [&_.input-static]:items-center [&_.input-static]:gap-2 [&_.input-static]:rounded-lg [&_.input-static]:border [&_.input-static]:border-hairline [&_.input-static]:bg-surface-muted [&_.input-static]:px-3 [&_.input-static]:text-[11px] [&_.input-static]:text-ink-muted [&_input]:border-hairline [&_input]:bg-surface-muted [&_textarea]:border-hairline [&_textarea]:bg-surface-muted">
         {children}
       </div>
     </label>

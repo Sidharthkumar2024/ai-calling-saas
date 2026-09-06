@@ -123,7 +123,7 @@ export function PortalShell({
           </span>
           <span>
             <span className="block text-sm font-semibold">Vaani</span>
-            <span className="block text-[9px] font-semibold uppercase tracking-[0.2em] text-ink-muted">
+            <span className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-muted">
               {mode === 'admin' ? 'Platform admin' : 'Revenue Voice OS'}
             </span>
           </span>
@@ -140,7 +140,7 @@ export function PortalShell({
               <p className="truncate text-xs font-medium">
                 {workspace || 'Vaani Platform'}
               </p>
-              <p className="truncate text-[10px] text-ink-muted">
+              <p className="truncate text-[11px] text-ink-muted">
                 {mode === 'admin' ? 'Global control plane' : 'Growth workspace'}
               </p>
             </div>
@@ -159,13 +159,13 @@ export function PortalShell({
         <div className="border-t border-hairline p-3">
           <div className="mb-2 flex items-center gap-2 rounded-lg px-2 py-2">
             <Avatar className="size-8">
-              <AvatarFallback className="bg-surface-strong text-[10px]">
+              <AvatarFallback className="bg-surface-strong text-[11px]">
                 {name.slice(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
               <p className="truncate text-[11px] font-medium">{name}</p>
-              <p className="truncate text-[9px] text-ink-muted">{email}</p>
+              <p className="truncate text-[11px] text-ink-muted">{email}</p>
             </div>
             <button
               type="button"
@@ -196,11 +196,11 @@ export function PortalShell({
             <p className="truncate text-sm font-medium">
               {activeItem?.label ?? 'Overview'}
             </p>
-            <p className="hidden text-[10px] text-ink-muted sm:block">
+            <p className="hidden text-[11px] text-ink-muted sm:block">
               {mode === 'admin' ? 'Vaani platform control plane' : workspace}
             </p>
           </div>
-          <div className="hidden w-56 items-center gap-2 rounded-lg border border-hairline bg-surface-muted px-3 py-2 text-[10px] text-ink-muted xl:flex">
+          <div className="hidden w-56 items-center gap-2 rounded-lg border border-hairline bg-surface-muted px-3 py-2 text-[11px] text-ink-muted xl:flex">
             <Search className="size-3.5" /> Search anything
             <span className="ml-auto rounded border border-hairline px-1.5 py-0.5">
               ⌘K
@@ -210,7 +210,7 @@ export function PortalShell({
             <button
               type="button"
               onClick={() => onNavigate('billing')}
-              className="flex items-center gap-2 rounded-lg border border-hairline bg-surface-strong px-3 py-2 text-[10px] text-ink-body"
+              className="flex items-center gap-2 rounded-lg border border-hairline bg-surface-strong px-3 py-2 text-[11px] text-ink-body"
             >
               <Coins className="size-3.5 text-primary" />{' '}
               {credits.toLocaleString('en-IN')}
@@ -218,7 +218,7 @@ export function PortalShell({
           ) : null}
           <Link
             href="/docs"
-            className="hidden items-center gap-2 rounded-lg px-2 py-2 text-[10px] text-ink-muted hover:bg-surface-strong hover:text-ink sm:flex"
+            className="hidden items-center gap-2 rounded-lg px-2 py-2 text-[11px] text-ink-muted hover:bg-surface-strong hover:text-ink sm:flex"
           >
             <BookOpenText className="size-3.5" /> Docs
           </Link>
@@ -234,7 +234,7 @@ export function PortalShell({
               onChange={(event) =>
                 setLocale(event.target.value as typeof locale)
               }
-              className="rounded-lg border border-hairline bg-surface-strong px-2 py-1.5 text-[10px] text-ink-body outline-none focus:border-hairline"
+              className="rounded-lg border border-hairline bg-surface-strong px-2 py-1.5 text-[11px] text-ink-body outline-none focus:border-hairline"
             >
               {PORTAL_LOCALES.map((option) => (
                 <option key={option.code} value={option.code}>
@@ -245,7 +245,7 @@ export function PortalShell({
           </label>
           <Badge
             variant="outline"
-            className="hidden border-emerald-400/15 bg-emerald-400/6 text-[9px] text-success-text sm:inline-flex"
+            className="hidden border-emerald-400/15 bg-emerald-400/6 text-[11px] text-success-text sm:inline-flex"
           >
             Core healthy
           </Badge>
@@ -271,7 +271,7 @@ export function PortalShell({
             <p className="truncate text-xs font-semibold">
               {workspace || 'Vaani Platform'}
             </p>
-            <p className="truncate text-[9px] uppercase tracking-[0.18em] text-ink-muted">
+            <p className="truncate text-[11px] uppercase tracking-[0.18em] text-ink-muted">
               {mode === 'admin' ? 'Platform admin' : 'Revenue Voice OS'}
             </p>
           </div>
@@ -298,13 +298,13 @@ export function PortalShell({
 
         <div className="flex shrink-0 items-center gap-2 border-t border-hairline p-3">
           <Avatar className="size-8">
-            <AvatarFallback className="bg-surface-strong text-[10px]">
+            <AvatarFallback className="bg-surface-strong text-[11px]">
               {name.slice(0, 2).toUpperCase()}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
             <p className="truncate text-[11px] font-medium">{name}</p>
-            <p className="truncate text-[9px] text-ink-muted">{email}</p>
+            <p className="truncate text-[11px] text-ink-muted">{email}</p>
           </div>
           <button
             type="button"
@@ -345,7 +345,7 @@ function NavList({
     <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label={label}>
       {groups.map((group, groupIndex) => (
         <div key={group.label} className={groupIndex ? 'mt-6' : ''}>
-          <p className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-ink-muted">
+          <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-muted">
             {group.translationKey ? t(group.translationKey) : group.label}
           </p>
           <div className="space-y-1">
@@ -368,7 +368,7 @@ function NavList({
                   {item.translationKey ? t(item.translationKey) : item.label}
                 </span>
                 {item.badge ? (
-                  <span className="rounded-md border border-hairline bg-surface-strong px-1.5 py-0.5 font-mono text-[9px] text-ink-body">
+                  <span className="rounded-md border border-hairline bg-surface-strong px-1.5 py-0.5 font-mono text-[11px] text-ink-body">
                     {item.badge}
                   </span>
                 ) : null}

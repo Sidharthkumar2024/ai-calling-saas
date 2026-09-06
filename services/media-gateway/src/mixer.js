@@ -70,17 +70,43 @@ export class Room {
     return leg;
   }
 
+  /**
+   * Drops a leg, and reports whom that silenced.
+   *
+   * A supervisor whispering to a leg that just left has nobody to whisper to,
+   * so they fall back to listening. That has to be *reported*, not just done:
+   * the supervisor's screen is still saying "only the agent hears you", and
+   * they will keep coaching an empty channel until something tells them
+   * otherwise.
+   */
   remove(legId) {
     const leg = this.legs.get(legId);
     this.legs.delete(legId);
-    // A supervisor whispering to a leg that just left has nobody to whisper to.
+    const demoted = [];
     for (const other of this.legs.values()) {
       if (other.whisperTo === legId) {
         other.mode = 'listen';
         other.whisperTo = null;
+        demoted.push(other);
       }
     }
-    return leg;
+    return { leg: leg ?? null, demoted };
+  }
+
+  /**
+   * Whom a supervisor would coach if they whispered right now.
+   *
+   * Only a human agent: whispering to the AI leg reaches nothing that can act
+   * on it, and whispering to the customer is the one outcome this whole file
+   * exists to prevent. Null means there is nobody to coach — the caller must
+   * then say so rather than open a channel to nobody.
+   */
+  whisperTargetFor(legId) {
+    const target = this.list().find(
+      (leg) =>
+        leg.id !== legId && leg.role === 'agent' && leg.mode !== 'listen',
+    );
+    return target ? target.id : null;
   }
 
   get size() {
@@ -122,7 +148,8 @@ export class Room {
     if (!LEG_MODES.includes(mode)) return { ok: false, reason: 'unknown_mode' };
     if (mode === 'whisper') {
       if (!whisperTo) return { ok: false, reason: 'whisper_needs_target' };
-      if (whisperTo === legId) return { ok: false, reason: 'cannot_whisper_to_self' };
+      if (whisperTo === legId)
+        return { ok: false, reason: 'cannot_whisper_to_self' };
       if (!this.legs.has(whisperTo))
         return { ok: false, reason: 'whisper_target_not_in_room' };
     }
@@ -155,7 +182,7 @@ export class RoomRegistry {
   leave(callId, legId) {
     const room = this.rooms.get(callId);
     if (!room) return null;
-    const leg = room.remove(legId);
+    const { leg } = room.remove(legId);
     if (!room.size) this.rooms.delete(callId);
     return leg;
   }

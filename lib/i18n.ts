@@ -196,6 +196,10 @@ const en = {
   'sup.choose': 'Choose how you want to join this call.',
   'sup.nobodyHears': 'Nobody can hear you.',
   'sup.onlyAgentHears': 'Only the agent hears you — the customer does not.',
+  'sup.noAgentToWhisper':
+    'There is no human agent on this call to coach, so you joined as a listener. Nobody can hear you.',
+  'sup.whisperTargetLeft':
+    'The agent you were coaching has left the call, so you are listening now. Nobody can hear you.',
   'sup.everyoneHears':
     'Everyone on the call hears you, including the customer.',
 
@@ -948,6 +952,10 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'sup.choose': 'चुनिए आप इस कॉल में कैसे शामिल होना चाहते हैं।',
   'sup.nobodyHears': 'आपको कोई नहीं सुन सकता।',
   'sup.onlyAgentHears': 'सिर्फ़ एजेंट आपको सुनता है — ग्राहक नहीं।',
+  'sup.noAgentToWhisper':
+    'इस कॉल पर कोई इंसानी एजेंट नहीं है जिसे आप कुछ कह सकें, इसलिए आप सिर्फ़ सुन रहे हैं। आपको कोई नहीं सुन सकता।',
+  'sup.whisperTargetLeft':
+    'जिस एजेंट को आप कुछ कह रहे थे वो कॉल छोड़ चुका है, इसलिए अब आप सिर्फ़ सुन रहे हैं। आपको कोई नहीं सुन सकता।',
   'sup.everyoneHears': 'कॉल पर सब आपको सुनते हैं, ग्राहक भी।',
 
   'login.backToVaani': 'Vaani पर वापस',

@@ -1,9 +1,4 @@
-import {
-  Room,
-  RoomRegistry,
-  audibleTo,
-  mixFrames,
-} from '../src/mixer.js';
+import { Room, RoomRegistry, audibleTo, mixFrames } from '../src/mixer.js';
 
 let pass = 0,
   fail = 0;
@@ -75,7 +70,9 @@ ok(
 );
 ok(
   'duplex legs hear each other',
-  audibleTo(agent, [agent, ai]).map((l) => l.id).join() === 'L2',
+  audibleTo(agent, [agent, ai])
+    .map((l) => l.id)
+    .join() === 'L2',
 );
 ok(
   'a silent monitor is heard by nobody',
@@ -90,7 +87,9 @@ ok(
   'a monitor still hears everyone',
   (() => {
     const supervisor = leg('S1', 'supervisor', 'listen');
-    const heard = audibleTo(supervisor, [agent, ai, supervisor]).map((l) => l.id);
+    const heard = audibleTo(supervisor, [agent, ai, supervisor]).map(
+      (l) => l.id,
+    );
     return heard.includes('L1') && heard.includes('L2');
   })(),
 );
@@ -182,7 +181,9 @@ ok(
   (() => {
     const room = new Room('c');
     room.add(leg('S1', 'supervisor', 'listen'));
-    return room.setMode('S1', 'whisper', 'S1').reason === 'cannot_whisper_to_self';
+    return (
+      room.setMode('S1', 'whisper', 'S1').reason === 'cannot_whisper_to_self'
+    );
   })(),
 );
 ok(
@@ -214,6 +215,82 @@ ok(
     room.remove('L1');
     const supervisor = room.find('S1');
     return supervisor.mode === 'listen' && supervisor.whisperTo === null;
+  })(),
+);
+
+ok(
+  'and the room reports whom that silenced, so they can be told',
+  (() => {
+    const room = new Room('c');
+    room.add(leg('L1', 'agent'));
+    room.add(leg('S1', 'supervisor', 'whisper', 'L1'));
+    const { leg: gone, demoted } = room.remove('L1');
+    return gone.id === 'L1' && demoted.length === 1 && demoted[0].id === 'S1';
+  })(),
+);
+ok(
+  'removing a leg nobody was whispering to demotes nobody',
+  (() => {
+    const room = new Room('c');
+    room.add(leg('L1', 'agent'));
+    room.add(leg('S1', 'supervisor', 'listen'));
+    return room.remove('L1').demoted.length === 0;
+  })(),
+);
+ok(
+  'removing a leg that was never there is not a throw',
+  (() => {
+    const room = new Room('c');
+    const result = room.remove('ghost');
+    return result.leg === null && result.demoted.length === 0;
+  })(),
+);
+
+console.log('whisper targets:');
+ok(
+  'a coach is pointed at the human agent',
+  (() => {
+    const room = new Room('c');
+    room.add(leg('L1', 'agent'));
+    room.add(leg('C1', 'customer'));
+    room.add(leg('S1', 'supervisor', 'listen'));
+    return room.whisperTargetFor('S1') === 'L1';
+  })(),
+);
+ok(
+  'THE ONE THAT WAS SILENT: with no human agent there is nobody to coach',
+  (() => {
+    const room = new Room('c');
+    room.add(leg('AI', 'ai'));
+    room.add(leg('C1', 'customer'));
+    room.add(leg('S1', 'supervisor', 'listen'));
+    return room.whisperTargetFor('S1') === null;
+  })(),
+);
+ok(
+  'a supervisor is never their own coaching target',
+  (() => {
+    const room = new Room('c');
+    room.add(leg('S1', 'supervisor', 'listen'));
+    return room.whisperTargetFor('S1') === null;
+  })(),
+);
+ok(
+  'a second supervisor is not a coaching target either',
+  (() => {
+    const room = new Room('c');
+    room.add(leg('S1', 'supervisor', 'listen'));
+    room.add(leg('S2', 'supervisor', 'duplex'));
+    return room.whisperTargetFor('S1') === null;
+  })(),
+);
+ok(
+  'a silent agent leg is not offered as a target',
+  (() => {
+    const room = new Room('c');
+    room.add(leg('L1', 'agent', 'listen'));
+    room.add(leg('S1', 'supervisor', 'listen'));
+    return room.whisperTargetFor('S1') === null;
   })(),
 );
 

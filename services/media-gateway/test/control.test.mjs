@@ -66,11 +66,20 @@ const feed = async (session, level, frames) => {
   for (let i = 0; i < frames; i += 1) await session.handle(mediaFrame(level));
 };
 
-function leg({ client, rooms, role = 'agent', mode = 'duplex', room = null }) {
+function leg({
+  client,
+  rooms,
+  role = 'agent',
+  mode = 'duplex',
+  room = null,
+  carrier = 'twilio',
+  callId = null,
+}) {
   const sent = [];
   const closed = [];
   const session = new CallSession({
-    carrier: 'twilio',
+    carrier,
+    callId,
     client,
     role,
     mode,
@@ -94,7 +103,10 @@ console.log('a carrier leg joins a room');
   // carrier's start frame revealed which Vaani call this is. So a real
   // customer call was never in a room, and nothing could join or control it.
   ok('a room exists once the call id is known', session.room !== null);
-  ok('it is the room for that call id', rooms.open('call_ctl') === session.room);
+  ok(
+    'it is the room for that call id',
+    rooms.open('call_ctl') === session.room,
+  );
   ok('the leg is in it', session.room.size === 1);
 }
 
@@ -113,10 +125,7 @@ console.log('mute');
   await feed(session, 0.6, 30);
   await feed(session, 0.0, 40);
   await sleep(120);
-  ok(
-    'a muted leg drives no turn',
-    client.calls.turns.length === before,
-  );
+  ok('a muted leg drives no turn', client.calls.turns.length === before);
 
   session.applyControl({ action: 'unmute' });
   ok('unmute clears it', session.muted === false);
@@ -175,15 +184,15 @@ console.log('supervisor monitoring on a carrier call');
   });
   await supervisor.session.handle(startFrame('call_shared'));
 
-  ok('both legs share one room', customer.session.room === supervisor.session.room);
+  ok(
+    'both legs share one room',
+    customer.session.room === supervisor.session.room,
+  );
   ok('the room has two legs', customer.session.room.size === 2);
 
   const before = supervisor.sent.length;
   await feed(customer.session, 0.6, 10);
-  ok(
-    'the supervisor hears the customer',
-    supervisor.sent.length > before,
-  );
+  ok('the supervisor hears the customer', supervisor.sent.length > before);
 
   const heardByCustomer = customer.sent.length;
   await feed(supervisor.session, 0.6, 10);
@@ -206,6 +215,127 @@ console.log('supervisor monitoring on a carrier call');
   });
   ok('whisper without a target is refused', bad.ok === false);
   ok('with the reason named', bad.reason === 'whisper_needs_target');
+}
+
+console.log('a supervisor who asks to whisper');
+
+// A whisper is routed only to `whisperTo`, and a leg that joins whispering has
+// no target — so every frame from that microphone went nowhere while the screen
+// said "only the agent hears you". These four cases are that bug and its edges.
+{
+  const rooms = new RoomRegistry();
+  const client = fakeClient();
+  const customer = leg({ client, rooms, role: 'customer' });
+  await customer.session.handle(startFrame('call_whisper'));
+  const agent = leg({
+    client,
+    rooms,
+    role: 'agent',
+    carrier: 'browser',
+    callId: 'call_whisper',
+    room: rooms.open('call_whisper'),
+  });
+  await agent.session.handle(JSON.stringify({ event: 'start' }));
+  const supervisor = leg({
+    client,
+    rooms,
+    role: 'supervisor',
+    mode: 'whisper',
+    carrier: 'browser',
+    callId: 'call_whisper',
+    room: rooms.open('call_whisper'),
+  });
+  await supervisor.session.handle(JSON.stringify({ event: 'start' }));
+
+  ok(
+    'joining in whisper mode finds the human agent',
+    supervisor.session.room.find(supervisor.session.legId).whisperTo ===
+      agent.session.legId,
+  );
+  const announced = supervisor.sent.find((frame) => frame.event === 'mode');
+  ok(
+    'and the browser is told the mode it actually got',
+    announced?.mode === 'whisper',
+  );
+  ok(
+    'together with whom it reaches',
+    announced?.whisperTo === agent.session.legId,
+  );
+
+  const heardByAgent = agent.sent.length;
+  const heardByCustomer = customer.sent.length;
+  await feed(supervisor.session, 0.6, 10);
+  ok('the coaching reaches the agent', agent.sent.length > heardByAgent);
+  ok(
+    'THE IMPORTANT ONE: and not the customer',
+    customer.sent.length === heardByCustomer,
+  );
+}
+
+{
+  const rooms = new RoomRegistry();
+  const client = fakeClient();
+  const customer = leg({ client, rooms, role: 'customer' });
+  await customer.session.handle(startFrame('call_nobody'));
+  const supervisor = leg({
+    client,
+    rooms,
+    role: 'supervisor',
+    mode: 'whisper',
+    carrier: 'browser',
+    callId: 'call_nobody',
+    room: rooms.open('call_nobody'),
+  });
+  await supervisor.session.handle(JSON.stringify({ event: 'start' }));
+
+  // THE BUG: this used to join as a whisperer with no target, which routes to
+  // nobody. It was silent and said nothing about being silent.
+  ok(
+    'with no human agent, whispering is refused',
+    supervisor.session.mode === 'listen',
+  );
+  const announced = supervisor.sent.find((frame) => frame.event === 'mode');
+  ok(
+    'the browser is told it fell back to listening',
+    announced?.mode === 'listen',
+  );
+  ok('and why', announced?.reason === 'no_agent_to_whisper_to');
+}
+
+{
+  const rooms = new RoomRegistry();
+  const client = fakeClient();
+  const customer = leg({ client, rooms, role: 'customer' });
+  await customer.session.handle(startFrame('call_left'));
+  const agent = leg({
+    client,
+    rooms,
+    role: 'agent',
+    carrier: 'browser',
+    callId: 'call_left',
+    room: rooms.open('call_left'),
+  });
+  await agent.session.handle(JSON.stringify({ event: 'start' }));
+  const supervisor = leg({
+    client,
+    rooms,
+    role: 'supervisor',
+    mode: 'whisper',
+    carrier: 'browser',
+    callId: 'call_left',
+    room: rooms.open('call_left'),
+  });
+  await supervisor.session.handle(JSON.stringify({ event: 'start' }));
+  supervisor.sent.length = 0;
+
+  agent.session.onStop();
+  ok(
+    'when the coached agent hangs up the whisperer stops speaking',
+    supervisor.session.room.find(supervisor.session.legId).mode === 'listen',
+  );
+  const announced = supervisor.sent.find((frame) => frame.event === 'mode');
+  ok('and their screen is told', announced?.mode === 'listen');
+  ok('with the reason', announced?.reason === 'whisper_target_left');
 }
 
 console.log('refusals');
@@ -246,7 +376,9 @@ console.log('hangup');
   ok('with the reason named', after.reason === 'call_ended');
 }
 
-console.log('THE DEADLOCK: interrupting a long greeting must not hang the call');
+console.log(
+  'THE DEADLOCK: interrupting a long greeting must not hang the call',
+);
 
 {
   // The server feeds every frame of a call through one serialised queue, and
@@ -276,15 +408,24 @@ console.log('THE DEADLOCK: interrupting a long greeting must not hang the call')
     startDone.then(() => 'settled'),
     sleep(1500).then(() => 'still_pending'),
   ]);
-  ok('the start frame finishes instead of blocking the queue', settled === 'settled');
-  ok('and playback is no longer marked as speaking', session.detector.agentSpeaking === false);
+  ok(
+    'the start frame finishes instead of blocking the queue',
+    settled === 'settled',
+  );
+  ok(
+    'and playback is no longer marked as speaking',
+    session.detector.agentSpeaking === false,
+  );
 
   session.applyControl({ action: 'resume' });
   const before = client.calls.turns.length;
   await feed(session, 0.7, 40);
   await feed(session, 0.0, 40);
   await sleep(150);
-  ok('the call still hears the caller afterwards', client.calls.turns.length > before);
+  ok(
+    'the call still hears the caller afterwards',
+    client.calls.turns.length > before,
+  );
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

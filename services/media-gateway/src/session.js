@@ -7,7 +7,13 @@ import {
   wavToPcm,
 } from './audio.js';
 import { TurnDetector, frameDurationMs } from './turn-detector.js';
-import { buildClear, buildMedia, buildPong, parseInbound } from './protocol.js';
+import {
+  buildClear,
+  buildMedia,
+  buildMode,
+  buildPong,
+  parseInbound,
+} from './protocol.js';
 import { audibleTo } from './mixer.js';
 
 /** Providers transcribe better at 16 kHz than at the telephony 8 kHz. */
@@ -121,6 +127,23 @@ export class CallSession {
         whisperTo: null,
         session: this,
       });
+      // A leg that joins whispering has no target yet, and a whisper with no
+      // target is routed to nobody — the supervisor's microphone was open,
+      // frames were flowing, and not one of them reached a human. Resolve the
+      // target here, or say plainly that there is nobody to coach.
+      if (this.mode === 'whisper') {
+        const target = this.room.whisperTargetFor(this.legId);
+        if (target) {
+          this.room.setMode(this.legId, 'whisper', target);
+          this.announceMode({ whisperTo: target });
+        } else {
+          this.room.setMode(this.legId, 'listen');
+          this.mode = 'listen';
+          this.announceMode({ reason: 'no_agent_to_whisper_to' });
+        }
+      } else if (this.role === 'supervisor') {
+        this.announceMode({});
+      }
       this.log('leg_joined', {
         callId: this.callId,
         legId: this.legId,
@@ -421,6 +444,7 @@ export class CallSession {
         const result = this.room.setMode(this.legId, mode, whisperTo ?? null);
         if (!result.ok) return result;
         this.mode = result.mode;
+        this.announceMode({ whisperTo: result.whisperTo });
         break;
       }
       case 'hangup':
@@ -441,6 +465,32 @@ export class CallSession {
     return { ok: true, ...this.controlState() };
   }
 
+  /**
+   * Sends this leg's effective mode to its browser.
+   *
+   * The mode a supervisor asks for and the mode the room grants are not always
+   * the same, and the gap is the dangerous part: believing you are whispering
+   * when you are silent, or that you are silent when you are not.
+   */
+  /**
+   * The room changed this leg's mode without being asked — the leg it was
+   * whispering to left. The session's own `mode` has to follow, or the next
+   * control snapshot reports a whisper that is no longer happening.
+   */
+  modeChangedByRoom(mode, reason) {
+    this.mode = mode;
+    this.announceMode({ reason });
+  }
+
+  announceMode({ whisperTo = null, reason = null } = {}) {
+    const frame = buildMode(this.carrier, {
+      mode: this.mode,
+      whisperTo,
+      reason,
+    });
+    if (frame) this.send(frame);
+  }
+
   controlState() {
     return {
       legId: this.legId,
@@ -457,7 +507,11 @@ export class CallSession {
     this.ended = true;
     this.stopPlayback();
     if (this.room) {
-      this.room.remove(this.legId);
+      const { demoted } = this.room.remove(this.legId);
+      // Whoever was coaching this leg is now talking to nobody. Their browser
+      // is still showing "only the agent hears you" until it is told.
+      for (const other of demoted)
+        other.session?.modeChangedByRoom?.(other.mode, 'whisper_target_left');
       this.log('leg_left', {
         callId: this.callId,
         legId: this.legId,

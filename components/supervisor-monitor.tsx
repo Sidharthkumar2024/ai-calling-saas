@@ -75,6 +75,12 @@ registerProcessor('vaani-supervisor-tap', VaaniSupervisorTap);
 
 type Mode = 'listen' | 'whisper' | 'duplex';
 
+/** Why the gateway gave a supervisor a quieter mode than they asked for. */
+const DEMOTION: Record<string, TranslationKey | undefined> = {
+  no_agent_to_whisper_to: 'sup.noAgentToWhisper',
+  whisper_target_left: 'sup.whisperTargetLeft',
+};
+
 const AUDIENCE: Record<Mode, TranslationKey> = {
   listen: 'sup.nobodyHears',
   whisper: 'sup.onlyAgentHears',
@@ -100,19 +106,31 @@ export function SupervisorMonitor({
   const streamRef = useRef<MediaStream | null>(null);
   const playAtRef = useRef(0);
 
-  const disconnect = useCallback(() => {
-    socketRef.current?.close();
-    socketRef.current = null;
+  /**
+   * Closes the microphone without leaving the call.
+   *
+   * The gateway can take a supervisor's voice away mid-session — the agent
+   * they were coaching hangs up, and a whisper with no target reaches nobody.
+   * Leaving the microphone open then is a live input that goes nowhere, with
+   * the browser's recording indicator still lit.
+   */
+  const stopMicrophone = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     void captureRef.current?.close();
     captureRef.current = null;
+  }, []);
+
+  const disconnect = useCallback(() => {
+    socketRef.current?.close();
+    socketRef.current = null;
+    stopMicrophone();
     void playbackRef.current?.close();
     playbackRef.current = null;
     playAtRef.current = 0;
     setMode(null);
     setFrames(0);
-  }, []);
+  }, [stopMicrophone]);
 
   // Never keep listening to someone's call after this panel closes.
   useEffect(() => disconnect, [disconnect]);
@@ -177,10 +195,22 @@ export function SupervisorMonitor({
         const frame = JSON.parse(String(message.data)) as {
           event: string;
           media?: { payload: string };
+          mode?: Mode;
+          reason?: string | null;
         };
         if (frame.event === 'media' && frame.media?.payload) {
           play(frame.media.payload);
           setFrames((count) => count + 1);
+        }
+        // The mode the room grants is not always the one that was asked for:
+        // there may be no human agent to coach, or the one being coached may
+        // hang up. This panel shows what the gateway actually did, because the
+        // gap between the two is a supervisor talking to nobody.
+        if (frame.event === 'mode' && frame.mode) {
+          setMode(frame.mode);
+          if (frame.mode === 'listen') stopMicrophone();
+          const explanation = DEMOTION[frame.reason ?? ''];
+          if (explanation) setNotice(t(explanation));
         }
       };
       socket.onclose = (event) => {

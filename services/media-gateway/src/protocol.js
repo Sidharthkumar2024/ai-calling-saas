@@ -72,8 +72,7 @@ export function parseInbound(carrier, raw) {
     // The dialer measures round trip over the audio socket itself rather than
     // over HTTP, because that is the path the call's voice actually takes. The
     // gateway echoes the tab's own clock back untouched; it never interprets it.
-    if (event === 'ping')
-      return { kind: 'ping', at: Number(message.at) || 0 };
+    if (event === 'ping') return { kind: 'ping', at: Number(message.at) || 0 };
     if (event === 'stop') return { kind: 'stop' };
     return { kind: 'ignore', reason: event ?? 'unknown_event' };
   }
@@ -94,7 +93,11 @@ export function parseInbound(carrier, raw) {
       };
     }
     if (event === 'media')
-      return { kind: 'media', payload: message.media?.payload ?? '', track: 'inbound' };
+      return {
+        kind: 'media',
+        payload: message.media?.payload ?? '',
+        track: 'inbound',
+      };
     if (event === 'stop' || event === 'dtmf')
       return event === 'stop'
         ? { kind: 'stop' }
@@ -149,5 +152,21 @@ export function buildPong(carrier, { at }) {
  * must not parse JSON to say "no".
  */
 export function isProbeFrame(carrier, raw) {
-  return carrier === 'browser' && typeof raw === 'string' && raw.includes('"ping"');
+  return (
+    carrier === 'browser' && typeof raw === 'string' && raw.includes('"ping"')
+  );
+}
+
+/**
+ * Tells a browser leg what mode it is *actually* in.
+ *
+ * A supervisor asks for a mode and the room decides — there may be no human
+ * agent to whisper to, or the one being coached may have hung up. Without this
+ * frame the browser goes on displaying what it asked for, which is how a
+ * supervisor ends up coaching a channel nobody is listening to. Browser only:
+ * a carrier has no use for it and would log it as an unknown event.
+ */
+export function buildMode(carrier, { mode, whisperTo = null, reason = null }) {
+  if (carrier !== 'browser') return null;
+  return JSON.stringify({ event: 'mode', mode, whisperTo, reason });
 }

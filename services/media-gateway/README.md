@@ -84,6 +84,17 @@ mode, and the mode decides who hears whom:
 supervisor cannot promote a listening session into a speaking one by editing a
 query parameter.
 
+A whisper is routed to one leg, so a leg that *joins* whispering has no target
+and reaches nobody. The gateway resolves that target at join time — the human
+`agent` leg, never the AI and never the customer — and where there is no human
+agent to coach it joins as `listen` instead. Either way it sends the browser a
+`{"event":"mode"}` frame with the mode it actually got and, when that is not
+what was asked for, the reason (`no_agent_to_whisper_to`,
+`whisper_target_left`). The supervisor's panel shows that frame, not the
+request: believing you are whispering while you are silent is the failure this
+prevents. The same frame follows a mid-call demotion, which happens when the
+agent being coached hangs up.
+
 Transfer falls out of this: once a human agent is in the room as a `duplex`
 leg, `Room.aiShouldRespond()` returns false and the AI stops answering rather
 than talking over them.

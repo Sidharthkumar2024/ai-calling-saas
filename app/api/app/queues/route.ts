@@ -10,6 +10,7 @@ import {
 import { recordAudit } from '@/lib/demo-seed';
 import { copilotForHandoff } from '@/lib/copilot';
 import { initiateWarmTransfer, resolveRouting } from '@/lib/handoff-service';
+import { queueRemoval } from '@/lib/agent-lifecycle';
 import { ROUTING_STRATEGIES } from '@/lib/routing';
 
 export const dynamic = 'force-dynamic';
@@ -317,14 +318,58 @@ export async function POST(request: Request) {
 
   if (action === 'delete_queue') {
     const queueId = text(body.queueId, 80);
-    const result = await db
+    const queue = await db
+      .prepare(
+        `SELECT id FROM queues WHERE id = ? AND organization_id = ? LIMIT 1`,
+      )
+      .bind(queueId, organizationId)
+      .first<{ id: string }>();
+    if (!queue)
+      return NextResponse.json({ error: 'Queue not found.' }, { status: 404 });
+
+    // What still points at it. This used to be a bare DELETE, and the schema
+    // cascades: it took the queue's routing rules with it — the same rules the
+    // handler below archives rather than deletes, precisely so the record of
+    // why calls went where survives — and blanked `queue_id` on every handoff
+    // and number route besides.
+    const references = await db
+      .prepare(`SELECT
+        (SELECT count(*) FROM handoffs WHERE queue_id = ?) AS handoffs,
+        (SELECT count(*) FROM routing_rules WHERE queue_id = ?) AS rules,
+        (SELECT count(*) FROM number_routes WHERE queue_id = ?) AS numberRoutes,
+        (SELECT count(*) FROM queue_members WHERE queue_id = ?) AS members`)
+      .bind(queueId, queueId, queueId, queueId)
+      .first<{
+        handoffs: number;
+        rules: number;
+        numberRoutes: number;
+        members: number;
+      }>();
+    const removal = queueRemoval(references ?? {});
+    if (!removal.deletable) {
+      await db
+        .prepare(
+          `UPDATE queues SET status = 'archived', updated_at = CURRENT_TIMESTAMP
+           WHERE id = ? AND organization_id = ?`,
+        )
+        .bind(queueId, organizationId)
+        .run();
+      await recordAudit(auth.session, 'queue.archived', 'queue', queueId, {
+        held: removal.counts,
+      });
+      return NextResponse.json({
+        ok: true,
+        archived: true,
+        reason: removal.reason,
+      });
+    }
+
+    await db
       .prepare(`DELETE FROM queues WHERE id = ? AND organization_id = ?`)
       .bind(queueId, organizationId)
       .run();
-    if (!result.meta.changes)
-      return NextResponse.json({ error: 'Queue not found.' }, { status: 404 });
     await recordAudit(auth.session, 'queue.deleted', 'queue', queueId, {});
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, archived: false });
   }
 
   if (action === 'add_member' || action === 'remove_member') {
@@ -415,7 +460,7 @@ export async function POST(request: Request) {
 
   // Archived, not deleted: a rule that decided how calls were routed last
   // month is part of why they went where they went.
-  if (action === 'delete_rule' || action === 'archive_rule') {
+  if (action === 'archive_rule') {
     return NextResponse.json(
       await archiveOrgConfig({
         organizationId,

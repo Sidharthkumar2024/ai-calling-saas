@@ -306,3 +306,91 @@ export function agentRemoval(counts: AgentReferenceCounts): AgentRemoval {
     counts: held,
   };
 }
+
+/* ------------------------------------------------------------------ *
+ * Queues
+ * ------------------------------------------------------------------ */
+
+/**
+ * What still points at a queue, in the reader's words.
+ *
+ * Ordered by how much the reader loses if the queue goes: a routed conversation
+ * first, then the rule that sent it there.
+ */
+/**
+ * Both forms, spelled out.
+ *
+ * `agentRemoval` pluralises by appending an `s`, which is fine for a label
+ * that is one noun — "2 calls" — and wrong the moment a label is a phrase:
+ * "routing rule pointing at it" became "routing rule pointing at its".
+ */
+export const QUEUE_REFERENCE_LABELS = {
+  handoffs: {
+    one: 'conversation routed to it',
+    many: 'conversations routed to it',
+  },
+  rules: {
+    one: 'routing rule pointing at it',
+    many: 'routing rules pointing at it',
+  },
+  numberRoutes: {
+    one: 'number routed to it',
+    many: 'numbers routed to it',
+  },
+  members: { one: 'agent on it', many: 'agents on it' },
+} as const;
+
+export type QueueReferenceCounts = Partial<
+  Record<keyof typeof QUEUE_REFERENCE_LABELS, number>
+>;
+
+export type QueueRemoval = {
+  deletable: boolean;
+  reason: string;
+  counts: Array<{ label: string; count: number }>;
+};
+
+/**
+ * Whether a queue can be deleted, or should be archived instead.
+ *
+ * The same rule as `agentRemoval`, and here it closes a real hole: deleting a
+ * queue cascaded to `routing_rules`, which the same route archives rather than
+ * deletes precisely because "a rule that decided how calls were routed last
+ * month is part of why they went where they went". Deleting the queue destroyed
+ * exactly the history the rule handler protects — and blanked `queue_id` on
+ * every handoff and number route besides.
+ */
+export function queueRemoval(counts: QueueReferenceCounts): QueueRemoval {
+  const held = (
+    Object.keys(QUEUE_REFERENCE_LABELS) as Array<
+      keyof typeof QUEUE_REFERENCE_LABELS
+    >
+  )
+    .map((key) => {
+      const count = Math.max(0, Math.round(Number(counts[key] ?? 0)));
+      return {
+        label:
+          count === 1
+            ? QUEUE_REFERENCE_LABELS[key].one
+            : QUEUE_REFERENCE_LABELS[key].many,
+        count,
+      };
+    })
+    .filter((entry) => entry.count > 0);
+
+  if (held.length === 0)
+    return {
+      deletable: true,
+      reason: 'Nothing points at this queue, so it can be deleted outright.',
+      counts: [],
+    };
+
+  const listed = held
+    .map((entry) => `${entry.count} ${entry.label}`)
+    .join(', ');
+  return {
+    deletable: false,
+    reason: `${listed} still ${held.length === 1 && held[0].count === 1 ? 'points' : 'point'} at this queue. Deleting it would take the routing rules and the record of where those conversations went with it, so archive it instead — it stops taking new work and stays readable on the old.`,
+    counts: held,
+  };
+}

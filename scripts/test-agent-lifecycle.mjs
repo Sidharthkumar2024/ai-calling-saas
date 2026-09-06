@@ -230,3 +230,46 @@ check('every reference kind has a readable label', () => {
 });
 
 console.log(`\n${passed} assertions passed.`);
+
+// --- queues ------------------------------------------------------------------
+const { queueRemoval } = await import('../lib/agent-lifecycle.ts');
+
+check('nothing points at it, so it can be deleted', () => {
+  const verdict = queueRemoval({});
+  assert.equal(verdict.deletable, true);
+  assert.match(verdict.reason, /can be deleted outright/);
+});
+
+// THE HOLE THIS CLOSES: deleting a queue cascaded to its routing rules, which
+// the same route archives on purpose so the record of why calls went where
+// survives.
+check('routing rules keep it from being deleted', () => {
+  const verdict = queueRemoval({ rules: 2 });
+  assert.equal(verdict.deletable, false);
+  assert.match(verdict.reason, /2 routing rules pointing at it/);
+  assert.match(verdict.reason, /archive it instead/);
+});
+
+check('one routed conversation reads as singular', () => {
+  const verdict = queueRemoval({ handoffs: 1 });
+  assert.equal(verdict.deletable, false);
+  assert.match(verdict.reason, /1 conversation routed to it still points/);
+});
+
+// Members alone are not history — but they are still someone's assignment, so
+// the queue is archived rather than deleted out from under them.
+check('members alone still block a delete', () =>
+  assert.equal(queueRemoval({ members: 3 }).deletable, false));
+
+check('zero is not a reference', () =>
+  assert.equal(queueRemoval({ rules: 0, handoffs: 0 }).deletable, true));
+check('NaN is not a reference', () =>
+  assert.equal(queueRemoval({ rules: Number.NaN }).deletable, true));
+check('a negative count is not a reference', () =>
+  assert.equal(queueRemoval({ rules: -4 }).deletable, true));
+
+check('holders are listed by what the reader loses most', () => {
+  const verdict = queueRemoval({ handoffs: 4, rules: 1, members: 2 });
+  assert.equal(verdict.counts.length, 3);
+  assert.match(verdict.counts[0].label, /conversation/);
+});

@@ -79,12 +79,49 @@ export function LandingHeroStage({
     };
   }, [pinned]);
 
-  const screen = Math.min(SCREENS - 1, Math.floor(progress * SCREENS));
+  /**
+   * The call plays on its own until the reader takes hold of it.
+   *
+   * A hero that only moves when you scroll is still a hero that does nothing
+   * when the page opens — and the first thing anyone sees is a still. So the
+   * five states run on a timer from load, at the pace of the call they
+   * describe, and the moment the reader scrolls the stage the timer stops and
+   * scroll drives it instead. It never restarts: taking the wheel back from
+   * someone who has taken it is worse than not offering it.
+   */
+  const [autoScreen, setAutoScreen] = useState(0);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    if (!pinned || scrolled) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    // Ring, answer, talk, book, file — the beats are not equal in life and are
+    // not equal here.
+    const beats = [1600, 2600, 3400, 2800, 3000];
+    const timer = window.setTimeout(
+      () => setAutoScreen((current) => (current + 1) % SCREENS),
+      beats[autoScreen],
+    );
+    return () => window.clearTimeout(timer);
+  }, [pinned, scrolled, autoScreen]);
+
+  useEffect(() => {
+    if (!pinned || scrolled) return;
+    const onScroll = () => {
+      if (window.scrollY > 8) setScrolled(true);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [pinned, scrolled]);
+
+  const screen = scrolled
+    ? Math.min(SCREENS - 1, Math.floor(progress * SCREENS))
+    : autoScreen;
   // The stage starts dark and turns light as the call is answered, which is
   // the same beat the phone screen is on. Unpinned there is no dark stage at
   // all, so it is lit from the start — otherwise the secondary button renders
   // its on-dark styling onto a white page and disappears.
-  const lit = !pinned || progress > 0.34;
+  const lit = !pinned || (scrolled ? progress > 0.34 : screen >= 2);
 
   const copy = (
     <div className="max-w-xl">
@@ -170,7 +207,7 @@ export function LandingHeroStage({
             style={{
               // Moves faster than the phone below it, which is what puts the
               // two on different planes rather than on one flat card.
-              transform: `translateX(${18 - progress * 46}%)`,
+              transform: `translateX(${18 - (scrolled ? progress : screen / (SCREENS - 1)) * 46}%)`,
             }}
           >
             {t('landing.stage.marquee')} · {t('landing.stage.marquee')}
@@ -191,13 +228,13 @@ export function LandingHeroStage({
                   edges as the call gets going. */}
               <Glass
                 side="left"
-                shown={progress > 0.18}
+                shown={scrolled ? progress > 0.18 : screen >= 1}
                 lit={lit}
                 label={t('landing.stage.widgetHears')}
               />
               <Glass
                 side="right"
-                shown={progress > 0.5}
+                shown={scrolled ? progress > 0.5 : screen >= 3}
                 lit={lit}
                 label={t('landing.stage.widgetActs')}
               />
@@ -207,7 +244,14 @@ export function LandingHeroStage({
                   812px phone screen: at 248px wide the device alone was 523px
                   tall and the stage overflowed by 35px at each end. */}
               <div className="relative w-[168px] sm:w-[220px] lg:w-[280px]">
-                <Phone screen={screen} tilt={(1 - progress) * 14 - 3} />
+                <Phone
+                  screen={screen}
+                  tilt={
+                    scrolled
+                      ? (1 - progress) * 14 - 3
+                      : 11 - (screen / (SCREENS - 1)) * 14
+                  }
+                />
               </div>
             </div>
           </div>

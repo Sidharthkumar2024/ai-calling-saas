@@ -558,6 +558,11 @@ const en = {
   'landing.proof.hours': 'no queue, no closing time, no missed ring',
   'landing.proof.note':
     'No user counts or ratings on this page yet, because there are none to report honestly.',
+  'landing.stage.marquee': 'See how Vaani answers your calls',
+  'landing.stage.title': 'Meet Vaani.',
+  'landing.stage.sub': 'Your revenue voice team,\nanswering every call.',
+  'landing.stage.widgetHears': 'Understands the caller',
+  'landing.stage.widgetActs': 'Finishes the job on the call',
   'landing.story.eyebrow': 'It does not stop at answering.',
   'landing.story.title': 'Vaani does more\nthan answer calls.',
   'landing.story.answer.title': 'It answers on the first ring.',
@@ -1338,6 +1343,11 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'landing.proof.hours': 'न कतार, न बंद होने का समय, न कोई छूटी घंटी',
   'landing.proof.note':
     'इस पेज पर अभी user count या rating नहीं है, क्योंकि ईमानदारी से बताने लायक कोई है ही नहीं।',
+  'landing.stage.marquee': 'देखिए Vaani आपकी कॉल कैसे उठाती है',
+  'landing.stage.title': 'मिलिए Vaani से।',
+  'landing.stage.sub': 'आपकी revenue voice टीम,\nहर कॉल उठाती हुई।',
+  'landing.stage.widgetHears': 'ग्राहक को समझती है',
+  'landing.stage.widgetActs': 'काम कॉल पर ही पूरा करती है',
   'landing.story.eyebrow': 'बात सिर्फ़ कॉल उठाने पर ख़त्म नहीं होती।',
   'landing.story.title': 'Vaani कॉल उठाने से\nकहीं आगे जाती है।',
   'landing.story.answer.title': 'पहली घंटी पर उठ जाती है।',

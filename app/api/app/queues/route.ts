@@ -547,28 +547,58 @@ export async function POST(request: Request) {
         { error: 'This conversation was already accepted.' },
         { status: 409 },
       );
+    // Who is taking it. This used to bind `agentId || handoff.assigned_agent_id`
+    // and accepting a *queued* case supplied neither — the body carries no
+    // `supportAgentId` and a queued row has no assignee — so it bound null and
+    // the conversation was accepted by nobody. Every later update that keys off
+    // the assignee then did nothing, which is why `active_calls` never came
+    // back down and a completed escalation could not say who handled it.
+    const takenBy =
+      agentId ||
+      handoff.assigned_agent_id ||
+      (
+        await db
+          .prepare(
+            `SELECT id FROM support_agents WHERE organization_id = ? AND user_id = ? LIMIT 1`,
+          )
+          .bind(organizationId, auth.session.userId)
+          .first<{ id: string }>()
+      )?.id ||
+      null;
+    if (!takenBy)
+      return NextResponse.json(
+        {
+          error:
+            'You are not on the agent desk in this workspace, so this conversation cannot be assigned to you.',
+        },
+        { status: 409 },
+      );
+
     // Claim atomically so two agents cannot accept the same conversation.
     const claimed = await db
       .prepare(`UPDATE handoffs SET status = 'accepted', queue_status = 'accepted',
         assigned_agent_id = ?, accepted_at = CURRENT_TIMESTAMP
         WHERE id = ? AND organization_id = ? AND status IN ('queued','assigned')`)
-      .bind(agentId || handoff.assigned_agent_id, handoffId, organizationId)
+      .bind(takenBy, handoffId, organizationId)
       .run();
     if (!claimed.meta.changes)
       return NextResponse.json(
         { error: 'Another agent already took this conversation.' },
         { status: 409 },
       );
-    if (agentId)
-      await db
-        .prepare(`UPDATE support_agents SET active_calls = active_calls + 1,
-          last_assigned_at = CURRENT_TIMESTAMP,
-          availability = CASE
-            WHEN active_calls + 1 >= coalesce(max_concurrent_calls, 1) THEN 'busy'
-            ELSE availability END,
-          updated_at = CURRENT_TIMESTAMP WHERE id = ? AND organization_id = ?`)
-        .bind(agentId, organizationId)
-        .run();
+    // Guarded on `agentId` before, which is only set when the body names one —
+    // so accepting from the desk incremented nothing while wrap-up
+    // decremented, and the counter routing uses to decide who is free drifted
+    // out of step with reality. It moves for whoever actually took the call.
+    await db
+      .prepare(`UPDATE support_agents SET active_calls = active_calls + 1,
+        last_assigned_at = CURRENT_TIMESTAMP,
+        availability = CASE
+          WHEN active_calls + 1 >= coalesce(max_concurrent_calls, 1) THEN 'busy'
+          ELSE availability END,
+        updated_at = CURRENT_TIMESTAMP WHERE id = ? AND organization_id = ?`)
+      .bind(takenBy, organizationId)
+      .run();
     return NextResponse.json({ ok: true, status: 'accepted' });
   }
 

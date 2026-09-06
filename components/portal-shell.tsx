@@ -2,7 +2,7 @@
 
 import type { LucideIcon } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Activity,
   BookOpenText,
@@ -11,6 +11,7 @@ import {
   LogOut,
   Menu,
   Search,
+  X,
 } from 'lucide-react';
 
 import { NotificationBell } from '@/components/notification-center';
@@ -62,6 +63,49 @@ export function PortalShell({
     .find((item) => item.id === active);
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  const drawerRef = useRef<HTMLDialogElement>(null);
+
+  /**
+   * The drawer is a real `<dialog>` opened as a modal, which is what makes
+   * Escape, the backdrop, focus containment and inertness of the page behind
+   * it the browser's job rather than four hand-written listeners that each
+   * have to be got right. Only the page's own scrolling is left to us.
+   */
+  useEffect(() => {
+    const drawer = drawerRef.current;
+    if (!drawer) return;
+    if (mobileOpen && !drawer.open) drawer.showModal();
+    if (!mobileOpen && drawer.open) drawer.close();
+    if (!mobileOpen) return;
+    // A click that lands on the dialog element itself landed on its backdrop —
+    // every part of the panel is a child, so nothing else reaches here. Bound
+    // as a listener rather than in JSX because a `<dialog>` is interactive
+    // already and its keyboard equivalent, Escape, is the browser's.
+    const onBackdrop = (event: MouseEvent) => {
+      if (event.target === drawer) setMobileOpen(false);
+    };
+    drawer.addEventListener('click', onBackdrop);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      drawer.removeEventListener('click', onBackdrop);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [mobileOpen]);
+
+  /**
+   * A phone turned sideways into the desktop layout would otherwise leave the
+   * drawer open on top of the sidebar it duplicates.
+   */
+  useEffect(() => {
+    const wide = window.matchMedia('(min-width: 1024px)');
+    const sync = () => {
+      if (wide.matches) setMobileOpen(false);
+    };
+    wide.addEventListener('change', sync);
+    return () => wide.removeEventListener('change', sync);
+  }, []);
+
   async function logout() {
     await fetch('/api/auth/logout', { method: 'POST' });
     window.location.assign(mode === 'admin' ? '/admin/login' : '/login');
@@ -104,46 +148,13 @@ export function PortalShell({
           </div>
         </div>
 
-        <nav
-          className="flex-1 overflow-y-auto px-3 py-4"
-          aria-label={`${mode} navigation`}
-        >
-          {groups.map((group, groupIndex) => (
-            <div key={group.label} className={groupIndex ? 'mt-6' : ''}>
-              <p className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-ink-muted">
-                {group.translationKey ? t(group.translationKey) : group.label}
-              </p>
-              <div className="space-y-1">
-                {group.items.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => onNavigate(item.id)}
-                    className={`flex h-9 w-full items-center gap-3 rounded-lg px-3 text-left text-xs transition-colors ${
-                      active === item.id
-                        ? 'border border-hairline bg-surface-strong text-ink shadow-[inset_0_1px_0_rgba(255,255,255,.08)]'
-                        : 'text-ink-muted hover:bg-surface-strong hover:text-ink'
-                    }`}
-                  >
-                    <item.icon
-                      className={`size-3.5 ${active === item.id ? 'text-primary' : ''}`}
-                    />
-                    <span className="flex-1">
-                      {item.translationKey
-                        ? t(item.translationKey)
-                        : item.label}
-                    </span>
-                    {item.badge ? (
-                      <span className="rounded-md border border-hairline bg-surface-strong px-1.5 py-0.5 font-mono text-[9px] text-ink-body">
-                        {item.badge}
-                      </span>
-                    ) : null}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </nav>
+        <NavList
+          groups={groups}
+          active={active}
+          onNavigate={onNavigate}
+          label={`${mode} navigation`}
+          t={t}
+        />
 
         <div className="border-t border-hairline p-3">
           <div className="mb-2 flex items-center gap-2 rounded-lg px-2 py-2">
@@ -175,8 +186,9 @@ export function PortalShell({
             variant="ghost"
             size="icon-sm"
             className="lg:hidden"
-            aria-label="Open navigation"
+            aria-label={mobileOpen ? 'Close navigation' : 'Open navigation'}
             aria-expanded={mobileOpen}
+            aria-controls="portal-mobile-nav"
           >
             <Menu />
           </Button>
@@ -239,29 +251,132 @@ export function PortalShell({
           </Badge>
         </header>
 
-        <div
-          className={`${mobileOpen ? 'block' : 'hidden'} border-b border-hairline bg-surface-muted/90 px-3 py-2 backdrop-blur-xl lg:hidden`}
-        >
-          <div className="flex gap-1 overflow-x-auto">
-            {groups
-              .flatMap((group) => group.items)
-              .map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => {
-                    onNavigate(item.id);
-                    setMobileOpen(false);
-                  }}
-                  className={`whitespace-nowrap rounded-lg px-3 py-2 text-[10px] ${active === item.id ? 'bg-white text-black' : 'text-ink-muted'}`}
-                >
-                  {item.translationKey ? t(item.translationKey) : item.label}
-                </button>
-              ))}
-          </div>
-        </div>
         {children}
       </section>
+
+      {/* Sits outside the scrolling section: a sheet fixed to the viewport must
+          not inherit a transform or an overflow from the page under it. */}
+      <dialog
+        id="portal-mobile-nav"
+        ref={drawerRef}
+        aria-label={`${mode} navigation`}
+        onClose={() => setMobileOpen(false)}
+        className="m-0 h-full max-h-none w-[86%] max-w-[300px] flex-col border-r border-hairline bg-surface-muted p-0 text-ink shadow-2xl backdrop:bg-black/45 open:flex lg:hidden!"
+      >
+        <div className="flex h-[62px] shrink-0 items-center gap-3 border-b border-hairline px-4">
+          <span className="grid size-8 shrink-0 place-items-center rounded-xl border border-hairline bg-white text-black">
+            <Activity className="size-4" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-semibold">
+              {workspace || 'Vaani Platform'}
+            </p>
+            <p className="truncate text-[9px] uppercase tracking-[0.18em] text-ink-muted">
+              {mode === 'admin' ? 'Platform admin' : 'Revenue Voice OS'}
+            </p>
+          </div>
+          <Button
+            onClick={() => setMobileOpen(false)}
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Close navigation"
+          >
+            <X />
+          </Button>
+        </div>
+
+        <NavList
+          groups={groups}
+          active={active}
+          onNavigate={(id) => {
+            onNavigate(id);
+            setMobileOpen(false);
+          }}
+          label={`${mode} sections`}
+          t={t}
+        />
+
+        <div className="flex shrink-0 items-center gap-2 border-t border-hairline p-3">
+          <Avatar className="size-8">
+            <AvatarFallback className="bg-surface-strong text-[10px]">
+              {name.slice(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[11px] font-medium">{name}</p>
+            <p className="truncate text-[9px] text-ink-muted">{email}</p>
+          </div>
+          <button
+            type="button"
+            onClick={logout}
+            className="rounded-md p-2 text-ink-muted hover:bg-surface-strong hover:text-ink"
+            aria-label="Log out"
+          >
+            <LogOut className="size-3.5" />
+          </button>
+        </div>
+      </dialog>
     </main>
+  );
+}
+
+/**
+ * The section list, shared by the sidebar and the mobile drawer.
+ *
+ * It lives in one place because the two used to be different things: the
+ * sidebar showed grouped sections with icons, and the phone showed the same
+ * thirty-five destinations flattened into one horizontal strip. Anything added
+ * to one had to be remembered for the other.
+ */
+function NavList({
+  groups,
+  active,
+  onNavigate,
+  label,
+  t,
+}: {
+  groups: PortalNavGroup[];
+  active: string;
+  onNavigate: (id: string) => void;
+  label: string;
+  t: (key: TranslationKey) => string;
+}) {
+  return (
+    <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label={label}>
+      {groups.map((group, groupIndex) => (
+        <div key={group.label} className={groupIndex ? 'mt-6' : ''}>
+          <p className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-ink-muted">
+            {group.translationKey ? t(group.translationKey) : group.label}
+          </p>
+          <div className="space-y-1">
+            {group.items.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onNavigate(item.id)}
+                aria-current={active === item.id ? 'page' : undefined}
+                className={`flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-left text-xs transition-colors ${
+                  active === item.id
+                    ? 'border border-hairline bg-surface-strong text-ink shadow-[inset_0_1px_0_rgba(255,255,255,.08)]'
+                    : 'text-ink-muted hover:bg-surface-strong hover:text-ink'
+                }`}
+              >
+                <item.icon
+                  className={`size-3.5 shrink-0 ${active === item.id ? 'text-primary' : ''}`}
+                />
+                <span className="flex-1">
+                  {item.translationKey ? t(item.translationKey) : item.label}
+                </span>
+                {item.badge ? (
+                  <span className="rounded-md border border-hairline bg-surface-strong px-1.5 py-0.5 font-mono text-[9px] text-ink-body">
+                    {item.badge}
+                  </span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </nav>
   );
 }

@@ -2084,7 +2084,12 @@ function VoiceOrb({
     <section className="relative rounded-3xl border border-hairline bg-surface px-5 py-7 text-center">
       {/* The tinted radial behind the orb drew a visible square corner around
           a round thing. The orb carries its own light now. */}
-      <div className="relative mx-auto size-40 sm:size-44">
+      {/* Was `size-40 sm:size-44` — a fixed 160/176px that ignored the column
+          it sits in. In a narrow side panel the orb ran past the white card
+          behind it, and the card's edge cut across the sphere: that is the
+          square you could see, with the orb poking out of it. It scales with
+          the column now and stays circular. */}
+      <div className="relative mx-auto aspect-square w-full max-w-[176px]">
         <div
           aria-hidden="true"
           className={`absolute -inset-5 rounded-full bg-[radial-gradient(circle,rgba(37,99,235,0.28),transparent_70%)] blur-2xl transition-opacity duration-700 ${active ? 'opacity-90' : 'opacity-45'}`}

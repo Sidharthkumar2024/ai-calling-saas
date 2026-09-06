@@ -171,7 +171,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
               // a see-through bar left the wordmark invisible. It carries the
               // stage's own floor colour instead, which makes the two read as
               // one dark area whether the header is over the stage or above it.
-              'border-b border-white/10 bg-[#070b1c] text-white [&_.text-ink-muted]:text-white/60 [&_a]:text-white [&_button]:text-white'
+              'border border-slate-200/80 bg-white text-ink shadow-[0_16px_55px_rgba(15,23,42,0.14)] [&_.text-ink-muted]:text-ink-muted [&_a]:text-ink [&_button]:text-ink'
             : 'border-b border-hairline bg-surface-muted/88'
         }`}
       >

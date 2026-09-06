@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   Activity,
@@ -77,6 +77,29 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
   const [activeUseCase, setActiveUseCase] = useState(0);
   const currentStory = industryStories[activeUseCase];
   const CurrentStoryIcon = currentStory.icon;
+
+  // Safari does not expose scroll-driven CSS timelines consistently yet. The
+  // observer keeps the narrative animation working on localhost and on older
+  // browsers while still letting CSS view-timeline enhance newer engines.
+  useEffect(() => {
+    const sections = Array.from(
+      document.querySelectorAll<HTMLElement>('.landing-lazy'),
+    );
+    sections.forEach((section) => section.classList.add('landing-reveal-ready'));
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('landing-reveal-visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.12, rootMargin: '0px 0px -8% 0px' },
+    );
+    sections.forEach((section) => observer.observe(section));
+    return () => observer.disconnect();
+  }, []);
   /** Builds a sub-key of one catalog entry, e.g. `…realEstate.point2`. */
   const sub = (base: string, leaf: string) =>
     t(`${base}.${leaf}` as TranslationKey);

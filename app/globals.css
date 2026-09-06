@@ -234,6 +234,20 @@
     animation-timeline: view();
     animation-range: entry 8% cover 32%;
   }
+
+  .landing-lazy.landing-reveal-ready {
+    animation: none;
+    opacity: 0;
+    transform: translateY(28px) scale(0.985);
+    transition:
+      opacity 700ms cubic-bezier(0.22, 1, 0.36, 1),
+      transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .landing-lazy.landing-reveal-visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @keyframes landing-rise {
@@ -262,6 +276,12 @@
   .landing-wave,
   .landing-lazy {
     animation: none !important;
+  }
+
+  .landing-lazy.landing-reveal-ready {
+    opacity: 1;
+    transform: none;
+    transition: none;
   }
 }
 

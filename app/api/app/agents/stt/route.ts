@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { getRawDb } from '@/db/index';
-import { requireCustomer } from '@/lib/api-session';
+import { requireCustomerPermission } from '@/lib/customer-rbac';
 import {
   ProviderConfigurationError,
   transcribeSpeech,
@@ -15,7 +15,8 @@ export const dynamic = 'force-dynamic';
 // Speech API. Falls back (409 + fallback flag) to browser recognition when no
 // transcription engine is connected.
 export async function POST(request: Request) {
-  const auth = await requireCustomer(request);
+  // Transcription spends provider credits against the workspace.
+  const auth = await requireCustomerPermission(request, 'agents.manage');
   if (auth.response) return auth.response;
   const limit = await enforceRateLimit({
     namespace: 'agent-stt',

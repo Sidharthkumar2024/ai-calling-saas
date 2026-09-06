@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { requireCustomer } from '@/lib/api-session';
+import { requireCustomerPermission } from '@/lib/customer-rbac';
 import { enqueueJob } from '@/lib/job-queue';
 
 export const dynamic = 'force-dynamic';
@@ -20,7 +21,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireCustomer(request);
+  // This queues messages to real customers, which is the same act as running a
+  // campaign and belongs behind the same permission.
+  const auth = await requireCustomerPermission(request, 'campaigns.manage');
   if (auth.response) return auth.response;
   await ensureSchema();
   const body = (await request.json()) as {

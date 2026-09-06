@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { getRawDb } from '@/db/index';
-import { requireCustomer } from '@/lib/api-session';
+import { requireCustomerPermission } from '@/lib/customer-rbac';
 import {
   ProviderConfigurationError,
   synthesizeSpeech,
@@ -12,7 +12,8 @@ import { resolveAgentVoice } from '@/lib/voice-profiles';
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
-  const auth = await requireCustomer(request);
+  // Synthesis spends provider credits against the workspace.
+  const auth = await requireCustomerPermission(request, 'agents.manage');
   if (auth.response) return auth.response;
   const limit = await enforceRateLimit({
     namespace: 'agent-speech',

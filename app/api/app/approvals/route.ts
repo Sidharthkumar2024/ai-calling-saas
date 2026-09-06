@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { requireCustomer } from '@/lib/api-session';
+import { requireCustomerPermission } from '@/lib/customer-rbac';
 import { recordAudit } from '@/lib/demo-seed';
 import { executeRefund } from '@/lib/refund-execution';
 import { decideApproval, recordRefundRequest } from '@/lib/handoff-service';
@@ -77,6 +78,12 @@ export async function PATCH(request: Request) {
   const db = getRawDb();
 
   if (body.action === 'set_presence') {
+    // The approval decision below enforces its own authority through
+    // `decideApproval`, but this branch had no check of any kind: any member
+    // could mark a colleague offline, or themselves online to start receiving
+    // calls.
+    const presence = await requireCustomerPermission(request, 'support.manage');
+    if (presence.response) return presence.response;
     if (
       !body.agentId ||
       !['online', 'busy', 'offline', 'break'].includes(body.availability ?? '')

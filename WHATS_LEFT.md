@@ -166,6 +166,38 @@ Departments are also on screen now, with create and archive. The demo workspace
 turned out to have had one called "Revenue" the whole time that nobody could
 see.
 
+### 8. Route-guard audit — 13 found, 13 closed
+
+`npm run audit:guards` (`scripts/check-route-guards.mjs`) checks that every
+write endpoint asks *may this person do this*, not merely *are they signed in*.
+`requireCustomer` answers the second question only, so a write behind it is
+open to every member of the workspace — the analyst whose role says read-only
+included.
+
+Two had already been found by hand: the refunds route posting straight to
+Razorpay, and voice profiles. Thirteen were still open, and the sharpest was
+the one that **mints API keys** — a credential that acts as the whole
+workspace, that any member could create, and that cannot be un-copied. Also
+open: creating webhooks (an address your data leaves for), placing outbound
+calls, queuing retargeting messages, creating payment links, running workflows
+for real, and the four provider endpoints that spend credits.
+
+One had no check of any kind: the approvals route's `set_presence` branch, so
+any member could mark a colleague offline — or themselves online to start
+receiving calls. The approval decision beside it was fine; it enforces
+authority through `decideApproval`.
+
+Verified against the running app with a real read-only analyst: reads still
+return 200, marking their own notification read still works, and all four
+writes are refused by permission name.
+
+Two categories are declared rather than inferred, each with its reason: 19
+endpoints that must work without a session (a signed webhook, an opaque upload
+token, an embedded widget) and 2 whose every write is scoped to the acting
+person's own row. One false positive was the script's, not the code's — the
+per-workspace lead webhooks verify a `webhookSecret` column rather than an env
+var, and an env-var-shaped pattern called them wide open.
+
 ### 5. [KEY] Things only you can supply
 
 - **A male ElevenLabs voice id** (still outstanding) and a Punjabi voice id.

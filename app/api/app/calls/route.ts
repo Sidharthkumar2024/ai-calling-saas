@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { assertCanPlaceRealCall } from '@/lib/onboarding-service';
-import { requireCustomer } from '@/lib/api-session';
+import { requireCustomerPermission } from '@/lib/customer-rbac';
 import { startOutboundCall } from '@/lib/provider-adapters';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { sha256 } from '@/lib/security';
@@ -11,7 +11,8 @@ import { sha256 } from '@/lib/security';
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
-  const auth = await requireCustomer(request);
+  // Placing an outbound call spends credits and rings a person.
+  const auth = await requireCustomerPermission(request, 'campaigns.manage');
   if (auth.response) return auth.response;
   await ensureSchema();
   const body = (await request.json()) as {

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { getRawDb } from '@/db/index';
 import { requireCustomer } from '@/lib/api-session';
+import { requireCustomerPermission } from '@/lib/customer-rbac';
 import { recordAudit } from '@/lib/demo-seed';
 import { createOpaqueToken, sha256 } from '@/lib/security';
 
@@ -21,7 +22,10 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireCustomer(request);
+  // Minting an API key creates a credential that acts as the workspace. Any
+  // member could make one, and there is no undoing a key that has already been
+  // copied.
+  const auth = await requireCustomerPermission(request, 'integrations.manage');
   if (auth.response) return auth.response;
   const body = (await request.json()) as { name?: string; scopes?: string[] };
   if (!body.name?.trim()) {
@@ -69,7 +73,10 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const auth = await requireCustomer(request);
+  // Minting an API key creates a credential that acts as the workspace. Any
+  // member could make one, and there is no undoing a key that has already been
+  // copied.
+  const auth = await requireCustomerPermission(request, 'integrations.manage');
   if (auth.response) return auth.response;
   const id = new URL(request.url).searchParams.get('id');
   if (!id)

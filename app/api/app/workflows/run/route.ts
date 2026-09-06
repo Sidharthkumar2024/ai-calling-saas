@@ -2,13 +2,15 @@ import { NextResponse } from 'next/server';
 
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
-import { requireCustomer } from '@/lib/api-session';
+import { requireCustomerPermission } from '@/lib/customer-rbac';
 import { enqueueJob } from '@/lib/job-queue';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
-  const auth = await requireCustomer(request);
+  // Running a workflow books appointments, sends messages and creates payment
+  // links. It is the workflow doing real work, not a preview.
+  const auth = await requireCustomerPermission(request, 'agents.manage');
   if (auth.response) return auth.response;
   await ensureSchema();
   const body = (await request.json()) as {

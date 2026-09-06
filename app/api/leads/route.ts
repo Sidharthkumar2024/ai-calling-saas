@@ -10,6 +10,7 @@ import {
   salesOpportunities,
 } from '@/db/schema';
 import { requireCustomer } from '@/lib/api-session';
+import { requireCustomerPermission } from '@/lib/customer-rbac';
 import { ingestLead, normalizeLeadInput } from '@/lib/lead-engine';
 
 export const dynamic = 'force-dynamic';
@@ -99,7 +100,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireCustomer(request);
+  // Writing into the pipeline.
+  const auth = await requireCustomerPermission(request, 'crm.manage');
   if (auth.response) return auth.response;
 
   try {

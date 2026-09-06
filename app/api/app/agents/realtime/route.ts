@@ -1,5 +1,5 @@
 import { getRawDb } from '@/db/index';
-import { requireCustomer } from '@/lib/api-session';
+import { requireCustomerPermission } from '@/lib/customer-rbac';
 import {
   buildVoiceAgentInstructions,
   workspaceEnabledLanguages,
@@ -11,7 +11,8 @@ export const dynamic = 'force-dynamic';
 const REALTIME_SESSION_COST = 10;
 
 export async function POST(request: Request) {
-  const auth = await requireCustomer(request);
+  // A realtime session spends provider credits against the workspace.
+  const auth = await requireCustomerPermission(request, 'agents.manage');
   if (auth.response) return auth.response;
   const body = (await request.json()) as { agentId?: string; sdp?: string };
   const sdp = body.sdp?.trim() || '';

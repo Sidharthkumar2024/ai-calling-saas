@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { getRawDb } from '@/db/index';
 import { requireCustomer } from '@/lib/api-session';
+import { requireCustomerPermission } from '@/lib/customer-rbac';
 import { recordAudit } from '@/lib/demo-seed';
 import { createOpaqueToken, encryptSecret, sha256 } from '@/lib/security';
 
@@ -22,7 +23,10 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireCustomer(request);
+  // A webhook is an address this workspace's data leaves for. Pointing one
+  // somewhere is an integration decision, not something every member should be
+  // able to do quietly.
+  const auth = await requireCustomerPermission(request, 'integrations.manage');
   if (auth.response) return auth.response;
   const body = (await request.json()) as {
     name?: string;

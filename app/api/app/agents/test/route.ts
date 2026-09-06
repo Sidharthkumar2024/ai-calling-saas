@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { getRawDb } from '@/db/index';
-import { requireCustomer } from '@/lib/api-session';
+import { requireCustomerPermission } from '@/lib/customer-rbac';
 import { simulateAgentTurn } from '@/lib/agent-simulator';
 import {
   generateVoiceAgentTurn,
@@ -20,7 +20,8 @@ export const dynamic = 'force-dynamic';
 const TEST_TURN_COST = 10;
 
 export async function POST(request: Request) {
-  const auth = await requireCustomer(request);
+  // A playground run spends provider credits against the workspace.
+  const auth = await requireCustomerPermission(request, 'agents.manage');
   if (auth.response) return auth.response;
   const body = (await request.json()) as {
     action?: 'start' | 'message' | 'end';

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { getRawDb } from '@/db/index';
 import { requireCustomer } from '@/lib/api-session';
+import { requireCustomerPermission } from '@/lib/customer-rbac';
 import { recordAudit } from '@/lib/demo-seed';
 
 export const dynamic = 'force-dynamic';
@@ -45,7 +46,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireCustomer(request);
+  // A lead form is a public page carrying this workspace’s name.
+  const auth = await requireCustomerPermission(request, 'crm.manage');
   if (auth.response) return auth.response;
   const body = (await request.json()) as { name?: string };
   const name = clean(body.name, 80) || 'Website callback popup';
@@ -72,7 +74,8 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const auth = await requireCustomer(request);
+  // A lead form is a public page carrying this workspace’s name.
+  const auth = await requireCustomerPermission(request, 'crm.manage');
   if (auth.response) return auth.response;
   const body = (await request.json()) as {
     id?: string;

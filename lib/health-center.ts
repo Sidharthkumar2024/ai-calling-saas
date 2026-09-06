@@ -328,8 +328,15 @@ export async function healthReport(): Promise<HealthReport> {
     adapter?: string;
     configured?: boolean;
   }>)
-    if (entry?.adapter)
-      configured.set(`provider_${entry.adapter}`, entry.configured === true);
+    if (entry?.adapter) {
+      // Usage metering stores the normalized provider name (for example
+      // `anthropic`), while legacy platform rows use `provider_anthropic`.
+      // Register both aliases so the health center classifies the same calls
+      // that the provider-performance screen measures.
+      const isConfigured = entry.configured === true;
+      configured.set(entry.adapter, isConfigured);
+      configured.set(`provider_${entry.adapter}`, isConfigured);
+    }
 
   const components: ServiceSample[] = [];
   const seen = new Set<string>();

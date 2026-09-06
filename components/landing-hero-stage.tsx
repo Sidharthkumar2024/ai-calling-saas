@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, PhoneCall } from 'lucide-react';
 
+import { DeviceHalo, DeviceShell } from '@/components/landing-device';
 import { useLocale } from '@/components/locale-provider';
 
 /**
@@ -185,10 +186,7 @@ export function LandingHeroStage({
             </div>
 
             <div className="stage-scene relative mx-auto flex w-full max-w-[420px] items-center justify-center">
-              <div
-                aria-hidden="true"
-                className="stage-halo absolute size-[380px] rounded-full"
-              />
+              <DeviceHalo className="size-[380px]" />
               {/* The two glass panels either side of the phone, in from the
                   edges as the call gets going. */}
               <Glass
@@ -203,15 +201,10 @@ export function LandingHeroStage({
                 lit={lit}
                 label={t('landing.stage.widgetActs')}
               />
-              <div
-                className="stage-device relative w-[248px] sm:w-[280px]"
-                style={{
-                  // The device turns towards the reader as the call is
-                  // answered: 14° away at the start, square on by the end.
-                  transform: `rotateY(${(1 - progress) * 14 - 3}deg) rotateX(${(1 - progress) * 5}deg) translateZ(0)`,
-                }}
-              >
-                <Phone screen={screen} />
+              {/* The device turns towards the reader as the call is
+                  answered: 14° away at the ring, square on by the end. */}
+              <div className="relative w-[248px] sm:w-[280px]">
+                <Phone screen={screen} tilt={(1 - progress) * 14 - 3} />
               </div>
             </div>
           </div>
@@ -279,32 +272,23 @@ function Glass({
 }
 
 /** The phone itself. Its screen is whichever beat of the call we are on. */
-function Phone({ screen }: { screen: number }) {
+function Phone({ screen, tilt = 0 }: { screen: number; tilt?: number }) {
   return (
-    <div className="stage-sheen relative aspect-[9/19] w-full overflow-hidden rounded-[38px] bg-[linear-gradient(150deg,#4b5563_0%,#111827_28%,#0b1020_62%,#374151_100%)] p-[3px] shadow-[0_2px_0_rgba(255,255,255,0.28)_inset]">
-      <div className="relative size-full overflow-hidden rounded-[35px] border border-black/60 bg-surface-muted">
-        <div className="absolute left-1/2 top-0 z-20 h-5 w-24 -translate-x-1/2 rounded-b-2xl bg-[#0b0f1a]" />
-        {/* The screen's own reflection: brightest at the top edge, gone by a
-            third of the way down, the way glass under a ceiling light is. */}
+    <DeviceShell tilt={tilt}>
+      {[0, 1, 2, 3, 4].map((index) => (
         <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-10 rounded-[35px] bg-[linear-gradient(168deg,rgba(255,255,255,0.22)_0%,rgba(255,255,255,0.05)_16%,transparent_34%)]"
-        />
-        {[0, 1, 2, 3, 4].map((index) => (
-          <div
-            key={index}
-            className={`absolute inset-0 p-3.5 pt-8 transition-all duration-500 ${
-              index === screen
-                ? 'translate-y-0 opacity-100'
-                : 'pointer-events-none translate-y-2 opacity-0'
-            }`}
-            aria-hidden={index !== screen}
-          >
-            <PhoneScreen index={index} active={index === screen} />
-          </div>
-        ))}
-      </div>
-    </div>
+          key={index}
+          className={`absolute inset-0 p-3.5 pt-8 transition-all duration-500 ${
+            index === screen
+              ? 'translate-y-0 opacity-100'
+              : 'pointer-events-none translate-y-2 opacity-0'
+          }`}
+          aria-hidden={index !== screen}
+        >
+          <PhoneScreen index={index} active={index === screen} />
+        </div>
+      ))}
+    </DeviceShell>
   );
 }
 

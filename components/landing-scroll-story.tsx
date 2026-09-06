@@ -9,6 +9,7 @@ import {
   UserRoundPlus,
 } from 'lucide-react';
 
+import { DeviceHalo, DeviceShell } from '@/components/landing-device';
 import { useLocale } from '@/components/locale-provider';
 import type { TranslationKey } from '@/lib/i18n';
 
@@ -301,21 +302,16 @@ function StoryPanel({ step, active }: { step: Step; active: boolean }) {
       />
     );
   return (
-    <div className="flex size-full items-center justify-center rounded-2xl border border-hairline bg-surface-muted p-5">
-      <PhoneFrame>
-        <StoryScreen id={step.id} active={active} />
-      </PhoneFrame>
-    </div>
-  );
-}
-
-function PhoneFrame({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="relative aspect-[9/17] h-full max-h-[420px] rounded-[26px] border-[6px] border-ink/85 bg-surface shadow-2xl">
-      <div className="absolute left-1/2 top-0 h-4 w-20 -translate-x-1/2 rounded-b-xl bg-ink/85" />
-      <div className="size-full overflow-hidden rounded-[20px] p-3 pt-6">
-        {children}
-      </div>
+    /* The same stage the hero uses, at rest: a tinted plate, the device in
+       perspective, the light behind it. Below the fold the page should not
+       look like it stopped trying. */
+    <div className="stage-scene relative flex size-full items-center justify-center overflow-hidden rounded-3xl border border-hairline bg-[radial-gradient(120%_100%_at_50%_0%,rgba(99,102,241,0.10),transparent_62%),linear-gradient(168deg,var(--surface-muted),var(--surface))] p-6">
+      <DeviceHalo className="size-[300px]" />
+      <DeviceShell tilt={-4} className="h-full max-h-[420px] w-[200px]">
+        <div className="absolute inset-0 p-3.5 pt-8">
+          <StoryScreen id={step.id} active={active} />
+        </div>
+      </DeviceShell>
     </div>
   );
 }

@@ -168,6 +168,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ replied: true });
   }
 
+  // Named, rather than reached by falling off the end of the dispatch. Any
+  // action this route did not recognise used to open a support ticket, which
+  // is a quieter version of the CRM's bulk endpoint archiving leads by
+  // accident — but still a row nobody asked for, on somebody's queue.
+  if (body.action && body.action !== 'create')
+    return NextResponse.json(
+      { error: 'Unknown ticket action.' },
+      { status: 400 },
+    );
+
   const subject = body.subject?.trim().slice(0, 140);
   if (!subject)
     return NextResponse.json(

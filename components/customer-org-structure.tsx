@@ -260,6 +260,9 @@ function BranchesAndTeams({
   const t = useT();
   const [branch, setBranch] = useState({ name: '', city: '' });
   const [team, setTeam] = useState({ name: '', branchId: '' });
+  // Departments were fetched by the API, typed in this component, and rendered
+  // nowhere — so `create_department` was an action nothing could call.
+  const [department, setDepartment] = useState({ name: '', code: '' });
   return (
     <Panel title={t('panel.branches.title')} hint={t('panel.branches.hint')}>
       <div className="grid gap-4 xl:grid-cols-2">
@@ -386,6 +389,67 @@ function BranchesAndTeams({
                   run={run}
                   busy={busy}
                 />
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 flex flex-wrap gap-2">
+            <Input
+              placeholder="Department name"
+              value={department.name}
+              onChange={(event) =>
+                setDepartment({ ...department, name: event.target.value })
+              }
+            />
+            <Input
+              placeholder="Code"
+              value={department.code}
+              onChange={(event) =>
+                setDepartment({ ...department, code: event.target.value })
+              }
+            />
+            <Button
+              className="portal-primary"
+              disabled={busy || !department.name.trim()}
+              onClick={async () => {
+                const ok = await run(
+                  { action: 'create_department', ...department },
+                  'Department added.',
+                );
+                if (ok) setDepartment({ name: '', code: '' });
+              }}
+            >
+              Add department
+            </Button>
+          </div>
+          <div className="mt-3 space-y-2">
+            {org.departments.length === 0 ? (
+              <p className="text-[11px] text-ink-muted">No departments yet.</p>
+            ) : null}
+            {org.departments.map((row) => (
+              <div
+                key={str(row.id)}
+                className="flex items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2.5 text-[11px]"
+              >
+                <span
+                  className={
+                    str(row.status) === 'archived'
+                      ? 'font-medium text-ink-muted line-through'
+                      : 'font-medium'
+                  }
+                >
+                  {str(row.name)}
+                </span>
+                <span className="text-ink-muted">{str(row.code, '—')}</span>
+                <span className="ml-auto">
+                  <ArchiveControl
+                    kind="department"
+                    id={str(row.id)}
+                    status={str(row.status)}
+                    run={run}
+                    busy={busy}
+                  />
+                </span>
               </div>
             ))}
           </div>

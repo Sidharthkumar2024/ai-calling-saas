@@ -54,6 +54,16 @@ export async function POST(request: Request) {
     return NextResponse.json(result);
   }
 
+  // Named explicitly rather than left as the fallback. A route whose default
+  // branch performs a real action sends files to a customer on an unrecognised
+  // request, which is how the CRM's bulk endpoint came to archive leads by
+  // accident.
+  if (body.action !== 'release')
+    return NextResponse.json(
+      { ok: false, reason: 'Unknown action.' },
+      { status: 400 },
+    );
+
   const assetIds = Array.isArray(body.assetIds)
     ? body.assetIds.map(String).filter(Boolean)
     : [];

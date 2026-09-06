@@ -140,6 +140,32 @@ declared: rows created only by bootstrap seeds are not read-only, an upsert is
 three operations wearing one keyword, and statement text living in a pure module
 is still SQL.
 
+### 7. Action-dispatch audit — 3 found, 3 closed
+
+`npm run audit:actions` (`scripts/check-actions.mjs`) checks that every action a
+screen sends is named by the route it is posted to. Written after the same
+mistake appeared three times: `transfer_human` for `transfer_to_human`,
+`create_department` handled by the API and rendered nowhere, and a bulk
+endpoint whose default branch was a real action.
+
+That last shape was the one worth finding. Three routes performed work in their
+fallthrough, so an action the server did not recognise — a typo, an older
+client, a renamed button — did something rather than nothing:
+
+- **`/api/app/crm` archived every selected lead.** The most destructive branch
+  was the one you reached by accident.
+- **`/api/app/tickets` opened a support ticket**, putting a row nobody asked
+  for on somebody's queue.
+- **`/api/app/media-sends` sent files to a customer** — mine, from the day
+  before.
+
+All three now name their action and refuse anything else. Verified against the
+running app: `assign_ownerr` leaves the lead exactly where it was.
+
+Departments are also on screen now, with create and archive. The demo workspace
+turned out to have had one called "Revenue" the whole time that nobody could
+see.
+
 ### 5. [KEY] Things only you can supply
 
 - **A male ElevenLabs voice id** (still outstanding) and a Punjabi voice id.

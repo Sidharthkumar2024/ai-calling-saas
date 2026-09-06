@@ -379,7 +379,7 @@ export async function PUT(request: Request) {
         )
         .bind(body.stage, organizationId, ...leadIds)
         .run();
-    } else {
+    } else if (body.action === 'archive') {
       // Archive marks the lead, rather than deleting: a bulk delete behind one
       // click on a multi-select is not something to offer.
       await db
@@ -389,6 +389,15 @@ export async function PUT(request: Request) {
         )
         .bind(organizationId, ...leadIds)
         .run();
+    } else {
+      // This used to be the `else`, which meant any action the server did not
+      // recognise — a typo, an older client, a renamed button — silently
+      // archived every selected lead. The most destructive branch here was the
+      // one you reached by accident.
+      return NextResponse.json(
+        { error: 'Unknown bulk action.' },
+        { status: 400 },
+      );
     }
     await recordAudit(auth.session, `crm.${body.action}`, 'lead', undefined, {
       leads: leadIds.length,

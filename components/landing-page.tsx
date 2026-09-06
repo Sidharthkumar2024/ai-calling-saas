@@ -149,7 +149,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
   // instead of holding. Clip keeps decorative overflow off the page without
   // creating one.
   return (
-    <main className="min-h-screen overflow-x-clip bg-surface-muted text-ink">
+    <main className="landing-equal-theme min-h-screen overflow-x-clip bg-surface-muted text-ink">
       <div
         className={`px-4 py-2 text-center text-[11px] transition-colors duration-700 sm:text-xs ${
           overStage

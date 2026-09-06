@@ -166,7 +166,12 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
       <header
         className={`sticky top-0 z-50 backdrop-blur-xl transition-colors duration-700 ${
           overStage
-            ? 'border-b border-white/10 bg-transparent text-white [&_.text-ink-muted]:text-white/60 [&_a]:text-white/80'
+            ? // Not transparent: at the top of the page the header sits *above*
+              // the hero, over the page's own light background, so white text on
+              // a see-through bar left the wordmark invisible. It carries the
+              // stage's own floor colour instead, which makes the two read as
+              // one dark area whether the header is over the stage or above it.
+              'border-b border-white/10 bg-[#070b1c] text-white [&_.text-ink-muted]:text-white/60 [&_a]:text-white [&_button]:text-white'
             : 'border-b border-hairline bg-surface-muted/88'
         }`}
       >

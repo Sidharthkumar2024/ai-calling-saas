@@ -281,7 +281,7 @@ function Phone({ screen, tilt = 0 }: { screen: number; tilt?: number }) {
       {[0, 1, 2, 3, 4].map((index) => (
         <div
           key={index}
-          className={`absolute inset-0 p-3.5 pt-8 transition-all duration-500 ${
+          className={`absolute inset-0 p-3.5 pt-9 transition-all duration-500 ${
             index === screen
               ? 'translate-y-0 opacity-100'
               : 'pointer-events-none translate-y-2 opacity-0'

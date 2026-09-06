@@ -10,7 +10,7 @@ This file is the operator checklist for taking the local SaaS from sandbox mode 
 | General reasoning and tool selection | OpenAI Responses              | Anthropic                           | `OPENAI_API_KEY`, `OPENAI_MODEL` or tenant-scoped encrypted credentials | Connected provider adapter with deterministic fallback                                         |
 | India speech                         | Sarvam                        | ElevenLabs multilingual             | Sarvam key/speaker or `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`       | Hindi/Hinglish/Haryanvi routing, global voice fallback and usage metering                      |
 | India telephony                      | Exotel                        | Vobiz / Plivo                       | Provider account, verified number, webhook/SIP route and KYC            | Managed number, native provider import, SIP import, ownership verification and KYC workflow    |
-| Global telephony                     | Twilio                        | Telnyx / Vonage / Plivo             | Provider account, phone number, SIP/TLS credentials                     | Provider selection, masked account reference, encrypted credentials and SIP route path         |
+| Global telephony                     | Twilio                        | Telnyx / Vonage / Plivo             | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, verified number and signed webhook | Secondary carrier, failover route, provider selection, masked account reference and encrypted credentials |
 | WhatsApp                             | Meta Cloud API                | AiSensy                             | Business account, sender, approved templates and webhook secret         | Product details, consent-aware payment link delivery, scheduled send and webhook-ready records |
 | Email                                | Resend                        | Customer SMTP/custom HTTP           | Sending domain and API key                                              | Customer connector and email fallback delivery path                                            |
 | India payments                       | Razorpay                      | Stripe                              | API key pair, signed webhook secret and business account                | Payment link workflow, invoice, credit ledger and verified webhook handlers                    |
@@ -19,7 +19,8 @@ This file is the operator checklist for taking the local SaaS from sandbox mode 
 | Website leads                        | Vaani form/widget             | Custom CRM API                      | Allowed domains and published public form key                           | Popup/inline widget builder, versioned publish, public capture endpoint and CRM routing        |
 | CRM                                  | HubSpot / Zoho                | Salesforce / Pipedrive / custom CRM | OAuth or tenant API credential                                          | Connector catalog, encrypted secrets and webhook/API surface                                   |
 | Automation                           | n8n                           | Zapier / Make                       | Webhook endpoint and signing secret                                     | Connector catalog, API keys, outbound webhooks and retry records                               |
-| Recording storage                    | S3-compatible private storage | Cloudflare R2                       | Private bucket, KMS key and signed-download policy                      | Authenticated recording endpoint and configurable retention boundary                           |
+| Recording storage                    | Cloudflare R2                 | S3-compatible private storage       | `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, KMS/lifecycle policy | Authenticated recording endpoint, signed downloads, encryption and configurable retention boundary |
+| Enterprise identity                 | OIDC / SAML                   | SCIM 2.0                            | Issuer metadata, client credentials, verified redirect and SCIM bearer token | Admin-disabled SSO/SCIM configuration surface; enable only after IdP and domain verification |
 
 ## Phone number activation flow
 
@@ -39,6 +40,8 @@ This file is the operator checklist for taking the local SaaS from sandbox mode 
 - WhatsApp/email: approve sender identity and templates; verify webhook signatures; keep per-contact consent and opt-out records.
 - Payments: use live keys only in the secret manager; verify signed webhooks; reconcile payment, invoice and credit-ledger entries idempotently.
 - Storage: use a private bucket, per-object authorization, encryption at rest, short-lived downloads and an explicit retention job.
+- Secondary telephony: configure Twilio (or another carrier) with a signed callback and a verified number; keep it disabled until a test call, recording and failover drill pass.
+- Enterprise identity: register OIDC/SAML metadata and SCIM only for a verified tenant domain. Keep `SSO_ENABLED=false` and `SCIM_ENABLED=false` until the IdP certificate, claims mapping, JIT policy and deprovisioning test are approved.
 - Observability: export structured logs and traces without raw credentials or unrestricted transcript content; alert on latency, call failures, webhook retries and credit anomalies.
 
 ## ElevenLabs webhooks

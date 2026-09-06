@@ -2240,6 +2240,32 @@ async function bootstrap() {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`)
     .run();
+  // Conversation inbox for inbound WhatsApp text and media metadata. The
+  // raw provider payload is never stored; only the tenant-scoped fields needed
+  // for an agent to reply or link the message to a lead are retained.
+  await db
+    .prepare(`CREATE TABLE IF NOT EXISTS whatsapp_messages (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      phone_number_id TEXT NOT NULL,
+      wa_message_id TEXT NOT NULL,
+      direction TEXT NOT NULL,
+      sender_phone TEXT NOT NULL,
+      message_type TEXT NOT NULL,
+      body TEXT,
+      media_id TEXT,
+      status TEXT DEFAULT 'received' NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`)
+    .run();
+  await db
+    .prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_whatsapp_messages_provider_id
+      ON whatsapp_messages (phone_number_id, wa_message_id)`)
+    .run();
+  await db
+    .prepare(`CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_inbox
+      ON whatsapp_messages (organization_id, created_at)`)
+    .run();
   await db
     .prepare(
       `CREATE INDEX IF NOT EXISTS idx_whatsapp_sends_org ON whatsapp_sends (organization_id, created_at)`,
@@ -2787,12 +2813,24 @@ async function seedLocalDemo(db: D1Database) {
        '["TELEPHONY_API_KEY","TELEPHONY_API_SECRET","SIP_GATEWAY"]', 'required_for_live', 'not_connected', 'Inbound, outbound, DID and SIP routing', 0)`),
     db.prepare(`INSERT OR IGNORE INTO platform_providers
       (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
+      VALUES ('provider_twilio', 'Twilio', 'Vaani Connect Global', 'telephony',
+       '["TWILIO_ACCOUNT_SID","TWILIO_AUTH_TOKEN","TWILIO_PHONE_NUMBER","TWILIO_WEBHOOK_SECRET"]', 'optional', 'not_connected', 'Secondary carrier, global numbers and failover routing', 0)`),
+    db.prepare(`INSERT OR IGNORE INTO platform_providers
+      (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
       VALUES ('provider_storage', 'Cloudflare R2 / S3', 'Vaani Vault', 'storage',
        '["R2_BUCKET","R2_ACCESS_KEY_ID","R2_SECRET_ACCESS_KEY"]', 'required_for_recordings', 'local_demo', 'Encrypted call recordings and exports', 0)`),
     db.prepare(`INSERT OR IGNORE INTO platform_providers
       (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
       VALUES ('provider_google_oauth', 'Google OAuth', 'Google sign-in', 'identity',
        '["GOOGLE_CLIENT_ID","GOOGLE_CLIENT_SECRET","GOOGLE_REDIRECT_URI"]', 'planned', 'admin_disabled', 'Customer account sign-in; button visible but inactive', 1)`),
+    db.prepare(`INSERT OR IGNORE INTO platform_providers
+      (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
+      VALUES ('provider_email', 'Resend / SMTP', 'Vaani Mail', 'email',
+       '["EMAIL_PROVIDER","RESEND_API_KEY","EMAIL_FROM"]', 'optional', 'not_connected', 'Transactional email, fallback delivery and account notifications', 0)`),
+    db.prepare(`INSERT OR IGNORE INTO platform_providers
+      (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
+      VALUES ('provider_enterprise_identity', 'OIDC / SAML + SCIM', 'Vaani Enterprise Identity', 'identity',
+       '["SSO_ISSUER_URL","SSO_CLIENT_ID","SSO_CLIENT_SECRET","SCIM_TOKEN"]', 'optional', 'admin_disabled', 'Enterprise SSO and directory provisioning; disabled until verified', 0)`),
     db.prepare(`INSERT OR IGNORE INTO sip_trunks
       (id, organization_id, name, provider, gateway_uri, auth_type, transport, media_encryption,
        codecs_json, status, last_checked_at)

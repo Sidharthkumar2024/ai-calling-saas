@@ -69,8 +69,23 @@ export async function POST(request: Request) {
         continue;
       }
       for (const message of value?.messages ?? []) {
+        const messageType = message.type ?? (message.text ? 'text' : 'unknown');
+        const messageBody = message.text?.body ?? null;
         const media =
           message.image ?? message.document ?? message.video ?? message.audio;
+        const mediaId = media?.id ?? null;
+        const waMessageId = message.id;
+        if (waMessageId && message.from) {
+          await dbInsertInboxMessage({
+            organizationId: credentials.organizationId,
+            phoneNumberId,
+            waMessageId,
+            senderPhone: message.from,
+            messageType,
+            body: messageBody,
+            mediaId,
+          });
+        }
         if (!media?.id) continue;
         const result = await intakeWhatsAppDocument({
           organizationId: credentials.organizationId,
@@ -94,6 +109,35 @@ export async function POST(request: Request) {
   // Meta retries anything that is not a 200, so a file this workspace refused
   // on purpose must not look like a delivery failure.
   return NextResponse.json({ received: results.length, results });
+}
+
+async function dbInsertInboxMessage(input: {
+  organizationId: string;
+  phoneNumberId: string;
+  waMessageId: string;
+  senderPhone: string;
+  messageType: string;
+  body: string | null;
+  mediaId: string | null;
+}) {
+  const { getRawDb } = await import('@/db/index');
+  const db = getRawDb();
+  await db
+    .prepare(`INSERT OR IGNORE INTO whatsapp_messages
+      (id, organization_id, phone_number_id, wa_message_id, direction,
+       sender_phone, message_type, body, media_id)
+      VALUES (?, ?, ?, ?, 'inbound', ?, ?, ?, ?)`)
+    .bind(
+      `wam_${crypto.randomUUID()}`,
+      input.organizationId,
+      input.phoneNumberId,
+      input.waMessageId,
+      input.senderPhone,
+      input.messageType,
+      input.body,
+      input.mediaId,
+    )
+    .run();
 }
 
 async function signatureValid(body: string, header: string, secret: string) {
@@ -134,7 +178,10 @@ type WebhookBody = {
       value?: {
         metadata?: { phone_number_id?: string };
         messages?: Array<{
+          id?: string;
+          type?: string;
           from?: string;
+          text?: { body?: string };
           image?: WebhookMedia;
           document?: WebhookMedia;
           video?: WebhookMedia;

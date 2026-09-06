@@ -549,6 +549,35 @@ const en = {
   'landing.sources.forms': 'Website forms',
   'landing.sources.apis': 'API & webhooks',
 
+  'landing.story.eyebrow': 'One call, end to end',
+  'landing.story.title':
+    'Scroll through a call the way your customer lives it.',
+  'landing.story.answer.title': 'It answers on the first ring.',
+  'landing.story.answer.body':
+    'Every call is picked up — at 2am, during a festival rush, on the twelfth line ringing at once. Nobody waits, and nobody hangs up on a queue.',
+  'landing.story.answer.proof':
+    'Measured on this deployment: answered in 1.2s.',
+  'landing.story.understand.title': 'It understands what they actually want.',
+  'landing.story.understand.body':
+    'Not a menu tree. The caller says it in their own words, and the agent works out the budget, the location and how ready they are to buy.',
+  'landing.story.understand.proof':
+    'Every line transcribed, with the intent it was scored on.',
+  'landing.story.act.title': 'It finishes the job on the call.',
+  'landing.story.act.body':
+    'A booking made, a payment link sent, a slot held in your calendar — while the customer is still on the phone, not in a follow-up someone forgets.',
+  'landing.story.act.proof':
+    'Booking, WhatsApp message and calendar entry, from one call.',
+  'landing.story.handover.title':
+    'Your team gets the lead, already written up.',
+  'landing.story.handover.body':
+    'The summary, the recording and the next step land in your CRM. Nobody retypes a call, and nobody rings a customer who was called an hour ago.',
+  'landing.story.handover.proof':
+    'Straight into your CRM, WhatsApp and sheets.',
+  'landing.story.language.title':
+    'In the language the caller is comfortable in.',
+  'landing.story.language.body':
+    'Hindi, Hinglish, English and more — the same agent, switching to whatever the caller opens with, mid-sentence if that is how they speak.',
+  'landing.story.language.proof': 'One agent, the caller chooses the language.',
   'landing.loop.eyebrow': 'From click to close',
   'landing.loop.title': 'One continuous revenue loop.',
   'landing.loop.sub':
@@ -1292,6 +1321,29 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'landing.sources.forms': 'वेबसाइट फ़ॉर्म',
   'landing.sources.apis': 'API और webhooks',
 
+  'landing.story.eyebrow': 'एक कॉल, शुरू से आख़िर तक',
+  'landing.story.title': 'स्क्रॉल कीजिए और देखिए — आपका ग्राहक कॉल को कैसे जीता है।',
+  'landing.story.answer.title': 'पहली घंटी पर उठ जाती है।',
+  'landing.story.answer.body':
+    'हर कॉल उठती है — रात 2 बजे, त्योहार की भीड़ में, बारह लाइनें एक साथ बजने पर भी। न कोई इंतज़ार करता है, न कतार सुनकर फ़ोन काटता है।',
+  'landing.story.answer.proof': 'इसी deployment पर नापा गया: 1.2 सेकंड में उठी।',
+  'landing.story.understand.title': 'समझती है कि उन्हें असल में चाहिए क्या।',
+  'landing.story.understand.body':
+    'कोई "1 दबाइए" वाला मेन्यू नहीं। ग्राहक अपने शब्दों में कहता है, और एजेंट बजट, इलाक़ा और ख़रीदने की तैयारी — तीनों निकाल लेती है।',
+  'landing.story.understand.proof':
+    'हर लाइन का transcript, और जिस intent पर score दिया गया वो भी।',
+  'landing.story.act.title': 'काम कॉल पर ही पूरा कर देती है।',
+  'landing.story.act.body':
+    'बुकिंग हो गई, पेमेंट लिंक चला गया, कैलेंडर में स्लॉट रुक गया — ग्राहक के फ़ोन रखने से पहले, किसी भूल जाने वाले follow-up में नहीं।',
+  'landing.story.act.proof': 'एक कॉल से — बुकिंग, WhatsApp मैसेज और कैलेंडर एंट्री।',
+  'landing.story.handover.title': 'आपकी टीम को लीड पूरी लिखी-लिखाई मिलती है।',
+  'landing.story.handover.body':
+    'सारांश, रिकॉर्डिंग और अगला क़दम सीधे आपके CRM में। न कोई कॉल दोबारा टाइप करता है, न किसी ऐसे ग्राहक को फ़ोन जाता है जिसे घंटे भर पहले किया जा चुका है।',
+  'landing.story.handover.proof': 'सीधे आपके CRM, WhatsApp और शीट में।',
+  'landing.story.language.title': 'उसी भाषा में जिसमें ग्राहक सहज है।',
+  'landing.story.language.body':
+    'हिन्दी, हिंग्लिश, अंग्रेज़ी और भी — वही एक एजेंट, ग्राहक जिस भाषा में बात शुरू करे उसी में, बीच वाक्य में भी अगर वो ऐसे ही बोलता है।',
+  'landing.story.language.proof': 'एक ही एजेंट, भाषा ग्राहक चुनता है।',
   'landing.loop.eyebrow': 'क्लिक से क्लोज़ तक',
   'landing.loop.title': 'एक ही न रुकने वाला revenue loop.',
   'landing.loop.sub':

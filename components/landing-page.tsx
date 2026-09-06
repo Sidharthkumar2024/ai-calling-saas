@@ -36,6 +36,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { VAANI_ENGINES } from '@/lib/vaani-engine-catalog';
 import { LandingAgentShowcase } from '@/components/landing-agent-showcase';
+import { LandingScrollStory } from '@/components/landing-scroll-story';
 import { useLocale } from '@/components/locale-provider';
 import { PORTAL_LOCALES, type TranslationKey } from '@/lib/i18n';
 
@@ -85,7 +86,9 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
     const sections = Array.from(
       document.querySelectorAll<HTMLElement>('.landing-lazy'),
     );
-    sections.forEach((section) => section.classList.add('landing-reveal-ready'));
+    sections.forEach((section) =>
+      section.classList.add('landing-reveal-ready'),
+    );
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -104,8 +107,13 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
   const sub = (base: string, leaf: string) =>
     t(`${base}.${leaf}` as TranslationKey);
 
+  // `overflow-x-clip`, not `overflow-hidden`, on <main> below. Hidden makes it
+  // a scroll container, and a scroll container is where `position: sticky`
+  // stops working — the pinned scroll story slid off the top of the screen
+  // instead of holding. Clip keeps decorative overflow off the page without
+  // creating one.
   return (
-    <main className="min-h-screen overflow-hidden bg-surface-muted text-ink">
+    <main className="min-h-screen overflow-x-clip bg-surface-muted text-ink">
       <div className="border-b border-hairline bg-surface px-4 py-2 text-center text-[11px] text-ink-body sm:text-xs">
         <span className="mr-2 inline-flex items-center gap-1.5 font-medium text-warning-text">
           <Sparkles className="size-3" /> {t('landing.banner.new')}
@@ -416,19 +424,28 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_38%,rgba(79,70,229,0.34),transparent_30%),radial-gradient(circle_at_82%_22%,rgba(14,165,233,0.22),transparent_28%),radial-gradient(circle_at_50%_100%,rgba(236,72,153,0.16),transparent_38%)]" />
         <div className="relative mx-auto grid max-w-[1240px] items-center gap-14 px-4 sm:px-6 lg:grid-cols-[0.86fr_1.14fr]">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">Vaani in every conversation</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
+              Vaani in every conversation
+            </p>
             <h2 className="mt-5 max-w-xl text-4xl font-semibold leading-[1.04] tracking-[-0.05em] sm:text-6xl">
               Your AI team, already on the call.
             </h2>
             <p className="mt-6 max-w-lg text-base leading-7 text-slate-300 sm:text-lg">
-              Vaani answers, understands intent, takes the next action and keeps your team in control — in Hindi, Hinglish, Haryanvi or English.
+              Vaani answers, understands intent, takes the next action and keeps
+              your team in control — in Hindi, Hinglish, Haryanvi or English.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              {['Answers calls', 'Captures context', 'Moves revenue'].map((item) => (
-                <span key={item} className="rounded-full border border-white/15 bg-white/8 px-4 py-2 text-xs text-slate-200 backdrop-blur">
-                  <Check className="mr-1.5 inline size-3 text-cyan-300" />{item}
-                </span>
-              ))}
+              {['Answers calls', 'Captures context', 'Moves revenue'].map(
+                (item) => (
+                  <span
+                    key={item}
+                    className="rounded-full border border-white/15 bg-white/8 px-4 py-2 text-xs text-slate-200 backdrop-blur"
+                  >
+                    <Check className="mr-1.5 inline size-3 text-cyan-300" />
+                    {item}
+                  </span>
+                ),
+              )}
             </div>
           </div>
 
@@ -436,7 +453,10 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
             <div className="absolute left-1/2 top-1/2 size-[300px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-indigo-400/35 via-fuchsia-300/20 to-cyan-300/30 blur-3xl" />
             <div className="relative rounded-[32px] border border-white/15 bg-white/[0.07] p-4 shadow-2xl shadow-indigo-950/50 backdrop-blur-xl sm:p-6">
               <div className="flex items-center justify-between border-b border-white/10 pb-4 text-xs text-slate-300">
-                <span className="flex items-center gap-2"><span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_12px_#34d399]" /> Live Vaani agent</span>
+                <span className="flex items-center gap-2">
+                  <span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_12px_#34d399]" />{' '}
+                  Live Vaani agent
+                </span>
                 <span>Hinglish · 00:42</span>
               </div>
               <div className="grid gap-5 py-8 sm:grid-cols-[0.9fr_1.1fr] sm:items-center">
@@ -446,12 +466,23 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
                   </div>
                 </div>
                 <div className="space-y-3">
-                  <div className="max-w-[92%] rounded-2xl rounded-tl-md bg-white/10 p-3 text-sm leading-5 text-slate-100">Namaste, मैं Vaani बोल रही हूँ. आपने product details मांगी थीं — अभी दो मिनट हैं?</div>
-                  <div className="ml-auto max-w-[86%] rounded-2xl rounded-tr-md bg-cyan-300/20 p-3 text-sm leading-5 text-cyan-50">हाँ, WhatsApp पर भेज दीजिए और payment link भी.</div>
-                  <div className="flex items-center gap-2 rounded-xl border border-emerald-300/15 bg-emerald-300/10 p-3 text-xs text-emerald-100"><CheckCircle2 className="size-4" /> WhatsApp follow-up queued</div>
+                  <div className="max-w-[92%] rounded-2xl rounded-tl-md bg-white/10 p-3 text-sm leading-5 text-slate-100">
+                    Namaste, मैं Vaani बोल रही हूँ. आपने product details मांगी थीं —
+                    अभी दो मिनट हैं?
+                  </div>
+                  <div className="ml-auto max-w-[86%] rounded-2xl rounded-tr-md bg-cyan-300/20 p-3 text-sm leading-5 text-cyan-50">
+                    हाँ, WhatsApp पर भेज दीजिए और payment link भी.
+                  </div>
+                  <div className="flex items-center gap-2 rounded-xl border border-emerald-300/15 bg-emerald-300/10 p-3 text-xs text-emerald-100">
+                    <CheckCircle2 className="size-4" /> WhatsApp follow-up
+                    queued
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center justify-between border-t border-white/10 pt-4 text-xs text-slate-400"><span>Transcript, summary and next action are ready</span><ArrowRight className="size-4 text-cyan-300" /></div>
+              <div className="flex items-center justify-between border-t border-white/10 pt-4 text-xs text-slate-400">
+                <span>Transcript, summary and next action are ready</span>
+                <ArrowRight className="size-4 text-cyan-300" />
+              </div>
             </div>
           </div>
         </div>
@@ -478,6 +509,8 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
           ))}
         </div>
       </section>
+
+      <LandingScrollStory />
 
       <section
         id="workflow"

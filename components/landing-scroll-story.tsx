@@ -126,7 +126,9 @@ export function LandingScrollStory() {
                 className="grid items-center gap-8 lg:grid-cols-2"
               >
                 <StoryCopy step={step} index={index} t={t} active />
-                <StoryPanel step={step} active />
+                <div className="aspect-square w-full max-w-[640px]">
+                  <StoryPanel step={step} active />
+                </div>
               </div>
             ))}
           </div>
@@ -135,81 +137,104 @@ export function LandingScrollStory() {
     );
 
   return (
-    <section
-      id="story"
-      ref={sectionRef}
-      className="relative scroll-mt-24 border-y border-hairline bg-surface"
-      style={{ height: `${STEPS.length * 100}vh` }}
-    >
-      <div className="sticky top-0 flex h-screen items-center overflow-hidden">
+    <>
+      {/* The heading scrolls away before the panel pins, rather than riding
+          along inside it. Keeping it in the sticky frame cost the panel 160px
+          of a 900px screen and clipped the top of both. */}
+      <div className="border-t border-hairline bg-surface pt-24 sm:pt-32">
         <div className="mx-auto w-full max-w-[1240px] px-4 sm:px-6">
           <StoryHeading t={t} />
-
-          <div className="mt-8 grid items-center gap-10 lg:grid-cols-2">
-            {/* Both columns keep every step mounted and cross-fade between
-                them. Swapping the DOM instead would restart each panel's
-                animation and make the video reload on every step. */}
-            <div className="relative min-h-[168px]">
-              {STEPS.map((step, index) => (
-                <div
-                  key={step.id}
-                  className={`transition-all duration-500 ${
-                    index === active
-                      ? 'relative translate-y-0 opacity-100'
-                      : 'pointer-events-none absolute inset-0 translate-y-3 opacity-0'
-                  }`}
-                  aria-hidden={index !== active}
-                >
-                  <StoryCopy
-                    step={step}
-                    index={index}
-                    t={t}
-                    active={index === active}
-                  />
-                </div>
-              ))}
-            </div>
-
-            <div className="relative mx-auto aspect-[4/5] w-full max-w-[380px]">
-              {STEPS.map((step, index) => (
-                <div
-                  key={step.id}
-                  className={`absolute inset-0 transition-all duration-500 ${
-                    index === active
-                      ? 'scale-100 opacity-100'
-                      : 'pointer-events-none scale-[0.97] opacity-0'
-                  }`}
-                  aria-hidden={index !== active}
-                >
-                  <StoryPanel step={step} active={index === active} />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-10 flex justify-center gap-1.5" aria-hidden="true">
-            {STEPS.map((step, index) => (
-              <span
-                key={step.id}
-                className={`h-1 rounded-full transition-all duration-300 ${
-                  index === active ? 'w-8 bg-primary' : 'w-3 bg-hairline'
-                }`}
-              />
-            ))}
-          </div>
         </div>
       </div>
-    </section>
+
+      <section
+        id="story"
+        ref={sectionRef}
+        className="relative scroll-mt-24 border-b border-hairline bg-surface"
+        style={{ height: `${STEPS.length * 100}vh` }}
+      >
+        <div className="sticky top-0 flex h-screen flex-col justify-center overflow-hidden">
+          <div className="mx-auto w-full max-w-[1240px] px-4 sm:px-6">
+            {/* The panel takes the larger share, as in the layout this
+                follows: the copy is four lines, the product screen is the
+                point. */}
+            <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)]">
+              {/* Both columns keep every step mounted and cross-fade between
+                them. Swapping the DOM instead would restart each panel's
+                animation and make the video reload on every step. */}
+              <div className="relative min-h-[168px]">
+                {STEPS.map((step, index) => (
+                  <div
+                    key={step.id}
+                    className={`transition-all duration-500 ${
+                      index === active
+                        ? 'relative translate-y-0 opacity-100'
+                        : 'pointer-events-none absolute inset-0 translate-y-3 opacity-0'
+                    }`}
+                    aria-hidden={index !== active}
+                  >
+                    <StoryCopy
+                      step={step}
+                      index={index}
+                      t={t}
+                      active={index === active}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="relative mx-auto aspect-square w-full max-w-[640px]">
+                {STEPS.map((step, index) => (
+                  <div
+                    key={step.id}
+                    className={`absolute inset-0 transition-all duration-500 ${
+                      index === active
+                        ? 'scale-100 opacity-100'
+                        : 'pointer-events-none scale-[0.97] opacity-0'
+                    }`}
+                    aria-hidden={index !== active}
+                  >
+                    <StoryPanel step={step} active={index === active} />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div
+              className="mt-8 flex justify-center gap-1.5"
+              aria-hidden="true"
+            >
+              {STEPS.map((step, index) => (
+                <span
+                  key={step.id}
+                  className={`h-1 rounded-full transition-all duration-300 ${
+                    index === active ? 'w-8 bg-primary' : 'w-3 bg-hairline'
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+    </>
   );
 }
 
+/**
+ * The section's own heading: a small eyebrow over a very large, very light
+ * headline. The weight is deliberate — at this size a semibold line shouts,
+ * and the reference this layout follows carries 72px at weight 400.
+ */
 function StoryHeading({ t }: { t: (key: TranslationKey) => string }) {
   return (
-    <div className="text-center">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-warning-text">
+    <div>
+      <p className="text-lg font-medium text-ink-muted">
         {t('landing.story.eyebrow')}
       </p>
-      <h2 className="mx-auto mt-3 max-w-2xl text-3xl font-semibold leading-[1.08] tracking-[-0.04em] sm:text-4xl">
+      {/* The catalog carries the line break, because where a two-line
+          headline breaks is a decision about that language's word order and
+          belongs with the translation rather than in the JSX. */}
+      <h2 className="mt-3 max-w-4xl whitespace-pre-line text-[38px] font-normal leading-[1.06] tracking-[-0.03em] sm:text-[56px] lg:text-[72px]">
         {t('landing.story.title')}
       </h2>
     </div>
@@ -244,10 +269,10 @@ function StoryCopy({
           {String(STEPS.length).padStart(2, '0')}
         </span>
       </div>
-      <h3 className="mt-4 text-2xl font-semibold leading-tight tracking-[-0.03em] sm:text-3xl">
+      <h3 className="mt-4 text-[26px] font-medium leading-[1.15] tracking-[-0.02em] sm:text-[32px]">
         {t(`${step.key}.title` as TranslationKey)}
       </h3>
-      <p className="mt-3 max-w-md text-sm leading-6 text-ink-body">
+      <p className="mt-4 max-w-md text-base leading-7 text-ink-body">
         {t(`${step.key}.body` as TranslationKey)}
       </p>
       <p className="mt-4 text-[11px] text-ink-muted">

@@ -549,9 +549,17 @@ const en = {
   'landing.sources.forms': 'Website forms',
   'landing.sources.apis': 'API & webhooks',
 
-  'landing.story.eyebrow': 'One call, end to end',
-  'landing.story.title':
-    'Scroll through a call the way your customer lives it.',
+  'landing.proof.title': 'Counted, not claimed.',
+  'landing.proof.sub':
+    'Every figure here is read from the product itself. When there are usage numbers worth showing, they will come from the platform\u2019s own tables and not from a marketing draft.',
+  'landing.proof.languages': 'languages the agent speaks, including Hinglish',
+  'landing.proof.tools': 'actions an agent can take on a live call',
+  'landing.proof.engines': 'engines behind one conversation',
+  'landing.proof.hours': 'no queue, no closing time, no missed ring',
+  'landing.proof.note':
+    'No user counts or ratings on this page yet, because there are none to report honestly.',
+  'landing.story.eyebrow': 'It does not stop at answering.',
+  'landing.story.title': 'Vaani does more\nthan answer calls.',
   'landing.story.answer.title': 'It answers on the first ring.',
   'landing.story.answer.body':
     'Every call is picked up — at 2am, during a festival rush, on the twelfth line ringing at once. Nobody waits, and nobody hangs up on a queue.',
@@ -1321,8 +1329,17 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'landing.sources.forms': 'वेबसाइट फ़ॉर्म',
   'landing.sources.apis': 'API और webhooks',
 
-  'landing.story.eyebrow': 'एक कॉल, शुरू से आख़िर तक',
-  'landing.story.title': 'स्क्रॉल कीजिए और देखिए — आपका ग्राहक कॉल को कैसे जीता है।',
+  'landing.proof.title': 'गिने हुए, दावा किए हुए नहीं।',
+  'landing.proof.sub':
+    'यहाँ का हर आँकड़ा product से ही पढ़ा गया है। जब दिखाने लायक इस्तेमाल के आँकड़े होंगे, वो platform की अपनी tables से आएँगे — किसी marketing draft से नहीं।',
+  'landing.proof.languages': 'भाषाएँ जो एजेंट बोलती है, हिंग्लिश समेत',
+  'landing.proof.tools': 'काम जो एजेंट चलती कॉल पर कर सकती है',
+  'landing.proof.engines': 'engine एक बातचीत के पीछे',
+  'landing.proof.hours': 'न कतार, न बंद होने का समय, न कोई छूटी घंटी',
+  'landing.proof.note':
+    'इस पेज पर अभी user count या rating नहीं है, क्योंकि ईमानदारी से बताने लायक कोई है ही नहीं।',
+  'landing.story.eyebrow': 'बात सिर्फ़ कॉल उठाने पर ख़त्म नहीं होती।',
+  'landing.story.title': 'Vaani कॉल उठाने से\nकहीं आगे जाती है।',
   'landing.story.answer.title': 'पहली घंटी पर उठ जाती है।',
   'landing.story.answer.body':
     'हर कॉल उठती है — रात 2 बजे, त्योहार की भीड़ में, बारह लाइनें एक साथ बजने पर भी। न कोई इंतज़ार करता है, न कतार सुनकर फ़ोन काटता है।',

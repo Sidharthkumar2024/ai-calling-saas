@@ -36,6 +36,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { VAANI_ENGINES } from '@/lib/vaani-engine-catalog';
 import { LandingAgentShowcase } from '@/components/landing-agent-showcase';
+import { LandingProofBand } from '@/components/landing-proof-band';
 import { LandingScrollStory } from '@/components/landing-scroll-story';
 import { useLocale } from '@/components/locale-provider';
 import { PORTAL_LOCALES, type TranslationKey } from '@/lib/i18n';
@@ -511,6 +512,8 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
       </section>
 
       <LandingScrollStory />
+
+      <LandingProofBand />
 
       <section
         id="workflow"

@@ -295,7 +295,7 @@ export function CustomerCrm({
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Metric
           label="Pipeline value"
           value={money(pipelineValue)}
@@ -373,14 +373,14 @@ export function CustomerCrm({
 
       {/* §3.5: filters across the dimensions a salesperson actually narrows by,
           a one-click Kanban/List switch, and named views they can come back to. */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex rounded-lg border border-hairline bg-surface-muted p-0.5">
+      <div className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap">
+        <div className="col-span-2 flex rounded-lg border border-hairline bg-surface-muted p-0.5 sm:col-span-1 sm:w-auto">
           {(['kanban', 'list'] as const).map((option) => (
             <button
               key={option}
               type="button"
               onClick={() => setLayout(option)}
-              className={`rounded-md px-2.5 py-1 text-[10px] capitalize ${
+              className={`flex-1 rounded-md px-2.5 py-1 text-[10px] capitalize sm:flex-none ${
                 layout === option
                   ? 'bg-surface text-ink shadow-sm'
                   : 'text-ink-muted hover:text-ink'
@@ -399,14 +399,14 @@ export function CustomerCrm({
             ['intent', 'Intent', options.intents],
           ] as const
         ).map(([field, label, values]) => (
-          <span key={field}>
+          <span key={field} className="min-w-0">
             <select
               aria-label={`Filter by ${label}`}
               value={(filters[field] as string) ?? 'all'}
               onChange={(event) =>
                 setFilters({ ...filters, [field]: event.target.value })
               }
-              className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[10px] text-ink"
+              className="h-8 w-full rounded-lg border border-hairline bg-surface px-2 text-[10px] text-ink sm:w-auto"
             >
               <option value="all">{`${label} · All`}</option>
               {values.map((value) => (
@@ -417,7 +417,7 @@ export function CustomerCrm({
             </select>
           </span>
         ))}
-        <label className="flex items-center gap-1 text-[10px] text-ink-muted">
+        <label className="flex min-w-0 items-center gap-1 text-[10px] text-ink-muted">
           Score
           <input
             type="number"
@@ -433,10 +433,10 @@ export function CustomerCrm({
                   event.target.value === '' ? null : Number(event.target.value),
               })
             }
-            className="h-8 w-14 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+            className="h-8 w-full min-w-0 rounded-lg border border-hairline bg-surface px-2 text-[10px] sm:w-14"
           />
         </label>
-        <label className="flex items-center gap-1 text-[10px] text-ink-muted">
+        <label className="flex min-w-0 items-center gap-1 text-[10px] text-ink-muted">
           From
           <input
             type="date"
@@ -448,7 +448,7 @@ export function CustomerCrm({
                 capturedFrom: event.target.value || null,
               })
             }
-            className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[10px]"
+            className="h-8 w-full min-w-0 rounded-lg border border-hairline bg-surface px-2 text-[10px] sm:w-auto"
           />
         </label>
         <button
@@ -928,7 +928,7 @@ function Metric({
           <Icon className="size-[17px] text-warning-text" />
         </span>
       </div>
-      <p className="mt-3 text-2xl font-semibold text-ink">{value}</p>
+      <p className="mt-3 text-xl font-semibold text-ink sm:text-2xl">{value}</p>
       <p className="mt-1 text-[10px] text-ink-muted">{note}</p>
     </div>
   );

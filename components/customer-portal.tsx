@@ -919,7 +919,7 @@ function CustomerOverview({
           </div>
         </div>
       </section>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Metric
           label="Credits available"
           value={num(stats.credits)}
@@ -1305,7 +1305,7 @@ function Metric({
       </div>
       <div className="mt-3 flex items-end justify-between gap-3">
         <div>
-          <p className="text-2xl font-semibold tracking-tight text-ink">
+          <p className="text-xl font-semibold tracking-tight text-ink sm:text-2xl">
             {value}
           </p>
           <p className="mt-1 text-[9px] text-ink-muted">{note}</p>

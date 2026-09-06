@@ -159,7 +159,7 @@ export function CustomerCommerce({
         </div>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Metric
           icon={CreditCard}
           label="Payment links"
@@ -483,7 +483,7 @@ function Metric({
         </p>
         <Icon className="size-4 text-warning-text" />
       </div>
-      <p className="mt-4 text-2xl font-semibold">{value}</p>
+      <p className="mt-4 text-xl font-semibold sm:text-2xl">{value}</p>
       <p className="mt-1 text-[9px] text-ink-muted">{note}</p>
     </div>
   );

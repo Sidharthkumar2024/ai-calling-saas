@@ -89,7 +89,12 @@ export function CustomerSecurity() {
       {!data ? (
         <Loader2 className="mt-5 size-4 animate-spin text-ink-muted" />
       ) : (
-        <div className="mt-5 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+        <div className="mt-5 grid gap-4 [&>*]:min-w-0 xl:grid-cols-[0.9fr_1.1fr]">
+          {/* `min-w-0` on the children is not decoration: a grid track is sized
+              to its content by default, and the session ids below are
+              unbreakable monospace strings. Without it the card grew to 420px
+              inside a 301px column and pushed the whole page 82px wider than
+              the phone, so every screen under it dragged sideways. */}
           <div className="rounded-xl border border-hairline bg-surface-muted p-4">
             <div className="flex items-center justify-between">
               <div>

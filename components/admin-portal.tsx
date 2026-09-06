@@ -975,7 +975,7 @@ function CallOperations({ data }: { data: AdminPayload }) {
         description={t('adminScreen.call_ops.description')}
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Stat
           label="Live calls"
           value={num(data.stats?.live_calls ?? live.length)}
@@ -1403,7 +1403,7 @@ function NumbersKyc({
           {error}
         </div>
       ) : null}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Stat
           label="Active numbers"
           value={num(data.stats?.active_numbers)}
@@ -1842,7 +1842,7 @@ function PlansBilling({
           title="Credit top-up catalog"
           description="Customer-purchasable packages with tax-ready invoice generation"
         />
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
           {(data.creditPackages ?? []).map((item) => (
             <div
               key={textValue(item.id)}
@@ -1973,7 +1973,7 @@ function NewPlan({ onChanged }: { onChanged: () => Promise<void> }) {
       {error ? (
         <p className="mt-3 text-[11px] text-danger-text">{error}</p>
       ) : null}
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
         <label htmlFor="new-plan-code" className="text-[10px] text-ink-muted">
           Code
           <Input
@@ -2247,7 +2247,7 @@ function TrialsCommerce({ data }: { data: AdminPayload }) {
         title={t('adminScreen.trials_commerce.title')}
         description={t('adminScreen.trials_commerce.description')}
       />
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Stat
           label="Trial workspaces"
           value={num(stats.trials)}
@@ -3156,7 +3156,7 @@ function SystemAudit({ data }: { data: AdminPayload }) {
         </Panel>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         {[
           {
             label: 'API',

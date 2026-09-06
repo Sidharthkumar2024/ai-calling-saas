@@ -24,6 +24,7 @@ export async function GET(request: Request) {
     fxRates,
     priceBooks,
     numberRows,
+    kycDocumentRows,
     audits,
     integrations,
     commerce,
@@ -105,6 +106,19 @@ export async function GET(request: Request) {
              (SELECT count(*) FROM kyc_documents d WHERE d.phone_number_id = n.id) AS kyc_document_count
            FROM phone_numbers n INNER JOIN organizations o ON o.id = n.organization_id
            ORDER BY n.created_at DESC LIMIT 25`,
+      )
+      .all(),
+    // The documents themselves. The panel could count them and decide the
+    // whole set at once, but a reviewer could not see what they were deciding
+    // about — which is how "approve" came to mean "approve everything,
+    // including the one nobody opened".
+    db
+      .prepare(
+        `SELECT d.id, d.phone_number_id, d.document_type, d.status,
+             d.rejection_reason, d.reviewed_at, d.created_at,
+             o.name AS organization_name
+           FROM kyc_documents d INNER JOIN organizations o ON o.id = d.organization_id
+           ORDER BY d.created_at DESC LIMIT 200`,
       )
       .all(),
     db
@@ -346,6 +360,7 @@ export async function GET(request: Request) {
     fxRates: fxRates.results,
     priceBooks: priceBooks.results,
     numbers: numberRows.results,
+    kycDocuments: kycDocumentRows.results,
     audits: audits.results,
     integrations: integrations.results,
     commerce: commerce.results,

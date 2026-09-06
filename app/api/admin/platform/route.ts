@@ -4,6 +4,7 @@ import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { requireAdminCapability, type AdminCapability } from '@/lib/admin-rbac';
 import { recordAudit } from '@/lib/demo-seed';
+import { canMoveKyc } from '@/lib/kyc-documents';
 import {
   platformProviderSecret,
   providerReadiness,
@@ -68,6 +69,7 @@ const ACTION_CAPABILITIES: Record<string, AdminCapability> = {
   fx_rate_set: 'billing.manage',
   price_book_set: 'billing.manage',
   kyc_status: 'tenants.manage',
+  kyc_document_review: 'tenants.manage',
   voice_consent_review: 'security.manage',
   voice_block: 'security.manage',
   ticket_reply: 'support.access',
@@ -181,6 +183,7 @@ export async function PATCH(request: Request) {
     apiKey?: string;
     config?: Record<string, string>;
     packageId?: string;
+    documentId?: string;
     baseCurrency?: string;
     quoteCurrency?: string;
     rate?: number;
@@ -915,6 +918,52 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ ok: true, productType, productId, currency });
   }
 
+  // One document at a time, so a reviewer can accept the GST certificate and
+  // send back the address proof rather than deciding the whole set at once.
+  if (body.action === 'kyc_document_review') {
+    const documentId = String(body.documentId ?? '');
+    const row = await db
+      .prepare(
+        `SELECT id, status FROM kyc_documents WHERE id = ? LIMIT 1`,
+      )
+      .bind(documentId)
+      .first<{ id: string; status: string }>();
+    if (!row)
+      return NextResponse.json(
+        { error: 'That document does not exist.' },
+        { status: 404 },
+      );
+    const next = String(body.status ?? '');
+    if (!canMoveKyc(row.status, next))
+      return NextResponse.json(
+        {
+          error: `A document that is ${row.status.replaceAll('_', ' ')} cannot be moved to ${next || 'that'}.`,
+        },
+        { status: 409 },
+      );
+    await db
+      .prepare(`UPDATE kyc_documents SET status = ?, rejection_reason = ?,
+        reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP WHERE id = ?`)
+      .bind(
+        next,
+        next === 'rejected'
+          ? body.rejectionReason?.trim().slice(0, 300) ||
+              'Please send a clearer copy of this document.'
+          : null,
+        auth.session.userId,
+        documentId,
+      )
+      .run();
+    await recordAudit(
+      auth.session,
+      `kyc_document.${next}`,
+      'kyc_document',
+      documentId,
+      { reason: body.rejectionReason ?? null },
+    );
+    return NextResponse.json({ ok: true, status: next });
+  }
+
   if (body.action === 'kyc_status') {
     if (!body.numberId || !['approved', 'rejected'].includes(body.status ?? ''))
       return NextResponse.json(
@@ -976,9 +1025,14 @@ export async function PATCH(request: Request) {
         { error: 'Number request was not updated.' },
         { status: 409 },
       );
+    // Only the ones still waiting. This used to update every document on the
+    // number, so approving a GST certificate also approved an address proof
+    // nobody had read — and re-approving later overwrote the reviewer and the
+    // timestamp on decisions already made.
     await db
       .prepare(
-        `UPDATE kyc_documents SET status = ?, rejection_reason = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP WHERE phone_number_id = ?`,
+        `UPDATE kyc_documents SET status = ?, rejection_reason = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP
+         WHERE phone_number_id = ? AND status IN ('submitted', 'under_review')`,
       )
       .bind(
         body.status,

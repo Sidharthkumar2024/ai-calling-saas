@@ -39,6 +39,7 @@ import { Progress } from '@/components/ui/progress';
 import { ActivityAreaChart, QueueBars } from '@/components/analytics-charts';
 import { useT } from '@/components/locale-provider';
 import { formatMoney } from '@/lib/currency';
+import { KYC_DOCUMENT_LABEL, nextKycStatuses } from '@/lib/kyc-documents';
 
 type AdminSession = { name: string; email: string };
 
@@ -51,6 +52,7 @@ type AdminPayload = {
   fxRates?: Record<string, unknown>[];
   priceBooks?: Record<string, unknown>[];
   numbers?: Record<string, unknown>[];
+  kycDocuments?: Record<string, unknown>[];
   audits?: Record<string, unknown>[];
   integrations?: Record<string, unknown>[];
   commerce?: Record<string, unknown>[];
@@ -1479,7 +1481,124 @@ function NumbersKyc({
           </table>
         </div>
       </Panel>
+
+      <KycDocumentReview data={data} onChanged={onChanged} />
     </div>
+  );
+}
+
+/**
+ * Every file a customer has sent, one decision at a time.
+ *
+ * The panel above could count documents and approve or reject a number's whole
+ * set at once — so "approve" meant approving an address proof nobody had
+ * opened, and one bad file meant sending all of them back. A reviewer could not
+ * see what they were deciding about at all.
+ */
+function KycDocumentReview({
+  data,
+  onChanged,
+}: {
+  data: AdminPayload;
+  onChanged: () => Promise<void>;
+}) {
+  const [busy, setBusy] = useState('');
+  const [problem, setProblem] = useState('');
+  const documents = data.kycDocuments ?? [];
+
+  async function decide(documentId: string, status: 'approved' | 'rejected') {
+    setBusy(documentId);
+    setProblem('');
+    const reason =
+      status === 'rejected'
+        ? (window.prompt('What is wrong with this document?') ?? '')
+        : '';
+    const message = await platformAction(
+      {
+        action: 'kyc_document_review',
+        documentId,
+        status,
+        rejectionReason: reason,
+      },
+      onChanged,
+    );
+    if (message) setProblem(message);
+    setBusy('');
+  }
+
+  return (
+    <Panel>
+      <PanelHeader
+        title="Documents submitted"
+        description="Each file a customer sent, decided one at a time. Approving a number's whole set at once meant accepting files nobody had read."
+      />
+      {problem ? (
+        <p role="alert" className="mt-3 text-[10px] text-danger-text">
+          {problem}
+        </p>
+      ) : null}
+      {documents.length === 0 ? (
+        <p className="mt-3 text-[11px] text-ink-muted">
+          No documents have been submitted yet.
+        </p>
+      ) : null}
+      <div className="mt-4 space-y-2">
+        {documents.map((row) => {
+          const id = textValue(row.id);
+          const status = textValue(row.status, 'submitted');
+          const moves = nextKycStatuses(status);
+          return (
+            <div
+              key={id}
+              className="flex flex-wrap items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2.5 text-[10px]"
+            >
+              <span className="text-[11px] font-medium text-ink">
+                {KYC_DOCUMENT_LABEL[
+                  textValue(
+                    row.document_type,
+                  ) as keyof typeof KYC_DOCUMENT_LABEL
+                ] ?? textValue(row.document_type).replaceAll('_', ' ')}
+              </span>
+              <span className="text-ink-muted">
+                {textValue(row.organization_name)}
+              </span>
+              <Status value={status} />
+              {row.rejection_reason ? (
+                <span className="text-danger-text">
+                  {textValue(row.rejection_reason)}
+                </span>
+              ) : null}
+              <span className="ml-auto flex gap-1.5">
+                {moves.includes('approved') ? (
+                  <Button
+                    size="sm"
+                    disabled={busy === id}
+                    onClick={() => void decide(id, 'approved')}
+                    className="bg-emerald-300 text-[#07120d] hover:bg-emerald-200"
+                  >
+                    Accept
+                  </Button>
+                ) : null}
+                {moves.includes('rejected') ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={busy === id}
+                    onClick={() => void decide(id, 'rejected')}
+                    className="border-hairline bg-transparent"
+                  >
+                    Send back
+                  </Button>
+                ) : null}
+                {moves.length === 0 ? (
+                  <span className="text-ink-muted">Decided</span>
+                ) : null}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </Panel>
   );
 }
 

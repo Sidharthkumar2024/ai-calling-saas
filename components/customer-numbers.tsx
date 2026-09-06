@@ -16,6 +16,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { describeKycStatus, KYC_DOCUMENT_LABEL } from '@/lib/kyc-documents';
 
 export type NumberRow = {
   id: string;
@@ -32,6 +33,23 @@ export type NumberRow = {
   direction: string;
   kyc_status: string;
   kyc_document_count: number;
+  documents?: Array<{
+    id: string;
+    document_type: string;
+    status: string;
+    rejection_reason: string | null;
+    reviewed_at: string | null;
+    created_at: string;
+  }>;
+  kycProgress?: {
+    required: string[];
+    missing: string[];
+    rejected: string[];
+    waiting: string[];
+    approved: string[];
+    complete: boolean;
+    message: string;
+  };
   status: string;
   monthly_rental: number;
 };
@@ -512,6 +530,8 @@ export function CustomerNumbers({
         </section>
       </div>
 
+      <DocumentTracker numbers={numbers} />
+
       <section className="overflow-hidden rounded-2xl border border-hairline bg-surface p-5">
         <h2 className="text-sm font-semibold">
           Number inventory and activation state
@@ -569,7 +589,11 @@ export function CustomerNumbers({
                     min
                   </td>
                   <td className="px-3 py-4 text-ink-muted">
-                    {Number(number.kyc_document_count || 0)}
+                    {/* A bare count could not say which paperwork was
+                        accepted, waiting, or never sent. */}
+                    {number.kycProgress
+                      ? `${number.kycProgress.approved.length}/${number.kycProgress.required.length}`
+                      : Number(number.kyc_document_count || 0)}
                   </td>
                   <td className="px-3 py-4">
                     <Status value={number.kyc_status} />
@@ -587,6 +611,102 @@ export function CustomerNumbers({
         </div>
       </section>
     </div>
+  );
+}
+
+/**
+ * Which paperwork each number has, and where it has got to.
+ *
+ * The screen used to show one number per number: `kyc_document_count`. That
+ * could not say which document had been accepted, which was still being
+ * checked, or which had never been sent — so a number sat in "kyc_review" and
+ * nobody could tell what was actually holding it up.
+ */
+function DocumentTracker({ numbers }: { numbers: NumberRow[] }) {
+  const pending = numbers.filter(
+    (number) => (number.documents?.length ?? 0) > 0 || number.kycProgress,
+  );
+  if (pending.length === 0) return null;
+
+  return (
+    <section className="rounded-2xl border border-hairline bg-surface p-5">
+      <h2 className="text-sm font-semibold">Document status</h2>
+      <p className="mt-1 max-w-2xl text-[10px] text-ink-muted">
+        Every file you have sent for each number, and what happened to it. A
+        rejected document is replaced by uploading a new one — the old one stays
+        on the record.
+      </p>
+      <div className="mt-4 space-y-3">
+        {pending.map((number) => {
+          const documents = number.documents ?? [];
+          const progress = number.kycProgress;
+          return (
+            <div
+              key={number.id}
+              className="rounded-xl border border-hairline bg-surface-muted p-3"
+            >
+              <div className="flex flex-wrap items-baseline gap-2">
+                <span className="text-[11px] font-medium">
+                  {number.phone_number}
+                </span>
+                {progress ? (
+                  <span
+                    className={`text-[10px] ${progress.complete ? 'text-success-text' : 'text-ink-muted'}`}
+                  >
+                    {progress.message}
+                  </span>
+                ) : null}
+              </div>
+              <div className="mt-2 space-y-1">
+                {documents.length === 0 ? (
+                  <p className="text-[10px] text-ink-muted">
+                    Nothing uploaded for this number yet.
+                  </p>
+                ) : null}
+                {documents.map((document) => (
+                  <p key={document.id} className="text-[10px]">
+                    <span className="text-ink-body">
+                      {KYC_DOCUMENT_LABEL[
+                        document.document_type as keyof typeof KYC_DOCUMENT_LABEL
+                      ] ?? document.document_type.replaceAll('_', ' ')}
+                    </span>
+                    <span
+                      className={
+                        document.status === 'approved'
+                          ? ' text-success-text'
+                          : document.status === 'rejected'
+                            ? ' text-danger-text'
+                            : ' text-ink-muted'
+                      }
+                    >
+                      {' — '}
+                      {describeKycStatus(
+                        document.status,
+                        document.rejection_reason,
+                      )}
+                    </span>
+                  </p>
+                ))}
+                {/* Named rather than left to be inferred from an absence. */}
+                {progress?.missing.length ? (
+                  <p className="text-[10px] text-warning-text">
+                    Not sent yet:{' '}
+                    {progress.missing
+                      .map(
+                        (type) =>
+                          KYC_DOCUMENT_LABEL[
+                            type as keyof typeof KYC_DOCUMENT_LABEL
+                          ] ?? type,
+                      )
+                      .join(', ')}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

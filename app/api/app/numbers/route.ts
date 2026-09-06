@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 
 import { getRawDb } from '@/db/index';
 import { requireCustomer } from '@/lib/api-session';
+import {
+  KYC_DOCUMENT_LABEL,
+  KYC_DOCUMENT_TYPES,
+  kycProgress,
+} from '@/lib/kyc-documents';
 import { recordAudit } from '@/lib/demo-seed';
 import { sha256 } from '@/lib/security';
 import { requireCustomerPermission } from '@/lib/customer-rbac';
@@ -23,7 +28,51 @@ export async function GET(request: Request) {
     )
     .bind(auth.session.organizationId)
     .all();
-  return NextResponse.json({ numbers: rows.results });
+
+  // The documents themselves, not just how many there are. A bare count could
+  // not say which paperwork had been accepted, which was still waiting, or
+  // which had never been sent — so a number sat in "kyc_review" and the only
+  // honest thing anyone could say was "some files exist".
+  const documents = await getRawDb()
+    .prepare(
+      `SELECT id, phone_number_id, document_type, status, rejection_reason,
+         reviewed_at, created_at
+       FROM kyc_documents WHERE organization_id = ?
+       ORDER BY created_at DESC`,
+    )
+    .bind(auth.session.organizationId)
+    .all<{
+      phone_number_id: string | null;
+      document_type: string;
+      status: string;
+    }>();
+
+  const byNumber = new Map<string, typeof documents.results>();
+  for (const document of documents.results ?? []) {
+    const key = document.phone_number_id ?? '';
+    if (!byNumber.has(key)) byNumber.set(key, []);
+    byNumber.get(key)!.push(document);
+  }
+
+  return NextResponse.json({
+    numbers: (rows.results ?? []).map((number) => {
+      const own = byNumber.get(String((number as { id: string }).id)) ?? [];
+      return {
+        ...number,
+        documents: own,
+        kycProgress: kycProgress(
+          own,
+          String(
+            (number as { connection_mode?: string }).connection_mode ?? '',
+          ),
+        ),
+      };
+    }),
+    documentTypes: KYC_DOCUMENT_TYPES.map((type) => ({
+      type,
+      label: KYC_DOCUMENT_LABEL[type],
+    })),
+  });
 }
 
 export async function POST(request: Request) {

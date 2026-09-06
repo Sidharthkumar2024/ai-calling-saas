@@ -40,7 +40,13 @@ export async function GET(request: Request) {
       .bind(auth.session.organizationId)
       .all(),
     db
-      .prepare(`SELECT phone, use_case, primary_language, stage, trial_granted_at, completed_at
+      // `stage` is deliberately not selected. It is written once at signup and
+      // never advanced, so shipping it to a screen offers a progress marker
+      // that can only ever say "agent_test". What onboarding has actually
+      // reached is derived from evidence in `lib/onboarding.ts` — a paid
+      // invoice, a real agent, a playground run — and that is the only answer
+      // this product gives.
+      .prepare(`SELECT phone, use_case, primary_language, trial_granted_at, completed_at
         FROM onboarding_profiles WHERE organization_id = ? LIMIT 1`)
       .bind(auth.session.organizationId)
       .first(),

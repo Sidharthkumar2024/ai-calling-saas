@@ -257,6 +257,32 @@ remove:
     DELETE FROM leads WHERE organization_id = 'org_f6d7a1be-ccc5-42b2-80a0-39d0077d108a'
       AND name IN ('Aarav Khanna', 'Priya Mehta', 'Kabir Bansal');
 
+### 11. The new-customer journey, walked end to end
+
+Signed up as a real customer and followed the path a new user takes. The one
+defect found is in §10 above; everything after it works, and is recorded here
+so the next person does not have to re-walk it:
+
+| Step | Result |
+|---|---|
+| Signup | 201, session, 100 trial credits |
+| Every customer screen | all 200 (four 404s are directories with only sub-routes) |
+| Playground, text mode | Hindi greeting carrying their own business name, real reply, intent extraction, 1.5s |
+| Trial credits exhausted | refuses in words and does not charge |
+| Buying credits | sandbox purchase, wallet credited, sequential invoice `VAI/2026-27/00007` |
+| Placing a real call | **correctly refused** — "Finish setup before placing real calls: Choose a plan, Business details" |
+
+That last row is §3's rule holding: an account with credits, an active agent
+and a paid invoice still cannot place a real call. There is no free production
+path, and the refusal names both blockers rather than failing vaguely.
+
+Also removed while here: `onboarding_profiles.stage` was still being selected
+into the agents payload and returned from signup as a hardcoded string. It is
+written once and never advanced, so it could only ever say `agent_test` — the
+codebase had already decided against it in two comments and replaced it with
+steps derived from evidence. Both traces are gone; the column is marked
+superseded.
+
 ### 5. [KEY] Things only you can supply
 
 - **A male ElevenLabs voice id** (still outstanding) and a Punjabi voice id.

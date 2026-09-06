@@ -439,6 +439,9 @@ async function bootstrap() {
       phone TEXT,
       use_case TEXT DEFAULT 'sales' NOT NULL,
       primary_language TEXT DEFAULT 'hi-IN' NOT NULL,
+      /* Superseded. Written once at signup and never advanced, so it could
+         only ever say 'agent_test'. What onboarding has reached is derived
+         from evidence in lib/onboarding.ts; nothing reads this. */
       stage TEXT DEFAULT 'agent_test' NOT NULL,
       trial_granted_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
       completed_at TEXT,

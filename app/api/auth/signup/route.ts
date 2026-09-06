@@ -318,7 +318,9 @@ export async function POST(request: Request) {
       {
         redirectTo: '/app',
         trialCredits: PLAYGROUND_TRIAL_CREDITS,
-        onboardingStage: 'agent_test',
+        // No `onboardingStage`. It was a hardcoded string no client read, and
+        // it named a stored stage nothing advances; the overview answers this
+        // from evidence instead.
       },
       { status: 201 },
     );

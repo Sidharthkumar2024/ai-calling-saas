@@ -39,7 +39,11 @@ import { Progress } from '@/components/ui/progress';
 import { ActivityAreaChart, QueueBars } from '@/components/analytics-charts';
 import { useT } from '@/components/locale-provider';
 import { formatMoney } from '@/lib/currency';
-import { KYC_DOCUMENT_LABEL, nextKycStatuses } from '@/lib/kyc-documents';
+import {
+  KYC_DOCUMENT_LABEL,
+  kycProgress,
+  nextKycStatuses,
+} from '@/lib/kyc-documents';
 import { USAGE_UNITS } from '@/lib/rate-cards';
 
 type AdminSession = { name: string; email: string };
@@ -1327,6 +1331,29 @@ function NumbersKyc({
   const [busy, setBusy] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  /**
+   * Where each number's paperwork actually stands.
+   *
+   * The queue used to show a document *count*, and Approve unlocked at one.
+   * A count cannot tell a reviewer whether the one file on a number is the
+   * address proof or the use-case declaration, so this reads the same
+   * checklist the customer is shown — the documents are already in the
+   * payload, newest first, which is the order `kycProgress` expects.
+   */
+  const progressByNumber = new Map(
+    (data.numbers ?? []).map((row) => {
+      const documents = (data.kycDocuments ?? [])
+        .filter((doc) => textValue(doc.phone_number_id) === textValue(row.id))
+        .map((doc) => ({
+          document_type: textValue(doc.document_type),
+          status: textValue(doc.status),
+        }));
+      return [
+        textValue(row.id),
+        kycProgress(documents, textValue(row.connection_mode) || null),
+      ] as const;
+    }),
+  );
   async function review(numberId: string, status: 'approved' | 'rejected') {
     setBusy(numberId);
     setMessage('');
@@ -1417,7 +1444,7 @@ function NumbersKyc({
                   'Provider path',
                   'Use case',
                   'Volume',
-                  'Docs',
+                  'Documents',
                   'KYC',
                   'Onboarding',
                   'Decision',
@@ -1454,8 +1481,18 @@ function NumbersKyc({
                   <td className="px-3 py-4 text-ink-muted">
                     {num(row.estimated_monthly_minutes)} min
                   </td>
-                  <td className="px-3 py-4 text-ink-muted">
-                    {num(row.kyc_document_count)}
+                  <td className="max-w-56 px-3 py-4 text-ink-muted">
+                    <p>
+                      {progressByNumber.get(textValue(row.id))?.approved
+                        .length ?? 0}
+                      {' of '}
+                      {progressByNumber.get(textValue(row.id))?.required
+                        .length ?? 0}
+                      {' accepted'}
+                    </p>
+                    <p className="mt-1 text-[9px] leading-relaxed text-ink-muted">
+                      {progressByNumber.get(textValue(row.id))?.message}
+                    </p>
                   </td>
                   <td className="px-3 py-4">
                     <Status value={textValue(row.kyc_status)} />
@@ -1475,7 +1512,14 @@ function NumbersKyc({
                         disabled={
                           busy === textValue(row.id) ||
                           row.kyc_status === 'approved' ||
-                          Number(row.kyc_document_count || 0) < 1 ||
+                          // Waiting documents are approved by this click, so
+                          // they do not block it; a required one that is
+                          // absent or was turned down does.
+                          (progressByNumber.get(textValue(row.id))?.missing
+                            .length ?? 1) +
+                            (progressByNumber.get(textValue(row.id))?.rejected
+                              .length ?? 0) >
+                            0 ||
                           !['kyc_review', 'provider_review'].includes(
                             textValue(
                               row.onboarding_status,

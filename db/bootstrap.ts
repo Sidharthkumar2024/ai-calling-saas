@@ -2243,6 +2243,12 @@ async function bootstrap() {
   // Conversation inbox for inbound WhatsApp text and media metadata. The
   // raw provider payload is never stored; only the tenant-scoped fields needed
   // for an agent to reply or link the message to a lead are retained.
+  //
+  // No `status` column: it was here, defaulted to 'received', and nothing ever
+  // moved it — there is no screen yet from which a message could be read,
+  // replied to or linked. A status nothing can change is decoration that reads
+  // like a lifecycle. When the inbox screen lands it can add the column
+  // together with the transitions that make it mean something.
   await db
     .prepare(`CREATE TABLE IF NOT EXISTS whatsapp_messages (
       id TEXT PRIMARY KEY NOT NULL,
@@ -2254,7 +2260,6 @@ async function bootstrap() {
       message_type TEXT NOT NULL,
       body TEXT,
       media_id TEXT,
-      status TEXT DEFAULT 'received' NOT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`)
     .run();

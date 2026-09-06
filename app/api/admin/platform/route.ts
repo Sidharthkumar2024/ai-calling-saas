@@ -4,7 +4,11 @@ import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { requireAdminCapability, type AdminCapability } from '@/lib/admin-rbac';
 import { recordAudit } from '@/lib/demo-seed';
-import { canMoveKyc } from '@/lib/kyc-documents';
+import {
+  canMoveKyc,
+  KYC_DOCUMENT_LABEL,
+  kycProgress,
+} from '@/lib/kyc-documents';
 import { isUsageUnit, USAGE_UNITS } from '@/lib/rate-cards';
 import {
   platformProviderSecret,
@@ -1052,29 +1056,54 @@ export async function PATCH(request: Request) {
       );
     const approved = body.status === 'approved';
     const review = await db
-      .prepare(`SELECT n.id, n.status, n.onboarding_status,
-      (SELECT count(*) FROM kyc_documents d WHERE d.phone_number_id = n.id AND d.status = 'submitted') AS submitted_documents
-      FROM phone_numbers n WHERE n.id = ? LIMIT 1`)
+      .prepare(`SELECT id, status, onboarding_status, connection_mode
+      FROM phone_numbers WHERE id = ? LIMIT 1`)
       .bind(body.numberId)
       .first<{
         id: string;
         status: string;
         onboarding_status: string;
-        submitted_documents: number;
+        connection_mode: string | null;
       }>();
     if (!review)
       return NextResponse.json(
         { error: 'Number request not found.' },
         { status: 404 },
       );
-    if (approved && Number(review.submitted_documents) < 1) {
-      return NextResponse.json(
-        {
-          error:
-            'At least one submitted KYC document is required before approval.',
-        },
-        { status: 409 },
+    if (approved) {
+      // The gate used to be "at least one submitted document", which is not
+      // what a carrier asks for. The customer's own screen has been listing
+      // the five required documents and how many are accepted; approval was
+      // the one place that never read that list, so a number could go live on
+      // a single uploaded file with four required ones missing.
+      const uploaded = await db
+        .prepare(
+          `SELECT document_type, status FROM kyc_documents
+           WHERE phone_number_id = ? ORDER BY created_at DESC`,
+        )
+        .bind(body.numberId)
+        .all<{ document_type: string; status: string }>();
+      const progress = kycProgress(
+        uploaded.results ?? [],
+        review.connection_mode,
       );
+      // Documents still waiting are approved by this very action, so they do
+      // not block it. A required document that is absent, or whose latest
+      // upload was turned down, does.
+      const outstanding = [...progress.missing, ...progress.rejected];
+      if (outstanding.length > 0)
+        return NextResponse.json(
+          {
+            error: `This number cannot be approved yet: ${outstanding
+              .map((type) => KYC_DOCUMENT_LABEL[type])
+              .join(
+                ', ',
+              )} ${outstanding.length === 1 ? 'is' : 'are'} missing or rejected.`,
+            missing: progress.missing,
+            rejected: progress.rejected,
+          },
+          { status: 409 },
+        );
     }
     if (
       approved &&

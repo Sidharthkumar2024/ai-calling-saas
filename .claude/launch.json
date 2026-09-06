@@ -3,9 +3,7 @@
   "configurations": [
     {
       "name": "vaani-dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "port": 3000
+      "url": "http://localhost:3000"
     }
   ]
 }

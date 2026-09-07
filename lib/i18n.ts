@@ -549,6 +549,10 @@ const en = {
   'landing.sources.forms': 'Website forms',
   'landing.sources.apis': 'API & webhooks',
 
+  'nav.whatsapp_inbox': 'WhatsApp inbox',
+  'screen.whatsapp_inbox.title': 'WhatsApp inbox',
+  'screen.whatsapp_inbox.description':
+    'What customers wrote to your WhatsApp number, and your side of it. WhatsApp only accepts a typed reply within 24 hours of their last message, so the box appears when it would actually be delivered.',
   'nav.objects': 'Objects & records',
   'screen.objects.title': 'Objects & records',
   'screen.objects.description':
@@ -1338,6 +1342,10 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'landing.sources.forms': 'वेबसाइट फ़ॉर्म',
   'landing.sources.apis': 'API और webhooks',
 
+  'nav.whatsapp_inbox': 'WhatsApp inbox',
+  'screen.whatsapp_inbox.title': 'WhatsApp inbox',
+  'screen.whatsapp_inbox.description':
+    'ग्राहकों ने आपके WhatsApp नंबर पर क्या लिखा, और आपने क्या जवाब दिया। WhatsApp टाइप किया हुआ जवाब उनके आख़िरी मैसेज के 24 घंटे के अंदर ही लेता है, इसलिए बॉक्स तभी दिखता है जब वो सचमुच पहुँचेगा।',
   'nav.objects': 'Objects और records',
   'screen.objects.title': 'Objects और records',
   'screen.objects.description':

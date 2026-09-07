@@ -14,6 +14,7 @@ import {
   ContactRound,
   CreditCard,
   Database,
+  MessageCircleMore,
   Activity,
   PhoneOutgoing,
   Building2,
@@ -76,6 +77,7 @@ import { CustomerAgentDesk } from '@/components/customer-agent-desk';
 import { CustomerDialer } from '@/components/customer-dialer';
 import { CustomerDiagnostics } from '@/components/customer-diagnostics';
 import { CustomerObjects } from '@/components/customer-objects';
+import { CustomerWhatsAppInbox } from '@/components/customer-whatsapp-inbox';
 import { CustomerOrgStructure } from '@/components/customer-org-structure';
 import { CustomerApprovals } from '@/components/customer-approvals';
 import { CustomerVoiceProfiles } from '@/components/customer-voice-profiles';
@@ -389,6 +391,12 @@ const groups: PortalNavGroup[] = [
         translationKey: 'nav.objects',
       },
       {
+        id: 'whatsapp_inbox',
+        label: 'WhatsApp inbox',
+        icon: MessageCircleMore,
+        translationKey: 'nav.whatsapp_inbox',
+      },
+      {
         id: 'agent_desk',
         label: 'Agent desk',
         icon: Headphones,
@@ -460,6 +468,7 @@ const navPermissions: Record<string, string> = {
   team: 'team.manage',
   org_structure: 'workspace.manage',
   objects: 'crm.manage',
+  whatsapp_inbox: 'crm.manage',
   agent_desk: 'calls.monitor',
   dialer: 'calls.monitor',
   diagnostics: 'calls.monitor',
@@ -796,6 +805,9 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
           ) : null}
           {!loading && !error && active === 'objects' ? (
             <CustomerObjects />
+          ) : null}
+          {!loading && !error && active === 'whatsapp_inbox' ? (
+            <CustomerWhatsAppInbox />
           ) : null}
           {!loading && !error && active === 'dialer' ? (
             <CustomerDialer />

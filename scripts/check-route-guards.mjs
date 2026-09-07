@@ -106,8 +106,12 @@ for (const file of files) {
         break;
       }
     const body = lines.slice(index, end).join('\n');
+    // `requireAnyCustomerPermission` is spelled out: it is a real permission
+    // check — session, then "does this person hold one of these?" — and
+    // `requireCustomerPermission` does not match it, because of the `Any` in
+    // the middle. A route using it was reported as having no check at all.
     if (
-      /requireCustomerPermission|requireAdminCapability|requireSupportAccess/.test(
+      /requireCustomerPermission|requireAnyCustomerPermission|requireAdminCapability|requireSupportAccess/.test(
         body,
       )
     )

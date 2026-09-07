@@ -208,7 +208,7 @@ const en = {
   'login.email': 'Email',
   'login.orUseEmail': 'or use email',
   'login.continueWith': 'Continue with {provider}',
-  'login.adminDisabled': 'Admin disabled',
+  'login.adminDisabled': 'Not enabled yet',
   'login.admin.eyebrow': 'Platform control',
   'login.admin.title': 'Vaani admin console',
   'login.admin.description':
@@ -220,7 +220,7 @@ const en = {
   'login.customer.description':
     'Capture leads, qualify intent, automate calling, manage CRM and measure every revenue outcome.',
   'login.customer.useAccount':
-    'Use the dedicated customer account. Accounts cannot cross between portals.',
+    'Welcome back. Sign in to your business workspace.',
   'login.signIn': 'Sign in',
   'login.demoCredentials': 'Local demo credentials',
   'login.accountEmail': 'Account email',
@@ -555,7 +555,7 @@ const en = {
   'landing.proof.languages': 'languages the agent speaks, including Hinglish',
   'landing.proof.tools': 'actions an agent can take on a live call',
   'landing.proof.engines': 'engines behind one conversation',
-  'landing.proof.hours': 'no queue, no closing time, no missed ring',
+  'landing.proof.hours': 'configure round-the-clock call coverage',
   'landing.proof.note':
     'No user counts or ratings on this page yet, because there are none to report honestly.',
   'landing.stage.marquee': 'See how Vaani answers your calls',
@@ -569,7 +569,7 @@ const en = {
   'landing.story.answer.body':
     'Every call is picked up — at 2am, during a festival rush, on the twelfth line ringing at once. Nobody waits, and nobody hangs up on a queue.',
   'landing.story.answer.proof':
-    'Measured on this deployment: answered in 1.2s.',
+    'Test response time with your selected voice and calling setup.',
   'landing.story.understand.title': 'It understands what they actually want.',
   'landing.story.understand.body':
     'Not a menu tree. The caller says it in their own words, and the agent works out the budget, the location and how ready they are to buy.',
@@ -753,7 +753,7 @@ const en = {
   'landing.cta.eyebrow': 'Your next lead is already waiting',
   'landing.cta.title': 'Give every enquiry a real conversation.',
   'landing.cta.sub':
-    'Open the product workspace to explore customer and admin panels, CRM, lead capture, calling and retargeting.',
+    'Bring your calls, leads and follow-ups together in one business workspace.',
   'landing.cta.button': 'Open Vaani platform',
 
   'landing.footer.tagline': 'AI calling operations',
@@ -1352,8 +1352,8 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'landing.story.title': 'Vaani कॉल उठाने से\nकहीं आगे जाती है।',
   'landing.story.answer.title': 'पहली घंटी पर उठ जाती है।',
   'landing.story.answer.body':
-    'हर कॉल उठती है — रात 2 बजे, त्योहार की भीड़ में, बारह लाइनें एक साथ बजने पर भी। न कोई इंतज़ार करता है, न कतार सुनकर फ़ोन काटता है।',
-  'landing.story.answer.proof': 'इसी deployment पर नापा गया: 1.2 सेकंड में उठी।',
+    'अपने business hours और calling setup के अनुसार एजेंट को उपलब्ध रखें — व्यस्त समय में भी आपकी टीम की मदद के लिए।',
+  'landing.story.answer.proof': 'अपने चुने हुए voice और calling setup पर response time टेस्ट करें।',
   'landing.story.understand.title': 'समझती है कि उन्हें असल में चाहिए क्या।',
   'landing.story.understand.body':
     'कोई "1 दबाइए" वाला मेन्यू नहीं। ग्राहक अपने शब्दों में कहता है, और एजेंट बजट, इलाक़ा और ख़रीदने की तैयारी — तीनों निकाल लेती है।',

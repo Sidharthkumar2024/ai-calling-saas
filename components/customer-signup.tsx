@@ -89,10 +89,10 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
     setError('');
     if (
       step === 0 &&
-      (!form.name.trim() || !form.email.trim() || form.password.length < 10)
+      (!form.name.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()) || form.password.length < 10 || !/[a-zA-Z]/.test(form.password) || !/\d/.test(form.password))
     ) {
       setError(
-        'Enter your name, email and a password of at least 10 characters.',
+        'Enter your name, a valid email and a password of 10+ characters with a letter and number.',
       );
       return;
     }
@@ -132,8 +132,8 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
   }
 
   return (
-    <main className="min-h-screen bg-surface-muted px-4 py-8 text-ink sm:px-6">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_18%_10%,rgba(252,211,77,0.12),transparent_31%),radial-gradient(circle_at_82%_18%,rgba(124,58,237,0.16),transparent_32%)]" />
+    <main className="vani-auth min-h-screen bg-surface-muted px-4 py-8 text-ink sm:px-6">
+      <div className="vani-auth-backdrop pointer-events-none fixed inset-0" />
       <div className="relative mx-auto max-w-[1180px]">
         <div className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
@@ -152,8 +152,8 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
           </Link>
         </div>
 
-        <div className="mt-8 grid overflow-hidden rounded-[30px] border border-hairline bg-surface/95 shadow-2xl shadow-black/40 lg:grid-cols-[0.78fr_1.22fr]">
-          <aside className="border-b border-hairline bg-surface-muted p-6 sm:p-8 lg:min-h-[700px] lg:border-b-0 lg:border-r lg:p-10">
+        <div className="vani-auth-card mt-8 grid overflow-hidden rounded-[30px] border border-hairline bg-surface/95 lg:grid-cols-[0.78fr_1.22fr]">
+          <aside className="vani-signup-aside border-b border-hairline bg-surface-muted p-6 sm:p-8 lg:min-h-[700px] lg:border-b-0 lg:border-r lg:p-10">
             <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/15 bg-amber-300/5 px-3 py-1.5 text-[11px] text-warning-text">
               <Sparkles className="size-3.5" />{' '}
               {inviteToken
@@ -168,7 +168,7 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
               over text or browser voice. A real phone number is required only
               when you publish.
             </p>
-            <div className="mt-9 space-y-3">
+            <div className="vani-signup-steps mt-9 space-y-3">
               {steps.map((item, index) => (
                 <div
                   key={item.label}
@@ -195,7 +195,7 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
           </aside>
 
           <section className="flex min-h-[620px] items-center justify-center p-6 sm:p-10 lg:p-14">
-            <div className="w-full max-w-xl">
+            <form className="w-full max-w-xl" onSubmit={(event) => { event.preventDefault(); if (step === 2) void createAccount(); else next(); }}>
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-warning-text">
                 Step {step + 1}
               </p>
@@ -217,7 +217,7 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
               <div className="mt-8 space-y-4">
                 {step === 0 ? (
                   <>
-                    {!inviteToken ? <SocialAuthButtons /> : null}
+                    {!inviteToken ? <SocialAuthButtons signup /> : null}
                     <Field label="Your name">
                       <Input
                         value={form.name}
@@ -368,10 +368,9 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
                   </Button>
                 ) : null}
                 <Button
-                  type="button"
+                  type="submit"
                   disabled={loading}
-                  onClick={step === 2 ? createAccount : next}
-                  className="ml-auto bg-primary text-primary-foreground hover:bg-[#1d4ed8]"
+                  className="ml-auto bg-primary text-primary-foreground hover:bg-primary/90"
                 >
                   {loading ? <Loader2 className="animate-spin" /> : null}
                   {loading
@@ -382,7 +381,8 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
                   {!loading ? <ArrowRight /> : null}
                 </Button>
               </div>
-            </div>
+              <p className="mt-6 text-xs leading-5 text-ink-muted">Before creating an account, please read our <Link href="/terms" className="underline underline-offset-4">Terms & Conditions</Link> and <Link href="/privacy" className="underline underline-offset-4">Privacy Policy</Link>.</p>
+            </form>
           </section>
         </div>
       </div>

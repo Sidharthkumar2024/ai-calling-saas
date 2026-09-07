@@ -9,13 +9,16 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
   await ensureSchema();
-  const body = (await request.json()) as {
+  const body = (await request.json().catch(() => null)) as {
     action?: string;
     email?: string;
     token?: string;
     password?: string;
-  };
+  } | null;
+  if (!body || !['request','confirm'].includes(body.action ?? '') || Object.values(body).some((value) => typeof value !== 'string')) return NextResponse.json({ error: 'Invalid request.' }, { status: 400 });
   if (body.action === 'request') {
+    // Do not claim to have sent a recovery email when no delivery is wired.
+    if (process.env.NODE_ENV === 'production') return NextResponse.json({ error: 'Email password recovery is not configured yet. Contact your workspace administrator.' }, { status: 503 });
     const email = body.email?.trim().toLowerCase() || '';
     const limit = await enforceRateLimit({
       namespace: 'password-reset',
@@ -32,8 +35,7 @@ export async function POST(request: Request) {
     let developmentToken: string | undefined;
     if (user) {
       const token = createOpaqueToken('reset_');
-      developmentToken =
-        process.env.NODE_ENV === 'production' ? undefined : token;
+      developmentToken = token;
       await getRawDb()
         .prepare(`INSERT INTO security_challenges
         (id, user_id, type, token_hash, expires_at) VALUES (?, ?, 'password_reset', ?, ?)`)
@@ -52,6 +54,8 @@ export async function POST(request: Request) {
     });
   }
   if (body.action === 'confirm') {
+    const limit = await enforceRateLimit({ namespace: 'password-reset-confirm', identifier: requestFingerprint(request), limit: 10, windowSeconds: 900 });
+    if (!limit.allowed) return NextResponse.json({ error: 'Try again later.' }, { status: 429 });
     const password = body.password || '';
     if (
       !body.token ||
@@ -65,29 +69,21 @@ export async function POST(request: Request) {
       );
     }
     const tokenHash = await sha256(body.token);
-    const challenge = await getRawDb()
-      .prepare(`SELECT id, user_id FROM security_challenges
-      WHERE token_hash = ? AND type = 'password_reset' AND consumed_at IS NULL AND expires_at > ?`)
-      .bind(tokenHash, new Date().toISOString())
-      .first<{ id: string; user_id: string }>();
-    if (!challenge)
+    const passwordHash = await hashPassword(password);
+    const db = getRawDb();
+    const now = new Date().toISOString();
+    const validUser = `SELECT user_id FROM security_challenges WHERE token_hash = ? AND type = 'password_reset' AND consumed_at IS NULL AND expires_at > ?`;
+    // Password, session revocation and token consumption succeed or roll back together.
+    const results = await db.batch([
+      db.prepare(`UPDATE app_users SET password_hash = ? WHERE id IN (${validUser})`).bind(passwordHash, tokenHash, now),
+      db.prepare(`DELETE FROM auth_sessions WHERE user_id IN (${validUser})`).bind(tokenHash, now),
+      db.prepare(`UPDATE security_challenges SET consumed_at = CURRENT_TIMESTAMP WHERE token_hash = ? AND type = 'password_reset' AND consumed_at IS NULL AND expires_at > ?`).bind(tokenHash, now),
+    ]);
+    if (!results[0]?.meta?.changes)
       return NextResponse.json(
         { error: 'Reset link is invalid or expired.' },
         { status: 400 },
       );
-    await getRawDb().batch([
-      getRawDb()
-        .prepare('UPDATE app_users SET password_hash = ? WHERE id = ?')
-        .bind(await hashPassword(password), challenge.user_id),
-      getRawDb()
-        .prepare(
-          'UPDATE security_challenges SET consumed_at = CURRENT_TIMESTAMP WHERE id = ?',
-        )
-        .bind(challenge.id),
-      getRawDb()
-        .prepare('DELETE FROM auth_sessions WHERE user_id = ?')
-        .bind(challenge.user_id),
-    ]);
     return NextResponse.json({ reset: true });
   }
   return NextResponse.json({ error: 'Unsupported action.' }, { status: 400 });

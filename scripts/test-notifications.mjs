@@ -94,13 +94,13 @@ check('stored rubbish becomes something a gain node accepts', () => {
   // localStorage returns whatever was last written, including by hand or by an
   // older version of this code.
   assert.deepEqual(normalisePreferences({ volume: 'loud' }), {
-    muted: false,
+    muted: true,
     volume: DEFAULT_SOUND_PREFERENCES.volume,
   });
   assert.equal(normalisePreferences({ volume: 12 }).volume, 1);
   assert.equal(normalisePreferences({ volume: -3 }).volume, 0);
-  assert.equal(normalisePreferences(null).muted, false);
-  assert.equal(normalisePreferences({ muted: 'yes' }).muted, false);
+  assert.equal(normalisePreferences(null).muted, true);
+  assert.equal(normalisePreferences({ muted: 'yes' }).muted, true);
   assert.equal(normalisePreferences({ muted: true }).muted, true);
 });
 

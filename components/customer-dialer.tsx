@@ -273,7 +273,7 @@ export function CustomerDialer() {
     setState('connecting');
     // §33: the dialer showed a word changing in a corner and made no sound, so
     // a call placed from another tab rang entirely unnoticed.
-    notify({ event: 'ringing', detail: 'Connecting the call…' });
+    // Connecting the browser gateway is not evidence of a carrier ringing.
     try {
       const response = await fetch('/api/app/dialer', {
         method: 'POST',
@@ -323,7 +323,7 @@ export function CustomerDialer() {
         );
         metricsRef.current.openedAt = Date.now();
         setState('live');
-        notify({ event: 'call_connected' });
+        notify({ event: 'call_connected', subject: callIdRef.current ?? undefined, title: 'Browser audio connected', detail: 'Your microphone is connected to the voice gateway.' });
       };
       socket.onmessage = (message) => {
         const frame = JSON.parse(String(message.data)) as {

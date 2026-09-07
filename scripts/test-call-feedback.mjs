@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import { activityChanges } from '../lib/call-feedback.ts';
+const empty = { calls: [], handoffs: [] };
+const ringing = { calls: [{ id: 'c1', channel: 'phone', status: 'ringing' }], handoffs: [] };
+assert.deepEqual(activityChanges(null, ringing), []);
+assert.equal(activityChanges(empty, ringing)[0].event, 'ringing');
+assert.deepEqual(activityChanges(ringing, ringing), []);
+assert.deepEqual(activityChanges(empty, { calls: [{ id: 'b1', channel: 'playground', status: 'ringing' }], handoffs: [] }), []);
+assert.deepEqual(activityChanges(empty, { calls: [{ id: 'c1', channel: 'phone', status: 'queued' }], handoffs: [] }), []);
+const assigned = { calls: [], handoffs: [{ id: 'h1', status: 'assigned' }] };
+assert.equal(activityChanges(empty, assigned)[0].event, 'handoff_requested');
+assert.deepEqual(activityChanges(assigned, { calls: [], handoffs: [{ id: 'h1', status: 'queued' }] }), []);
+assert.equal(activityChanges(assigned, { calls: [], handoffs: [{ id: 'h1', status: 'accepted' }] })[0].event, 'transfer_accepted');
+assert.deepEqual(activityChanges(empty, { calls: [], handoffs: [{ id: 'h1', status: 'abandoned' }] }), []);
+console.log('Call feedback: 9 assertions passed.');

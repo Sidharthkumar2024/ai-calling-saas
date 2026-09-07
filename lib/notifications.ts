@@ -323,7 +323,7 @@ export type SoundPreferences = {
 };
 
 export const DEFAULT_SOUND_PREFERENCES: SoundPreferences = {
-  muted: false,
+  muted: true,
   volume: 0.5,
 };
 
@@ -339,7 +339,7 @@ export function normalisePreferences(raw: unknown): SoundPreferences {
   const source = (raw ?? {}) as Partial<SoundPreferences>;
   const volume = Number(source.volume);
   return {
-    muted: source.muted === true,
+    muted: source.muted !== false,
     volume: Number.isFinite(volume)
       ? Math.min(1, Math.max(0, volume))
       : DEFAULT_SOUND_PREFERENCES.volume,

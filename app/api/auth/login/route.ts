@@ -19,12 +19,13 @@ export async function POST(request: Request) {
       portal?: 'admin' | 'customer';
       otp?: string;
     };
-    if (!body.email || !body.password || !body.portal) {
+    if (!body || typeof body !== 'object' || Array.isArray(body) || typeof body.email !== 'string' || !body.email.trim() || typeof body.password !== 'string' || !body.password || !['admin', 'customer'].includes(body.portal ?? '') || (body.otp !== undefined && typeof body.otp !== 'string')) {
       return NextResponse.json(
         { error: 'Email, password and portal are required.' },
         { status: 400 },
       );
     }
+    body.email = body.email.trim().toLowerCase();
 
     const limit = await enforceRateLimit({
       namespace: 'login',
@@ -99,9 +100,9 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : 'Unable to sign in.',
+        error: error instanceof SyntaxError ? 'Invalid request.' : 'Unable to sign in. Please try again.',
       },
-      { status: 500 },
+      { status: error instanceof SyntaxError ? 400 : 500 },
     );
   }
 }

@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
-  Activity,
   ArrowRight,
   BadgeCheck,
   Bot,
@@ -12,11 +11,9 @@ import {
   CheckCircle2,
   Database,
   FileText,
-  Globe2,
   GraduationCap,
   HeartPulse,
   Home,
-  Languages,
   LockKeyhole,
   Megaphone,
   MessageCircleMore,
@@ -28,7 +25,6 @@ import {
   Target,
   UsersRound,
   Webhook,
-  Zap,
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +33,7 @@ import { VAANI_ENGINES } from '@/lib/vaani-engine-catalog';
 import { LandingHeroStage } from '@/components/landing-hero-stage';
 import { LandingVideoIntro } from '@/components/landing-video-intro';
 import { LandingHeader } from '@/components/landing-header';
+import { PublicFooter } from '@/components/public-footer';
 import { LandingProofBand } from '@/components/landing-proof-band';
 import { LandingScrollStory } from '@/components/landing-scroll-story';
 import { useLocale } from '@/components/locale-provider';
@@ -137,8 +134,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
               key={source}
               className="landing-source flex h-20 items-center justify-center gap-2 px-3 text-center text-sm font-medium text-ink-muted"
             >
-              <span className="size-1.5 rounded-full bg-amber-300/70" />{' '}
-              {source}
+              <span className="size-1.5 rounded-full bg-primary/70" /> {source}
             </div>
           ))}
         </div>
@@ -351,7 +347,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
             {VAANI_ENGINES.map((engine) => (
               <article key={engine.name} className="stage-card rounded-2xl p-5">
                 <div className="flex items-center gap-3">
-                  <span className="grid size-9 place-items-center rounded-xl bg-cyan-300/10 text-cyan-700">
+                  <span className="grid size-9 place-items-center rounded-xl bg-surface-strong text-primary">
                     <engine.icon className="size-4" />
                   </span>
                   <div>
@@ -411,7 +407,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
             ).map((plan) => (
               <article
                 key={plan.key}
-                className={`relative rounded-2xl border p-6 ${plan.featured ? 'border-amber-300/30 bg-amber-300/[0.045]' : 'border-hairline bg-surface-muted'}`}
+                className={`relative rounded-2xl border p-6 ${plan.featured ? 'border-primary/30 bg-primary/[0.045]' : 'border-hairline bg-surface-muted'}`}
               >
                 {plan.featured ? (
                   <span className="absolute -top-3 left-6 rounded-full bg-primary px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-primary-foreground">
@@ -505,7 +501,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
 
       <section className="py-20 sm:py-24">
         <div className="mx-auto max-w-[1240px] px-4 sm:px-6">
-          <div className="overflow-hidden rounded-[28px] border border-hairline bg-[radial-gradient(circle_at_85%_10%,rgba(167,139,250,0.19),transparent_28%),radial-gradient(circle_at_10%_90%,rgba(252,211,77,0.14),transparent_30%),#ffffff] px-6 py-12 sm:px-10 lg:flex lg:items-end lg:justify-between lg:px-14 lg:py-16">
+          <div className="vani-footer-cta overflow-hidden rounded-[28px] border border-hairline px-6 py-12 sm:px-10 lg:flex lg:items-end lg:justify-between lg:px-14 lg:py-16">
             <div className="max-w-2xl">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-warning-text">
                 {t('landing.cta.eyebrow')}
@@ -528,39 +524,7 @@ export function LandingPage({ onEnterWorkspace }: LandingPageProps) {
         </div>
       </section>
 
-      <footer className="vani-site-footer py-12 sm:py-16">
-        <div className="mx-auto flex max-w-[1240px] flex-col gap-8 px-6 text-sm text-ink-muted sm:px-6 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-2 text-ink-body">
-            <Activity className="size-4 text-warning-text" />
-            <span className="font-medium">V-A-N-I</span>
-            <span>{t('landing.footer.tagline')}</span>
-          </div>
-          <div className="flex flex-wrap gap-x-6 gap-y-4">
-            <Link href="/signup" className="hover:text-ink">
-              {t('landing.footer.createAccount')}
-            </Link>
-            <Link href="/login" className="hover:text-ink">
-              {t('landing.footer.customerLogin')}
-            </Link>
-            <Link href="/admin/login" className="hover:text-ink">
-              {t('landing.footer.adminLogin')}
-            </Link>
-            <Link href="/docs" className="hover:text-ink">
-              {t('landing.nav.apiDocs')}
-            </Link>
-            <span className="flex items-center gap-1.5">
-              <Globe2 className="size-3" /> {t('landing.footer.indiaReady')}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Languages className="size-3" />{' '}
-              {t('landing.footer.multilingual')}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Zap className="size-3" /> {t('landing.footer.mobile')}
-            </span>
-          </div>
-        </div>
-      </footer>
+      <PublicFooter />
     </main>
   );
 }

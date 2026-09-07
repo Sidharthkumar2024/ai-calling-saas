@@ -129,7 +129,7 @@ export function CustomerApprovals() {
       // repolls, so nobody learned about it unless they were already watching
       // this screen. Edge-triggered — the queue is not news, an arrival is.
       const waiting = incoming
-        .filter((row) => row.status !== 'closed' && row.status !== 'completed')
+        .filter((row) => row.status === 'queued' || row.status === 'assigned')
         .map((row) => row.id);
       const arrived = newlyArrived(seenHandoffs.current, waiting);
       if (arrived?.length)
@@ -148,7 +148,7 @@ export function CustomerApprovals() {
         .filter((row) => row.status === 'accepted')
         .map((row) => row.id);
       const newlyAccepted = newlyArrived(acceptedHandoffs.current, accepted);
-      if (newlyAccepted?.length) notify({ event: 'transfer_accepted' });
+      if (newlyAccepted?.length) notify({ event: 'transfer_accepted', subject: newlyAccepted[0], scope: 'workspace' });
       seenHandoffs.current = new Set(waiting);
       acceptedHandoffs.current = new Set(accepted);
       setHandoffs(incoming);
@@ -167,7 +167,8 @@ export function CustomerApprovals() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
-    return () => window.clearTimeout(timer);
+    const poll = window.setInterval(() => { if (document.visibilityState === 'visible') void load(); }, 10_000);
+    return () => { window.clearTimeout(timer); window.clearInterval(poll); };
   }, [load]);
 
   async function send(body: Record<string, unknown>, key: string) {

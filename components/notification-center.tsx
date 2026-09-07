@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell } from 'lucide-react';
+import { Bell, PhoneCall, ArrowRightLeft, Coins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   createContext,
@@ -43,7 +43,7 @@ import {
  * request before it can tell you something.
  */
 
-const STORAGE_KEY = 'vaani.sound-preferences';
+const STORAGE_KEY = 'vaani.sound-preferences.v2';
 
 export type NotifyInput = {
   event: NotificationEvent;
@@ -77,6 +77,7 @@ type NotificationContextValue = {
    * to make a sound would otherwise be a lie the settings panel tells.
    */
   soundReady: boolean;
+  previewSound: (event: NotificationEvent) => void;
 };
 
 const NotificationContext = createContext<NotificationContextValue | null>(
@@ -109,6 +110,9 @@ export function NotificationCenter({
   const nextId = useRef(1);
 
   useEffect(() => {
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const onChange = () => setReducedMotion(query.matches);
+    query.addEventListener('change', onChange);
     const timer = window.setTimeout(() => {
       try {
         const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -118,13 +122,9 @@ export function NotificationCenter({
         // A private window, cleared site data, or a value written by an older
         // version. The defaults are correct in all three cases.
       }
-      const query = window.matchMedia('(prefers-reduced-motion: reduce)');
       setReducedMotion(query.matches);
-      const onChange = () => setReducedMotion(query.matches);
-      query.addEventListener('change', onChange);
-      return () => query.removeEventListener('change', onChange);
     }, 0);
-    return () => window.clearTimeout(timer);
+    return () => { window.clearTimeout(timer); query.removeEventListener('change', onChange); };
   }, []);
 
   // Audio cannot start without a gesture, so the first one anywhere unlocks it.
@@ -367,6 +367,7 @@ export function NotificationCenter({
       preferences,
       setPreferences,
       soundReady,
+      previewSound: play,
     }),
     [
       notify,
@@ -378,6 +379,7 @@ export function NotificationCenter({
       preferences,
       setPreferences,
       soundReady,
+      play,
     ],
   );
 
@@ -405,11 +407,12 @@ export function NotificationCenter({
                       : 'border-hairline bg-surface text-ink'
               }`}
             >
-              <p className="text-[11px] font-semibold">
+              <div className="mb-2 flex items-center gap-2" aria-hidden="true">{toast.event === 'ringing' || toast.event === 'call_connected' ? <PhoneCall className="size-5 vani-call-pulse" /> : toast.event.startsWith('transfer') || toast.event === 'handoff_requested' ? <ArrowRightLeft className="size-5 vani-call-pulse" /> : toast.event === 'payment_success' || toast.event === 'credit_added' ? <Coins className="size-5" /> : <Bell className="size-4" />}</div>
+              <p className="text-sm font-semibold">
                 {toast.title || spec.title}
               </p>
               {toast.detail ? (
-                <p className="mt-0.5 text-[11px] opacity-80">{toast.detail}</p>
+                <p className="mt-1 text-sm opacity-80">{toast.detail}</p>
               ) : null}
               {/* §3.2: these do not time out, so there has to be a way to
                   clear them — and acknowledging records who saw it. */}
@@ -450,13 +453,14 @@ export function useNotifications() {
     preferences: DEFAULT_SOUND_PREFERENCES,
     setPreferences: () => {},
     soundReady: false,
+    previewSound: () => {},
   };
   return context ?? fallback;
 }
 
 /** Mute and volume, for the settings screen. */
 export function SoundSettings() {
-  const { preferences, setPreferences, soundReady, notify } =
+  const { preferences, setPreferences, soundReady, previewSound } =
     useNotifications();
   return (
     <div className="rounded-xl border border-hairline bg-surface-muted px-3 py-3">
@@ -488,12 +492,10 @@ export function SoundSettings() {
         />
         <button
           type="button"
+          disabled={preferences.muted}
           className="rounded-lg border border-hairline bg-surface px-2.5 py-1 text-[11px] text-ink-body hover:text-ink"
           onClick={() =>
-            notify({
-              event: 'payment_success',
-              title: 'This is how it sounds',
-            })
+            previewSound('payment_success')
           }
         >
           Test
@@ -517,15 +519,16 @@ export function SoundSettings() {
  * computes the balance outside this provider — and because a balance watcher
  * that re-renders the whole portal on every poll is worse than the problem.
  */
-export function CreditWatch({ credits }: { credits: number }) {
+export function CreditWatch({ credits }: { credits: number | null }) {
   const { notify } = useNotifications();
   const previous = useRef<number | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
+      if (credits === null) return;
       const event = creditAlert(previous.current, credits);
       previous.current = credits;
-      if (!event) return;
+      if (!event || event === 'credit_added') return;
       notify({
         event,
         detail:

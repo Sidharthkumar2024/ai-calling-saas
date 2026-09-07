@@ -12,7 +12,7 @@ type Provider = {
   status: string;
 };
 
-export function SocialAuthButtons() {
+export function SocialAuthButtons({ signup = false }: { signup?: boolean }) {
   const t = useT();
   const [providers, setProviders] = useState<Provider[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,7 +47,7 @@ export function SocialAuthButtons() {
   return (
     <div className="mt-5 space-y-2">
       {providers.map((provider) => {
-        const ready = Boolean(provider.enabled) && provider.status === 'active';
+        const ready = !signup && provider.provider === 'google' && Boolean(provider.enabled) && provider.status === 'active';
         return (
           <button
             key={provider.provider}
@@ -60,7 +60,7 @@ export function SocialAuthButtons() {
             title={
               ready
                 ? t('login.continueWith', { provider: provider.display_name })
-                : 'Activation is controlled from the admin portal'
+                : signup ? 'Create your account with email first. Google sign-in is available for existing accounts when enabled.' : 'Activation is controlled from the admin portal'
             }
             className="flex h-11 w-full items-center justify-center gap-3 rounded-xl border border-hairline bg-surface-strong text-xs font-medium text-ink transition-colors enabled:hover:bg-surface-strong disabled:cursor-not-allowed disabled:text-ink-muted"
           >
@@ -70,7 +70,7 @@ export function SocialAuthButtons() {
             {t('login.continueWith', { provider: provider.display_name })}
             {!ready ? (
               <span className="rounded-full bg-surface-strong px-2 py-1 text-[11px] font-normal text-ink-body">
-                {t('login.adminDisabled')}
+                {signup ? 'Email signup first' : t('login.adminDisabled')}
               </span>
             ) : null}
           </button>

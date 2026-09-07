@@ -51,16 +51,12 @@ export async function POST(request: Request) {
         { status: 429 },
       );
     }
-    const body = (await request.json()) as {
-      name?: string;
-      businessName?: string;
-      email?: string;
-      password?: string;
-      phone?: string;
-      useCase?: string;
-      language?: string;
-      inviteToken?: string;
-    };
+    const raw: unknown = await request.json();
+    const fields = ['name', 'businessName', 'email', 'password', 'phone', 'useCase', 'language', 'inviteToken'] as const;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw) || fields.some((field) => (raw as Record<string, unknown>)[field] !== undefined && typeof (raw as Record<string, unknown>)[field] !== 'string')) {
+      return NextResponse.json({ error: 'Invalid request.' }, { status: 400 });
+    }
+    const body = raw as Partial<Record<(typeof fields)[number], string>>;
     const name = body.name?.trim();
     const businessName = body.businessName?.trim();
     const email = body.email?.trim().toLowerCase();
@@ -333,9 +329,9 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error ? error.message : 'Unable to create account.',
+          error instanceof SyntaxError ? 'Invalid request.' : 'Unable to create account. Please try again.',
       },
-      { status: 500 },
+      { status: error instanceof SyntaxError ? 400 : 500 },
     );
   }
 }

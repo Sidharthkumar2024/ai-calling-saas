@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { CreditCelebration } from '@/components/credit-celebration';
+import { confirmedCreditReceipt, type CreditReceipt } from '@/lib/credit-feedback';
 import { useNotifications } from '@/components/notification-center';
 import {
   Check,
@@ -69,6 +71,49 @@ export function CustomerBilling({
   const [loading, setLoading] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [receipt, setReceipt] = useState<CreditReceipt | null>(null);
+  const dismissReceipt = useCallback(() => setReceipt(null), []);
+  const refreshRef = useRef(onChanged);
+  const notifyRef = useRef(notify);
+  useEffect(() => { refreshRef.current = onChanged; }, [onChanged]);
+  useEffect(() => { notifyRef.current = notify; }, [notify]);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('billing') !== 'success' || !params.get('session_id')) return;
+    const sessionId = params.get('session_id')!;
+    let cancelled = false;
+    let attempt = 0;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      try {
+        const response = await fetch(`/api/app/billing/confirmation?session_id=${encodeURIComponent(sessionId)}`, { cache: 'no-store' });
+        if (cancelled) return;
+        if (!response.ok) {
+          if (response.status >= 500 || response.status === 429) throw new Error('Verification temporarily unavailable.');
+          setMessage('Unable to verify this checkout. Check your invoices before purchasing again.'); return;
+        }
+        const confirmed = confirmedCreditReceipt(await response.json());
+        if (cancelled) return;
+        if (confirmed) {
+          const seenKey = `vani.credit-receipt.${confirmed.invoiceId}`;
+          let seen = false;
+          try { seen = window.sessionStorage.getItem(seenKey) === 'shown'; window.sessionStorage.setItem(seenKey, 'shown'); } catch { /* Confirmation is still safe when local preferences are unavailable. */ }
+          if (!seen) { if (confirmed.creditsAdded > 0) setReceipt(confirmed); notifyRef.current({ event: 'payment_success', subject: confirmed.invoiceId, scope: 'workspace', detail: 'Payment verified and invoice ready.' }); }
+          setMessage('Payment verified. Your credits and invoice are ready.');
+          params.delete('billing'); params.delete('session_id');
+          window.history.replaceState(null, '', `${window.location.pathname}${params.size ? `?${params}` : ''}`);
+          void refreshRef.current();
+          return;
+        }
+      } catch { /* A transient network failure can be retried without re-purchasing. */ }
+      if (cancelled) return;
+      setMessage('Waiting for payment verification. No need to purchase again.');
+      if (++attempt < 20) timer = setTimeout(poll, 3000);
+      else setMessage('Payment verification is still pending. Check your invoices shortly; do not purchase again.');
+    };
+    timer = setTimeout(poll, 0);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, []);
   const wallet = data.wallet ?? { balance: 0, low_balance_threshold: 500 };
   const subscription = data.subscription ?? {};
 
@@ -86,6 +131,11 @@ export function CustomerBilling({
         error?: string;
         checkoutUrl?: string;
         invoiceNumber?: string;
+        completed?: boolean;
+        invoiceId?: string;
+        creditsAdded?: number;
+        balance?: number;
+        mode?: string;
       };
       if (!response.ok)
         throw new Error(payload.error ?? 'Unable to start checkout.');
@@ -93,6 +143,9 @@ export function CustomerBilling({
         window.location.assign(payload.checkoutUrl);
         return;
       }
+      const confirmed = confirmedCreditReceipt(payload);
+      if (!confirmed) throw new Error('Payment is not yet confirmed. Refresh billing to check its status; do not purchase again.');
+      if (confirmed.creditsAdded > 0) setReceipt(confirmed);
       setMessage(
         `Local sandbox purchase complete. Invoice ${payload.invoiceNumber ?? 'created'} generated; no real money was charged.`,
       );
@@ -122,7 +175,8 @@ export function CustomerBilling({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="vani-billing space-y-6">
+      {receipt ? <CreditCelebration key={receipt.invoiceId} receipt={receipt} onDismiss={dismissReceipt} /> : null}
       <div>
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-warning-text">
           Subscription and wallet

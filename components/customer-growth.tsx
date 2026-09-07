@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, Copy, RefreshCw, Send, Square } from 'lucide-react';
+import { Check, Copy, RefreshCw, Send, Square, ArrowUpRight, Leaf, MessageCircle, Database, ShieldCheck, ChevronDown } from 'lucide-react';
 
 import { type Block, type Inline, parseBlocks } from '@/lib/chat-markdown';
 import { DISCOVERY_QUESTIONS, type Confidence } from '@/lib/growth-manager';
@@ -134,30 +134,43 @@ export function CustomerGrowth() {
   async function saveDiscovery() {
     setSaving(true);
     try {
-      await fetch('/api/app/growth', {
+      const response = await fetch('/api/app/growth', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ action: 'save_discovery', answers }),
       });
+      if (!response.ok) { const payload = await response.json() as { error?: string }; throw new Error(payload.error ?? 'Could not save business context.'); }
       await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not save business context.');
     } finally {
       setSaving(false);
     }
   }
 
-  if (error)
+  if (error && !board)
     return (
       <p role="alert" className="text-[11px] text-danger-text">
         {error}
       </p>
     );
-  if (!board) return null;
+  if (!board) return <output className="portal-panel block p-8 text-sm text-ink-muted">Loading your business workspace…</output>;
 
   const byId = new Map(board.observations.map((item) => [item.id, item]));
 
   return (
-    <div className="space-y-6">
-      <section className="portal-panel p-5">
+    <div className="vani-growth space-y-6">
+      <header className="vani-growth-heading"><div><span className="vani-growth-kicker"><Leaf className="size-4" /> YOUR BUSINESS, IN FOCUS</span><h1>AI Business Manager</h1><p>Understand what happened. Decide what comes next.</p></div><span className="vani-growth-permission"><ShieldCheck className="size-4" /> Actions stay permission-controlled</span></header>
+      {error ? <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-danger-text">{error}</p> : null}
+      <div className="vani-growth-summary">
+        <div><Database /><span>Connected sources</span><strong>{board.sources.connected.length}</strong></div>
+        <div><MessageCircle /><span>Saved conversations</span><strong>{board.chats?.length ?? 0}</strong></div>
+        <div><ArrowUpRight /><span>Recommended next steps</span><strong>{board.recommendations.length}</strong></div>
+      </div>
+      <GrowthChat chips={board.chips ?? []} suggestedGoal={board.suggestedGoal ?? ''} chats={board.chats ?? []} onDone={load} />
+      <details className="portal-panel p-5">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3"><span className="font-semibold">Business context <span className="ml-2 text-sm font-normal text-ink-muted">{Math.round(board.discovery.progress * 100)}% complete</span></span><ChevronDown className="size-4" /></summary>
+        <section className="mt-5">
         <h2 className="text-sm font-semibold">Tell me about your business</h2>
         <p className="mt-1 text-[11px] text-ink-muted">
           Every answer changes something: the agent’s opening, what it qualifies
@@ -221,14 +234,8 @@ export function CustomerGrowth() {
         >
           {saving ? 'Saving…' : 'Save'}
         </button>
-      </section>
-
-      <GrowthChat
-        chips={board.chips ?? []}
-        suggestedGoal={board.suggestedGoal ?? ''}
-        chats={board.chats ?? []}
-        onDone={load}
-      />
+        </section>
+      </details>
 
       <SiteScan runs={board.runs ?? []} onDone={load} />
 
@@ -1225,9 +1232,9 @@ function GrowthChat({
   ].filter(Boolean);
 
   return (
-    <section className="portal-panel flex flex-col p-5">
+    <section className="vani-growth-chat portal-panel flex flex-col p-5 sm:p-7">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold">What should I grow today?</h2>
+        <h2 className="text-xl font-semibold">What would you like to work on?</h2>
         <div className="flex items-center gap-3">
           {turns.length ? (
             <button
@@ -1269,7 +1276,7 @@ function GrowthChat({
 
       <div
         ref={scrollRef}
-        className="mt-4 max-h-[26rem] min-h-[12rem] overflow-y-auto rounded-xl border border-hairline bg-surface-muted/40 p-3"
+        className="vani-growth-messages mt-4 max-h-[32rem] min-h-[15rem] overflow-y-auto rounded-xl bg-surface-muted/40 p-4 sm:p-6"
       >
         {turns.length === 0 ? (
           <div className="flex h-full flex-col justify-center gap-2 py-4">
@@ -1277,15 +1284,16 @@ function GrowthChat({
               Ask about your calls, leads, website or what to do next. Answers
               come from this workspace&rsquo;s own numbers.
             </p>
-            <div className="mt-1 flex flex-wrap gap-1.5">
+            <div className="vani-growth-starters mt-3 grid gap-3 sm:grid-cols-2">
               {starters.map((starter) => (
                 <button
                   key={starter}
                   type="button"
                   onClick={() => void ask(starter)}
-                  className="rounded-lg border border-hairline bg-surface px-2.5 py-1.5 text-left text-[11px] text-ink-body hover:bg-surface-strong"
+                  className="flex items-start gap-3 rounded-xl border border-hairline bg-surface p-4 text-left text-sm text-ink-body transition hover:border-primary/40 hover:bg-surface-strong"
                 >
                   {starter}
+                  <ArrowUpRight className="ml-auto size-4 shrink-0 text-primary" />
                 </button>
               ))}
             </div>

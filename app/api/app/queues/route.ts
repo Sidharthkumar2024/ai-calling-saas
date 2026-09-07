@@ -39,6 +39,13 @@ export async function GET(request: Request) {
   if (auth.response) return auth.response;
   const db = getRawDb();
   const organizationId = auth.session.organizationId;
+  if (new URL(request.url).searchParams.get('view') === 'events') {
+    const [calls, handoffs] = await Promise.all([
+      db.prepare("SELECT id, status, channel FROM call_records WHERE organization_id = ? AND channel = 'phone' AND status IN ('queued','ringing','in_progress','connected') ORDER BY started_at DESC LIMIT 50").bind(organizationId).all(),
+      db.prepare("SELECT id, status FROM handoffs WHERE organization_id = ? AND status IN ('queued','assigned','accepted') ORDER BY created_at DESC LIMIT 50").bind(organizationId).all(),
+    ]);
+    return NextResponse.json({ calls: calls.results, handoffs: handoffs.results }, { headers: { 'Cache-Control': 'no-store' } });
+  }
 
   const [queues, agents, rules, waiting, active, recent] = await Promise.all([
     db

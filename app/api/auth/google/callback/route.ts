@@ -17,6 +17,10 @@ export async function GET(request: Request) {
       new URL('/login?error=google_cancelled', request.url),
     );
   const stateHash = await sha256(state);
+  const browserState = request.headers.get('cookie')?.split(';').map((part) => part.trim()).find((part) => part.startsWith('vani_oauth_state='))?.slice('vani_oauth_state='.length);
+  if (!browserState || browserState !== stateHash) return NextResponse.redirect(new URL('/login?error=google_state', request.url));
+  const provider = await getRawDb().prepare("SELECT enabled, status FROM auth_provider_settings WHERE provider = 'google'").first<{ enabled: number; status: string }>();
+  if (!provider?.enabled || provider.status !== 'active') return NextResponse.redirect(new URL('/login?error=google_disabled', request.url));
   const oauth = await getRawDb()
     .prepare(`SELECT id, code_verifier_encrypted, return_to FROM oauth_states
     WHERE provider = 'google' AND state_hash = ? AND consumed_at IS NULL AND expires_at > ?`)
@@ -37,6 +41,8 @@ export async function GET(request: Request) {
     return NextResponse.redirect(
       new URL('/login?error=google_config', request.url),
     );
+  const consumed = await getRawDb().prepare('UPDATE oauth_states SET consumed_at = CURRENT_TIMESTAMP WHERE id = ? AND consumed_at IS NULL RETURNING id').bind(oauth.id).first();
+  if (!consumed) return NextResponse.redirect(new URL('/login?error=google_state', request.url));
   const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
@@ -99,6 +105,10 @@ export async function GET(request: Request) {
       new URL('/login?error=wrong_portal', request.url),
     );
   }
+  // Password sign-in remains the supported second-factor flow. Never issue an
+  // OAuth session that silently bypasses an enrolled authenticator.
+  const security = await getRawDb().prepare('SELECT mfa_enabled FROM user_security_settings WHERE user_id = ?').bind(user.id).first<{ mfa_enabled: number }>();
+  if (security?.mfa_enabled) return NextResponse.redirect(new URL('/login?error=google_mfa_use_password', request.url));
   const sessionToken = createOpaqueToken('vs_');
   const sessionId = `session_${crypto.randomUUID()}`;
   await getRawDb().batch([
@@ -127,5 +137,6 @@ export async function GET(request: Request) {
     'Set-Cookie',
     sessionCookie(sessionToken, url.protocol === 'https:'),
   );
+  response.headers.append('Set-Cookie', `vani_oauth_state=; Path=/api/auth/google; HttpOnly; SameSite=Lax; Max-Age=0${url.protocol === 'https:' ? '; Secure' : ''}`);
   return response;
 }

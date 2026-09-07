@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { CallActivityWatch } from '@/components/call-activity-watch';
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -600,7 +601,7 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
   }
 
   useEffect(() => {
-    const timer = window.setTimeout(() => void load(), 0);
+    const timer = window.setTimeout(() => { if (new URLSearchParams(window.location.search).has('billing')) setActive('billing'); void load(); }, 0);
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -661,7 +662,8 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
 
   return (
     <NotificationCenter section={active}>
-      <CreditWatch credits={credits} />
+      {session.permissions.includes('calls.monitor') || session.permissions.includes('workspace.manage') ? <CallActivityWatch /> : null}
+      <CreditWatch credits={data.billing.wallet ? credits : null} />
       <PortalShell
         mode="customer"
         active={active}

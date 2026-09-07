@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   Activity,
@@ -31,20 +31,16 @@ const portalCopy = {
     title: 'Vaani admin console',
     description:
       'Manage tenants, KYC, calling operations, plans, credits, integrations and platform health.',
-    email: 'admin@vaani.local',
-    password: 'VaaniAdmin#2026',
     icon: ShieldCheck,
-    accent: 'from-amber-300/20 via-violet-400/10 to-transparent',
+    accent: 'from-emerald-100 via-white to-white',
   },
   customer: {
     eyebrow: 'Customer workspace',
     title: 'Run your revenue voice OS',
     description:
       'Capture leads, qualify intent, automate calling, manage CRM and measure every revenue outcome.',
-    email: 'owner@vaani.local',
-    password: 'VaaniUser#2026',
     icon: Building2,
-    accent: 'from-cyan-300/15 via-violet-400/10 to-transparent',
+    accent: 'from-emerald-100 via-white to-white',
   },
 };
 
@@ -57,8 +53,8 @@ export function PortalLogin({ portal }: PortalLoginProps) {
     description: t(`login.${portal}.description` as TranslationKey),
   };
   const Icon = config.icon;
-  const [email, setEmail] = useState(config.email);
-  const [password, setPassword] = useState(config.password);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [otp, setOtp] = useState('');
@@ -67,6 +63,16 @@ export function PortalLogin({ portal }: PortalLoginProps) {
   const [resetToken, setResetToken] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [resetNotice, setResetNotice] = useState('');
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('reset_token');
+    if (token) { setResetToken(token); setResetMode(true); }
+    if (params.has('error')) setError('Google sign-in could not be completed. Use your email and password, or contact support.');
+    if (token) window.history.replaceState(null, '', window.location.pathname);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   async function submit(event: { preventDefault: () => void }) {
     event.preventDefault();
@@ -167,12 +173,12 @@ export function PortalLogin({ portal }: PortalLoginProps) {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-surface-muted text-ink">
+    <main className="vani-auth relative min-h-screen overflow-hidden bg-surface-muted text-ink">
       <div
-        className={`pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(252,211,77,0.12),transparent_32%),radial-gradient(circle_at_82%_15%,rgba(139,92,246,0.12),transparent_32%)]`}
+        className="vani-auth-backdrop pointer-events-none absolute inset-0"
       />
       <div className="relative mx-auto flex min-h-screen max-w-[1180px] items-center px-4 py-10 sm:px-6">
-        <div className="grid w-full overflow-hidden rounded-[30px] border border-hairline bg-surface/94 shadow-2xl shadow-black/40 lg:grid-cols-[0.92fr_1.08fr]">
+        <div className="vani-auth-card grid w-full overflow-hidden rounded-[30px] border border-hairline bg-surface/94 lg:grid-cols-[0.92fr_1.08fr]">
           <section
             className={`relative hidden min-h-[690px] overflow-hidden border-r border-hairline bg-gradient-to-br ${config.accent} p-10 lg:flex lg:flex-col`}
           >
@@ -203,9 +209,9 @@ export function PortalLogin({ portal }: PortalLoginProps) {
               </p>
               <div className="mt-8 space-y-3 text-sm text-ink-body">
                 {[
-                  'Strict role and tenant isolation',
-                  'HttpOnly sessions and hashed credentials',
-                  'Secrets encrypted at rest',
+                  'One workspace for calls, leads and follow-ups',
+                  'Your team, with the right access for each role',
+                  'Try your agent before going live',
                 ].map((item) => (
                   <div key={item} className="flex items-center gap-3">
                     <CheckCircle2 className="size-4 text-success-text" /> {item}
@@ -214,7 +220,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
               </div>
             </div>
             <p className="text-xs text-ink-muted">
-              {t('login.localWorkspace')}
+              A little less busywork. A lot more conversation.
             </p>
           </section>
 
@@ -238,23 +244,6 @@ export function PortalLogin({ portal }: PortalLoginProps) {
               <p className="mt-2 text-sm leading-6 text-ink-muted">
                 {t(`login.${portal}.useAccount` as TranslationKey)}
               </p>
-
-              <div className="mt-6 rounded-2xl border border-hairline bg-surface-strong p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
-                      {t('login.demoCredentials')}
-                    </p>
-                    <p className="mt-2 font-mono text-xs text-ink">
-                      {config.email}
-                    </p>
-                    <p className="mt-1 font-mono text-xs text-ink">
-                      {config.password}
-                    </p>
-                  </div>
-                  <KeyRound className="size-5 text-ink-muted" />
-                </div>
-              </div>
 
               {portal === 'customer' ? <SocialAuthButtons /> : null}
 
@@ -330,7 +319,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                         disabled={
                           loading || !resetToken || newPassword.length < 10
                         }
-                        className="h-11 w-full bg-primary text-black hover:bg-[#1d4ed8]"
+                        className="h-11 w-full bg-primary text-primary-foreground hover:bg-primary/90"
                       >
                         <LockKeyhole /> Update password
                       </Button>
@@ -433,14 +422,14 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                   <Button
                     type="submit"
                     disabled={loading}
-                    className="h-11 w-full bg-primary text-primary-foreground hover:bg-[#1d4ed8]"
+                    className="h-11 w-full bg-primary text-primary-foreground hover:bg-primary/90"
                   >
                     {loading ? (
                       <Loader2 className="animate-spin" />
                     ) : (
                       <LockKeyhole />
                     )}
-                    {loading ? 'Signing in…' : `Open ${portal} portal`}
+                    {loading ? 'Signing in…' : 'Sign in'}
                     {!loading && <ArrowRight className="ml-auto" />}
                   </Button>
                 </form>

@@ -12,14 +12,14 @@ export async function GET(request: Request) {
     .prepare(`SELECT enabled, status FROM auth_provider_settings
     WHERE provider = 'google'`)
     .first<{ enabled: number; status: string }>();
-  if (!provider?.enabled)
+  if (!provider?.enabled || provider.status !== 'active')
     return NextResponse.json(
       { error: 'Google sign-in is disabled by the platform admin.' },
       { status: 503 },
     );
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const redirectUri = process.env.GOOGLE_REDIRECT_URI;
-  if (!clientId || !redirectUri)
+  if (!clientId || !redirectUri || !process.env.GOOGLE_CLIENT_SECRET)
     return NextResponse.json(
       { error: 'Google sign-in credentials are not configured.' },
       { status: 503 },
@@ -55,7 +55,9 @@ export async function GET(request: Request) {
     access_type: 'offline',
     prompt: 'select_account',
   }).toString();
-  return NextResponse.redirect(url);
+  const response = NextResponse.redirect(url);
+  response.headers.append('Set-Cookie', `vani_oauth_state=${await sha256(state)}; Path=/api/auth/google; HttpOnly; SameSite=Lax; Max-Age=600${new URL(request.url).protocol === 'https:' ? '; Secure' : ''}`);
+  return response;
 }
 
 function base64Url(buffer: ArrayBuffer) {

@@ -34,7 +34,7 @@ export function DeviceShell({
         {/* The bezel between rail and glass. Black, and slightly inset, which
             is the shadow line every real device has under its frame. */}
         <div className="stage-sheen relative size-full overflow-hidden rounded-[40px] bg-[#05070f] p-[7px] shadow-[0_0_14px_rgba(0,0,0,0.75)_inset]">
-          <div className="relative size-full overflow-hidden rounded-[33px] bg-[radial-gradient(ellipse_at_20%_20%,#c9f6de,transparent_60%),radial-gradient(ellipse_at_90%_75%,#c7d2fe,transparent_65%),linear-gradient(160deg,#f1f9ef,#e2ecfa)]">
+          <div className="vani-device-screen relative size-full overflow-hidden rounded-[33px]">
             {/* Dynamic-island shaped cutout, floating rather than notched into
                 the top edge. */}
             <div className="absolute left-1/2 top-2 z-30 h-[18px] w-[76px] -translate-x-1/2 rounded-full bg-[#05070f]">

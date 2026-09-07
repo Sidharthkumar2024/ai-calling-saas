@@ -278,8 +278,8 @@ export function CustomerAgentStudio({
         onChanged={onChanged}
       />
 
-      <div className="grid gap-4 2xl:grid-cols-[230px_minmax(0,1fr)_430px]">
-        <aside className="rounded-2xl border border-hairline bg-surface p-3">
+      <div className="vani-studio-layout grid gap-4">
+        <aside className="vani-agent-list rounded-2xl border border-hairline bg-surface p-3">
           <div className="flex items-center justify-between px-2 py-2">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
               Your agents
@@ -342,8 +342,8 @@ export function CustomerAgentStudio({
               Trial safety
             </p>
             <p className="mt-2 text-[11px] leading-4 text-ink-muted">
-              Text and browser voice work immediately. Phone calls stay locked
-              until number verification and KYC.
+              Test without calling a customer. Browser voice needs an available
+              voice connection; phone calls require number verification and KYC.
             </p>
           </div>
         </aside>
@@ -359,7 +359,7 @@ export function CustomerAgentStudio({
                 className="h-9 max-w-sm border-transparent bg-transparent px-0 text-lg font-semibold focus-visible:border-hairline"
               />
               <p className="mt-1 text-[11px] text-ink-muted">
-                Vaani Voice · India routing · customer-safe provider abstraction
+                Voice, instructions and actions for your business
               </p>
             </div>
             <div className="rounded-xl border border-hairline bg-surface-muted px-3 py-2 text-right">
@@ -1831,7 +1831,7 @@ function TestConsole({
   );
 
   return (
-    <aside className="flex min-h-[720px] flex-col overflow-hidden rounded-2xl border border-hairline bg-surface">
+    <aside className="vani-playground flex min-w-0 min-h-[720px] flex-col overflow-hidden rounded-2xl border border-hairline bg-surface">
       <div className="border-b border-hairline p-4">
         <div className="flex items-center justify-between">
           <div>
@@ -1856,6 +1856,7 @@ function TestConsole({
                 key={id as string}
                 type="button"
                 onClick={() => changeMode(id as typeof mode)}
+                aria-pressed={mode === id}
                 className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] transition ${mode === id ? 'bg-surface font-medium text-ink shadow-sm' : 'text-ink-muted hover:text-ink'}`}
               >
                 <ModeIcon className="size-3" />
@@ -2019,7 +2020,7 @@ function TestConsole({
                   size="icon"
                   variant="outline"
                   onClick={() =>
-                    voiceActive ? stopVoice() : startListening(false)
+                    voiceActive ? stopVoice() : void beginVoiceConversation()
                   }
                   disabled={loading && !voiceActive}
                   className={`border-hairline bg-transparent ${voiceActive ? 'text-danger-text' : ''}`}
@@ -2083,7 +2084,8 @@ function VoiceOrb({
           : 'Tap the orb to talk';
   const bars = [18, 34, 25, 46, 30, 54, 38, 48, 26, 40, 22];
   return (
-    <section className="relative rounded-3xl border border-hairline bg-surface px-5 py-7 text-center">
+    <section className="vani-voice-stage relative px-3 py-7 text-center">
+      <div className="mb-7 flex items-center justify-between gap-3 text-xs text-ink-muted"><span className="flex items-center gap-2"><span className={`size-2 rounded-full ${active ? 'bg-emerald-500 animate-pulse' : 'bg-emerald-300'}`} />{active ? 'Conversation in progress' : 'Browser voice test'}</span><span className="font-mono">{formatElapsed(elapsed)}</span></div>
       {/* The tinted radial behind the orb drew a visible square corner around
           a round thing. The orb carries its own light now. */}
       {/* Was `size-40 sm:size-44` — a fixed 160/176px that ignored the column
@@ -2091,10 +2093,10 @@ function VoiceOrb({
           behind it, and the card's edge cut across the sphere: that is the
           square you could see, with the orb poking out of it. It scales with
           the column now and stays circular. */}
-      <div className="relative mx-auto aspect-square w-full max-w-[176px]">
+      <div className="relative mx-auto aspect-square w-full max-w-[220px]">
         <div
           aria-hidden="true"
-          className={`absolute -inset-5 rounded-full bg-[radial-gradient(circle,rgba(37,99,235,0.28),transparent_70%)] blur-2xl transition-opacity duration-700 ${active ? 'opacity-90' : 'opacity-45'}`}
+          className={`absolute -inset-5 rounded-full bg-[radial-gradient(circle,rgba(125,230,120,0.28),transparent_70%)] blur-2xl transition-opacity duration-700 ${active ? 'opacity-90' : 'opacity-45'}`}
         />
         <button
           type="button"
@@ -2153,10 +2155,10 @@ function VoiceOrb({
           )}
         </button>
       </div>
-      <div className="relative mt-3">
-        <div className="flex items-center justify-center gap-2">
-          <h3 className="text-base font-semibold">
-            {agentName} · Voice playground
+      <div className="relative mt-7">
+        <div className="flex flex-col items-center justify-center gap-3">
+          <h3 className="text-xl font-semibold tracking-tight">
+            Talk to {agentName}
           </h3>
           <span
             className={`rounded-full border px-2 py-1 text-[11px] ${pipelineMode === 'realtime' || pipelineMode === 'connected' || pipelineMode === 'instant' ? 'border-emerald-300/15 bg-emerald-300/7 text-success-text' : 'border-amber-300/15 bg-amber-300/7 text-warning-text'}`}
@@ -2168,7 +2170,7 @@ function VoiceOrb({
                 : pipelineMode === 'instant'
                   ? 'Instant reply'
                   : pipelineMode === 'checking'
-                    ? 'Connecting realtime'
+                    ? active ? 'Connecting voice…' : 'Connect when you start'
                     : 'Browser fallback'}
           </span>
         </div>
@@ -2193,6 +2195,8 @@ function VoiceOrb({
             interruption. No phone number is dialled.
           </p>
         )}
+        <Button type="button" onClick={active ? onStop : onStart} variant={active ? 'outline' : 'default'} className="mt-5 rounded-full px-6">{active ? <PhoneOff /> : <Mic2 />}{active ? 'End conversation' : 'Start conversation'}</Button>
+        <p className="mt-3 text-xs leading-5 text-ink-muted">Microphone permission is requested when you start.</p>
       </div>
     </section>
   );

@@ -1,5 +1,6 @@
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
+import { sha256 } from '@/lib/security';
 import {
   financialYear,
   gstinState,
@@ -12,29 +13,6 @@ const SUPPLIER_STATE = process.env.PLATFORM_GST_STATE || '27';
 const SUPPLIER_GSTIN = process.env.PLATFORM_GSTIN || null;
 /** SAC for "other telecommunication services", which is what this is. */
 const DEFAULT_SAC = '9984';
-
-/**
- * The next number in a series, claimed atomically.
- *
- * Sequence numbers have to be unbroken within a series, so this cannot be a
- * read-then-write: two purchases landing together would both read the same
- * value. The UPSERT increments and returns in one statement.
- */
-async function nextInvoiceSequence(series: string, year: string) {
-  const db = getRawDb();
-  const row = await db
-    .prepare(
-      `INSERT INTO invoice_sequences (series, financial_year, next_value)
-       VALUES (?, ?, 2)
-       ON CONFLICT(series, financial_year)
-         DO UPDATE SET next_value = next_value + 1
-       RETURNING next_value`,
-    )
-    .bind(series, year)
-    .first<{ next_value: number }>();
-  // The row now holds the *next* value; the one claimed is one below it.
-  return Math.max(1, Number(row?.next_value ?? 2) - 1);
-}
 
 /** The workspace's billing identity, which decides the tax treatment. */
 async function billingProfile(organizationId: string) {
@@ -73,14 +51,30 @@ export async function applyCreditPurchase(input: {
   description: string;
   externalId?: string;
   sandbox?: boolean;
-}) {
+}, settlementStatements: D1PreparedStatement[] = []) {
   await ensureSchema();
   const db = getRawDb();
-  const invoiceId = `invoice_${crypto.randomUUID()}`;
+  if (!Number.isSafeInteger(input.credits) || input.credits < 0 || !Number.isSafeInteger(input.amount) || input.amount < 0) throw new Error('Invalid purchase amount.');
+  // An external checkout can arrive through retries or multiple event types.
+  // The deterministic primary key makes concurrent fulfillment roll back as a unit.
+  const invoiceId = input.externalId
+    ? `invoice_${await sha256(`${input.organizationId}:${input.externalId}`)}`
+    : `invoice_${crypto.randomUUID()}`;
+  const findReceipt = async () => {
+    if (!input.externalId) return null;
+    const receipt = await db.prepare(`SELECT i.id AS invoiceId, i.invoice_number AS invoiceNumber, l.amount AS creditsAdded, w.balance
+      FROM invoices i INNER JOIN credit_ledger l ON l.reference_id = i.id AND l.organization_id = i.organization_id AND l.type = 'purchase' AND l.reference_type = 'invoice'
+      INNER JOIN organization_wallets w ON w.organization_id = i.organization_id
+      WHERE i.organization_id = ? AND i.external_invoice_id = ? AND i.status = 'paid' LIMIT 1`)
+      .bind(input.organizationId, input.externalId)
+      .first<{ invoiceId: string; invoiceNumber: string; creditsAdded: number; balance: number }>();
+    return receipt;
+  };
+  const existing = await findReceipt();
+  if (existing) return existing;
   const profile = await billingProfile(input.organizationId);
   const year = financialYear();
-  const sequence = await nextInvoiceSequence('VAI', year);
-  const invoiceNumber = buildInvoiceNumber({ financialYear: year, sequence });
+  const numberPrefix = buildInvoiceNumber({ financialYear: year, sequence: 1 }).slice(0, -5);
   // Was a flat 18% with no split and no place of supply. The treatment depends
   // on where the supply happens, and a flat rate is right in exactly one of
   // the three cases.
@@ -104,7 +98,11 @@ export async function applyCreditPurchase(input: {
   const tax = totals.taxMinor;
   const total = totals.totalMinor;
 
-  await db.batch([
+  try {
+    await db.batch([
+    ...settlementStatements,
+    db.prepare(`INSERT INTO invoice_sequences (series, financial_year, next_value) VALUES ('VAI', ?, 2)
+      ON CONFLICT(series, financial_year) DO UPDATE SET next_value = next_value + 1`).bind(year),
     db
       .prepare(
         `INSERT OR IGNORE INTO organization_wallets
@@ -126,13 +124,13 @@ export async function applyCreditPurchase(input: {
           status, line_items_json, subtotal, tax, total, currency,
           tax_kind, cgst, sgst, igst, tax_note, supplier_gstin, customer_gstin,
           place_of_supply, external_invoice_id, paid_at)
-         VALUES (?, ?, ?, ?, ?, 'paid', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+         SELECT ?, ?, ? || printf('%05d', next_value - 1), next_value - 1, ?, 'paid', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP
+         FROM invoice_sequences WHERE series = 'VAI' AND financial_year = ?`,
       )
       .bind(
         invoiceId,
         input.organizationId,
-        invoiceNumber,
-        sequence,
+        numberPrefix,
         year,
         JSON.stringify([
           {
@@ -158,31 +156,27 @@ export async function applyCreditPurchase(input: {
         profile.gstin,
         profile.country === 'IN' ? (profile.state ?? null) : profile.country,
         input.externalId ?? null,
+        year,
       ),
-  ]);
+    db.prepare(`INSERT INTO credit_ledger
+      (id, organization_id, type, amount, balance_after, reference_type, reference_id, description)
+      SELECT ?, organization_id, 'purchase', ?, balance, 'invoice', ?, ?
+      FROM organization_wallets WHERE organization_id = ?`)
+      .bind(`credit_${crypto.randomUUID()}`, input.credits, invoiceId, input.description, input.organizationId),
+    ]);
+  } catch (error) {
+    const concurrentReceipt = await findReceipt();
+    if (concurrentReceipt) return concurrentReceipt;
+    throw error;
+  }
   const wallet = await db
     .prepare(
       'SELECT balance FROM organization_wallets WHERE organization_id = ?',
     )
     .bind(input.organizationId)
     .first<{ balance: number }>();
-  await db
-    .prepare(
-      `INSERT INTO credit_ledger
-       (id, organization_id, type, amount, balance_after, reference_type,
-        reference_id, description)
-       VALUES (?, ?, 'purchase', ?, ?, 'invoice', ?, ?)`,
-    )
-    .bind(
-      `credit_${crypto.randomUUID()}`,
-      input.organizationId,
-      input.credits,
-      Number(wallet?.balance ?? input.credits),
-      invoiceId,
-      input.description,
-    )
-    .run();
-  return { invoiceId, invoiceNumber, balance: Number(wallet?.balance ?? 0) };
+  const invoice = await db.prepare('SELECT invoice_number FROM invoices WHERE id = ?').bind(invoiceId).first<{ invoice_number: string }>();
+  return { invoiceId, invoiceNumber: invoice?.invoice_number ?? invoiceId, balance: Number(wallet?.balance ?? 0), creditsAdded: input.credits };
 }
 
 export async function applyPlanPurchase(input: {
@@ -191,6 +185,7 @@ export async function applyPlanPurchase(input: {
   amount: number;
   externalCustomerId?: string;
   externalSubscriptionId?: string;
+  externalCheckoutId?: string;
   sandbox?: boolean;
 }) {
   await ensureSchema();
@@ -204,7 +199,7 @@ export async function applyPlanPurchase(input: {
     .first<{ id: string; name: string; included_credits: number }>();
   if (!plan) throw new Error('Plan not found.');
 
-  await db
+  const subscriptionStatement = db
     .prepare(
       `INSERT INTO subscriptions
        (id, organization_id, plan_id, status, external_customer_id,
@@ -224,15 +219,14 @@ export async function applyPlanPurchase(input: {
       input.externalCustomerId ?? null,
       input.externalSubscriptionId ?? null,
       new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-    )
-    .run();
+    );
 
   return applyCreditPurchase({
     organizationId: input.organizationId,
     credits: plan.included_credits,
     amount: input.amount,
     description: `${plan.name} plan subscription`,
-    externalId: input.externalSubscriptionId,
+    externalId: input.externalCheckoutId ?? input.externalSubscriptionId,
     sandbox: input.sandbox,
-  });
+  }, [subscriptionStatement]);
 }

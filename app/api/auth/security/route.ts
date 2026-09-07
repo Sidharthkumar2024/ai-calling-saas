@@ -52,6 +52,8 @@ export async function POST(request: Request) {
   };
   const db = getRawDb();
   if (body.action === 'mfa_begin') {
+    const existing = await db.prepare('SELECT mfa_enabled FROM user_security_settings WHERE user_id = ?').bind(session.userId).first<{ mfa_enabled: number }>();
+    if (existing?.mfa_enabled) return NextResponse.json({ error: 'An authenticator is already enabled. Contact your workspace administrator for account recovery.' }, { status: 409 });
     const secret = createTotpSecret();
     await db
       .prepare(`INSERT INTO user_security_settings (user_id, mfa_enabled, totp_secret_encrypted, updated_at)

@@ -1,52 +1,49 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, PhoneCall } from 'lucide-react';
-
+import {
+  Activity,
+  ArrowRight,
+  CalendarCheck2,
+  CheckCheck,
+  MessageCircle,
+  PhoneIncoming,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { DeviceHalo, DeviceShell } from '@/components/landing-device';
+import { LandingCallPreview } from '@/components/landing-call-preview';
 import { useLocale } from '@/components/locale-provider';
 
-/**
- * The hero as a pinned stage.
- *
- * The shape follows myequal.ai's hero, measured rather than guessed: a 100vh
- * stage pinned inside a parent 3.5 viewports tall, a line of text sliding
- * behind it, the headline held to one side, a phone in the middle whose screen
- * changes as you scroll, and two glass panels either side of it.
- *
- * What changes on that screen here is Vaani's own call — a real number ringing,
- * the agent answering, the booking it makes, the message it sends, the lead it
- * files. Five states, each one a thing this product actually does.
- *
- * Scroll is read, never taken over. The page moves at its own speed and the
- * stage follows, so a trackpad flick, a PageDown and a screen reader all behave
- * normally; and where the reader asked for less motion, or the screen is too
- * short to hold the phone, the whole choreography is dropped for a plain hero
- * with the same words.
- */
+const CHAPTERS = [
+  ['Answer', 'कॉल उठाएँ', PhoneIncoming],
+  ['Listen', 'सुनें', Activity],
+  ['Understand', 'समझें', MessageCircle],
+  ['Act', 'काम करें', CalendarCheck2],
+  ['Sync', 'सेव करें', CheckCheck],
+] as const;
 
-const SCREENS = 5;
-
+/** The same studio palette as the intro, with a scroll-driven product demo. */
 export function LandingHeroStage({
   onEnterWorkspace,
 }: {
   onEnterWorkspace: () => void;
 }) {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const sectionRef = useRef<HTMLElement>(null);
-  const [progress, setProgress] = useState(0);
   const [pinned, setPinned] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [selected, setSelected] = useState<number | null>(null);
 
   useEffect(() => {
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const tall = window.matchMedia('(min-height: 680px)');
-    const decide = () => setPinned(!reduced.matches && tall.matches);
+    const screen = matchMedia('(min-width: 1024px) and (min-height: 760px)');
+    const motion = matchMedia('(prefers-reduced-motion: reduce)');
+    const decide = () => setPinned(screen.matches && !motion.matches);
     decide();
-    reduced.addEventListener('change', decide);
-    tall.addEventListener('change', decide);
+    screen.addEventListener('change', decide);
+    motion.addEventListener('change', decide);
     return () => {
-      reduced.removeEventListener('change', decide);
-      tall.removeEventListener('change', decide);
+      screen.removeEventListener('change', decide);
+      motion.removeEventListener('change', decide);
     };
   }, []);
 
@@ -55,416 +52,126 @@ export function LandingHeroStage({
     let frame = 0;
     const measure = () => {
       frame = 0;
-      const section = sectionRef.current;
-      if (!section) return;
-      const rect = section.getBoundingClientRect();
-      const travel = rect.height - window.innerHeight;
+      const bounds = sectionRef.current?.getBoundingClientRect();
+      if (!bounds) return;
       setProgress(
-        travel > 0 ? Math.min(1, Math.max(0, -rect.top / travel)) : 0,
+        Math.max(
+          0,
+          Math.min(1, -bounds.top / Math.max(1, bounds.height - innerHeight)),
+        ),
       );
     };
-    const onScroll = () => {
-      // One read per frame. A scroll event fires far more often than the
-      // screen repaints, and `getBoundingClientRect` on each one makes the
-      // browser lay out the page again every time.
-      if (!frame) frame = window.requestAnimationFrame(measure);
+    const scroll = () => {
+      setSelected(null);
+      if (!frame) frame = requestAnimationFrame(measure);
     };
     measure();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
+    window.addEventListener('scroll', scroll, { passive: true });
+    window.addEventListener('resize', measure);
     return () => {
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
-      if (frame) window.cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', scroll);
+      window.removeEventListener('resize', measure);
+      cancelAnimationFrame(frame);
     };
   }, [pinned]);
 
-  /**
-   * The call plays on its own until the reader takes hold of it.
-   *
-   * A hero that only moves when you scroll is still a hero that does nothing
-   * when the page opens — and the first thing anyone sees is a still. So the
-   * five states run on a timer from load, at the pace of the call they
-   * describe, and the moment the reader scrolls the stage the timer stops and
-   * scroll drives it instead. It never restarts: taking the wheel back from
-   * someone who has taken it is worse than not offering it.
-   */
-  const [autoScreen, setAutoScreen] = useState(0);
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    if (!pinned || scrolled) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    // Ring, answer, talk, book, file — the beats are not equal in life and are
-    // not equal here.
-    const beats = [1600, 2600, 3400, 2800, 3000];
-    const timer = window.setTimeout(
-      () => setAutoScreen((current) => (current + 1) % SCREENS),
-      beats[autoScreen],
-    );
-    return () => window.clearTimeout(timer);
-  }, [pinned, scrolled, autoScreen]);
-
-  useEffect(() => {
-    if (!pinned || scrolled) return;
-    const onScroll = () => {
-      if (window.scrollY > 8) setScrolled(true);
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, [pinned, scrolled]);
-
-  const screen = scrolled
-    ? Math.min(SCREENS - 1, Math.floor(progress * SCREENS))
-    : autoScreen;
-  // The stage starts dark and turns light as the call is answered, which is
-  // the same beat the phone screen is on. Unpinned there is no dark stage at
-  // all, so it is lit from the start — otherwise the secondary button renders
-  // its on-dark styling onto a white page and disappears.
-  const lit = !pinned || (scrolled ? progress > 0.34 : screen >= 2);
-
-  const copy = (
-    <div className="max-w-xl">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-warning-text">
-        {t('landing.hero.badge')}
-      </p>
-      <h1 className="mt-4 text-[30px] font-normal leading-[1.05] tracking-[-0.03em] sm:text-[44px] lg:text-[64px]">
-        {t('landing.stage.title')}
-      </h1>
-      <p className="mt-3 whitespace-pre-line text-base leading-7 text-ink-body sm:mt-5 sm:text-lg lg:text-xl">
-        {t('landing.stage.sub')}
-      </p>
-      <div className="mt-5 flex flex-col gap-3 sm:mt-8 sm:flex-row">
-        <button
-          type="button"
-          onClick={onEnterWorkspace}
-          className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[linear-gradient(96deg,#4f46e5_0%,#2563eb_52%,#0ea5e9_100%)] px-6 text-sm font-medium text-white shadow-[0_16px_40px_-16px_rgba(37,99,235,0.9),inset_0_1px_0_rgba(255,255,255,0.35)] transition-transform hover:-translate-y-px"
-        >
-          {t('landing.hero.cta')} <ArrowRight className="size-4" />
-        </button>
-        <a
-          href="#story"
-          className={`inline-flex h-12 items-center justify-center rounded-full px-6 text-sm font-medium transition-colors ${
-            lit
-              ? 'border border-hairline bg-surface text-ink hover:bg-surface-strong'
-              : 'border border-white/20 bg-white/10 text-white backdrop-blur hover:bg-white/15'
-          }`}
-        >
-          {t('landing.hero.secondary')}
-        </a>
-      </div>
-    </div>
-  );
-
-  if (!pinned)
-    return (
-      <section id="top" className="scroll-mt-24 bg-surface py-16 sm:py-24">
-        <div className="mx-auto grid max-w-[1240px] items-center gap-12 px-4 sm:px-6 lg:grid-cols-2">
-          {copy}
-          <div className="mx-auto w-full max-w-[300px]">
-            <Phone screen={1} />
-          </div>
-        </div>
-      </section>
-    );
-
+  const chapter =
+    selected ??
+    Math.min(CHAPTERS.length - 1, Math.floor(progress * CHAPTERS.length));
   return (
     <section
       id="top"
       ref={sectionRef}
-      className="relative scroll-mt-24"
-      style={{ height: `${SCREENS * 70}vh` }}
+      className="vani-product-hero"
+      data-pinned={pinned}
     >
-      <div className="stage-grain sticky top-0 h-screen overflow-hidden bg-[#070b1c]">
-        {/* The floor: an aurora that drifts, with a light plate over it that
-            fades in on the beat the call is answered. Two layers rather than a
-            colour swap, so the light does not arrive as a flash. */}
-        <div className="stage-aurora absolute inset-0" />
-        <div
-          className="absolute inset-0 bg-surface transition-opacity duration-1000"
-          style={{ opacity: lit ? 1 : 0 }}
-        />
-        {/* Edges fall away rather than stopping at a hard rectangle. */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_86%_at_50%_36%,transparent_46%,rgba(4,7,20,0.55)_100%)] transition-opacity duration-1000"
-          style={{ opacity: lit ? 0 : 1 }}
-        />
-
-        {/* The line sliding behind everything. `aria-hidden` because it is
-            scenery: a screen reader announcing it between the eyebrow and the
-            headline would read as a third heading. */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-[18%] overflow-hidden"
-        >
-          <p
-            className={`whitespace-nowrap bg-clip-text text-[76px] font-semibold uppercase leading-none tracking-[-0.02em] text-transparent transition-opacity duration-700 sm:text-[136px] ${
-              lit
-                ? 'bg-[linear-gradient(92deg,rgba(17,24,39,0.10),rgba(17,24,39,0.04))]'
-                : 'bg-[linear-gradient(92deg,rgba(165,180,252,0.30),rgba(56,189,248,0.10))]'
-            }`}
-            style={{
-              // Moves faster than the phone below it, which is what puts the
-              // two on different planes rather than on one flat card.
-              transform: `translateX(${18 - (scrolled ? progress : screen / (SCREENS - 1)) * 46}%)`,
-            }}
-          >
-            {t('landing.stage.marquee')} · {t('landing.stage.marquee')}
-          </p>
-        </div>
-
-        <div className="relative mx-auto flex h-full max-w-[1240px] items-center px-4 sm:px-6">
-          <div className="grid w-full items-center gap-6 sm:gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
-            <div
-              className={`transition-colors duration-700 ${lit ? '' : 'text-white [&_p]:text-white/70'}`}
-            >
-              {copy}
+      <div className="vani-product-stage">
+        <div className="vani-product-layout">
+          <div className="vani-product-copy">
+            <p className="vani-product-eyebrow">
+              <span />
+              {t('landing.hero.badge')}
+            </p>
+            <h1>{t('landing.stage.title')}</h1>
+            <p className="vani-product-sub">{t('landing.stage.sub')}</p>
+            <div className="vani-product-actions">
+              <Button onClick={onEnterWorkspace} className="vani-demo-cta">
+                {t('landing.hero.cta')}
+                <ArrowRight size={18} />
+              </Button>
+              <a href="#story">
+                {t('landing.hero.secondary')}
+                <ArrowRight size={17} />
+              </a>
             </div>
-
-            <div className="stage-scene relative mx-auto flex w-full max-w-[420px] items-center justify-center">
-              <DeviceHalo className="size-[240px] sm:size-[300px] lg:size-[380px]" />
-              {/* The two glass panels either side of the phone, in from the
-                  edges as the call gets going. */}
-              <Glass
-                side="left"
-                shown={scrolled ? progress > 0.18 : screen >= 1}
-                lit={lit}
-                label={t('landing.stage.widgetHears')}
-              />
-              <Glass
-                side="right"
-                shown={scrolled ? progress > 0.5 : screen >= 3}
-                lit={lit}
-                label={t('landing.stage.widgetActs')}
-              />
-              {/* The device turns towards the reader as the call is
-                  answered: 14° away at the ring, square on by the end. */}
-              {/* Sized so headline, sub, buttons and device together clear a
-                  812px phone screen: at 248px wide the device alone was 523px
-                  tall and the stage overflowed by 35px at each end. */}
-              <div className="relative w-[168px] sm:w-[220px] lg:w-[280px]">
-                <Phone
-                  screen={screen}
-                  tilt={
-                    scrolled
-                      ? (1 - progress) * 14 - 3
-                      : 11 - (screen / (SCREENS - 1)) * 14
-                  }
-                />
+            <div className="vani-language-tags">
+              <span>हिन्दी</span>
+              <span>Hinglish</span>
+              <span>English</span>
+            </div>
+            <fieldset className="vani-chapters">
+              <legend className="sr-only">
+                {locale === 'hi' ? 'कॉल की झलक चुनें' : 'Preview a call stage'}
+              </legend>
+              {CHAPTERS.map(([en, hi, Icon], index) => (
+                <Button
+                  key={en}
+                  variant="ghost"
+                  aria-pressed={chapter === index}
+                  aria-label={locale === 'hi' ? hi : en}
+                  onClick={() => setSelected(index)}
+                >
+                  <Icon size={17} />
+                  <span>{locale === 'hi' ? hi : en}</span>
+                </Button>
+              ))}
+            </fieldset>
+            <p className="vani-demo-caption">
+              {locale === 'hi'
+                ? 'एक कॉल की झलक · चरण चुनें या स्क्रॉल करें'
+                : 'An illustrative call · choose a stage or scroll to explore'}
+            </p>
+          </div>
+          <div className="vani-product-scene stage-scene">
+            <DeviceHalo className="size-[460px]" />
+            <div className="vani-product-device">
+              <DeviceShell tilt={pinned ? 7 - progress * 10 : 0}>
+                <LandingCallPreview step={chapter} />
+              </DeviceShell>
+            </div>
+            <div className="vani-float-card vani-float-top">
+              <span className="vani-float-icon">
+                <Activity size={19} />
+              </span>
+              <div>
+                <strong>
+                  {locale === 'hi'
+                    ? 'बातचीत, स्वाभाविक'
+                    : 'Conversation, naturally.'}
+                </strong>
+                <p>
+                  {locale === 'hi'
+                    ? 'संदर्भ के साथ हर जवाब'
+                    : 'Every reply, in context'}
+                </p>
+              </div>
+            </div>
+            <div className="vani-float-card vani-float-bottom">
+              <span className="vani-float-icon">
+                <CheckCheck size={20} />
+              </span>
+              <div>
+                <strong>
+                  {locale === 'hi'
+                    ? 'कॉल से अगला कदम'
+                    : 'From call to next step'}
+                </strong>
+                <p>CRM · WhatsApp · Calendar</p>
               </div>
             </div>
           </div>
         </div>
-
-        <div
-          className="absolute inset-x-0 bottom-8 flex justify-center gap-1.5"
-          aria-hidden="true"
-        >
-          {Array.from({ length: SCREENS }).map((_, index) => (
-            <span
-              key={index}
-              className={`h-1 rounded-full transition-all duration-300 ${
-                index === screen
-                  ? 'w-8 bg-primary'
-                  : lit
-                    ? 'w-3 bg-hairline'
-                    : 'w-3 bg-white/25'
-              }`}
-            />
-          ))}
-        </div>
       </div>
     </section>
-  );
-}
-
-function Glass({
-  side,
-  shown,
-  lit,
-  label,
-}: {
-  side: 'left' | 'right';
-  shown: boolean;
-  lit: boolean;
-  label: string;
-}) {
-  return (
-    <div
-      aria-hidden="true"
-      className={`pointer-events-none absolute z-10 hidden w-[196px] rounded-2xl p-3.5 transition-all duration-700 lg:block ${
-        side === 'left' ? '-left-28 top-[18%]' : '-right-28 bottom-[18%]'
-      } ${
-        lit
-          ? 'border border-hairline bg-surface/85 shadow-xl'
-          : 'stage-glass text-white'
-      } ${shown ? 'translate-x-0 opacity-100 blur-0' : `${side === 'left' ? '-translate-x-8' : 'translate-x-8'} opacity-0 blur-[2px]`}`}
-    >
-      <p className="text-[11px] font-medium">{label}</p>
-      <div className="mt-2 flex items-end gap-1">
-        {[8, 16, 11, 20, 13, 18, 9, 15].map((height, index) => (
-          <span
-            key={index}
-            className="landing-wave w-1 rounded-full bg-primary/70"
-            style={{
-              height: `${height}px`,
-              animationDelay: `${index * 110}ms`,
-            }}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/** The phone itself. Its screen is whichever beat of the call we are on. */
-function Phone({ screen, tilt = 0 }: { screen: number; tilt?: number }) {
-  return (
-    <DeviceShell tilt={tilt}>
-      {[0, 1, 2, 3, 4].map((index) => (
-        <div
-          key={index}
-          className={`absolute inset-0 p-3.5 pt-9 transition-all duration-500 ${
-            index === screen
-              ? 'translate-y-0 opacity-100'
-              : 'pointer-events-none translate-y-2 opacity-0'
-          }`}
-          aria-hidden={index !== screen}
-        >
-          <PhoneScreen index={index} active={index === screen} />
-        </div>
-      ))}
-    </DeviceShell>
-  );
-}
-
-/**
- * The five beats of one call, as they appear on the phone.
- *
- * These are popups over a home screen, which is what a caller's phone actually
- * shows — not a marketing illustration of one. Each carries a figure this
- * deployment can stand behind: the answer time, the language, the booking.
- */
-function PhoneScreen({ index, active }: { index: number; active: boolean }) {
-  if (index === 0)
-    return (
-      <div className="flex h-full flex-col">
-        <p className="text-center text-[11px] text-ink-muted">9:41</p>
-        <p className="mt-8 text-center text-4xl font-light tracking-tight">
-          9:41
-        </p>
-        <p className="mt-1 text-center text-[11px] text-ink-muted">
-          Saturday, 6 September
-        </p>
-        <div className="mt-auto grid grid-cols-4 gap-2.5 pb-2">
-          {Array.from({ length: 8 }).map((_, slot) => (
-            <span
-              key={slot}
-              className="aspect-square rounded-xl bg-surface-strong"
-            />
-          ))}
-        </div>
-      </div>
-    );
-
-  if (index === 1)
-    return (
-      <div className="flex h-full flex-col justify-center">
-        <div className="rounded-2xl border border-hairline bg-surface p-3 shadow-lg">
-          <p className="text-[11px] uppercase tracking-[0.16em] text-ink-muted">
-            Incoming call
-          </p>
-          <p className="mt-1.5 font-mono text-[13px]">+91 98765 43210</p>
-          <p className="mt-0.5 text-[11px] text-ink-muted">
-            Website enquiry · Gurgaon
-          </p>
-          <div className="mt-3 flex gap-2">
-            <span className="flex-1 rounded-lg bg-surface-strong py-1.5 text-center text-[11px] text-ink-muted">
-              Decline
-            </span>
-            <span className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-emerald-500 py-1.5 text-center text-[11px] text-white">
-              <PhoneCall className="size-3" /> Vaani
-            </span>
-          </div>
-        </div>
-      </div>
-    );
-
-  if (index === 2)
-    return (
-      <div className="flex h-full flex-col justify-center gap-2">
-        <div className="rounded-2xl border border-hairline bg-surface p-3">
-          <div className="flex items-center justify-between">
-            <p className="text-[11px] font-medium text-success-text">
-              Answered in 1.2s
-            </p>
-            <p className="text-[11px] text-ink-muted">Hinglish</p>
-          </div>
-          <div className="mt-2 flex items-end justify-center gap-1">
-            {[10, 20, 14, 26, 18, 24, 12, 22, 15].map((height, slot) => (
-              <span
-                key={slot}
-                className={`w-1.5 rounded-full bg-primary/70 ${active ? 'landing-wave' : ''}`}
-                style={{
-                  height: `${height}px`,
-                  animationDelay: `${slot * 90}ms`,
-                }}
-              />
-            ))}
-          </div>
-        </div>
-        <div className="rounded-xl bg-surface-strong px-2.5 py-1.5 text-[11px] leading-4">
-          2 BHK chahiye, Sector 82 mein
-        </div>
-        <div className="ml-auto max-w-[88%] rounded-xl bg-primary px-2.5 py-1.5 text-[11px] leading-4 text-primary-foreground">
-          Sector 82 mein 3 ready-to-move options hain
-        </div>
-      </div>
-    );
-
-  if (index === 3)
-    return (
-      <div className="flex h-full flex-col justify-center gap-2">
-        <div className="rounded-2xl border border-success-text/30 bg-success-text/[0.07] p-3">
-          <p className="text-[11px] font-medium text-success-text">
-            Site visit booked
-          </p>
-          <p className="mt-1 text-[12px]">Sat 11:00 · Sector 82</p>
-        </div>
-        <div className="rounded-2xl border border-hairline bg-surface p-3">
-          <p className="text-[11px] text-ink-muted">WhatsApp sent</p>
-          <p className="mt-1 text-[11px] leading-4">
-            Location, floor plan and the token link.
-          </p>
-        </div>
-      </div>
-    );
-
-  return (
-    <div className="flex h-full flex-col justify-center gap-2">
-      <p className="text-[11px] uppercase tracking-[0.16em] text-ink-muted">
-        In your workspace
-      </p>
-      <div className="rounded-2xl border border-hairline bg-surface p-3">
-        <p className="text-[13px] font-medium">Neha Kapoor</p>
-        <p className="mt-0.5 text-[11px] text-ink-muted">
-          Score 82 · site visit · Sector 82
-        </p>
-        <p className="mt-2 text-[11px] leading-4 text-ink-body">
-          Summary, recording and next step attached.
-        </p>
-      </div>
-      <div className="flex gap-1.5">
-        {['CRM', 'WhatsApp', 'Sheet'].map((where) => (
-          <span
-            key={where}
-            className="rounded-md border border-hairline px-2 py-1 text-[11px] text-ink-muted"
-          >
-            {where}
-          </span>
-        ))}
-      </div>
-    </div>
   );
 }

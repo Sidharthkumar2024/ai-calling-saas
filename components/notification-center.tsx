@@ -124,33 +124,53 @@ export function NotificationCenter({
       }
       setReducedMotion(query.matches);
     }, 0);
-    return () => { window.clearTimeout(timer); query.removeEventListener('change', onChange); };
+    return () => {
+      window.clearTimeout(timer);
+      query.removeEventListener('change', onChange);
+    };
+  }, []);
+
+  /**
+   * Makes sure there is a *running* AudioContext, and returns it.
+   *
+   * The unlock listener creates one on the first click and resumes it once,
+   * which was treated as the end of the story. It is not: a browser suspends a
+   * context again when the tab goes to the background, and Chrome suspends one
+   * that has been silent for a while. A suspended context's `currentTime` is
+   * frozen, so `oscillator.start(currentTime + delay)` schedules a tone for a
+   * moment that never arrives — no sound, no error, nothing in the console.
+   * That is exactly what a dead Test button looks like.
+   */
+  const readyContext = useCallback(async () => {
+    try {
+      const Ctor =
+        window.AudioContext ??
+        (window as unknown as { webkitAudioContext?: typeof AudioContext })
+          .webkitAudioContext;
+      if (!Ctor) return null;
+      audioRef.current ??= new Ctor();
+      const context = audioRef.current;
+      if (context.state === 'suspended') await context.resume();
+      const running = context.state === 'running';
+      setSoundReady(running);
+      return running ? context : null;
+    } catch {
+      return null;
+    }
   }, []);
 
   // Audio cannot start without a gesture, so the first one anywhere unlocks it.
+  // Not `once`: a context can be suspended again later, and the next gesture
+  // should bring it back rather than leaving the rest of the session silent.
   useEffect(() => {
-    const unlock = () => {
-      try {
-        const Ctor =
-          window.AudioContext ??
-          (window as unknown as { webkitAudioContext?: typeof AudioContext })
-            .webkitAudioContext;
-        if (!Ctor) return;
-        audioRef.current ??= new Ctor();
-        void audioRef.current.resume();
-        setSoundReady(true);
-      } catch {
-        // Audio is unavailable in this context. Toasts still work; the settings
-        // panel says so rather than showing a switch that does nothing.
-      }
-    };
-    window.addEventListener('pointerdown', unlock, { once: true });
-    window.addEventListener('keydown', unlock, { once: true });
+    const unlock = () => void readyContext();
+    window.addEventListener('pointerdown', unlock);
+    window.addEventListener('keydown', unlock);
     return () => {
       window.removeEventListener('pointerdown', unlock);
       window.removeEventListener('keydown', unlock);
     };
-  }, []);
+  }, [readyContext]);
 
   const setPreferences = useCallback((next: SoundPreferences) => {
     const clean = normalisePreferences(next);
@@ -164,28 +184,34 @@ export function NotificationCenter({
 
   const play = useCallback(
     (event: NotificationEvent) => {
-      const context = audioRef.current;
-      if (!context || !shouldPlaySound(event, preferences)) return;
-      const gain = toneGain(event, preferences);
-      const spec = NOTIFICATION_SPECS[event];
-      for (const tone of spec.tone) {
-        const start = context.currentTime + tone.delay / 1000;
-        const end = start + tone.duration / 1000;
-        const oscillator = context.createOscillator();
-        const envelope = context.createGain();
-        oscillator.type = tone.wave;
-        oscillator.frequency.value = tone.frequency;
-        // Ramped rather than switched on: a square-edged start on a sine wave
-        // is an audible click, which is the part people find unpleasant.
-        envelope.gain.setValueAtTime(0.0001, start);
-        envelope.gain.exponentialRampToValueAtTime(gain, start + 0.012);
-        envelope.gain.exponentialRampToValueAtTime(0.0001, end);
-        oscillator.connect(envelope).connect(context.destination);
-        oscillator.start(start);
-        oscillator.stop(end + 0.02);
-      }
+      if (!shouldPlaySound(event, preferences)) return;
+      void readyContext().then((context) => {
+        if (!context) return;
+        const gain = toneGain(event, preferences);
+        const spec = NOTIFICATION_SPECS[event];
+        // Read after the resume resolves: on a context that was suspended,
+        // the value from before is a clock that had stopped.
+        const now = context.currentTime;
+        for (const tone of spec.tone) {
+          const start = now + tone.delay / 1000;
+          const end = start + tone.duration / 1000;
+          const oscillator = context.createOscillator();
+          const envelope = context.createGain();
+          oscillator.type = tone.wave;
+          oscillator.frequency.value = tone.frequency;
+          // Ramped rather than switched on: a square-edged start on a sine
+          // wave is an audible click, which is the part people find
+          // unpleasant.
+          envelope.gain.setValueAtTime(0.0001, start);
+          envelope.gain.exponentialRampToValueAtTime(gain, start + 0.012);
+          envelope.gain.exponentialRampToValueAtTime(0.0001, end);
+          oscillator.connect(envelope).connect(context.destination);
+          oscillator.start(start);
+          oscillator.stop(end + 0.02);
+        }
+      });
     },
-    [preferences],
+    [preferences, readyContext],
   );
 
   const refreshInbox = useCallback(async () => {
@@ -407,7 +433,20 @@ export function NotificationCenter({
                       : 'border-hairline bg-surface text-ink'
               }`}
             >
-              <div className="mb-2 flex items-center gap-2" aria-hidden="true">{toast.event === 'ringing' || toast.event === 'call_connected' ? <PhoneCall className="size-5 vani-call-pulse" /> : toast.event.startsWith('transfer') || toast.event === 'handoff_requested' ? <ArrowRightLeft className="size-5 vani-call-pulse" /> : toast.event === 'payment_success' || toast.event === 'credit_added' ? <Coins className="size-5" /> : <Bell className="size-4" />}</div>
+              <div className="mb-2 flex items-center gap-2" aria-hidden="true">
+                {toast.event === 'ringing' ||
+                toast.event === 'call_connected' ? (
+                  <PhoneCall className="size-5 vani-call-pulse" />
+                ) : toast.event.startsWith('transfer') ||
+                  toast.event === 'handoff_requested' ? (
+                  <ArrowRightLeft className="size-5 vani-call-pulse" />
+                ) : toast.event === 'payment_success' ||
+                  toast.event === 'credit_added' ? (
+                  <Coins className="size-5" />
+                ) : (
+                  <Bell className="size-4" />
+                )}
+              </div>
               <p className="text-sm font-semibold">
                 {toast.title || spec.title}
               </p>
@@ -494,9 +533,7 @@ export function SoundSettings() {
           type="button"
           disabled={preferences.muted}
           className="rounded-lg border border-hairline bg-surface px-2.5 py-1 text-[11px] text-ink-body hover:text-ink"
-          onClick={() =>
-            previewSound('payment_success')
-          }
+          onClick={() => previewSound('payment_success')}
         >
           Test
         </button>

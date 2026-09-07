@@ -105,6 +105,7 @@ export function CustomerCrm({
   const [showDuplicates, setShowDuplicates] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [viewName, setViewName] = useState('');
+  const [openView, setOpenView] = useState('');
   const [query, setQuery] = useState('');
   const [moving, setMoving] = useState('');
   const [draggedLeadId, setDraggedLeadId] = useState('');
@@ -482,8 +483,9 @@ export function CustomerCrm({
           <span className="sr-only">Saved view</span>
           <select
             aria-label="Open a saved view"
-            value=""
+            value={openView}
             onChange={(event) => {
+              setOpenView(event.target.value);
               const found = (savedViews ?? []).find(
                 (item) => item.id === event.target.value,
               );
@@ -524,6 +526,25 @@ export function CustomerCrm({
         >
           Save view
         </button>
+        {/* Only for a view this person saved: the server scopes the delete to
+            its owner, so offering it on someone else's shared view would be a
+            button that always fails. */}
+        {(savedViews ?? []).some(
+          (item) => item.id === openView && item.mine,
+        ) ? (
+          <button
+            type="button"
+            disabled={bulkBusy}
+            onClick={() =>
+              void bulk({ action: 'delete_view', viewId: openView }).then(() =>
+                setOpenView(''),
+              )
+            }
+            className="rounded-lg px-2.5 py-1 text-[11px] text-ink-muted hover:bg-surface-strong hover:text-ink disabled:opacity-50"
+          >
+            Delete view
+          </button>
+        ) : null}
       </div>
 
       {/* §3.5 bulk actions. Archive rather than delete: a bulk delete behind

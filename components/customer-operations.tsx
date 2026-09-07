@@ -369,6 +369,44 @@ function ResourceModule({
                 )}
               </div>
             ) : null}
+            {/* Campaigns were create-only too: the status column never moved
+                off 'draft' because nothing could start, pause or stop one. The
+                server refuses to start a campaign with no contacts left to
+                call, so a start that would dial nobody says so. */}
+            {module === 'campaigns' ? (
+              <div className="mt-4 flex flex-wrap gap-1.5">
+                {(str(row.status, 'draft') === 'running'
+                  ? (['paused', 'stopped'] as const)
+                  : str(row.status) === 'stopped'
+                    ? ([] as const)
+                    : (['running'] as const)
+                ).map((next) => (
+                  <Button
+                    key={next}
+                    variant="outline"
+                    disabled={Boolean(loading)}
+                    onClick={() =>
+                      void statusMove(
+                        {
+                          action: 'set_campaign_status',
+                          campaignId: str(row.id),
+                          status: next,
+                        },
+                        onChanged,
+                        setError,
+                      )
+                    }
+                    className="h-7 border-hairline bg-transparent text-[11px]"
+                  >
+                    {next === 'running'
+                      ? 'Start calling'
+                      : next === 'paused'
+                        ? 'Pause'
+                        : 'Stop'}
+                  </Button>
+                ))}
+              </div>
+            ) : null}
             {module === 'alerts' ? (
               <Button
                 variant="outline"

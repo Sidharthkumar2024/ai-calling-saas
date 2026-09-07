@@ -21,6 +21,36 @@ export const ADMIN_CAPABILITIES = [
 ] as const;
 
 export type AdminCapability = (typeof ADMIN_CAPABILITIES)[number];
+
+/**
+ * Every admin role there is, in one list.
+ *
+ * It exists because there were two: this file's `ROLE_CAPABILITIES` had five
+ * roles and the route that assigns them had four hard-coded in an `includes`
+ * check, so `support` — the Support Executive of §30 — had capabilities defined
+ * and no way to be given to anyone.
+ */
+export const ADMIN_ROLES = [
+  'super_admin',
+  'operations',
+  'finance',
+  'analyst',
+  'support',
+] as const;
+
+export function isAdminRole(value: unknown): value is AdminRole {
+  return (ADMIN_ROLES as readonly string[]).includes(String(value));
+}
+
+/** What each role is for, in the words the person assigning it reads. */
+export const ADMIN_ROLE_LABEL: Record<AdminRole, string> = {
+  super_admin: 'Super admin — everything, including who else is an admin',
+  operations: 'Operations — tenants, providers and support sessions',
+  finance: 'Finance — tenants and billing',
+  analyst: 'Analyst — read-only',
+  support: 'Support executive — reads tenants, opens audited support sessions',
+};
+
 export type AdminRole =
   | 'super_admin'
   | 'operations'

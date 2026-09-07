@@ -2,7 +2,13 @@ import { NextResponse } from 'next/server';
 
 import { getRawDb } from '@/db/index';
 import { hashPassword } from '@/lib/security';
-import { adminCapabilities, requireAdminCapability } from '@/lib/admin-rbac';
+import {
+  ADMIN_ROLE_LABEL,
+  ADMIN_ROLES,
+  adminCapabilities,
+  isAdminRole,
+  requireAdminCapability,
+} from '@/lib/admin-rbac';
 import { recordAudit } from '@/lib/demo-seed';
 
 export const dynamic = 'force-dynamic';
@@ -34,8 +40,23 @@ export async function GET(request: Request) {
       LEFT JOIN organization_wallets w ON w.organization_id = o.id
       ORDER BY o.created_at DESC LIMIT 200`)
     .all();
+  // The admins themselves. `set_admin_role` has existed since the roles did and
+  // nothing listed the people it applies to, so there was no screen it could
+  // ever be reached from.
+  const admins = await getRawDb()
+    .prepare(
+      `SELECT id, name, email, coalesce(admin_role, 'analyst') AS admin_role,
+         last_login_at
+       FROM app_users WHERE role = 'platform_admin' ORDER BY name LIMIT 100`,
+    )
+    .all();
   return NextResponse.json({
     organizations: rows.results ?? [],
+    admins: admins.results ?? [],
+    adminRoles: ADMIN_ROLES.map((role) => ({
+      role,
+      label: ADMIN_ROLE_LABEL[role],
+    })),
     adminRole: auth.adminRole,
     capabilities: adminCapabilities(auth.adminRole ?? 'analyst'),
   });
@@ -244,7 +265,9 @@ export async function POST(request: Request) {
     if (elevated.response) return elevated.response;
     const userId = text('userId', 80);
     const role = text('role', 40);
-    if (!['super_admin', 'operations', 'finance', 'analyst'].includes(role))
+    // The canonical list, not a second copy: this check named four roles while
+    // `ROLE_CAPABILITIES` defined five, so `support` could never be assigned.
+    if (!isAdminRole(role))
       return NextResponse.json(
         { error: 'Unsupported admin role.' },
         { status: 400 },

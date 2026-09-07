@@ -160,6 +160,7 @@ export function CustomerOrgStructure() {
 
       <BranchesAndTeams org={org} run={run} busy={busy} />
       <Shifts org={org} agents={agents} run={run} busy={busy} />
+      <AgentLanguages agents={agents} run={run} busy={busy} />
       <NumberRoutes
         org={org}
         queues={queues}
@@ -846,5 +847,139 @@ function Contacts({
         ))}
       </div>
     </Panel>
+  );
+}
+
+/**
+ * Which languages each person on the desk can actually take a call in.
+ *
+ * Routing has read `languages_json` since it was written — a queue with a
+ * language, or a rule matching one, looks for an agent who speaks it — and no
+ * screen ever set it. Every agent's list was empty, so language routing had
+ * nothing to match on and quietly fell through to whoever was free.
+ *
+ * The server keeps `agent_languages` and `languages_json` in step in one
+ * action, because routing reads the second and reporting the first, and two
+ * sources of truth that disagree is worse than one that is wrong.
+ */
+function AgentLanguages({
+  agents,
+  run,
+  busy,
+}: {
+  agents: Row[];
+  run: RunFn;
+  busy: boolean;
+}) {
+  const [open, setOpen] = useState<string | null>(null);
+
+  const spoken = (agent: Row): string[] => {
+    const raw = agent.languages_json;
+    if (typeof raw !== 'string') return [];
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      return Array.isArray(parsed) ? parsed.map(String) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  return (
+    <section className="portal-panel p-5">
+      <h2 className="text-sm font-semibold">Languages on the desk</h2>
+      <p className="mt-1 text-[11px] text-ink-muted">
+        A queue or rule that routes by language can only find someone who is
+        listed here.
+      </p>
+
+      <div className="mt-4 space-y-2">
+        {agents.length === 0 ? (
+          <p className="text-[11px] text-ink-muted">
+            No support agents in this workspace yet.
+          </p>
+        ) : null}
+        {agents.map((agent) => {
+          const id = str(agent.id);
+          const languages = spoken(agent);
+          const editing = open === id;
+          return (
+            <div
+              key={id}
+              className="rounded-xl border border-hairline bg-surface-muted px-3 py-2.5"
+            >
+              <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                <span className="font-medium">{str(agent.name)}</span>
+                <span className="text-ink-muted">{str(agent.role, '—')}</span>
+                <span className="ml-auto text-ink-muted">
+                  {languages.length === 0
+                    ? 'no languages set'
+                    : languages
+                        .map(
+                          (code) =>
+                            SUPPORTED_LANGUAGES.find(
+                              (language) => language.code === code,
+                            )?.label ?? code,
+                        )
+                        .join(', ')}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setOpen(editing ? null : id)}
+                  className="text-[11px] text-ink-muted hover:text-ink"
+                >
+                  {editing ? 'Close' : 'Change'}
+                </button>
+              </div>
+
+              {editing ? (
+                <div className="mt-2.5 flex flex-wrap gap-1.5">
+                  {SUPPORTED_LANGUAGES.map((language) => {
+                    const on = languages.includes(language.code);
+                    return (
+                      <button
+                        key={language.code}
+                        type="button"
+                        disabled={busy}
+                        // The whole set is sent every time, because that is
+                        // what the server stores — a toggle that sent one code
+                        // would silently drop the rest.
+                        onClick={() =>
+                          void run(
+                            {
+                              action: 'set_agent_languages',
+                              supportAgentId: id,
+                              languages: on
+                                ? languages.filter(
+                                    (code) => code !== language.code,
+                                  )
+                                : [...languages, language.code],
+                            },
+                            on
+                              ? `${language.label} removed.`
+                              : `${language.label} added.`,
+                          )
+                        }
+                        className={`rounded-lg border px-2.5 py-1 text-[11px] transition ${
+                          on
+                            ? 'border-primary/40 bg-primary/10 text-primary'
+                            : 'border-hairline text-ink-muted hover:bg-surface-strong'
+                        }`}
+                      >
+                        {language.label}
+                        <span className="ml-1 text-ink-muted">
+                          {language.nativeName === language.label
+                            ? ''
+                            : language.nativeName}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }

@@ -389,6 +389,35 @@ Nothing to fix. One property worth knowing rather than fixing: a request with no
 control and cannot bind anything that is not a browser. The rate limit is what
 holds that line, not the allowlist.
 
+### 15. A read-only member, walked against the running server
+
+The route-guard audit is static: it checks that a handler *calls* a permission
+check. This walked one, on 7 September, with a real session for a member whose
+workspace role is `analyst` — one permission, `analytics.view`.
+
+Eleven writes, every one refused with 403: archiving leads, deleting a saved
+view, creating and deleting a queue, archiving a branch, setting agent
+languages, creating an object, starting a campaign, replying on WhatsApp,
+saving discovery answers, inviting a colleague. The three admin surfaces
+refused too.
+
+Reads are where the role's edges show, and they are deliberate rather than
+accidental: analytics and overview open, team and objects and queues closed,
+and the CRM open — `/api/app/crm` names `analytics.view` alongside
+`crm.manage` on purpose, because reading the pipeline is what analysing it
+means. Worth knowing when handing someone this role: it includes lead names and
+phone numbers, which "read-only analytics" does not obviously say.
+
+Two 200s were checked by content rather than status, which is the difference
+between a leak and a non-issue: `?organizationId=` and `?chat=` on the growth
+board are both ignored — the route reads `auth.session.organizationId` and
+nothing else, and the 7 chats returned are the caller's own.
+
+Nothing to fix. The one thing that looked alarming — a `customer_member` row
+locked out of the whole product — was a role I had invented for the test.
+Nothing in the codebase writes it; signup and invitation both write
+`customer_agent`.
+
 ### 5. [KEY] Things only you can supply
 
 - **A male ElevenLabs voice id** (still outstanding) and a Punjabi voice id.

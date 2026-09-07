@@ -75,6 +75,7 @@ import {
 import { CustomerAgentDesk } from '@/components/customer-agent-desk';
 import { CustomerDialer } from '@/components/customer-dialer';
 import { CustomerDiagnostics } from '@/components/customer-diagnostics';
+import { CustomerObjects } from '@/components/customer-objects';
 import { CustomerOrgStructure } from '@/components/customer-org-structure';
 import { CustomerApprovals } from '@/components/customer-approvals';
 import { CustomerVoiceProfiles } from '@/components/customer-voice-profiles';
@@ -382,6 +383,12 @@ const groups: PortalNavGroup[] = [
         translationKey: 'nav.org_structure',
       },
       {
+        id: 'objects',
+        label: 'Objects & records',
+        icon: Database,
+        translationKey: 'nav.objects',
+      },
+      {
         id: 'agent_desk',
         label: 'Agent desk',
         icon: Headphones,
@@ -452,6 +459,7 @@ const navPermissions: Record<string, string> = {
   billing: 'billing.manage',
   team: 'team.manage',
   org_structure: 'workspace.manage',
+  objects: 'crm.manage',
   agent_desk: 'calls.monitor',
   dialer: 'calls.monitor',
   diagnostics: 'calls.monitor',
@@ -601,7 +609,11 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
   }
 
   useEffect(() => {
-    const timer = window.setTimeout(() => { if (new URLSearchParams(window.location.search).has('billing')) setActive('billing'); void load(); }, 0);
+    const timer = window.setTimeout(() => {
+      if (new URLSearchParams(window.location.search).has('billing'))
+        setActive('billing');
+      void load();
+    }, 0);
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -662,7 +674,10 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
 
   return (
     <NotificationCenter section={active}>
-      {session.permissions.includes('calls.monitor') || session.permissions.includes('workspace.manage') ? <CallActivityWatch /> : null}
+      {session.permissions.includes('calls.monitor') ||
+      session.permissions.includes('workspace.manage') ? (
+        <CallActivityWatch />
+      ) : null}
       <CreditWatch credits={data.billing.wallet ? credits : null} />
       <PortalShell
         mode="customer"
@@ -778,6 +793,9 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
           ) : null}
           {!loading && !error && active === 'org_structure' ? (
             <CustomerOrgStructure />
+          ) : null}
+          {!loading && !error && active === 'objects' ? (
+            <CustomerObjects />
           ) : null}
           {!loading && !error && active === 'dialer' ? (
             <CustomerDialer />

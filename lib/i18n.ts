@@ -549,6 +549,10 @@ const en = {
   'landing.sources.forms': 'Website forms',
   'landing.sources.apis': 'API & webhooks',
 
+  'nav.objects': 'Objects & records',
+  'screen.objects.title': 'Objects & records',
+  'screen.objects.description':
+    'Model whatever this business actually tracks — properties, batches, policies, machines — and the agent can read and write it on a call.',
   'landing.proof.title': 'Counted, not claimed.',
   'landing.proof.sub':
     'Every figure here is read from the product itself. When there are usage numbers worth showing, they will come from the platform\u2019s own tables and not from a marketing draft.',
@@ -1334,6 +1338,10 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'landing.sources.forms': 'वेबसाइट फ़ॉर्म',
   'landing.sources.apis': 'API और webhooks',
 
+  'nav.objects': 'Objects और records',
+  'screen.objects.title': 'Objects और records',
+  'screen.objects.description':
+    'जो चीज़ ये कारोबार सच में गिनता है उसी का ढाँचा बनाइए — property, batch, policy, मशीन — और एजेंट कॉल पर उसे पढ़ और लिख सकेगी।',
   'landing.proof.title': 'गिने हुए, दावा किए हुए नहीं।',
   'landing.proof.sub':
     'यहाँ का हर आँकड़ा product से ही पढ़ा गया है। जब दिखाने लायक इस्तेमाल के आँकड़े होंगे, वो platform की अपनी tables से आएँगे — किसी marketing draft से नहीं।',
@@ -1353,7 +1361,8 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'landing.story.answer.title': 'पहली घंटी पर उठ जाती है।',
   'landing.story.answer.body':
     'अपने business hours और calling setup के अनुसार एजेंट को उपलब्ध रखें — व्यस्त समय में भी आपकी टीम की मदद के लिए।',
-  'landing.story.answer.proof': 'अपने चुने हुए voice और calling setup पर response time टेस्ट करें।',
+  'landing.story.answer.proof':
+    'अपने चुने हुए voice और calling setup पर response time टेस्ट करें।',
   'landing.story.understand.title': 'समझती है कि उन्हें असल में चाहिए क्या।',
   'landing.story.understand.body':
     'कोई "1 दबाइए" वाला मेन्यू नहीं। ग्राहक अपने शब्दों में कहता है, और एजेंट बजट, इलाक़ा और ख़रीदने की तैयारी — तीनों निकाल लेती है।',

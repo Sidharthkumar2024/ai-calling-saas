@@ -1,6 +1,6 @@
 # Vaani — What's left
 
-Status (2026-09-03). Tracks 0-3 of the AI-Calling-OS plan plus the master
+Status (2026-09-07). Tracks 0-3 of the AI-Calling-OS plan plus the master
 blueprint's customer-side gaps have landed. This file records what genuinely
 remains and **why** — including work that is blocked on something outside this
 repository, and work deliberately deferred.
@@ -140,7 +140,7 @@ declared: rows created only by bootstrap seeds are not read-only, an upsert is
 three operations wearing one keyword, and statement text living in a pure module
 is still SQL.
 
-### 7. Action-dispatch audit — 3 found, 3 closed
+### 7. Action-dispatch audit — 3 unhandled closed, then 26 unreachable triaged
 
 `npm run audit:actions` (`scripts/check-actions.mjs`) checks that every action a
 screen sends is named by the route it is posted to. Written after the same
@@ -165,6 +165,43 @@ running app: `assign_ownerr` leaves the lead exactly where it was.
 Departments are also on screen now, with create and archive. The demo workspace
 turned out to have had one called "Revenue" the whole time that nobody could
 see.
+
+**The other direction, worked through on 6-7 September.** The same script also
+reports actions the *API* names that no screen sends — a note rather than a
+failure, because some are the public API. It said 26. Going through them, a
+third were neither public API nor missing screens:
+
+- **11 were the script's own blind spots.** It matched `action: 'x'` and nothing
+  else, so an archive button choosing its action with a ternary registered as
+  sending neither name — two working buttons listed as unbuilt screens. And the
+  note's source was every quoted lowercase string in every route file, which is
+  how `create_` reached a reader as a screen nobody built; it came from
+  `action.replace('create_', '')`. The note now lists only names a route
+  actually dispatches on.
+- **7 were duplicate aliases** and were removed: six in the org route
+  (`delete_branch`, `archive_branch`, `delete_shift`, `archive_shift`,
+  `delete_number_route`, `archive_number_route`) each took its own id field and
+  called the same `archiveOrgConfig` the generic `archive_config` calls, and
+  `delete_rule` shared an `if` with `archive_rule`, which is what actually
+  happens.
+- **1 was removed rather than given a screen.** `create_workflow` wrote
+  `steps_json` and left `graph_json` null; `executeWorkflow` reads `graph_json`
+  and nothing else, so a workflow made that way would have appeared in the list,
+  reported a status, and never run once.
+- **The rest were screens nobody had built**, and they exist now: queues and
+  routing rules on the agent desk (create, edit, archive/restore, and removal
+  that archives when conversations or rules point at it), agent languages on Org
+  & routing — which routing had read since it was written and nothing ever set —
+  Objects & records for the whole object engine, delete for a saved CRM view,
+  start/pause/stop for campaigns, done/drop for the business manager's actions,
+  and a platform-admin list with a role picker.
+
+That last one exposed a second copy of the role list: `ROLE_CAPABILITIES`
+defines five admin roles and the route that assigns them had four hard-coded, so
+`support` — the Support Executive of §30 — had capabilities and no way to be
+given to anyone.
+
+Every action in this product is now reachable from a screen.
 
 ### 8. Route-guard audit — 13 found, 13 closed
 
@@ -308,6 +345,50 @@ client invented, which no static check here would see. It was found by clicking
 Invite and watching nothing happen — which is the argument for walking the
 product rather than only reading it.
 
+### 13. Background work — machinery complete, trigger is yours
+
+Audited on 7 September: 14 workers, every job type enqueued has one, and every
+worker is reached by something. Two that looked orphaned are enqueued through a
+computed `scheduled.${type}`.
+
+One real defect, and it had been sitting in this database for four days. Jobs
+were searched for with `status IN ('queued','retry') AND (locked_at IS NULL OR
+locked_at < now - 5 minutes)`. That lock-age test was written to recover
+abandoned work and could never fire, because a job only has a lock once it is
+`running` and the status filter excluded exactly those rows. A worker that died
+mid-job left it at `running` for ever — a `call.intelligence` job had been
+stranded since 3 September while the queue drained around it. A stale lock is a
+claimable job now, the staleness test is repeated in the claim so two workers
+cannot both take it, and `attempts` still increments so a job that keeps killing
+its worker dead-letters rather than looping.
+
+**[KEY] What is left here is not code.** Nothing calls `/api/internal/jobs` on a
+schedule — no `wrangler.toml` cron trigger, no CI schedule. Until something
+does, appointment reminders, alert rules, retention, scheduled reports and
+campaign dialling sit queued and look broken while the code that runs them is
+fine. In production that is a Cloudflare cron trigger or any uptime service
+posting with `x-vaani-cron-secret`. On a developer's machine it is
+`npm run jobs:tick`, which was added for exactly this and drained a 25-job
+backlog the first time it ran.
+
+### 14. Public surfaces — walked, and sound
+
+Probed on 7 September as an outsider would, with no session:
+
+| Probe | Result |
+|---|---|
+| Unknown lead-form key | 404 |
+| 25 rapid form submissions | 201 up to 20, then 429 — the limit is 20/hour |
+| Spoofed `x-forwarded-for` | still limited: `cf-connecting-ip` is preferred, and Cloudflare sets that |
+| Unknown delivery token | 404 with the reason named |
+| A paused widget | 404, as a JS comment, which is what a script tag can read |
+| Unknown upload token | "This upload link is not valid. Ask for a new one." |
+
+Nothing to fix. One property worth knowing rather than fixing: a request with no
+`Origin` header passes the form's domain allowlist, because CORS is a browser
+control and cannot bind anything that is not a browser. The rate limit is what
+holds that line, not the allowlist.
+
 ### 5. [KEY] Things only you can supply
 
 - **A male ElevenLabs voice id** (still outstanding) and a Punjabi voice id.
@@ -317,7 +398,9 @@ product rather than only reading it.
   not as platform env vars (see the ledger note below).
 - Meta WhatsApp business + approved templates; Meta/Google Lead Ads OAuth.
 - Google/GitHub/Microsoft OAuth apps (the admin panel now stores these).
-- `CRON_SECRET` + a scheduler, and `INBOUND_WEBHOOK_SECRET` for inbound.
+- A **scheduler** for `/api/internal/jobs` — `CRON_SECRET` is set locally, but
+  nothing calls the endpoint on a timer yet (see §13). `INBOUND_WEBHOOK_SECRET`
+  for inbound.
 - Resend (or SMTP) so team invitations and alert emails actually leave.
 - Private R2/S3 for recordings.
 

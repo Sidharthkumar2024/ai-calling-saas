@@ -81,7 +81,7 @@ async function tick() {
   } catch (error) {
     console.log(
       `${at}  could not reach ${base} — is the dev server running? (${
-        error instanceof Error ? error.message : error
+        error instanceof Error ? error.message : String(error)
       })`,
     );
   }

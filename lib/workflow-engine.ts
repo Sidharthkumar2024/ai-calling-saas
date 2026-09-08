@@ -23,7 +23,7 @@
  */
 
 import { getRawDb } from '@/db/index';
-import { normalisePhone } from './whatsapp-bot-rules.ts';
+import { destinationFor, normalisePhone } from './whatsapp-bot-rules.ts';
 import {
   decisionMessages,
   decisionSystemPrompt,
@@ -739,8 +739,10 @@ async function booking(
       service: textValue(config.service),
       mode: textValue(config.mode) || 'in_person',
       customer_name: textValue(config.customerName),
-      customer_phone:
+      customer_phone: destinationFor(
         textValue(config.destination) || textValue(config.customerPhone),
+        context.contactPhone,
+      ).to,
     },
     toolContext(context),
   );
@@ -784,7 +786,13 @@ async function payment(
       amount,
       description: resolvedPurpose,
       delivery: channel === 'email' ? 'email' : 'whatsapp',
-      customer_phone: textValue(config.destination),
+      // The conversation is the customer. Without this, a payment link on a
+      // WhatsApp run had nowhere to go unless the author had written the
+      // number into the node by hand.
+      customer_phone: destinationFor(
+        textValue(config.destination),
+        context.contactPhone,
+      ).to,
     },
     toolContext(context),
   );
@@ -811,15 +819,21 @@ async function documentRequest(
   config: Record<string, unknown>,
   context: ExecutionContext,
 ): Promise<StepResult> {
-  const destination = textValue(config.destination).trim();
+  const target = destinationFor(
+    textValue(config.destination),
+    context.contactPhone,
+  );
+  const destination = target.to;
   const document = normaliseDocumentLabel(textValue(config.document));
-  if (!destination || destination.includes('{{'))
+  if (!destination)
     return {
       status: 'skipped',
       branch: 'next',
       output: {
-        reason: 'no_destination',
-        detail: 'No number or address reached this step, so nothing was sent.',
+        reason: target.unresolved ? 'unresolved_destination' : 'no_destination',
+        detail: target.unresolved
+          ? `“${textValue(config.destination)}” still holds a value this run never collected, so nothing was sent.`
+          : 'No number or address reached this step, so nothing was sent.',
       },
     };
   if (!document)
@@ -875,15 +889,21 @@ async function message(
   config: Record<string, unknown>,
   context: ExecutionContext,
 ): Promise<StepResult> {
-  const destination = textValue(config.destination).trim();
+  const target = destinationFor(
+    textValue(config.destination),
+    context.contactPhone,
+  );
+  const destination = target.to;
   const body = textValue(config.body);
-  if (!destination || destination.includes('{{'))
+  if (!destination)
     return {
       status: 'skipped',
       branch: 'next',
       output: {
-        reason: 'no_destination',
-        detail: 'No number or address reached this step, so nothing was sent.',
+        reason: target.unresolved ? 'unresolved_destination' : 'no_destination',
+        detail: target.unresolved
+          ? `“${textValue(config.destination)}” still holds a value this run never collected, so nothing was sent — and it was not sent to the customer instead, in case it was meant for somebody else.`
+          : 'No number or address reached this step, so nothing was sent.',
       },
     };
   if (!body.trim())

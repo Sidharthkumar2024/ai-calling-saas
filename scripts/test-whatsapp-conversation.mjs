@@ -483,5 +483,75 @@ await engine.executeGraph({ graph: handoff, context: freshRun('run_h3'), variabl
 equal(heldBy(), null);
 transferResult = { ok: true, transferred: true, agent: { id: 'sa_sup', name: 'Rohit', role: 'support_agent' } };
 
+// --- a step reaches the person the run is talking to ----------------------------
+
+const withTools = {
+  nodes: [
+    { id: 't', kind: 'trigger', config: { event: 'whatsapp_message' }, next: { next: 'm' } },
+    {
+      id: 'm',
+      // No destination configured. On a call an author fills it in from a CRM
+      // lookup; on WhatsApp the customer is the run.
+      kind: 'message',
+      config: { channel: 'whatsapp', body: 'Here are the details you asked for.' },
+      next: { next: 'p' },
+    },
+    {
+      id: 'p',
+      kind: 'payment',
+      config: { amount: '5000', purpose: 'Booking amount' },
+      next: { next: 'e' },
+    },
+    { id: 'e', kind: 'end', config: { disposition: 'sent' }, next: {} },
+  ],
+};
+const reached = await engine.executeGraph({
+  graph: withTools,
+  context: freshRun('run_dest'),
+  variables: {},
+});
+equal(reached.status, 'completed');
+equal(sent.filter((m) => m.tool === 'send_whatsapp').at(-1).phone, PHONE);
+equal(sent.filter((m) => m.tool === 'create_payment_link').at(-1).customer_phone, PHONE);
+
+// An unresolved placeholder is not quietly redirected to the customer: it may
+// have been meant for somebody else entirely.
+const wrongNumber = {
+  nodes: [
+    { id: 't', kind: 'trigger', config: { event: 'whatsapp_message' }, next: { next: 'm' } },
+    {
+      id: 'm',
+      kind: 'message',
+      config: { channel: 'whatsapp', destination: '{{accountant_phone}}', body: 'Invoice attached.' },
+      next: { next: 'e' },
+    },
+    { id: 'e', kind: 'end', config: { disposition: 'sent' }, next: {} },
+  ],
+};
+const beforeSends = sent.length;
+const skipped = await engine.executeGraph({
+  graph: wrongNumber,
+  context: freshRun('run_dest_2'),
+  variables: {},
+});
+equal(sent.length, beforeSends);
+ok(skipped.trace.some((step) => step.kind === 'message' && step.status === 'skipped'));
+
+// An explicit number still wins over the conversation.
+const elsewhere = {
+  nodes: [
+    { id: 't', kind: 'trigger', config: { event: 'whatsapp_message' }, next: { next: 'm' } },
+    {
+      id: 'm',
+      kind: 'message',
+      config: { channel: 'whatsapp', destination: '+919000000000', body: 'For the office.' },
+      next: { next: 'e' },
+    },
+    { id: 'e', kind: 'end', config: { disposition: 'sent' }, next: {} },
+  ],
+};
+await engine.executeGraph({ graph: elsewhere, context: freshRun('run_dest_3'), variables: {} });
+equal(sent.at(-1).phone, '+919000000000');
+
 db.close();
 console.log(`whatsapp conversation: ${checks} assertions passed; no provider contacted.`);

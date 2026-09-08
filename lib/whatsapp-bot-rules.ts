@@ -47,3 +47,30 @@ export function normalisePhone(value: string): string {
   const digits = String(value ?? '').replace(/\D/g, '');
   return digits ? `+${digits}` : '';
 }
+
+/**
+ * Who a step should reach, when the run is already a conversation with them.
+ *
+ * Booking, payment, document request and message all read a destination from
+ * their own configuration. On a call that is the only way to know — the graph
+ * author fills it in from a CRM lookup. On WhatsApp the customer is the run:
+ * leaving those nodes to demand a number means an author who does not think to
+ * write `{{phone}}` into every one of them gets steps that silently skip, in a
+ * conversation with the very person they were about to reach.
+ *
+ * An empty destination falls back to that conversation. An *unresolved* one
+ * does not: `{{accountant_phone}}` that never resolved is the author's mistake
+ * to see, and quietly sending it to the customer instead could put somebody
+ * else's payment link in front of them.
+ */
+export function destinationFor(
+  configured: string,
+  contactPhone: string | null | undefined,
+): { to: string; unresolved: boolean; fromConversation: boolean } {
+  const text = String(configured ?? '').trim();
+  if (text.includes('{{'))
+    return { to: '', unresolved: true, fromConversation: false };
+  if (text) return { to: text, unresolved: false, fromConversation: false };
+  const contact = normalisePhone(contactPhone ?? '');
+  return { to: contact, unresolved: false, fromConversation: Boolean(contact) };
+}

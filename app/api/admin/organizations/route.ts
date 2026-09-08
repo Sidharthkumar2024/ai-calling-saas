@@ -10,6 +10,11 @@ import {
   requireAdminCapability,
 } from '@/lib/admin-rbac';
 import { recordAudit } from '@/lib/demo-seed';
+import {
+  pendingReconciliations,
+  reconcileAsNotStarted,
+  reconcileAsStarted,
+} from '@/lib/realtime-reservations';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,9 +55,15 @@ export async function GET(request: Request) {
        FROM app_users WHERE role = 'platform_admin' ORDER BY name LIMIT 100`,
     )
     .all();
+  // Reservations parked as uncertain. Their credits are held, and until this
+  // they appeared nowhere: the workspace was simply short and no screen said
+  // why. An operator is the only party who can settle them, because the
+  // evidence is the provider's own record.
+  const reconciliation = await pendingReconciliations(getRawDb());
   return NextResponse.json({
     organizations: rows.results ?? [],
     admins: admins.results ?? [],
+    reconciliation,
     adminRoles: ADMIN_ROLES.map((role) => ({
       role,
       label: ADMIN_ROLE_LABEL[role],
@@ -258,6 +269,45 @@ export async function POST(request: Request) {
       status: suspending ? 'suspended' : 'active',
       campaignsPaused: suspending,
     });
+  }
+
+  if (action === 'reconcile_reservation') {
+    const elevated = await requireAdminCapability(request, 'billing.manage');
+    if (elevated.response) return elevated.response;
+    const reservationId = text('reservationId', 80);
+    const outcome = text('outcome', 20);
+    const note = text('note', 200);
+    if (outcome !== 'not_started' && outcome !== 'started')
+      return NextResponse.json(
+        { error: 'Say whether the session started or not.' },
+        { status: 400 },
+      );
+    if (!note)
+      return NextResponse.json(
+        {
+          error:
+            'A note is required: what evidence shows whether this session ran?',
+        },
+        { status: 400 },
+      );
+    const db = getRawDb();
+    const result =
+      outcome === 'not_started'
+        ? await reconcileAsNotStarted(db, reservationId, note)
+        : await reconcileAsStarted(db, reservationId, note);
+    if (!result.resolved)
+      return NextResponse.json(
+        { error: result.reason ?? 'That reservation is not awaiting review.' },
+        { status: 409 },
+      );
+    await recordAudit(
+      auth.session,
+      `realtime.reconciled_${outcome}`,
+      'realtime_reservation',
+      reservationId,
+      { note },
+    );
+    return NextResponse.json({ ok: true, outcome: result.outcome });
   }
 
   if (action === 'set_admin_role') {

@@ -544,7 +544,9 @@ function AdminOverview({
                 .slice(0, 5)
                 .map((item) => [
                   textValue(item.publicName),
-                  item.configured ? 'Credentials configured' : 'Credentials needed',
+                  item.configured
+                    ? 'Credentials configured'
+                    : 'Credentials needed',
                   item.configured ? 100 : 24,
                 ]),
             ].map(([label, status, progress]) => (
@@ -703,6 +705,10 @@ function Customers({ data }: { data: AdminPayload }) {
 function TenantLifecycle() {
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [admins, setAdmins] = useState<Record<string, unknown>[]>([]);
+  const [reconciliation, setReconciliation] = useState<
+    Record<string, unknown>[]
+  >([]);
+  const [notes, setNotes] = useState<Record<string, string>>({});
   const [adminRoles, setAdminRoles] = useState<
     Array<{ role: string; label: string }>
   >([]);
@@ -719,6 +725,7 @@ function TenantLifecycle() {
       const body = (await response.json()) as {
         organizations?: Record<string, unknown>[];
         admins?: Record<string, unknown>[];
+        reconciliation?: Record<string, unknown>[];
         adminRoles?: Array<{ role: string; label: string }>;
         capabilities?: string[];
         adminRole?: string;
@@ -730,6 +737,7 @@ function TenantLifecycle() {
       }
       setRows(body.organizations ?? []);
       setAdmins(body.admins ?? []);
+      setReconciliation(body.reconciliation ?? []);
       setAdminRoles(body.adminRoles ?? []);
       setCapabilities(body.capabilities ?? []);
       setAdminRole(body.adminRole ?? '');
@@ -923,6 +931,95 @@ function TenantLifecycle() {
           })}
         </div>
       </section>
+
+      {reconciliation.length ? (
+        <section className="mt-4 rounded-2xl border border-warning-text/30 bg-warning-text/[0.05] p-5">
+          <h2 className="text-[11px] font-semibold text-ink">
+            Realtime sessions awaiting review
+          </h2>
+          <p className="mt-1 text-[11px] text-ink-muted">
+            The provider neither accepted nor refused these clearly, so the
+            credits are still held. Only the provider&rsquo;s own record says
+            whether the session ran — check it, then say which happened. Nothing
+            here charges again: releasing returns the credits, confirming leaves
+            the reservation as the charge.
+          </p>
+          <div className="mt-3 space-y-2">
+            {reconciliation.map((row) => (
+              <div
+                key={textValue(row.id)}
+                className="rounded-xl border border-hairline bg-surface p-3 text-[11px]"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono">{textValue(row.id)}</span>
+                  <span className="text-ink-muted">
+                    {textValue(row.organization_id)}
+                  </span>
+                  <span className="text-ink-muted">
+                    {textValue(row.error_code, 'uncertain')}
+                  </span>
+                  <span className="ml-auto text-ink-muted">
+                    {num(row.credits)} credits held ·{' '}
+                    {textValue(row.created_at)}
+                  </span>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <input
+                    value={notes[textValue(row.id)] ?? ''}
+                    onChange={(event) =>
+                      setNotes({
+                        ...notes,
+                        [textValue(row.id)]: event.target.value,
+                      })
+                    }
+                    placeholder="What does the provider's record show?"
+                    aria-label={`Evidence for ${textValue(row.id)}`}
+                    className="min-w-56 flex-1 rounded-lg border border-hairline bg-surface-muted px-2.5 py-1.5 text-[11px]"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={
+                      !notes[textValue(row.id)]?.trim() ||
+                      busy === textValue(row.id)
+                    }
+                    onClick={() =>
+                      void act(textValue(row.id), {
+                        action: 'reconcile_reservation',
+                        reservationId: textValue(row.id),
+                        outcome: 'not_started',
+                        note: notes[textValue(row.id)],
+                      })
+                    }
+                    className="h-7 border-hairline bg-transparent text-[11px]"
+                  >
+                    Never ran — release
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={
+                      !notes[textValue(row.id)]?.trim() ||
+                      busy === textValue(row.id)
+                    }
+                    onClick={() =>
+                      void act(textValue(row.id), {
+                        action: 'reconcile_reservation',
+                        reservationId: textValue(row.id),
+                        outcome: 'started',
+                        note: notes[textValue(row.id)],
+                      })
+                    }
+                    className="h-7 border-hairline bg-transparent text-[11px]"
+                  >
+                    It ran — keep the charge
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {/* Who the platform admins are, and what each one may do.
         `set_admin_role` has existed as long as the roles have, and nothing
@@ -2473,7 +2570,12 @@ type KeyProvider = {
   id: string;
   name: string;
   note: string;
-  fields: { k: string; label: string; placeholder?: string; secret?: boolean }[];
+  fields: {
+    k: string;
+    label: string;
+    placeholder?: string;
+    secret?: boolean;
+  }[];
   fetchVoices?: boolean;
 };
 
@@ -2484,8 +2586,16 @@ const KEY_PROVIDERS: KeyProvider[] = [
     note: 'Premium human voices. Save the key, then fetch and pick a voice.',
     fields: [
       { k: 'voiceId', label: 'Default voice ID' },
-      { k: 'sttModelId', label: 'Transcription model', placeholder: 'scribe_v1' },
-      { k: 'webhookSecret', label: 'Webhook signing secret (encrypted)', secret: true },
+      {
+        k: 'sttModelId',
+        label: 'Transcription model',
+        placeholder: 'scribe_v1',
+      },
+      {
+        k: 'webhookSecret',
+        label: 'Webhook signing secret (encrypted)',
+        secret: true,
+      },
       {
         k: 'modelId',
         label: 'Model (optional)',
@@ -2500,9 +2610,41 @@ const KEY_PROVIDERS: KeyProvider[] = [
     note: 'Indian-language STT and TTS (Hindi, Punjabi, Haryanvi, English).',
     fields: [],
   },
-  { id: 'deepgram', name: 'Deepgram — transcription', note: 'Speech-to-text adapter. Select preferred languages; Hindi quality must be tested on your calls.', fields: [{ k: 'model', label: 'Model', placeholder: 'nova-3' }, { k: 'preferredLanguages', label: 'Use first for language codes', placeholder: 'en-IN,en-US' }] },
-  { id: 'whatsapp', name: 'Meta — platform WhatsApp app', note: 'App-level setup only. Each customer must connect their own verified WhatsApp sender. No shared sender fallback.', fields: [{ k: 'appId', label: 'Meta app ID' }, { k: 'configId', label: 'Embedded Signup configuration ID' }, { k: 'appSecret', label: 'Meta app secret (encrypted)', secret: true }, { k: 'verifyToken', label: 'Webhook verify token (encrypted)', secret: true }, { k: 'graphVersion', label: 'Graph API version', placeholder: 'v23.0' }] },
-  { id: 'resend', name: 'Resend — transactional email', note: 'Verified platform sending address for transactional email. Tenant-specific connections take precedence.', fields: [{ k: 'fromAddress', label: 'Verified sender email' }] },
+  {
+    id: 'deepgram',
+    name: 'Deepgram — transcription',
+    note: 'Speech-to-text adapter. Select preferred languages; Hindi quality must be tested on your calls.',
+    fields: [
+      { k: 'model', label: 'Model', placeholder: 'nova-3' },
+      {
+        k: 'preferredLanguages',
+        label: 'Use first for language codes',
+        placeholder: 'en-IN,en-US',
+      },
+    ],
+  },
+  {
+    id: 'whatsapp',
+    name: 'Meta — platform WhatsApp app',
+    note: 'App-level setup only. Each customer must connect their own verified WhatsApp sender. No shared sender fallback.',
+    fields: [
+      { k: 'appId', label: 'Meta app ID' },
+      { k: 'configId', label: 'Embedded Signup configuration ID' },
+      { k: 'appSecret', label: 'Meta app secret (encrypted)', secret: true },
+      {
+        k: 'verifyToken',
+        label: 'Webhook verify token (encrypted)',
+        secret: true,
+      },
+      { k: 'graphVersion', label: 'Graph API version', placeholder: 'v23.0' },
+    ],
+  },
+  {
+    id: 'resend',
+    name: 'Resend — transactional email',
+    note: 'Verified platform sending address for transactional email. Tenant-specific connections take precedence.',
+    fields: [{ k: 'fromAddress', label: 'Verified sender email' }],
+  },
   {
     id: 'anthropic',
     name: 'Claude (Anthropic) — reasoning',
@@ -2634,7 +2776,14 @@ function ProviderKeyCard({
     );
     if (result) {
       setApiKey('');
-      setConfig(previous => Object.fromEntries(Object.entries(previous).filter(([key]) => !provider.fields.some(field => field.k === key && field.secret))));
+      setConfig((previous) =>
+        Object.fromEntries(
+          Object.entries(previous).filter(
+            ([key]) =>
+              !provider.fields.some((field) => field.k === key && field.secret),
+          ),
+        ),
+      );
       flash(apiKey.trim() ? 'Key saved ✓' : 'Saved ✓');
       await onChanged();
     }
@@ -2704,7 +2853,11 @@ function ProviderKeyCard({
                 [field.k]: event.target.value,
               }))
             }
-            placeholder={field.secret ? 'Leave blank to keep saved secret' : field.placeholder}
+            placeholder={
+              field.secret
+                ? 'Leave blank to keep saved secret'
+                : field.placeholder
+            }
             className="mt-1 h-9 border-hairline bg-surface-muted text-xs"
           />
         </div>

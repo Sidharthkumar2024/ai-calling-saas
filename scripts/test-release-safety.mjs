@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { compileFunction } from 'node:vm';
 import ts from 'typescript';
 import * as catalog from '../lib/commercial-catalog.ts';
-import { reserveRealtime, refundRealtime } from '../lib/realtime-reservations.ts';
+import { reserveRealtime, refundRealtime, reconcileAsNotStarted, reconcileAsStarted, pendingReconciliations } from '../lib/realtime-reservations.ts';
 import { exotelCredits, settleExotel } from '../lib/exotel-settlement.ts';
 import { settlePlaygroundTurn } from '../lib/playground-settlement.ts';
 import { browserCallCredits, settleBrowserCall, closeStaleReservations } from '../lib/browser-call-settlement.ts';
@@ -20,7 +20,7 @@ CREATE TABLE call_records(id TEXT PRIMARY KEY,organization_id TEXT,cost_credits 
 sqlite.exec(readFileSync(new URL('../drizzle/0009_naive_lionheart.sql',import.meta.url),'utf8'));
 let injectFailure = false;
 const db = {
-  prepare(sql) { return { sql, args: [], bind(...args) { this.args=args; return this; }, async first(){return sqlite.prepare(sql).get(...this.args) ?? null;}, async run(){return sqlite.prepare(sql).run(...this.args);} }; },
+  prepare(sql) { return { sql, args: [], bind(...args) { this.args=args; return this; }, async first(){return sqlite.prepare(sql).get(...this.args) ?? null;}, async all(){return {results: sqlite.prepare(sql).all(...this.args)};}, async run(){const r=sqlite.prepare(sql).run(...this.args); return {...r, meta:{changes:r.changes}};} }; },
   async batch(statements) { sqlite.exec('BEGIN'); try { const results=statements.map(s=>{ if(injectFailure && s.sql.startsWith('INSERT INTO credit_ledger')) throw new Error('ledger failure'); return sqlite.prepare(s.sql).run(...s.args); }); sqlite.exec('COMMIT'); return results; }catch(e){sqlite.exec('ROLLBACK');throw e;} },
 };
 const reserve = (id, hash='offer',org='org') => reserveRealtime(db,{id,organizationId:org,agentId:'agent',requestHash:hash});
@@ -228,4 +228,34 @@ assert.equal(sqlite.prepare("SELECT status FROM realtime_reservations WHERE id='
 sqlite.prepare("DELETE FROM realtime_reservations WHERE id='fresh'").run();
 assert.equal((await reserve('after-release','hash-ar')).status,'reserved');
 
-sqlite.close();console.log('Release safety: reservation races, replay, refunds, rollback, Exotel settlement, debt, playground turn settlement, browser call reservation and settlement, concurrency ceiling, stale reservation release, catalog publication, preserved contracts, pricing and API contract passed.');
+// --- reconciliation ------------------------------------------------------------
+// An uncertain negotiation parks the reservation and keeps the credits held.
+// Nothing listed those rows and nothing resolved them, so a workspace was
+// simply ten credits short with no line anywhere saying why.
+sqlite.prepare("DELETE FROM realtime_reservations").run();
+sqlite.prepare("UPDATE organization_wallets SET balance=100 WHERE organization_id='org'").run();
+await reserve('uncertain-a','h-a');await reserve('uncertain-b','h-b');
+sqlite.prepare("UPDATE realtime_reservations SET status='reconciliation_required', error_code='acceptance_uncertain' WHERE id IN ('uncertain-a','uncertain-b')").run();
+const held = balance();
+const queue = await pendingReconciliations(db,'org');
+assert.equal(queue.length,2);
+// Resolved as never started: the customer gets the credits back, once.
+const refundOutcome = await reconcileAsNotStarted(db,'uncertain-a','provider shows no session');
+assert.equal(refundOutcome.resolved,true);assert.equal(balance(),held+10);
+assert.equal(sqlite.prepare("SELECT status FROM realtime_reservations WHERE id='uncertain-a'").get().status,'refunded');
+const twice = await reconcileAsNotStarted(db,'uncertain-a','again');
+assert.equal(twice.resolved,false);assert.equal(balance(),held+10);
+// Resolved as started: the reservation becomes the charge, with no second debit.
+const settledOutcome = await reconcileAsStarted(db,'uncertain-b','provider invoice shows the session');
+assert.equal(settledOutcome.resolved,true);assert.equal(balance(),held+10);
+assert.equal(sqlite.prepare("SELECT status FROM realtime_reservations WHERE id='uncertain-b'").get().status,'settled');
+assert.equal((await reconcileAsStarted(db,'uncertain-b','again')).resolved,false);
+// The queue empties as they are resolved.
+assert.equal((await pendingReconciliations(db,'org')).length,0);
+// A normal reservation cannot be resolved through this path — it is not parked.
+await reserve('normal','h-normal');
+assert.equal((await reconcileAsNotStarted(db,'normal','wrong path')).resolved,false);
+assert.equal((await reconcileAsStarted(db,'normal','wrong path')).resolved,false);
+assert.equal(sqlite.prepare("SELECT status FROM realtime_reservations WHERE id='normal'").get().status,'reserved');
+
+sqlite.close();console.log('Release safety: reservation races, replay, refunds, rollback, Exotel settlement, debt, playground turn settlement, browser call reservation and settlement, concurrency ceiling, stale reservation release, reconciliation, catalog publication, preserved contracts, pricing and API contract passed.');

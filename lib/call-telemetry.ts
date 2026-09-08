@@ -1,6 +1,7 @@
 import { getRawDb } from '@/db/index';
 import { normaliseOutcome } from '@/lib/call-outcomes';
 import { enqueueJob } from '@/lib/job-enqueue';
+import { MAX_CALL_MINUTES } from '@/lib/call-limits';
 
 /**
  * Call telemetry writer (§11-12).
@@ -233,10 +234,20 @@ export async function closeIdlePlaygroundCalls(
       WHERE c.organization_id = ? AND c.channel IN ('playground', 'browser')
         AND c.status = 'in_progress'
         AND (
-          SELECT coalesce(max(t.created_at), c.started_at) FROM call_turns t WHERE t.call_id = c.id
-        ) <= datetime('now', ?)
+          (
+            SELECT coalesce(max(t.created_at), c.started_at) FROM call_turns t WHERE t.call_id = c.id
+          ) <= datetime('now', ?)
+          -- The ceiling, regardless of activity. A call with a turn every
+          -- minute never goes idle, so without this it runs until someone
+          -- closes the tab — and bills a supplier for every minute of it.
+          OR c.started_at <= datetime('now', ?)
+        )
       LIMIT 50`)
-    .bind(organizationId, `-${idleMinutes} minutes`)
+    .bind(
+      organizationId,
+      `-${idleMinutes} minutes`,
+      `-${MAX_CALL_MINUTES} minutes`,
+    )
     .all<{ id: string; channel: string }>();
   let closed = 0;
   for (const row of stale.results ?? []) {

@@ -187,13 +187,17 @@ export async function POST(
     requestHash: await realtimeDigest(`${widget.id}:${sessionId}`),
   });
   if (reservation.status !== 'reserved' && !reservation.replay) {
+    // A visitor is told the same thing either way — the assistant is busy —
+    // but the workspace's own record says which it was, because "out of
+    // credits" and "six calls already running" need different answers.
+    const atCapacity = reservation.status === 'at_capacity';
     await db
       .prepare(
-        `UPDATE call_records SET status = 'failed', disconnect_reason = 'insufficient_credits' WHERE id = ?`,
+        `UPDATE call_records SET status = 'failed', disconnect_reason = ? WHERE id = ?`,
       )
-      .bind(callId)
+      .bind(atCapacity ? 'at_capacity' : 'insufficient_credits', callId)
       .run();
-    await record('refused', 'no_credit', callId);
+    await record('refused', atCapacity ? 'at_capacity' : 'no_credit', callId);
     return refuse(origin, 'no_credit');
   }
   await record('started', null, callId);

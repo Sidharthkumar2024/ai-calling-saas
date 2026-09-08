@@ -1,4 +1,8 @@
 /** Session tariff, deliberately NOT a per-minute voice rate. */
+// Relative, with the extension: this module is loaded directly by
+// `scripts/test-release-safety.mjs`, where `@/lib/...` does not resolve.
+import { MAX_CONCURRENT_CALLS } from './call-limits.ts';
+
 export const REALTIME_CREDITS = 10;
 export const REALTIME_UNIT = 'realtime_session_v1';
 
@@ -21,8 +25,20 @@ export async function realtimeDigest(value: string) {
 // D1 batch is transactional. An unconditional unique INSERT is the owner gate:
 // a duplicate must roll back, never reuse an earlier reservation's debit predicate.
 export const RESERVE_SQL = [
+  // Two conditions decide the status, in one statement, because deciding them
+  // in JavaScript and inserting afterwards is the count-then-act race this
+  // table exists to close: money, and how many calls this workspace already
+  // has open. Outstanding reservations *are* the open calls, so the cap reads
+  // the same row it is about to add to.
   `INSERT INTO realtime_reservations (id, organization_id, agent_id, request_hash, unit, credits, status)
-   VALUES (?, ?, ?, ?, ?, ?, CASE WHEN coalesce((SELECT balance FROM organization_wallets WHERE organization_id = ?), 0) >= ? THEN 'reserved' ELSE 'insufficient' END)`,
+   VALUES (?, ?, ?, ?, ?, ?,
+     CASE
+       WHEN coalesce((SELECT balance FROM organization_wallets WHERE organization_id = ?), 0) < ?
+         THEN 'insufficient'
+       WHEN (SELECT count(*) FROM realtime_reservations WHERE organization_id = ? AND status = 'reserved') >= ?
+         THEN 'at_capacity'
+       ELSE 'reserved'
+     END)`,
   `UPDATE organization_wallets SET balance = balance - ?, updated_at = CURRENT_TIMESTAMP
    WHERE organization_id = ? AND EXISTS (SELECT 1 FROM realtime_reservations WHERE id = ? AND status = 'reserved')`,
   `INSERT INTO credit_ledger (id, organization_id, type, amount, balance_after, reference_type, reference_id, description)
@@ -56,6 +72,8 @@ export async function reserveRealtime(
           REALTIME_CREDITS,
           org,
           REALTIME_CREDITS,
+          org,
+          MAX_CONCURRENT_CALLS,
         ),
       db.prepare(RESERVE_SQL[1]).bind(REALTIME_CREDITS, org, id),
       db

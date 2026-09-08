@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { settleBrowserCall } from '@/lib/browser-call-settlement';
+import { MAX_CONCURRENT_CALLS, concurrencyVerdict } from '@/lib/call-limits';
 import { realtimeDigest, reserveRealtime } from '@/lib/realtime-reservations';
 
 import { ensureSchema } from '@/db/bootstrap';
@@ -301,15 +302,24 @@ export async function POST(request: Request) {
     ),
   });
   if (reservation.status !== 'reserved' && !reservation.replay) {
+    // Two different refusals, said differently. "Out of credits" when the
+    // wallet is empty; the number of open calls when it is not, because
+    // telling someone to top up a wallet that is full is the kind of advice
+    // that costs a support ticket.
+    const atCapacity = reservation.status === 'at_capacity';
     await db
       .prepare(
-        `UPDATE call_records SET status = 'failed', disconnect_reason = 'insufficient_credits' WHERE id = ?`,
+        `UPDATE call_records SET status = 'failed', disconnect_reason = ? WHERE id = ?`,
       )
-      .bind(callId)
+      .bind(atCapacity ? 'at_capacity' : 'insufficient_credits', callId)
       .run();
     return NextResponse.json(
-      { error: 'At least 10 credits are required to start a call.' },
-      { status: 402 },
+      {
+        error: atCapacity
+          ? concurrencyVerdict(MAX_CONCURRENT_CALLS).reason
+          : 'At least 10 credits are required to start a call.',
+      },
+      { status: atCapacity ? 429 : 402 },
     );
   }
   await db

@@ -8,6 +8,7 @@ import { reserveRealtime, refundRealtime } from '../lib/realtime-reservations.ts
 import { exotelCredits, settleExotel } from '../lib/exotel-settlement.ts';
 import { settlePlaygroundTurn } from '../lib/playground-settlement.ts';
 import { browserCallCredits, settleBrowserCall } from '../lib/browser-call-settlement.ts';
+import { MAX_CONCURRENT_CALLS } from '../lib/call-limits.ts';
 import { contribution, PLANS, CREDIT_PACKS } from '../lib/commercial-catalog.ts';
 import { PUBLIC_API_SPEC } from '../lib/public-api-spec.ts';
 const sqlite = new DatabaseSync(':memory:');
@@ -173,4 +174,27 @@ assert.equal(sqlite.prepare("SELECT status FROM realtime_reservations WHERE id='
 const sweptAgain = await settleBrowserCall(db,{organizationId:'org',callId:'abandoned',seconds:0});
 assert.equal(sweptAgain.alreadySettled,true);assert.equal(balance(),90);
 
-sqlite.close();console.log('Release safety: reservation races, replay, refunds, rollback, Exotel settlement, debt, playground turn settlement, browser call reservation and settlement, catalog publication, preserved contracts, pricing and API contract passed.');
+// --- concurrency ceiling -------------------------------------------------------
+// A reservation holds one started minute, which is the right floor and no
+// ceiling at all: nothing stopped a workspace opening calls in parallel, each
+// holding ten credits and each free to run for an hour.
+sqlite.prepare("DELETE FROM realtime_reservations").run();
+sqlite.prepare("UPDATE organization_wallets SET balance=1000 WHERE organization_id='org'").run();
+const opened=[];
+for (let i=0;i<MAX_CONCURRENT_CALLS;i+=1) opened.push(await reserve(`cap${i}`,`hash${i}`));
+assert.equal(opened.filter(r=>r.status==='reserved').length,MAX_CONCURRENT_CALLS);
+// The one past the limit is refused, and the wallet is not touched for it.
+const beforeCap=balance();
+const overflow=await reserve('cap-overflow','hash-overflow');
+assert.equal(overflow.status,'at_capacity');
+assert.equal(balance(),beforeCap);
+assert.equal(sqlite.prepare("SELECT count(*) n FROM credit_ledger WHERE id='debit_cap-overflow'").get().n,0);
+// Ending one makes room for exactly one more.
+sqlite.prepare("INSERT INTO call_records VALUES ('cap0','org',0)").run();
+await settleBrowserCall(db,{organizationId:'org',callId:'cap0',seconds:30});
+assert.equal((await reserve('cap-after','hash-after')).status,'reserved');
+// Another workspace's open calls are not counted against this one.
+sqlite.prepare("UPDATE organization_wallets SET balance=1000 WHERE organization_id='other'").run();
+assert.equal((await reserve('other-cap','hash-other','other')).status,'reserved');
+
+sqlite.close();console.log('Release safety: reservation races, replay, refunds, rollback, Exotel settlement, debt, playground turn settlement, browser call reservation and settlement, concurrency ceiling, catalog publication, preserved contracts, pricing and API contract passed.');

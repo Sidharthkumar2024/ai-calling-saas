@@ -2432,6 +2432,11 @@ async function bootstrap() {
     'INTEGER DEFAULT 1 NOT NULL',
   );
   await ensureColumn(db, 'handoffs', 'queue_id', 'TEXT');
+  // `realtime_reservations` arrives through migration 0009 and its heartbeat
+  // column through 0010, which reach a deployed database and not a bootstrapped
+  // one. Without this a dev or test database has the table and not the column,
+  // and every heartbeat fails on a database that looks otherwise healthy.
+  await ensureColumn(db, 'realtime_reservations', 'last_heartbeat_at', 'TEXT');
   await ensureColumn(db, 'handoffs', 'call_id', 'TEXT');
   await ensureColumn(db, 'handoffs', 'enqueued_at', 'TEXT');
   await ensureColumn(db, 'handoffs', 'accepted_at', 'TEXT');

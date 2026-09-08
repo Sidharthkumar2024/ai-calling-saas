@@ -534,7 +534,9 @@ function SettingsPanel({
                 className="input-select"
               >
                 <option value="Vaani Sense Fast">Call Vani Sense Fast</option>
-                <option value="Vaani Sense Balanced">Call Vani Sense Balanced</option>
+                <option value="Vaani Sense Balanced">
+                  Call Vani Sense Balanced
+                </option>
                 <option value="Vaani Sense Deep">Call Vani Sense Deep</option>
               </select>
             </Field>
@@ -654,7 +656,9 @@ function SettingsPanel({
                 {!filteredVoices.some(
                   (voice) => voice.publicName === draft.voiceName,
                 ) ? (
-                  <option value={draft.voiceName}>{displayBrand(draft.voiceName)}</option>
+                  <option value={draft.voiceName}>
+                    {displayBrand(draft.voiceName)}
+                  </option>
                 ) : null}
                 {filteredVoices.map((voice) => (
                   <option key={voice.id} value={voice.publicName}>
@@ -679,7 +683,9 @@ function SettingsPanel({
                 className={`rounded-xl border p-3 text-left ${draft.voiceName === voice.publicName ? 'border-violet-300/20 bg-violet-300/[0.04]' : 'border-hairline bg-surface-muted'}`}
               >
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-medium">{displayBrand(voice.publicName)}</p>
+                  <p className="text-xs font-medium">
+                    {displayBrand(voice.publicName)}
+                  </p>
                   <span className="text-[11px] capitalize text-ink-muted">
                     {voice.style}
                   </span>
@@ -994,6 +1000,15 @@ function TestConsole({
   const voiceActiveRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const peerRef = useRef<RTCPeerConnection | null>(null);
+  /**
+   * Keeps the session's heartbeat running.
+   *
+   * The negotiation is browser-to-provider, so this tab is the only thing that
+   * knows the session is still alive. Without these beats the server can only
+   * bill the first minute of any realtime session, however long it runs — the
+   * endpoint existed and nothing called it.
+   */
+  const heartbeatRef = useRef<number | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const dataChannelRef = useRef<RTCDataChannel | null>(null);
   const realtimeAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -1043,6 +1058,8 @@ function TestConsole({
       audioRef.current?.pause();
       dataChannelRef.current?.close();
       peerRef.current?.close();
+      if (heartbeatRef.current !== null)
+        window.clearInterval(heartbeatRef.current);
       mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
       realtimeAudioRef.current?.pause();
       if ('speechSynthesis' in window) window.speechSynthesis.cancel();
@@ -1182,7 +1199,9 @@ function TestConsole({
 
   async function beginVoiceConversation() {
     if (realtimePendingRef.current) {
-      setError('A previous realtime request needs review. Check its session ID and wallet with support before starting another paid session.');
+      setError(
+        'A previous realtime request needs review. Check its session ID and wallet with support before starting another paid session.',
+      );
       return;
     }
     voiceActiveRef.current = true;
@@ -1195,7 +1214,11 @@ function TestConsole({
         return;
       } catch (error) {
         cleanupRealtime();
-        if (!(error instanceof Error) || error.name !== 'RealtimeFallbackAllowed') throw error;
+        if (
+          !(error instanceof Error) ||
+          error.name !== 'RealtimeFallbackAllowed'
+        )
+          throw error;
         setPipelineMode('fallback');
       }
       if (!sessionId) {
@@ -1457,15 +1480,27 @@ function TestConsole({
         error?: string;
       };
       const reference = (payload as { sessionId?: string }).sessionId;
-      if ((payload as { fallback?: boolean }).fallback === true || [400, 401, 402, 403, 404].includes(response.status)) realtimePendingRef.current = false;
-      const error = new Error((payload.error ?? 'Realtime provider is unavailable.') + (reference ? ` Session: ${reference}` : ''));
-      error.name = (payload as { fallback?: boolean }).fallback === true ? 'RealtimeFallbackAllowed' : 'RealtimeNeedsReview';
+      if (
+        (payload as { fallback?: boolean }).fallback === true ||
+        [400, 401, 402, 403, 404].includes(response.status)
+      )
+        realtimePendingRef.current = false;
+      const error = new Error(
+        (payload.error ?? 'Realtime provider is unavailable.') +
+          (reference ? ` Session: ${reference}` : ''),
+      );
+      error.name =
+        (payload as { fallback?: boolean }).fallback === true
+          ? 'RealtimeFallbackAllowed'
+          : 'RealtimeNeedsReview';
       throw error;
     }
     const answerSdp = await response.text();
     await peer.setRemoteDescription({ type: 'answer', sdp: answerSdp });
     realtimePendingRef.current = false;
-    setSessionId(response.headers.get('x-vaani-session-id') ?? '');
+    const realtimeSessionId = response.headers.get('x-vaani-session-id') ?? '';
+    setSessionId(realtimeSessionId);
+    if (realtimeSessionId) startHeartbeat(realtimeSessionId);
     setCredits(
       Number(response.headers.get('x-vaani-credits-remaining') ?? credits - 10),
     );
@@ -1549,7 +1584,46 @@ function TestConsole({
     }
   }
 
+  /**
+   * Beats every thirty seconds, and stops the moment the server says the
+   * session is gone.
+   *
+   * `alive: false` means the reservation was already closed — swept, refunded
+   * or reconciled — so continuing to beat would be talking to something that
+   * no longer exists.
+   */
+  function startHeartbeat(realtimeSessionId: string) {
+    stopHeartbeat();
+    const beat = async () => {
+      try {
+        const response = await fetch('/api/app/agents/realtime', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            action: 'heartbeat',
+            sessionId: realtimeSessionId,
+          }),
+        });
+        const body = (await response.json()) as { alive?: boolean };
+        if (body.alive === false) stopHeartbeat();
+      } catch {
+        // A missed beat is not an error worth showing: the next one either
+        // lands or the server's own grace window ends the session.
+      }
+    };
+    void beat();
+    heartbeatRef.current = window.setInterval(() => void beat(), 30_000);
+  }
+
+  function stopHeartbeat() {
+    if (heartbeatRef.current !== null) {
+      window.clearInterval(heartbeatRef.current);
+      heartbeatRef.current = null;
+    }
+  }
+
   function cleanupRealtime() {
+    stopHeartbeat();
     dataChannelRef.current?.close();
     dataChannelRef.current = null;
     peerRef.current?.close();
@@ -2101,7 +2175,15 @@ function VoiceOrb({
   const bars = [18, 34, 25, 46, 30, 54, 38, 48, 26, 40, 22];
   return (
     <section className="vani-voice-stage relative px-3 py-7 text-center">
-      <div className="mb-7 flex items-center justify-between gap-3 text-xs text-ink-muted"><span className="flex items-center gap-2"><span className={`size-2 rounded-full ${active ? 'bg-emerald-500 animate-pulse' : 'bg-emerald-300'}`} />{active ? 'Conversation in progress' : 'Browser voice test'}</span><span className="font-mono">{formatElapsed(elapsed)}</span></div>
+      <div className="mb-7 flex items-center justify-between gap-3 text-xs text-ink-muted">
+        <span className="flex items-center gap-2">
+          <span
+            className={`size-2 rounded-full ${active ? 'bg-emerald-500 animate-pulse' : 'bg-emerald-300'}`}
+          />
+          {active ? 'Conversation in progress' : 'Browser voice test'}
+        </span>
+        <span className="font-mono">{formatElapsed(elapsed)}</span>
+      </div>
       {/* The tinted radial behind the orb drew a visible square corner around
           a round thing. The orb carries its own light now. */}
       {/* Was `size-40 sm:size-44` — a fixed 160/176px that ignored the column
@@ -2186,7 +2268,9 @@ function VoiceOrb({
                 : pipelineMode === 'instant'
                   ? 'Instant reply'
                   : pipelineMode === 'checking'
-                    ? active ? 'Connecting voice…' : 'Connect when you start'
+                    ? active
+                      ? 'Connecting voice…'
+                      : 'Connect when you start'
                     : 'Browser fallback'}
           </span>
         </div>
@@ -2211,8 +2295,18 @@ function VoiceOrb({
             interruption. No phone number is dialled.
           </p>
         )}
-        <Button type="button" onClick={active ? onStop : onStart} variant={active ? 'outline' : 'default'} className="mt-5 rounded-full px-6">{active ? <PhoneOff /> : <Mic2 />}{active ? 'End conversation' : 'Start conversation'}</Button>
-        <p className="mt-3 text-xs leading-5 text-ink-muted">Microphone permission is requested when you start.</p>
+        <Button
+          type="button"
+          onClick={active ? onStop : onStart}
+          variant={active ? 'outline' : 'default'}
+          className="mt-5 rounded-full px-6"
+        >
+          {active ? <PhoneOff /> : <Mic2 />}
+          {active ? 'End conversation' : 'Start conversation'}
+        </Button>
+        <p className="mt-3 text-xs leading-5 text-ink-muted">
+          Microphone permission is requested when you start.
+        </p>
       </div>
     </section>
   );

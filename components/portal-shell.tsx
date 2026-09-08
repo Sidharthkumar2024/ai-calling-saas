@@ -14,6 +14,15 @@ import {
   X,
 } from 'lucide-react';
 
+import {
+  Command,
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
 import { NotificationBell } from '@/components/notification-center';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -62,6 +71,27 @@ export function PortalShell({
     .flatMap((group) => group.items)
     .find((item) => item.id === active);
   const [mobileOpen, setMobileOpen] = useState(false);
+  /**
+   * The command palette behind ⌘K.
+   *
+   * The header carried a box that looked like a search field and said ⌘K, and
+   * it was a `<div>` — no handler, no shortcut, nothing. A control that
+   * advertises a keyboard shortcut and ignores it is worse than no control:
+   * people try it, it fails silently, and they stop trusting the rest.
+   */
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      // ⌘K on a Mac, Ctrl+K everywhere else — the pairing every editor uses.
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setPaletteOpen((open) => !open);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const drawerRef = useRef<HTMLDialogElement>(null);
 
@@ -122,7 +152,7 @@ export function PortalShell({
             <Activity className="size-5" />
           </span>
           <span>
-            <span className="block text-sm font-semibold">Vaani</span>
+            <span className="block text-sm font-semibold">Call Vani</span>
             <span className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-muted">
               {mode === 'admin' ? 'Platform admin' : 'Revenue Voice OS'}
             </span>
@@ -138,7 +168,7 @@ export function PortalShell({
             </Avatar>
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs font-medium">
-                {workspace || 'Vaani Platform'}
+                {workspace || 'Call Vani Platform'}
               </p>
               <p className="truncate text-[11px] text-ink-muted">
                 {mode === 'admin' ? 'Global control plane' : 'Growth workspace'}
@@ -197,15 +227,22 @@ export function PortalShell({
               {activeItem?.label ?? 'Overview'}
             </p>
             <p className="hidden text-[11px] text-ink-muted sm:block">
-              {mode === 'admin' ? 'Vaani platform control plane' : workspace}
+              {mode === 'admin'
+                ? 'Call Vani platform control plane'
+                : workspace}
             </p>
           </div>
-          <div className="hidden w-56 items-center gap-2 rounded-lg border border-hairline bg-surface-muted px-3 py-2 text-[11px] text-ink-muted xl:flex">
-            <Search className="size-3.5" /> Search anything
+          <button
+            type="button"
+            onClick={() => setPaletteOpen(true)}
+            aria-keyshortcuts="Meta+K Control+K"
+            className="hidden w-56 items-center gap-2 rounded-lg border border-hairline bg-surface-muted px-3 py-2 text-[11px] text-ink-muted transition-colors hover:bg-surface-strong hover:text-ink xl:flex"
+          >
+            <Search className="size-3.5" /> {t('shell.jumpTo')}
             <span className="ml-auto rounded border border-hairline px-1.5 py-0.5">
               ⌘K
             </span>
-          </div>
+          </button>
           {typeof credits === 'number' ? (
             <button
               type="button"
@@ -254,6 +291,73 @@ export function PortalShell({
         {children}
       </section>
 
+      {/* Every section, filterable, keyed to the shortcut the header shows.
+          Sections only — it does not search leads or calls, and the empty
+          state says so rather than leaving someone typing a customer's name
+          into a box that will never find them. */}
+      <CommandDialog
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        title={t('shell.jumpTo')}
+        description={t('shell.jumpToHint')}
+      >
+        {/* `Command` is the cmdk root that holds the filter state. This
+            repo's `CommandDialog` renders a dialog and its children and does
+            not provide one, so `CommandInput` without it reaches for a store
+            that is not there and takes the whole page down with it. The build
+            and the linter were both happy; only opening the page was not. */}
+        <Command
+          // Escape is handled here, not left to the dialog. cmdk's root takes
+          // keydown for its own list navigation, and the dialog underneath
+          // never sees the key — so the palette opened and would not shut.
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              event.preventDefault();
+              setPaletteOpen(false);
+            }
+          }}
+        >
+          <CommandInput placeholder={t('shell.jumpToPlaceholder')} />
+          <CommandList>
+            <CommandEmpty>{t('shell.jumpToEmpty')}</CommandEmpty>
+            {groups.map((group) => (
+              <CommandGroup
+                key={group.label}
+                heading={
+                  group.translationKey ? t(group.translationKey) : group.label
+                }
+              >
+                {group.items.map((item) => (
+                  <CommandItem
+                    key={item.id}
+                    // The English label is kept in the searchable value as well
+                    // as the translated one: someone reading the portal in Hindi
+                    // still types "billing" as often as "बिलिंग".
+                    value={`${item.translationKey ? t(item.translationKey) : ''} ${item.label} ${item.id}`}
+                    onSelect={() => {
+                      onNavigate(item.id);
+                      setPaletteOpen(false);
+                    }}
+                  >
+                    <item.icon className="size-3.5" />
+                    <span>
+                      {item.translationKey
+                        ? t(item.translationKey)
+                        : item.label}
+                    </span>
+                    {item.badge ? (
+                      <span className="ml-auto text-[11px] text-ink-muted">
+                        {item.badge}
+                      </span>
+                    ) : null}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ))}
+          </CommandList>
+        </Command>
+      </CommandDialog>
+
       {/* Sits outside the scrolling section: a sheet fixed to the viewport must
           not inherit a transform or an overflow from the page under it. */}
       <dialog
@@ -269,7 +373,7 @@ export function PortalShell({
           </span>
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-semibold">
-              {workspace || 'Vaani Platform'}
+              {workspace || 'Call Vani Platform'}
             </p>
             <p className="truncate text-[11px] uppercase tracking-[0.18em] text-ink-muted">
               {mode === 'admin' ? 'Platform admin' : 'Revenue Voice OS'}

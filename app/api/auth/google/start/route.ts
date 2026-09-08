@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { createOpaqueToken, encryptSecret, sha256 } from '@/lib/security';
+import { googleAuthConfig } from '@/lib/google-auth-config';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,13 +18,13 @@ export async function GET(request: Request) {
       { error: 'Google sign-in is disabled by the platform admin.' },
       { status: 503 },
     );
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI;
-  if (!clientId || !redirectUri || !process.env.GOOGLE_CLIENT_SECRET)
+  const config = await googleAuthConfig();
+  if (!config)
     return NextResponse.json(
       { error: 'Google sign-in credentials are not configured.' },
       { status: 503 },
     );
+  const { clientId, redirectUri } = config;
   const state = createOpaqueToken('oauth_');
   const verifier = createOpaqueToken('pkce_');
   const challenge = base64Url(

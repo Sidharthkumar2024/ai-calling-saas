@@ -1,659 +1,450 @@
-import {
-  Activity,
-  ArrowRight,
-  BookOpenText,
-  Braces,
-  CheckCircle2,
-  CircleDollarSign,
-  Globe2,
-  KeyRound,
-  LockKeyhole,
-  PhoneCall,
-  ShieldCheck,
-} from 'lucide-react';
 import Link from 'next/link';
-
+import { Activity, ArrowRight, Download } from 'lucide-react';
 import { DocCode } from '@/components/doc-code';
+export const metadata = { title: 'API documentation | Call Vani' };
+const sections = [
+  ['quickstart', 'Quickstart'],
+  ['authentication', 'Authentication'],
+  ['leads', 'Lead API'],
+  ['credits', 'Wallet'],
+  ['forms', 'Forms & widgets'],
+  ['webhooks', 'Webhooks'],
+  ['errors', 'Errors & retries'],
+  ['billing', 'Usage & billing'],
+  ['integrations', 'Integration setup'],
+] as const;
+const leadExample = `# Set these on your server. Never expose API keys in browser code.
+export CALL_VANI_ORIGIN="https://YOUR_DEPLOYMENT_HOST"
+export CALL_VANI_API_KEY="vaani_live_YOUR_KEY"
 
-const leadExample = `curl --request POST \\
-  --url http://localhost:3000/api/v1/leads \\
-  --header 'Authorization: Bearer vaani_live_YOUR_KEY' \\
-  --header 'Content-Type: application/json' \\
-  --data '{
-    "sourceType": "meta_ads",
-    "externalLeadId": "meta-12345",
-    "name": "Aarav Khanna",
-    "phone": "+919876544210",
-    "email": "aarav@example.com",
-    "campaignName": "Gurugram Luxury Homes",
-    "productInterest": "3BHK property",
-    "notes": "Wants pricing and a site visit this week."
-  }'`;
+curl --fail-with-body "$CALL_VANI_ORIGIN/api/v1/leads" \\
+  -H "Authorization: Bearer $CALL_VANI_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"sourceType":"manual","externalLeadId":"crm-1042",
+       "name":"Aarav Mehta","phone":"+919876543210",
+       "productInterest":"Product demo","notes":"Requested a callback"}'`;
+const verifier = `import { createHmac, timingSafeEqual } from 'node:crypto';
 
-const formExample = `<form id="vaani-lead-form">
-  <input name="name" required />
-  <input name="phone" required />
-  <input name="email" type="email" />
-  <button>Request a call</button>
-</form>
-
-<script>
-document.querySelector('#vaani-lead-form')
-  .addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const data = Object.fromEntries(new FormData(event.target));
-    await fetch('http://localhost:3000/api/forms/form_urbannest/leads', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-  });
-</script>`;
-
-const verifyWebhookExample = `const signed = timestamp + '.' + rawRequestBody;
-const expected = hmacSha256(signingSecret, signed);
-
-// Header: X-Vaani-Signature: t=TIMESTAMP,v1=HEX_DIGEST
-if (!timingSafeEqual(expected, signature.v1)) {
-  throw new Error('Invalid webhook signature');
-}`;
-
-export default function DocsPage() {
-  return (
-    <main className="min-h-screen bg-surface-muted text-ink">
-      <header className="sticky top-0 z-40 border-b border-hairline bg-surface-muted/90 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-[1320px] items-center gap-4 px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-3">
-            <span className="grid size-9 place-items-center rounded-xl bg-amber-300 text-[#17120a]">
-              <Activity className="size-5" />
-            </span>
-            <span>
-              <span className="block text-sm font-semibold">Vaani</span>
-              <span className="block text-[11px] uppercase tracking-[0.18em] text-ink-muted">
-                Developer docs
-              </span>
-            </span>
-          </Link>
-          <div className="ml-auto flex items-center gap-2">
-            <Link
-              href="/admin/login"
-              className="hidden rounded-lg px-3 py-2 text-xs text-ink-muted hover:bg-surface-strong hover:text-ink sm:block"
-            >
-              Admin
-            </Link>
-            <Link
-              href="/login"
-              className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-xs font-medium text-primary-foreground hover:bg-[#1d4ed8]"
-            >
-              Open app <ArrowRight className="size-3.5" />
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <div className="mx-auto grid max-w-[1320px] lg:grid-cols-[230px_minmax(0,1fr)]">
-        <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] border-r border-hairline px-4 py-8 lg:block">
-          <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-muted">
-            Get started
-          </p>
-          <nav className="mt-3 space-y-1 text-xs text-ink-muted">
-            {[
-              ['Overview', '#overview'],
-              ['Authentication', '#authentication'],
-              ['Lead API', '#lead-api'],
-              ['Website forms', '#website-forms'],
-              ['Trial playground', '#playground'],
-              ['AI commerce', '#commerce'],
-              ['Webhooks', '#webhooks'],
-              ['Phone numbers', '#numbers'],
-              ['Billing', '#billing'],
-              ['Production backend', '#production-backend'],
-              ['Willow connector', '#willow'],
-              ['Architecture', '#architecture'],
-            ].map(([label, href]) => (
-              <a
-                key={href}
-                href={href}
-                className="block rounded-lg px-3 py-2 hover:bg-surface-strong hover:text-ink"
-              >
-                {label}
-              </a>
-            ))}
-          </nav>
-        </aside>
-
-        <article className="min-w-0 px-4 py-12 sm:px-8 lg:px-12 lg:py-16">
-          <section id="overview" className="scroll-mt-24">
-            <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/15 bg-amber-300/5 px-3 py-1.5 text-[11px] text-warning-text">
-              <BookOpenText className="size-3.5" /> API v1 · Localhost
-            </span>
-            <h1 className="mt-6 max-w-4xl text-4xl font-semibold leading-[1.02] tracking-[-0.05em] sm:text-6xl">
-              Build lead-to-call workflows on Vaani.
-            </h1>
-            <p className="mt-6 max-w-3xl text-base leading-7 text-ink-muted">
-              Capture leads, read wallet balance, receive signed call events and
-              connect existing systems without exposing the voice and telephony
-              providers behind Vaani.
-            </p>
-            <div className="mt-8 grid gap-3 sm:grid-cols-3">
-              <Info
-                icon={Globe2}
-                label="Base URL"
-                value="http://localhost:3000/api/v1"
-              />
-              <Info
-                icon={KeyRound}
-                label="Authentication"
-                value="Bearer API key"
-              />
-              <Info icon={Braces} label="Format" value="JSON · UTF-8" />
-            </div>
-          </section>
-
-          <DocSection
-            id="authentication"
-            eyebrow="01 · Authentication"
-            title="Scoped API keys, visible once"
-          >
-            <p>
-              Open <strong>Customer app → Integrations & API → API keys</strong>
-              . Create a separate key per server or website. Vaani returns the
-              secret once, stores only its SHA-256 hash, and records last usage
-              and revocation state.
-            </p>
-            <Code>{`Authorization: Bearer vaani_live_YOUR_KEY\nContent-Type: application/json`}</Code>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              {[
-                'leads:write — capture lead records',
-                'leads:read — list CRM leads',
-                'credits:read — read wallet balance',
-                'calls:write — reserved for call orchestration',
-              ].map((scope) => (
-                <div
-                  key={scope}
-                  className="flex items-center gap-2 rounded-xl border border-hairline bg-surface-muted p-3 text-xs text-ink-muted"
-                >
-                  <CheckCircle2 className="size-3.5 text-success-text" />{' '}
-                  {scope}
-                </div>
-              ))}
-            </div>
-          </DocSection>
-
-          <DocSection
-            id="lead-api"
-            eyebrow="02 · Lead API"
-            title="Capture, understand and queue the next action"
-          >
-            <Endpoint
-              method="POST"
-              path="/api/v1/leads"
-              note="Requires leads:write"
-            />
-            <p>
-              The response includes the normalized source, AI score, intent,
-              summary, queued call job and opportunity reference. Repeating the
-              same source + externalLeadId returns the existing lead instead of
-              creating a duplicate.
-            </p>
-            <Code>{leadExample}</Code>
-            <Endpoint
-              method="GET"
-              path="/api/v1/leads"
-              note="Requires leads:read"
-            />
-            <p>
-              Returns the latest 100 tenant-scoped leads in descending capture
-              order.
-            </p>
-            <Endpoint
-              method="GET"
-              path="/api/v1/credits"
-              note="Requires credits:read"
-            />
-            <p>
-              Returns current balance, low-balance threshold and wallet update
-              time.
-            </p>
-          </DocSection>
-
-          <DocSection
-            id="website-forms"
-            eyebrow="03 · Website forms"
-            title="Add Vaani to an existing popup or form"
-          >
-            <p>
-              Website forms use a public form key rather than a private API key.
-              Configure allowed domains in the customer workspace, then post the
-              visible form fields to the endpoint.
-            </p>
-            <Code>{formExample}</Code>
-            <div className="mt-5 rounded-xl border border-amber-300/12 bg-amber-300/[0.035] p-4 text-xs leading-5 text-ink-body">
-              <LockKeyhole className="mb-3 size-4 text-warning-text" />{' '}
-              Allowed-origin validation, payload limits and per-IP/per-form rate
-              limits run before ingestion. Add CAPTCHA/risk scoring at the edge
-              for a public high-volume campaign.
-            </div>
-          </DocSection>
-
-          <DocSection
-            id="playground"
-            eyebrow="04 · Trial playground"
-            title="Test an agent without placing a phone call"
-          >
-            <p>
-              Every new workspace receives <strong>100 trial credits</strong>{' '}
-              and one draft agent. Text chat and browser voice each use 10
-              credits per turn. Browser voice uses the browser microphone and
-              speech output only after the user starts it; no telephony provider
-              or phone number is involved.
-            </p>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Info
-                icon={PhoneCall}
-                label="Text chat"
-                value="10 credits / turn"
-              />
-              <Info
-                icon={PhoneCall}
-                label="Browser voice"
-                value="10 credits / turn"
-              />
-              <Info
-                icon={LockKeyhole}
-                label="Phone call"
-                value="Number + KYC required"
-              />
-            </div>
-            <Code>{`POST /api/app/agents/test
-{
-  "action": "start",
-  "agentId": "agent_...",
-  "mode": "browser_voice"
-}`}</Code>
-          </DocSection>
-
-          <DocSection
-            id="commerce"
-            eyebrow="05 · AI commerce"
-            title="Turn spoken intent into WhatsApp and Razorpay actions"
-          >
-            <p>
-              The agent can prepare product details, create a fixed-amount
-              Razorpay Payment Link, send it immediately using an approved
-              WhatsApp template, or store a durable scheduled action such as
-              “send it at 8 PM”. Tool results—not model claims—control CRM and
-              payment status.
-            </p>
-            <Code>{`RAZORPAY_KEY_ID=rzp_test_...
-RAZORPAY_KEY_SECRET=...
-RAZORPAY_WEBHOOK_SECRET=...
-WHATSAPP_ACCESS_TOKEN=...
-WHATSAPP_PHONE_NUMBER_ID=...
-WHATSAPP_PAYMENT_TEMPLATE=vaani_payment_link
-
-POST /api/webhooks/razorpay`}</Code>
-            <p>
-              Without credentials, localhost creates an explicitly labelled
-              sandbox link and message event. Razorpay webhooks require a public
-              HTTPS endpoint; the local “Run due actions” control processes
-              scheduled sandbox work without pretending that a provider
-              delivered it.
-            </p>
-          </DocSection>
-
-          <DocSection
-            id="webhooks"
-            eyebrow="06 · Webhooks"
-            title="Receive signed revenue events"
-          >
-            <p>
-              Create endpoints inside the customer app. Vaani supports{' '}
-              <code>lead.created</code>, <code>lead.qualified</code>,{' '}
-              <code>call.completed</code>, <code>appointment.booked</code> and{' '}
-              <code>credit.low</code>. Production URLs must use HTTPS; HTTP
-              localhost is allowed only for local testing.
-            </p>
-            <Code>{verifyWebhookExample}</Code>
-            <p>
-              Verify against the raw request body, reject timestamps outside a
-              five-minute tolerance, and deduplicate using the event{' '}
-              <code>id</code>. Failed deliveries enter the durable queue with
-              exponential retry, attempt history and a dead-letter terminal
-              state.
-            </p>
-          </DocSection>
-
-          <DocSection
-            id="numbers"
-            eyebrow="07 · Phone numbers"
-            title="Recommended hybrid number model"
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              <FlowCard
-                icon={PhoneCall}
-                title="Vaani-rented number"
-                recommended
-                points={[
-                  'Customer requests city/use case',
-                  'Business KYC and consent review',
-                  'Dedicated number allocation',
-                  'Assign agent and run two-way tests',
-                  'Rental + usage deducted from wallet',
-                ]}
-              />
-              <FlowCard
-                icon={ShieldCheck}
-                title="Bring your own carrier"
-                points={[
-                  'Verify existing number ownership',
-                  'Connect call forwarding or SIP',
-                  'Encrypt provider credentials',
-                  'KYC and approved caller identity',
-                  'Enterprise owns provider relationship',
-                ]}
-              />
-            </div>
-            <p>
-              Statuses are explicit: <code>not_submitted</code> →{' '}
-              <code>under_review</code> → <code>provider_review</code> →{' '}
-              <code>approved</code> → <code>active</code>. Ownership
-              verification alone does not activate outbound calling.
-            </p>
-          </DocSection>
-
-          <DocSection
-            id="billing"
-            eyebrow="08 · SaaS billing"
-            title="Plans, credits, invoices and payment webhooks"
-          >
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Info
-                icon={CircleDollarSign}
-                label="Free"
-                value="100 trial credits"
-              />
-              <Info
-                icon={CircleDollarSign}
-                label="Growth"
-                value="₹7,999 / month"
-              />
-              <Info
-                icon={CircleDollarSign}
-                label="Scale"
-                value="₹24,999 / month"
-              />
-            </div>
-            <p>
-              The customer chooses a plan or credit package. With Stripe
-              configured, Vaani creates a hosted Checkout Session. Only the
-              signed <code>checkout.session.completed</code> webhook changes the
-              subscription or wallet. Event IDs are recorded for idempotency,
-              credits are posted to the wallet and ledger, and a GST-ready
-              invoice record is generated.
-            </p>
-            <Code>{`STRIPE_SECRET_KEY=...\nSTRIPE_WEBHOOK_SECRET=...\nNEXT_PUBLIC_BASE_URL=http://localhost:3000\n\nPOST /api/webhooks/stripe`}</Code>
-            <p>
-              Without Stripe keys, localhost uses a clearly labelled sandbox
-              checkout. It never charges money but exercises the subscription,
-              wallet, ledger and invoice lifecycle.
-            </p>
-          </DocSection>
-
-          <DocSection
-            id="production-backend"
-            eyebrow="09 · Production backend"
-            title="P0/P1 execution, compliance and security APIs"
-          >
-            <p>
-              The customer APIs below require an authenticated tenant session.
-              The worker endpoint accepts either a platform-admin session or{' '}
-              <code>X-Vaani-Cron-Secret</code>.
-            </p>
-            <Endpoint
-              method="POST"
-              path="/api/app/calls"
-              note="Consent + DNC + wallet gated"
-            />
-            <Endpoint
-              method="GET · POST"
-              path="/api/app/compliance"
-              note="Consent, suppression and secure KYC"
-            />
-            <Endpoint
-              method="GET · POST"
-              path="/api/app/knowledge"
-              note="Source ingestion and retrieval"
-            />
-            <Endpoint
-              method="POST"
-              path="/api/app/workflows/run"
-              note="Durable workflow execution"
-            />
-            <Endpoint
-              method="GET · POST"
-              path="/api/app/retargeting"
-              note="Consent-aware audience sync"
-            />
-            <Endpoint
-              method="GET · POST · PATCH"
-              path="/api/app/team"
-              note="Invitations and tenant roles"
-            />
-            <Endpoint
-              method="GET · POST"
-              path="/api/auth/security"
-              note="TOTP MFA and session revocation"
-            />
-            <Endpoint
-              method="POST"
-              path="/api/internal/jobs"
-              note="Claims jobs, retries and dead letters"
-            />
-            <Code>{`# Never expose this secret to a browser
-curl -X POST http://localhost:3000/api/internal/jobs \\
-  -H 'X-Vaani-Cron-Secret: YOUR_CRON_SECRET'
-
-# Live calls require a public HTTPS callback and secure media stream
-PUBLIC_BASE_URL=https://api.yourdomain.com
-VOICE_STREAM_URL=wss://voice-gateway.yourdomain.com/media
-TELEPHONY_WEBHOOK_SECRET=...
-EXOTEL_ACCOUNT_SID=...
-EXOTEL_API_KEY=...
-EXOTEL_API_TOKEN=...
-EXOTEL_CALLER_ID=...`}</Code>
-          </DocSection>
-
-          <DocSection
-            id="willow"
-            eyebrow="10 · Connector status"
-            title="Willow is a custom adapter until its calling API is identified"
-          >
-            <div className="rounded-2xl border border-violet-300/12 bg-violet-300/[0.035] p-5">
-              <p className="text-sm font-medium">No fake vendor contract</p>
-              <p className="mt-2 text-xs leading-5 text-ink-muted">
-                The current app stores a Willow/custom base URL, account ID and
-                encrypted API key, but deliberately does not send a test
-                request. The connector becomes active after you supply the
-                official calling API documentation: base URL, authentication
-                header, create-call endpoint, inbound webhook format, status
-                values and signature rules.
-              </p>
-            </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {[
-                'Base URL and API version',
-                'API key or OAuth flow',
-                'Outbound call request/response',
-                'Inbound and status webhooks',
-                'Retry and rate limits',
-                'Webhook signature verification',
-              ].map((item) => (
-                <div
-                  key={item}
-                  className="flex items-center gap-2 rounded-xl border border-hairline bg-surface-muted p-3 text-xs text-ink-muted"
-                >
-                  <CheckCircle2 className="size-3.5 text-violet-700" /> {item}
-                </div>
-              ))}
-            </div>
-          </DocSection>
-
-          <DocSection
-            id="architecture"
-            eyebrow="11 · Architecture"
-            title="Backend boundaries that keep the SaaS safe"
-          >
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {[
-                [
-                  'Identity',
-                  'Separate portals, HttpOnly sessions, TOTP MFA, reset challenges and server-side role checks',
-                ],
-                [
-                  'Tenant data',
-                  'Every CRM, number, key, invoice and webhook query is organization-scoped',
-                ],
-                [
-                  'Secrets',
-                  'AES-GCM encrypted integration secrets; API keys stored hash-only',
-                ],
-                [
-                  'Billing',
-                  'Signed webhooks, reconciliation, refunds, idempotent events and atomic wallet updates',
-                ],
-                [
-                  'Telephony',
-                  'Public Vaani Connect abstraction with KYC and test-call activation gates',
-                ],
-                [
-                  'Execution',
-                  'Locked jobs, exponential retry, attempt history and dead-letter state',
-                ],
-                [
-                  'Audit',
-                  'Sensitive mutations record actor, organization, target and metadata',
-                ],
-              ].map(([title, note]) => (
-                <div
-                  key={title}
-                  className="rounded-2xl border border-hairline bg-surface p-5"
-                >
-                  <h3 className="text-sm font-medium">{title}</h3>
-                  <p className="mt-3 text-xs leading-5 text-ink-muted">
-                    {note}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </DocSection>
-        </article>
-      </div>
-    </main>
-  );
+export function verifyWebhook(rawBody, header, secret) {
+  if (!secret || typeof header !== 'string') return false;
+  const match = /^t=(\\d+),v1=([a-f0-9]{64})$/.exec(header);
+  if (!match) return false;
+  const timestamp = Number(match[1]);
+  if (!Number.isSafeInteger(timestamp) ||
+      Math.abs(Date.now() / 1000 - timestamp) > 300) return false;
+  const expected = createHmac('sha256', secret)
+    .update(match[1] + '.').update(rawBody).digest();
+  const received = Buffer.from(match[2], 'hex');
+  return received.length === expected.length &&
+    timingSafeEqual(received, expected);
 }
-
-function DocSection({
+// Pass the exact raw request bytes BEFORE parsing JSON.
+// Verify X-Vaani-Signature, then deduplicate payload.id durably.
+// Return 2xx only after your queue has durably accepted the event.`;
+function Section({
   id,
-  eyebrow,
   title,
   children,
 }: {
   id: string;
-  eyebrow: string;
   title: string;
   children: React.ReactNode;
 }) {
   return (
-    <section
-      id={id}
-      className="scroll-mt-24 border-t border-hairline py-12 first:border-t-0 sm:py-16"
-    >
-      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-warning-text">
-        {eyebrow}
-      </p>
-      <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
-        {title}
-      </h2>
-      <div className="mt-5 space-y-5 text-sm leading-7 text-ink-muted [&_code]:rounded [&_code]:bg-surface-strong [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[12px] [&_code]:text-cyan-700 [&_strong]:font-medium [&_strong]:text-ink">
+    <section id={id} className="scroll-mt-28 border-t border-hairline py-10">
+      <h2 className="mb-5 text-2xl font-semibold tracking-tight">{title}</h2>
+      <div className="space-y-5 text-base leading-7 text-ink-body">
         {children}
       </div>
     </section>
   );
 }
-function Code({ children }: { children: string }) {
-  return <DocCode>{children}</DocCode>;
-}
 function Endpoint({
   method,
   path,
-  note,
+  scope,
 }: {
   method: string;
   path: string;
-  note: string;
+  scope: string;
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface p-4 sm:flex-row sm:items-center">
-      <span className="w-fit rounded-md bg-emerald-400/10 px-2 py-1 font-mono text-[11px] font-semibold text-success-text">
+    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-hairline bg-surface-muted p-4">
+      <span className="rounded-md bg-primary px-2 py-1 text-sm font-semibold text-primary-foreground">
         {method}
       </span>
-      <code className="font-mono text-xs text-ink">{path}</code>
-      <span className="text-[11px] text-ink-muted sm:ml-auto">{note}</span>
+      <code className="break-all text-sm">{path}</code>
+      <span className="text-sm text-ink-muted">{scope}</span>
     </div>
   );
 }
-function Info({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: typeof Globe2;
-  label: string;
-  value: string;
-}) {
+export default function DocsPage() {
   return (
-    <div className="rounded-2xl border border-hairline bg-surface p-4">
-      <Icon className="size-4 text-warning-text" />
-      <p className="mt-4 text-[11px] uppercase tracking-[0.14em] text-ink-muted">
-        {label}
-      </p>
-      <p className="mt-2 text-xs font-medium text-ink">{value}</p>
-    </div>
-  );
-}
-function FlowCard({
-  icon: Icon,
-  title,
-  points,
-  recommended,
-}: {
-  icon: typeof PhoneCall;
-  title: string;
-  points: string[];
-  recommended?: boolean;
-}) {
-  return (
-    <div
-      className={`rounded-2xl border p-5 ${recommended ? 'border-amber-300/18 bg-amber-300/[0.035]' : 'border-hairline bg-surface'}`}
-    >
-      <div className="flex items-center justify-between">
-        <Icon className="size-4 text-warning-text" />
-        {recommended ? (
-          <span className="rounded-full bg-amber-300 px-2 py-1 text-[11px] font-semibold text-black">
-            Recommended
+    <main className="cv-api-docs min-h-screen bg-surface text-ink">
+      <header className="sticky top-0 z-40 border-b border-hairline bg-surface/95 backdrop-blur">
+        <div className="mx-auto flex min-h-20 max-w-[1320px] items-center gap-3 px-4 sm:px-6">
+          <Link
+            href="/"
+            className="flex items-center gap-2 text-lg font-semibold"
+          >
+            <Activity className="size-8 text-primary" />
+            Call Vani
+          </Link>
+          <span className="hidden text-sm text-ink-muted sm:inline">
+            Developers
           </span>
-        ) : null}
+          <Link
+            href="/login"
+            className="ml-auto inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm text-primary-foreground"
+          >
+            Open app
+            <ArrowRight size={16} />
+          </Link>
+        </div>
+      </header>
+      <div className="mx-auto grid max-w-[1320px] lg:grid-cols-[230px_minmax(0,1fr)]">
+        <aside className="border-b border-hairline p-4 lg:sticky lg:top-20 lg:h-[calc(100svh-5rem)] lg:border-r lg:p-6">
+          <nav
+            aria-label="Documentation"
+            className="flex flex-wrap gap-2 lg:flex-col"
+          >
+            {sections.map(([id, label]) => (
+              <a
+                key={id}
+                href={'#' + id}
+                className="rounded-lg px-3 py-2 text-sm text-ink-muted hover:bg-surface-muted"
+              >
+                {label}
+              </a>
+            ))}
+          </nav>
+          <Link
+            href="/docs/openapi.json"
+            className="mt-5 inline-flex items-center gap-2 px-3 text-sm font-medium text-primary"
+          >
+            <Download size={16} />
+            OpenAPI 3.1 JSON
+          </Link>
+        </aside>
+        <article className="min-w-0 px-4 py-10 sm:px-8 lg:px-12">
+          <p className="text-sm font-medium text-primary">
+            API v1 · reviewed 8 September 2026
+          </p>
+          <h1 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
+            From your systems
+            <br />
+            to the next conversation.
+          </h1>
+          <p className="my-6 max-w-2xl text-lg leading-8 text-ink-muted">
+            Capture leads, read your workspace wallet and receive signed lead
+            events. These examples describe the endpoints implemented in this
+            build.
+          </p>
+          <p className="mb-8 rounded-xl border border-hairline bg-surface-muted p-4 text-sm leading-6">
+            Base URL:{' '}
+            <code className="break-all">
+              https://YOUR_DEPLOYMENT_HOST/api/v1
+            </code>
+            . For local testing use <code>http://localhost:3000/api/v1</code>.
+            There is no public call-creation API in v1.
+          </p>
+          <Section id="quickstart" title="01 / Send your first lead">
+            <ol className="list-decimal space-y-2 pl-5">
+              <li>Sign in and configure the lead source in your workspace.</li>
+              <li>
+                Open Integrations &amp; API → API keys. Create a server-side key
+                with <code>leads:write</code>.
+              </li>
+              <li>
+                Save the secret when shown, then run this request on your
+                server.
+              </li>
+            </ol>
+            <DocCode>{leadExample}</DocCode>
+            <p>
+              Success is HTTP 201 with <code>{'{ "data": { …lead } }'}</code>.
+              Scoring is currently rule-based. A queued call job is not proof
+              that a telephone call was placed; provider setup, consent, balance
+              and execution gates still apply.
+            </p>
+          </Section>
+          <Section id="authentication" title="02 / Authentication & scopes">
+            <p>
+              Send <code>Authorization: Bearer vaani_live_…</code>. Keys are
+              shown once, hashed at rest, tenant-scoped and revocable. Create
+              separate keys per server and give each only the required scope.
+              Never put a private key in a website, mobile bundle, URL or log.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {['leads:read', 'leads:write', 'credits:read'].map((scope) => (
+                <code
+                  className="rounded-xl bg-surface-muted p-4 text-sm"
+                  key={scope}
+                >
+                  {scope}
+                </code>
+              ))}
+            </div>
+            <p>
+              <code>calls:write</code> is reserved; no v1 route consumes it.{' '}
+              <code>/api/app/*</code> and <code>/api/admin/*</code> are
+              session-authenticated interfaces, not public bearer-key APIs.
+              Revoke and replace a leaked key immediately.
+            </p>
+          </Section>
+          <Section id="leads" title="03 / Lead API">
+            <Endpoint method="POST" path="/api/v1/leads" scope="leads:write" />
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[420px] text-left text-sm">
+                <thead>
+                  <tr>
+                    <th className="py-3">Field</th>
+                    <th>Contract</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    [
+                      'sourceType',
+                      'Required: meta_ads, google_ads, website_form or manual',
+                    ],
+                    ['name', 'Required string; trimmed length at least 2'],
+                    [
+                      'phone',
+                      'Required string; at least 8 characters. Send international format.',
+                    ],
+                    [
+                      'externalLeadId',
+                      'Optional stable source ID for deduplicating the lead row',
+                    ],
+                    [
+                      'email / campaignName / productInterest / notes',
+                      'Optional strings',
+                    ],
+                    [
+                      'estimatedValue',
+                      'Optional nonnegative number, rounded to an integer',
+                    ],
+                  ].map(([f, d]) => (
+                    <tr className="border-t border-hairline" key={f}>
+                      <td className="py-3 pr-4 font-mono">{f}</td>
+                      <td>{d}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p>
+              POST returns camelCase fields including{' '}
+              <code>capturedAt, summary, callJobId, opportunityId</code>;{' '}
+              <code>source</code> is the source display name. A repeated
+              external ID returns the existing lead ID, but is not a general
+              idempotency guarantee: webhook events may repeat. Deduplicate in
+              your receiver too.
+            </p>
+            <Endpoint method="GET" path="/api/v1/leads" scope="leads:read" />
+            <p>
+              Returns <code>{'{ data: [...] }'}</code> with the newest 100
+              leads. No pagination or query filters are implemented. List fields
+              include{' '}
+              <code>
+                id, name, phone, email, status, score, intent, ai_summary,
+                captured_at, source
+              </code>
+              . Here <code>source</code> is the source type. Note the casing
+              difference from POST.
+            </p>
+            <DocCode>
+              {
+                'curl "$CALL_VANI_ORIGIN/api/v1/leads" -H "Authorization: Bearer $CALL_VANI_API_KEY"'
+              }
+            </DocCode>
+          </Section>
+          <Section id="credits" title="04 / Wallet balance">
+            <Endpoint
+              method="GET"
+              path="/api/v1/credits"
+              scope="credits:read"
+            />
+            <DocCode>
+              {
+                'curl "$CALL_VANI_ORIGIN/api/v1/credits" -H "Authorization: Bearer $CALL_VANI_API_KEY"'
+              }
+            </DocCode>
+            <p>
+              Example response:
+            </p>
+            <DocCode>{'{"data":{"balance":100,"low_balance_threshold":20,"updated_at":"2026-09-08 10:00:00"}}'}</DocCode>
+            <p>
+              When no wallet exists, balance and threshold are zero and{' '}
+              <code>updated_at</code> is omitted. A credit is a usage unit, not
+              one rupee or one minute. Do not derive a charge from balance
+              alone.
+            </p>
+          </Section>
+          <Section id="forms" title="05 / Website forms & widgets">
+            <p>
+              Create an active form under Lead Capture. Configure its allowed
+              origins, fields, logo, theme and display trigger. The generated
+              embed uses a public form key, never an API key.
+            </p>
+            <DocCode>
+              {
+                '<script src="https://YOUR_DEPLOYMENT_HOST/api/widget/YOUR_PUBLIC_FORM_KEY" defer></script>'
+              }
+            </DocCode>
+            <Endpoint
+              method="POST"
+              path="/api/forms/{publicKey}/leads"
+              scope="Public form key + configured origin policy"
+            />
+            <p>
+              Submit JSON matching the form fields; name and phone are required.
+              Success: <code>{'{"accepted":true,"leadId":"…","score":0}'}</code>
+              . Active form required; 64 KiB payload cap and 20 requests/hour
+              per form/fingerprint. Allowed origins are not authentication: a
+              request without Origin is currently permitted. Add edge bot
+              protection for public campaigns.
+            </p>
+            <p>
+              Widget JavaScript returns 404 for a missing/unpublished form and
+              422 for invalid configuration. Saving an active form updates its
+              live embed; a separate draft/publish snapshot is not yet
+              supported. Voice widgets have a separate setup flow and are not
+              the lead-form endpoint.
+            </p>
+          </Section>
+          <Section id="webhooks" title="06 / Signed lead webhooks">
+            <p>
+              Add an HTTPS receiver under Integrations &amp; API → Webhooks. The
+              currently emitted events are <code>lead.created</code> and{' '}
+              <code>lead.qualified</code> (score ≥75), from v1 lead POST. Call,
+              appointment and low-credit event names may appear in settings but
+              are not emitted in this build. Forms and provider ingestion do not
+              yet emit these outbound events.
+            </p>
+            <DocCode>
+              {
+                'Content-Type: application/json\nX-Vaani-Event: lead.created\nX-Vaani-Signature: t=UNIX_SECONDS,v1=HEX_DIGEST\n\n{"id":"event_…","type":"lead.created","createdAt":"2026-09-08T04:30:00Z","data":{"lead":{"id":"lead_…"}}}'
+              }
+            </DocCode>
+            <DocCode>{verifier}</DocCode>
+            <p>
+              Failed initial deliveries enqueue up to eight worker attempts with
+              exponential backoff and a dead-letter state. A running job
+              processor is required. Retries keep the event ID and body but
+              receive a fresh signature timestamp. Acknowledge quickly, process
+              asynchronously, and use durable event-ID deduplication.
+            </p>
+          </Section>
+          <Section id="errors" title="07 / Errors, retries & limits">
+            <ul className="list-disc space-y-2 pl-5">
+              <li>
+                <strong>400:</strong> invalid lead JSON, fields, source or
+                ingestion failure. Response:{' '}
+                <code>{'{"error":"message"}'}</code>.
+              </li>
+              <li>
+                <strong>401:</strong> missing, invalid, revoked or
+                insufficient-scope API key.
+              </li>
+              <li>
+                <strong>404 / 413 / 429:</strong> public form missing, body too
+                large or rate limited. Form preflight refusal can return 403.
+              </li>
+              <li>
+                <strong>5xx / network timeout:</strong> acceptance may be
+                uncertain. Check the result before retrying a write; use stable
+                external IDs and receiver deduplication.
+              </li>
+            </ul>
+            <p>
+              Public v1 currently has no per-key rate limit, pagination, key
+              expiry or stable machine error-code contract. Lead v1 validates
+              phone length rather than strict E.164 and does not enforce an
+              explicit body-size limit. Keep keys server-side and apply a
+              gateway limit before public production exposure.
+            </p>
+          </Section>
+          <Section id="billing" title="08 / Billing units & payment state">
+            <p>
+              New monthly plans: Launch ₹2,999; Growth ₹9,999; Scale ₹24,999.
+              Usage is separate. New credit packs cost ₹1.90/credit; existing
+              subscriptions and prepaid balances remain unchanged. Taxes,
+              carrier charges, numbers and premium provider costs are separate.
+            </p>
+            <ul className="list-disc space-y-2 pl-5">
+              <li>Text playground: 10 credits per turn.</li>
+              <li>
+                Realtime browser playground: <code>realtime_session_v1</code>,
+                10 credits per session reservation—not per minute. Known
+                rejection releases the reservation; uncertain acceptance
+                requires review and never triggers automatic paid fallback.
+              </li>
+              <li>
+                Current Exotel completed-call handler: 10 credits per started
+                minute, minimum one minute. Other voice paths are not uniformly
+                metered; production usage settlement is still under validation.
+              </li>
+            </ul>
+            <p>
+              Payment acceptance is not fulfillment. Credits are granted after a
+              verified paid event; delayed methods wait for payment success. Do
+              not add credits based on a browser redirect. The ₹19 standard
+              AI-minute target and provider-cost scenarios are planning figures
+              until each voice route has validated duration metering.
+            </p>
+          </Section>
+          <Section id="integrations" title="09 / Connect the right account">
+            <p>
+              Customers connect their own accounts from Integrations; platform
+              operators configure provider credentials privately. Never share
+              platform secrets in client embeds or public documentation.
+            </p>
+            <ul className="list-disc space-y-2 pl-5">
+              <li>
+                <strong>Meta leads:</strong> provider callback under{' '}
+                <code>/api/integrations/meta/leads?workspace=…</code>;
+                verification challenge and raw-body signature validation.
+                Requires the workspace’s configured assets.
+              </li>
+              <li>
+                <strong>Google lead forms:</strong> workspace-scoped provider
+                callback with the configured lead-form key.
+              </li>
+              <li>
+                <strong>WhatsApp:</strong> verify tenant business/phone assets
+                and opt-in. Outside the rolling customer-service window,
+                approved templates are required. Marketing is not generally
+                free.
+              </li>
+              <li>
+                <strong>Voice:</strong> configure the provider, agent, language,
+                consent and carrier. Browser microphone permission and secure
+                HTTPS are required outside localhost.
+              </li>
+            </ul>
+            <p>
+              Need a key or connection?{' '}
+              <Link
+                href="/login"
+                className="font-medium text-primary underline"
+              >
+                Open your workspace
+              </Link>
+              . Review{' '}
+              <Link href="/privacy" className="underline">
+                Privacy
+              </Link>{' '}
+              and{' '}
+              <Link href="/terms" className="underline">
+                Terms
+              </Link>{' '}
+              before processing customer data.
+            </p>
+          </Section>
+        </article>
       </div>
-      <h3 className="mt-5 text-sm font-medium text-ink">{title}</h3>
-      <div className="mt-4 space-y-2">
-        {points.map((point) => (
-          <div key={point} className="flex gap-2 text-xs text-ink-muted">
-            <CheckCircle2 className="mt-1 size-3 shrink-0 text-success-text" />{' '}
-            {point}
-          </div>
-        ))}
-      </div>
-    </div>
+    </main>
   );
 }

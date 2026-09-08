@@ -667,6 +667,20 @@ export const agentTestSessions = sqliteTable(
   ],
 );
 
+export const realtimeReservations = sqliteTable('realtime_reservations', {
+  id: text('id').primaryKey(),
+  organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  agentId: text('agent_id').notNull().references(() => voiceAgents.id, { onDelete: 'cascade' }),
+  requestHash: text('request_hash').notNull(),
+  unit: text('unit').notNull().default('realtime_session_v1'),
+  credits: integer('credits').notNull().default(10),
+  status: text('status').notNull(),
+  providerReference: text('provider_reference'),
+  errorCode: text('error_code'),
+  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const agentTestMessages = sqliteTable(
   'agent_test_messages',
   {

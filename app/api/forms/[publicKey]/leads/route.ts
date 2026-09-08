@@ -6,6 +6,7 @@ import { getDb } from '@/db/index';
 import { leadForms } from '@/db/schema';
 import { ingestLead, normalizeLeadInput } from '@/lib/lead-engine';
 import { enforceRateLimit, requestFingerprint } from '@/lib/rate-limit';
+import { collectLeadFields, validateLeadFields } from '@/lib/lead-form-fields';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,13 +55,22 @@ export async function POST(
       );
     }
 
-    const body = (await request.json()) as Record<string, unknown>;
+    const raw = await request.text();
+    if (raw.length > 64 * 1024) return NextResponse.json({ error: 'Form payload too large.' }, { status: 413, headers: result.corsHeaders });
+    const body = JSON.parse(raw) as Record<string, unknown>;
+    let answers;
+    try { answers = collectLeadFields(validateLeadFields(JSON.parse(form.fieldsJson)), body); }
+    catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : 'Invalid form.' }, { status: 400, headers: result.corsHeaders }); }
+    const custom = Object.entries(answers).filter(([key]) => !['name', 'phone', 'email', 'productInterest'].includes(key));
+    const pageUrl = typeof body.pageUrl === 'string' ? body.pageUrl.slice(0, 2000) : '';
     const input = normalizeLeadInput({
-      ...body,
+      ...answers,
+      notes: custom.map(([key, value]) => `${key}: ${value}`).join('\n'),
       sourceType: 'website_form',
       campaignName: body.campaignName ?? form.name,
       externalLeadId: body.externalLeadId ?? `form-${crypto.randomUUID()}`,
     });
+    input.formContext = { formId: form.id, version: form.version, pageUrl, answers };
     const lead = await ingestLead(form.organizationId, input);
 
     return NextResponse.json(

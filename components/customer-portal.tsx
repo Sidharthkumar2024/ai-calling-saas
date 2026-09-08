@@ -1,4 +1,6 @@
 'use client';
+import { ProviderLogo } from '@/components/provider-logo';
+import { displayBrand } from '@/lib/display-brand';
 
 import { useEffect, useMemo, useState } from 'react';
 import { CallActivityWatch } from '@/components/call-activity-watch';
@@ -938,12 +940,12 @@ function CustomerOverview({
                     className={`size-1.5 rounded-full ${provider.configured ? 'bg-emerald-300' : 'bg-primary'}`}
                   />
                   <span className="min-w-0 flex-1 truncate text-[11px] text-ink-body">
-                    {provider.publicName}
+                    {displayBrand(provider.publicName)}
                   </span>
                   <span
                     className={`text-[11px] uppercase tracking-wider ${provider.configured ? 'text-success-text' : 'text-warning-text'}`}
                   >
-                    {provider.configured ? 'connected' : 'sandbox'}
+                    {provider.configured ? 'configured' : 'not ready'}
                   </span>
                 </div>
               ))}
@@ -1068,10 +1070,8 @@ function CustomerOverview({
             {(data.sources ?? []).map((source) => (
               <div key={source.type} className="flex items-center gap-3">
                 <span className="grid size-9 place-items-center rounded-xl bg-surface-strong">
-                  {source.type === 'meta_ads' ? (
-                    <Megaphone className="size-4 text-blue-300" />
-                  ) : source.type === 'google_ads' ? (
-                    <BarChart3 className="size-4 text-warning-text" />
+                  {source.type === 'meta_ads' || source.type === 'google_ads' ? (
+                    <ProviderLogo provider={source.type} size={24} />
                   ) : source.type === 'website_form' ? (
                     <Globe2 className="size-4 text-cyan-700" />
                   ) : (

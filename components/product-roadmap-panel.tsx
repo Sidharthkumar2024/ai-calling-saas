@@ -83,7 +83,7 @@ const roadmapModules: RoadmapModule[] = [
     name: 'Realtime voice & telephony',
     status: 'To build',
     available: 'Live-call operations UI and provider-health presentation.',
-    next: 'Vaani Sara and Vaani Connect adapters, streaming orchestration, barge-in and transfers.',
+    next: 'Call Vani Sara and Call Vani Connect adapters, streaming orchestration, barge-in and transfers.',
   },
   {
     name: 'Campaigns & dialer',
@@ -427,7 +427,7 @@ export function ProductRoadmapPanel({
             <div>
               <p className="font-medium">21 product modules</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                “Available” describes the current Vaani build; “Next gate” is
+                “Available” describes the current Call Vani build; “Next gate” is
                 the work required for a dependable production product.
               </p>
             </div>
@@ -567,11 +567,11 @@ export function ProductRoadmapPanel({
         <TabsContent value="audit" className="space-y-5">
           <Card>
             <CardHeader>
-              <CardTitle>AgentLabs reference audit → Vaani decisions</CardTitle>
+              <CardTitle>AgentLabs reference audit → Call Vani decisions</CardTitle>
               <CardDescription>
                 Customer and admin panels were reviewed module by module in
                 Safari. We kept the useful interaction patterns while protecting
-                Vaani’s clearer operations hierarchy.
+                Call Vani’s clearer operations hierarchy.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
@@ -620,7 +620,7 @@ export function ProductRoadmapPanel({
               </CardHeader>
               <CardContent className="space-y-3 text-xs leading-5 text-muted-foreground">
                 <p>
-                  Fewer top-level admin tabs; Vaani groups work by operator
+                  Fewer top-level admin tabs; Call Vani groups work by operator
                   intent.
                 </p>
                 <p>

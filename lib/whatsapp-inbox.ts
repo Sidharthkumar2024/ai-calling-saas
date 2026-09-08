@@ -118,6 +118,8 @@ export function replyWindow(
         'This customer has not messaged you, so WhatsApp will only accept an approved template here.',
     };
   const elapsed = now - when(conversation.lastInboundAt);
+  if (!when(conversation.lastInboundAt) || elapsed < 0 || !Number.isFinite(now))
+    return { open: false, hoursLeft: 0, reason: 'The last customer-message timestamp is invalid. Refresh before replying.' };
   if (elapsed >= REPLY_WINDOW_MS)
     return {
       open: false,

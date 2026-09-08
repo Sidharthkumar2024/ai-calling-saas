@@ -1,4 +1,7 @@
 'use client';
+import { displayBrand } from '@/lib/display-brand';
+import { ProviderLogo } from '@/components/provider-logo';
+import { PricingReference } from '@/components/pricing-reference';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -541,7 +544,7 @@ function AdminOverview({
                 .slice(0, 5)
                 .map((item) => [
                   textValue(item.publicName),
-                  item.configured ? 'Connected' : 'Credentials needed',
+                  item.configured ? 'Credentials configured' : 'Credentials needed',
                   item.configured ? 100 : 24,
                 ]),
             ].map(([label, status, progress]) => (
@@ -1959,6 +1962,7 @@ function PlansBilling({
       </Panel>
       <CurrencyRates data={data} onChanged={onChanged} />
       <CostModel data={data} onChanged={onChanged} />
+      <PricingReference admin />
       <div className="grid gap-3 sm:grid-cols-3">
         <Stat
           label="Revenue collected"
@@ -2469,7 +2473,7 @@ type KeyProvider = {
   id: string;
   name: string;
   note: string;
-  fields: { k: string; label: string; placeholder?: string }[];
+  fields: { k: string; label: string; placeholder?: string; secret?: boolean }[];
   fetchVoices?: boolean;
 };
 
@@ -2480,6 +2484,8 @@ const KEY_PROVIDERS: KeyProvider[] = [
     note: 'Premium human voices. Save the key, then fetch and pick a voice.',
     fields: [
       { k: 'voiceId', label: 'Default voice ID' },
+      { k: 'sttModelId', label: 'Transcription model', placeholder: 'scribe_v1' },
+      { k: 'webhookSecret', label: 'Webhook signing secret (encrypted)', secret: true },
       {
         k: 'modelId',
         label: 'Model (optional)',
@@ -2494,6 +2500,9 @@ const KEY_PROVIDERS: KeyProvider[] = [
     note: 'Indian-language STT and TTS (Hindi, Punjabi, Haryanvi, English).',
     fields: [],
   },
+  { id: 'deepgram', name: 'Deepgram — transcription', note: 'Speech-to-text adapter. Select preferred languages; Hindi quality must be tested on your calls.', fields: [{ k: 'model', label: 'Model', placeholder: 'nova-3' }, { k: 'preferredLanguages', label: 'Use first for language codes', placeholder: 'en-IN,en-US' }] },
+  { id: 'whatsapp', name: 'Meta — platform WhatsApp app', note: 'App-level setup only. Each customer must connect their own verified WhatsApp sender. No shared sender fallback.', fields: [{ k: 'appId', label: 'Meta app ID' }, { k: 'configId', label: 'Embedded Signup configuration ID' }, { k: 'appSecret', label: 'Meta app secret (encrypted)', secret: true }, { k: 'verifyToken', label: 'Webhook verify token (encrypted)', secret: true }, { k: 'graphVersion', label: 'Graph API version', placeholder: 'v23.0' }] },
+  { id: 'resend', name: 'Resend — transactional email', note: 'Verified platform sending address for transactional email. Tenant-specific connections take precedence.', fields: [{ k: 'fromAddress', label: 'Verified sender email' }] },
   {
     id: 'anthropic',
     name: 'Claude (Anthropic) — reasoning',
@@ -2625,6 +2634,7 @@ function ProviderKeyCard({
     );
     if (result) {
       setApiKey('');
+      setConfig(previous => Object.fromEntries(Object.entries(previous).filter(([key]) => !provider.fields.some(field => field.k === key && field.secret))));
       flash(apiKey.trim() ? 'Key saved ✓' : 'Saved ✓');
       await onChanged();
     }
@@ -2666,7 +2676,7 @@ function ProviderKeyCard({
           <p className="text-sm font-medium">{provider.name}</p>
           <p className="mt-1 text-[11px] text-ink-muted">{provider.note}</p>
         </div>
-        <Status value={hasKey ? 'key set' : 'not set'} />
+        <Status value={hasKey ? 'credentials saved' : 'not set'} />
       </div>
 
       <label className="mt-4 block text-[11px] uppercase tracking-wider text-ink-muted">
@@ -2686,6 +2696,7 @@ function ProviderKeyCard({
             {field.label}
           </label>
           <Input
+            type={field.secret ? 'password' : 'text'}
             value={config[field.k] ?? ''}
             onChange={(event) =>
               setConfig((current) => ({
@@ -2693,7 +2704,7 @@ function ProviderKeyCard({
                 [field.k]: event.target.value,
               }))
             }
-            placeholder={field.placeholder}
+            placeholder={field.secret ? 'Leave blank to keep saved secret' : field.placeholder}
             className="mt-1 h-9 border-hairline bg-surface-muted text-xs"
           />
         </div>
@@ -2946,12 +2957,12 @@ function PlatformApis({
             <Panel key={id}>
               <div className="flex items-start justify-between">
                 <span className="grid size-10 place-items-center rounded-xl border border-hairline bg-surface-strong">
-                  <ServerCog className="size-4 text-primary" />
+                  <ProviderLogo provider={id} size={26} />
                 </span>
                 <Status value={textValue(provider.health)} />
               </div>
               <h2 className="mt-5 text-sm font-semibold">
-                {textValue(provider.public_name)}
+                {displayBrand(textValue(provider.public_name))}
               </h2>
               <p className="mt-1 text-[11px] uppercase tracking-wider text-ink-muted">
                 {textValue(provider.category)}

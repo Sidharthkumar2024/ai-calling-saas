@@ -1,4 +1,5 @@
 'use client';
+import { displayBrand } from '@/lib/display-brand';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -517,7 +518,7 @@ function SettingsPanel({
     return (
       <div className="space-y-6">
         <SettingSection
-          title="Vaani Sense"
+          title="Call Vani Sense"
           note="Provider routing remains private"
         >
           <div className="grid gap-4 sm:grid-cols-2">
@@ -532,9 +533,9 @@ function SettingsPanel({
                 }
                 className="input-select"
               >
-                <option>Vaani Sense Fast</option>
-                <option>Vaani Sense Balanced</option>
-                <option>Vaani Sense Deep</option>
+                <option value="Vaani Sense Fast">Call Vani Sense Fast</option>
+                <option value="Vaani Sense Balanced">Call Vani Sense Balanced</option>
+                <option value="Vaani Sense Deep">Call Vani Sense Deep</option>
               </select>
             </Field>
             <Field label={`Creativity · ${draft.temperature / 100}`}>
@@ -635,7 +636,7 @@ function SettingsPanel({
                 ))}
               </select>
             </Field>
-            <Field label="Vaani voice">
+            <Field label="Call Vani voice">
               <select
                 value={draft.voiceName}
                 onChange={(event) => {
@@ -653,11 +654,11 @@ function SettingsPanel({
                 {!filteredVoices.some(
                   (voice) => voice.publicName === draft.voiceName,
                 ) ? (
-                  <option>{draft.voiceName}</option>
+                  <option value={draft.voiceName}>{displayBrand(draft.voiceName)}</option>
                 ) : null}
                 {filteredVoices.map((voice) => (
                   <option key={voice.id} value={voice.publicName}>
-                    {voice.publicName} · {voice.languageLabel}
+                    {displayBrand(voice.publicName)} · {voice.languageLabel}
                   </option>
                 ))}
               </select>
@@ -678,7 +679,7 @@ function SettingsPanel({
                 className={`rounded-xl border p-3 text-left ${draft.voiceName === voice.publicName ? 'border-violet-300/20 bg-violet-300/[0.04]' : 'border-hairline bg-surface-muted'}`}
               >
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-medium">{voice.publicName}</p>
+                  <p className="text-xs font-medium">{displayBrand(voice.publicName)}</p>
                   <span className="text-[11px] capitalize text-ink-muted">
                     {voice.style}
                   </span>
@@ -760,7 +761,7 @@ function SettingsPanel({
       <div className="space-y-6">
         <SettingSection
           title="Revenue actions"
-          note="The model requests an action; Vaani validates and executes it"
+          note="The model requests an action; Call Vani validates and executes it"
         >
           <div className="grid gap-3 sm:grid-cols-2">
             {/*
@@ -997,6 +998,7 @@ function TestConsole({
   const dataChannelRef = useRef<RTCDataChannel | null>(null);
   const realtimeAudioRef = useRef<HTMLAudioElement | null>(null);
   const realtimeTranscriptRef = useRef('');
+  const realtimePendingRef = useRef(false);
   const commitTimerRef = useRef<number | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -1179,6 +1181,10 @@ function TestConsole({
   }
 
   async function beginVoiceConversation() {
+    if (realtimePendingRef.current) {
+      setError('A previous realtime request needs review. Check its session ID and wallet with support before starting another paid session.');
+      return;
+    }
     voiceActiveRef.current = true;
     setVoiceActive(true);
     setError('');
@@ -1187,8 +1193,9 @@ function TestConsole({
       try {
         await beginRealtimeConversation();
         return;
-      } catch {
+      } catch (error) {
         cleanupRealtime();
+        if (!(error instanceof Error) || error.name !== 'RealtimeFallbackAllowed') throw error;
         setPipelineMode('fallback');
       }
       if (!sessionId) {
@@ -1375,7 +1382,9 @@ function TestConsole({
       typeof RTCPeerConnection === 'undefined' ||
       !navigator.mediaDevices?.getUserMedia
     ) {
-      throw new Error('WebRTC audio is unavailable.');
+      const error = new Error('WebRTC audio is unavailable.');
+      error.name = 'RealtimeFallbackAllowed';
+      throw error;
     }
     cleanupRealtime();
     const peer = new RTCPeerConnection();
@@ -1434,10 +1443,12 @@ function TestConsole({
     stream.getAudioTracks().forEach((track) => peer.addTrack(track, stream));
     const offer = await peer.createOffer();
     await peer.setLocalDescription(offer);
+    realtimePendingRef.current = true;
+    const requestKey = crypto.randomUUID();
     const response = await fetch('/api/app/agents/realtime', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ agentId: agent.id, sdp: offer.sdp }),
+      body: JSON.stringify({ agentId: agent.id, sdp: offer.sdp, requestKey }),
     });
     if (!response.ok) {
       const payload = (await response
@@ -1445,10 +1456,15 @@ function TestConsole({
         .catch(() => ({ error: 'Realtime provider is unavailable.' }))) as {
         error?: string;
       };
-      throw new Error(payload.error ?? 'Realtime provider is unavailable.');
+      const reference = (payload as { sessionId?: string }).sessionId;
+      if ((payload as { fallback?: boolean }).fallback === true || [400, 401, 402, 403, 404].includes(response.status)) realtimePendingRef.current = false;
+      const error = new Error((payload.error ?? 'Realtime provider is unavailable.') + (reference ? ` Session: ${reference}` : ''));
+      error.name = (payload as { fallback?: boolean }).fallback === true ? 'RealtimeFallbackAllowed' : 'RealtimeNeedsReview';
+      throw error;
     }
     const answerSdp = await response.text();
     await peer.setRemoteDescription({ type: 'answer', sdp: answerSdp });
+    realtimePendingRef.current = false;
     setSessionId(response.headers.get('x-vaani-session-id') ?? '');
     setCredits(
       Number(response.headers.get('x-vaani-credits-remaining') ?? credits - 10),
@@ -1979,7 +1995,7 @@ function TestConsole({
             )}
             {loading ? (
               <div className="flex items-center gap-2 text-[11px] text-ink-muted">
-                <Loader2 className="size-3.5 animate-spin" /> Vaani is
+                <Loader2 className="size-3.5 animate-spin" /> Call Vani is
                 understanding the request…
               </div>
             ) : null}

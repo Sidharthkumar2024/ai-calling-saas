@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Loader2, Plug, Search, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { ProviderLogo } from '@/components/provider-logo';
 import type {
   CredentialField,
   IntegrationDefinition,
@@ -286,8 +287,8 @@ export function CustomerIntegrationMarketplace() {
               }`}
             >
               <div className="flex items-start gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-hairline bg-surface-strong text-[11px] font-semibold text-ink">
-                  {entry.monogram}
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-hairline bg-white">
+                  <ProviderLogo provider={entry.id} size={26} />
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">

@@ -23,15 +23,12 @@ export const dynamic = 'force-dynamic';
  */
 
 async function webhookSecret() {
-  if (process.env.ELEVENLABS_WEBHOOK_SECRET)
-    return process.env.ELEVENLABS_WEBHOOK_SECRET;
-  // Also readable from the admin panel's stored ElevenLabs config.
   const stored = await platformProviderSecret('elevenlabs');
-  const value = (stored.config as { webhookSecret?: unknown }).webhookSecret;
-  return typeof value === 'string' && value ? value : null;
+  return stored.secrets.webhookSecret || process.env.ELEVENLABS_WEBHOOK_SECRET || null;
 }
 
 export async function POST(request: Request) {
+  await ensureSchema();
   const secret = await webhookSecret();
   if (!secret)
     return NextResponse.json(

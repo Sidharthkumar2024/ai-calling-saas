@@ -140,7 +140,7 @@ const en = {
   'diag.readiness': 'Readiness check',
   'diag.runFullTest': 'Run full test',
   'diag.measuresNote':
-    'Measures microphone level and HTTP round-trip time to Vaani. There is no WebRTC peer connection in this tab, so these are network round trips, not call media statistics.',
+    'Measures microphone level and HTTP round-trip time to Call Vani. There is no WebRTC peer connection in this tab, so these are network round trips, not call media statistics.',
   'diag.readyToTake': 'Ready to take calls',
   'diag.usableWithProblems': 'Usable, with problems',
   'diag.notReady': 'Not ready',
@@ -204,13 +204,13 @@ const en = {
     'Everyone on the call hears you, including the customer.',
 
   // Sign-in screen
-  'login.backToVaani': 'Back to Vaani',
+  'login.backToVaani': 'Back to Call Vani',
   'login.email': 'Email',
   'login.orUseEmail': 'or use email',
   'login.continueWith': 'Continue with {provider}',
   'login.adminDisabled': 'Not enabled yet',
   'login.admin.eyebrow': 'Platform control',
-  'login.admin.title': 'Vaani admin console',
+  'login.admin.title': 'Call Vani admin console',
   'login.admin.description':
     'Manage tenants, KYC, calling operations, plans, credits, integrations and platform health.',
   'login.admin.useAccount':
@@ -233,9 +233,10 @@ const en = {
   'login.backToSignIn': 'Back to sign in',
   'login.authenticatorCode': 'Authenticator code',
   'login.codePlaceholder': '6-digit code',
-  'login.localWorkspace': 'Local development workspace · Vaani control plane',
+  'login.localWorkspace':
+    'Local development workspace · Call Vani control plane',
   'login.tagline': 'Revenue Voice OS',
-  'aria.vaaniHome': 'Vaani home',
+  'aria.vaaniHome': 'Call Vani home',
 
   // Admin portal — navigation and section headings
   'adminNav.group.platform': 'Platform',
@@ -279,11 +280,11 @@ const en = {
   'adminScreen.integrations.eyebrow': 'Integration control plane',
   'adminScreen.integrations.title': 'API, webhooks and provider adapters',
   'adminScreen.integrations.description':
-    'Customers see Vaani products; raw infrastructure credentials remain encrypted and admin-only.',
+    'Customers see Call Vani products; raw infrastructure credentials remain encrypted and admin-only.',
   'adminScreen.platform_apis.eyebrow': 'Admin-only configuration',
   'adminScreen.platform_apis.title': 'Identity, APIs and cloud requirements',
   'adminScreen.platform_apis.description':
-    'Customer screens use Vaani product names. Provider credentials, readiness and health remain inside this operator console.',
+    'Customer screens use Call Vani product names. Provider credentials, readiness and health remain inside this operator console.',
   'adminScreen.support_tickets.eyebrow': 'Tenant support',
   'adminScreen.support_tickets.title': 'Support desk',
   'adminScreen.support_tickets.description':
@@ -503,12 +504,12 @@ const en = {
   'landing.nav.workflow': 'How it works',
   'landing.nav.demos': 'Live demos',
   'landing.nav.solutions': 'Solutions',
-  'landing.nav.engines': 'Vaani engines',
+  'landing.nav.engines': 'Call Vani engines',
   'landing.nav.pricing': 'Pricing',
   'landing.nav.security': 'Security',
   'landing.nav.apiDocs': 'API docs',
   'landing.nav.aria': 'Landing navigation',
-  'landing.home.aria': 'Vaani home',
+  'landing.home.aria': 'Call Vani home',
   'landing.openPlatform': 'Open platform',
 
   'landing.hero.badge': 'AI calling for sales, support and operations',
@@ -516,8 +517,8 @@ const en = {
   'landing.hero.line2': 'Every conversation into',
   'landing.hero.line2Accent': 'bookings and revenue.',
   'landing.hero.sub':
-    'The moment a lead arrives from Meta Ads, Google Ads, a website form or your CRM, Vaani reads buyer intent, talks in the right language, then finishes the booking, the payment link or the human follow-up.',
-  'landing.hero.cta': 'See Vaani in action',
+    'The moment a lead arrives from Meta Ads, Google Ads, a website form or your CRM, Call Vani reads buyer intent, talks in the right language, then finishes the booking, the payment link or the human follow-up.',
+  'landing.hero.cta': 'See Call Vani in action',
   'landing.hero.secondary': 'Explore the workflow',
   'landing.hero.check1': 'Realtime WebRTC voice',
   'landing.hero.check2': 'Consent & DNC controls',
@@ -549,6 +550,11 @@ const en = {
   'landing.sources.forms': 'Website forms',
   'landing.sources.apis': 'API & webhooks',
 
+  'shell.jumpTo': 'Jump to a section',
+  'shell.jumpToHint': 'Search every section of this workspace and open one.',
+  'shell.jumpToPlaceholder': 'Type a section name…',
+  'shell.jumpToEmpty':
+    'No section matches. This searches sections, not leads or calls.',
   'nav.whatsapp_inbox': 'WhatsApp inbox',
   'screen.whatsapp_inbox.title': 'WhatsApp inbox',
   'screen.whatsapp_inbox.description':
@@ -560,40 +566,40 @@ const en = {
   'landing.proof.title': 'Counted, not claimed.',
   'landing.proof.sub':
     'Every figure here is read from the product itself. When there are usage numbers worth showing, they will come from the platform\u2019s own tables and not from a marketing draft.',
-  'landing.proof.languages': 'languages the agent speaks, including Hinglish',
-  'landing.proof.tools': 'actions an agent can take on a live call',
-  'landing.proof.engines': 'engines behind one conversation',
-  'landing.proof.hours': 'configure round-the-clock call coverage',
+  'landing.proof.languages': 'language options in the catalog',
+  'landing.proof.tools': 'configurable agent tools',
+  'landing.proof.engines': 'product engines, one workspace',
+  'landing.proof.hours': 'configurable calling schedules',
   'landing.proof.note':
     'No user counts or ratings on this page yet, because there are none to report honestly.',
-  'landing.stage.marquee': 'See how Vaani answers your calls',
-  'landing.stage.title': 'Meet Vaani.',
+  'landing.stage.marquee': 'See how Call Vani answers your calls',
+  'landing.stage.title': 'Meet Call Vani.',
   'landing.stage.sub': 'Your revenue voice team,\nanswering every call.',
   'landing.stage.widgetHears': 'Understands the caller',
   'landing.stage.widgetActs': 'Finishes the job on the call',
   'landing.story.eyebrow': 'It does not stop at answering.',
-  'landing.story.title': 'Vaani does more\nthan answer calls.',
-  'landing.story.answer.title': 'It answers on the first ring.',
+  'landing.story.title': 'Call Vani does more\nthan answer calls.',
+  'landing.story.answer.title': 'Know who’s calling—and why.',
   'landing.story.answer.body':
-    'Every call is picked up — at 2am, during a festival rush, on the twelfth line ringing at once. Nobody waits, and nobody hangs up on a queue.',
+    'Recognise a new enquiry, capture what the caller needs and prepare the right conversation for your business.',
   'landing.story.answer.proof':
     'Test response time with your selected voice and calling setup.',
-  'landing.story.understand.title': 'It understands what they actually want.',
+  'landing.story.understand.title':
+    'Keep the conversation, not just the number.',
   'landing.story.understand.body':
-    'Not a menu tree. The caller says it in their own words, and the agent works out the budget, the location and how ready they are to buy.',
+    'Bring transcripts, summaries and caller intent into the lead record so your team can pick up with context.',
   'landing.story.understand.proof':
     'Every line transcribed, with the intent it was scored on.',
-  'landing.story.act.title': 'It finishes the job on the call.',
+  'landing.story.act.title': 'Turn intent into a useful next step.',
   'landing.story.act.body':
-    'A booking made, a payment link sent, a slot held in your calendar — while the customer is still on the phone, not in a follow-up someone forgets.',
+    'Prepare a booking, a WhatsApp follow-up or a CRM update through your connected tools—with the approvals you require.',
   'landing.story.act.proof':
-    'Booking, WhatsApp message and calendar entry, from one call.',
-  'landing.story.handover.title':
-    'Your team gets the lead, already written up.',
+    'Available actions depend on configured integrations and permissions.',
+  'landing.story.handover.title': 'Different requests. The right next team.',
   'landing.story.handover.body':
-    'The summary, the recording and the next step land in your CRM. Nobody retypes a call, and nobody rings a customer who was called an hour ago.',
+    'Separate sales enquiries, support requests, bookings and payment questions. Route each one with the context your team needs.',
   'landing.story.handover.proof':
-    'Straight into your CRM, WhatsApp and sheets.',
+    'Choose queues, agent roles and handover rules in your workspace.',
   'landing.story.language.title':
     'In the language the caller is comfortable in.',
   'landing.story.language.body':
@@ -602,16 +608,16 @@ const en = {
   'landing.loop.eyebrow': 'From click to close',
   'landing.loop.title': 'One continuous revenue loop.',
   'landing.loop.sub':
-    'Vaani does not stop at making a call. It connects acquisition, conversation, CRM action and retargeting so every lead keeps moving.',
+    'Call Vani does not stop at making a call. It connects acquisition, conversation, CRM action and retargeting so every lead keeps moving.',
   'landing.loop.1.title': 'Capture every lead',
   'landing.loop.1.description':
     'Meta Lead Ads, Google Ads, website forms and CRM events enter one consent-aware lead inbox.',
   'landing.loop.2.title': 'Understand the buyer',
   'landing.loop.2.description':
-    'Vaani Sense enriches source, intent, language, product interest, urgency and lead quality.',
+    'Call Vani Sense enriches source, intent, language, product interest, urgency and lead quality.',
   'landing.loop.3.title': 'Call at the right moment',
   'landing.loop.3.description':
-    'Vaani Sara speaks naturally, answers questions, handles objections and knows when to transfer.',
+    'Call Vani Sara speaks naturally, answers questions, handles objections and knows when to transfer.',
   'landing.loop.4.title': 'Move revenue forward',
   'landing.loop.4.description':
     'Book an appointment, update CRM, send WhatsApp and keep non-converters in a retargeting loop.',
@@ -709,10 +715,10 @@ const en = {
   'landing.industry.commerce.outcome':
     'Every outcome becomes an automated next action',
 
-  'landing.engines.eyebrow': 'The Vaani engine family',
+  'landing.engines.eyebrow': 'The Call Vani engine family',
   'landing.engines.title': 'One brand across the entire voice stack.',
   'landing.engines.sub':
-    'Customers work with Vaani’s product capabilities — not a maze of infrastructure vendors, model IDs or provider credentials.',
+    'Customers work with Call Vani’s product capabilities — not a maze of infrastructure vendors, model IDs or provider credentials.',
 
   'landing.pricing.eyebrow': 'Simple launch plans',
   'landing.pricing.title': 'Start free. Add capacity when calls grow.',
@@ -762,7 +768,7 @@ const en = {
   'landing.cta.title': 'Give every enquiry a real conversation.',
   'landing.cta.sub':
     'Bring your calls, leads and follow-ups together in one business workspace.',
-  'landing.cta.button': 'Open Vaani platform',
+  'landing.cta.button': 'Open Call Vani platform',
 
   'landing.footer.tagline': 'AI calling operations',
   'landing.footer.createAccount': 'Create free account',
@@ -797,9 +803,9 @@ const en = {
   'showcase.creditsPerTurn': '10 credits / turn',
   'showcase.actionsPreviewed': 'Actions previewed',
   'showcase.previewEyebrow': 'Live response preview',
-  'showcase.previewTitle': 'Hear how Vaani understands, responds and acts.',
+  'showcase.previewTitle': 'Hear how Call Vani understands, responds and acts.',
   'showcase.customer': 'Customer',
-  'showcase.response': 'Vaani response',
+  'showcase.response': 'Call Vani response',
   'showcase.preview': 'preview',
   'showcase.testMode':
     'Real payments stay in test mode until you connect Razorpay',
@@ -949,7 +955,7 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'diag.readiness': 'तैयारी जाँच',
   'diag.runFullTest': 'पूरी जाँच चलाएँ',
   'diag.measuresNote':
-    'माइक्रोफ़ोन का स्तर और Vaani तक HTTP round-trip मापता है। इस टैब में कोई WebRTC peer connection नहीं है, तो ये network round trip हैं — call media के आँकड़े नहीं।',
+    'माइक्रोफ़ोन का स्तर और Call Vani तक HTTP round-trip मापता है। इस टैब में कोई WebRTC peer connection नहीं है, तो ये network round trip हैं — call media के आँकड़े नहीं।',
   'diag.readyToTake': 'कॉल लेने के लिए तैयार',
   'diag.usableWithProblems': 'चल जाएगा, पर दिक़्क़तें हैं',
   'diag.notReady': 'तैयार नहीं',
@@ -1008,13 +1014,13 @@ const hi: Partial<Record<TranslationKey, string>> = {
     'जिस एजेंट को आप कुछ कह रहे थे वो कॉल छोड़ चुका है, इसलिए अब आप सिर्फ़ सुन रहे हैं। आपको कोई नहीं सुन सकता।',
   'sup.everyoneHears': 'कॉल पर सब आपको सुनते हैं, ग्राहक भी।',
 
-  'login.backToVaani': 'Vaani पर वापस',
+  'login.backToVaani': 'Call Vani पर वापस',
   'login.email': 'ईमेल',
   'login.orUseEmail': 'या ईमेल से',
   'login.continueWith': '{provider} से जारी रखें',
   'login.adminDisabled': 'admin ने बंद किया',
   'login.admin.eyebrow': 'प्लेटफ़ॉर्म नियंत्रण',
-  'login.admin.title': 'Vaani admin कंसोल',
+  'login.admin.title': 'Call Vani admin कंसोल',
   'login.admin.description':
     'टेनेंट, KYC, कॉल संचालन, प्लान, क्रेडिट, इंटीग्रेशन और प्लेटफ़ॉर्म स्वास्थ्य — सब संभालिए।',
   'login.admin.useAccount':
@@ -1037,9 +1043,9 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'login.backToSignIn': 'साइन इन पर वापस',
   'login.authenticatorCode': 'ऑथेंटिकेटर कोड',
   'login.codePlaceholder': '6 अंकों का कोड',
-  'login.localWorkspace': 'लोकल डेवलपमेंट वर्कस्पेस · Vaani कंट्रोल प्लेन',
+  'login.localWorkspace': 'लोकल डेवलपमेंट वर्कस्पेस · Call Vani कंट्रोल प्लेन',
   'login.tagline': 'Revenue Voice OS',
-  'aria.vaaniHome': 'Vaani होम',
+  'aria.vaaniHome': 'Call Vani होम',
 
   'adminNav.group.platform': 'प्लेटफ़ॉर्म',
   'adminNav.group.commercial': 'व्यापारिक',
@@ -1082,11 +1088,11 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'adminScreen.integrations.eyebrow': 'इंटीग्रेशन नियंत्रण',
   'adminScreen.integrations.title': 'API, webhook और प्रोवाइडर अडैप्टर',
   'adminScreen.integrations.description':
-    'ग्राहक Vaani के प्रोडक्ट देखते हैं; असली infrastructure credentials एन्क्रिप्टेड और सिर्फ़ admin के लिए रहते हैं।',
+    'ग्राहक Call Vani के प्रोडक्ट देखते हैं; असली infrastructure credentials एन्क्रिप्टेड और सिर्फ़ admin के लिए रहते हैं।',
   'adminScreen.platform_apis.eyebrow': 'सिर्फ़ admin की सेटिंग',
   'adminScreen.platform_apis.title': 'लॉगिन, API और क्लाउड ज़रूरतें',
   'adminScreen.platform_apis.description':
-    'ग्राहक की स्क्रीन पर Vaani के नाम दिखते हैं। प्रोवाइडर credentials, तैयारी और स्वास्थ्य इसी operator console में रहते हैं।',
+    'ग्राहक की स्क्रीन पर Call Vani के नाम दिखते हैं। प्रोवाइडर credentials, तैयारी और स्वास्थ्य इसी operator console में रहते हैं।',
   'adminScreen.support_tickets.eyebrow': 'टेनेंट सपोर्ट',
   'adminScreen.support_tickets.title': 'सपोर्ट डेस्क',
   'adminScreen.support_tickets.description':
@@ -1296,12 +1302,12 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'landing.nav.workflow': 'कैसे काम करता है',
   'landing.nav.demos': 'लाइव डेमो',
   'landing.nav.solutions': 'समाधान',
-  'landing.nav.engines': 'Vaani इंजन',
+  'landing.nav.engines': 'Call Vani इंजन',
   'landing.nav.pricing': 'कीमत',
   'landing.nav.security': 'सुरक्षा',
   'landing.nav.apiDocs': 'API डॉक्स',
   'landing.nav.aria': 'लैंडिंग नेविगेशन',
-  'landing.home.aria': 'Vaani होम',
+  'landing.home.aria': 'Call Vani होम',
   'landing.openPlatform': 'प्लेटफ़ॉर्म खोलें',
 
   'landing.hero.badge': 'सेल्स, सपोर्ट और ऑपरेशन्स के लिए AI कॉलिंग',
@@ -1309,8 +1315,8 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'landing.hero.line2': 'हर बातचीत से',
   'landing.hero.line2Accent': 'booking और revenue.',
   'landing.hero.sub':
-    'Meta Ads, Google Ads, वेबसाइट फ़ॉर्म और CRM से lead आते ही Vaani buyer intent समझता है, सही भाषा में बात करता है, फिर booking, payment link या human follow-up पूरा करता है।',
-  'landing.hero.cta': 'Vaani को चलते देखिए',
+    'Meta Ads, Google Ads, वेबसाइट फ़ॉर्म और CRM से lead आते ही Call Vani buyer intent समझता है, सही भाषा में बात करता है, फिर booking, payment link या human follow-up पूरा करता है।',
+  'landing.hero.cta': 'Call Vani को चलते देखिए',
   'landing.hero.secondary': 'पूरा तरीक़ा देखिए',
   'landing.hero.check1': 'रियलटाइम WebRTC आवाज़',
   'landing.hero.check2': 'सहमति और DNC नियंत्रण',
@@ -1342,6 +1348,11 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'landing.sources.forms': 'वेबसाइट फ़ॉर्म',
   'landing.sources.apis': 'API और webhooks',
 
+  'shell.jumpTo': 'किसी section पर जाइए',
+  'shell.jumpToHint': 'इस workspace के हर section में खोजिए और खोलिए।',
+  'shell.jumpToPlaceholder': 'Section का नाम लिखिए…',
+  'shell.jumpToEmpty':
+    'कोई section नहीं मिला। यहाँ sections खोजे जाते हैं, leads या calls नहीं।',
   'nav.whatsapp_inbox': 'WhatsApp inbox',
   'screen.whatsapp_inbox.title': 'WhatsApp inbox',
   'screen.whatsapp_inbox.description':
@@ -1353,37 +1364,37 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'landing.proof.title': 'गिने हुए, दावा किए हुए नहीं।',
   'landing.proof.sub':
     'यहाँ का हर आँकड़ा product से ही पढ़ा गया है। जब दिखाने लायक इस्तेमाल के आँकड़े होंगे, वो platform की अपनी tables से आएँगे — किसी marketing draft से नहीं।',
-  'landing.proof.languages': 'भाषाएँ जो एजेंट बोलती है, हिंग्लिश समेत',
-  'landing.proof.tools': 'काम जो एजेंट चलती कॉल पर कर सकती है',
-  'landing.proof.engines': 'engine एक बातचीत के पीछे',
-  'landing.proof.hours': 'न कतार, न बंद होने का समय, न कोई छूटी घंटी',
+  'landing.proof.languages': 'कैटलॉग में भाषा विकल्प',
+  'landing.proof.tools': 'कॉन्फ़िगर किए जा सकने वाले टूल्स',
+  'landing.proof.engines': 'प्रोडक्ट इंजन, एक वर्कस्पेस',
+  'landing.proof.hours': 'अपना कॉलिंग शेड्यूल बनाएँ',
   'landing.proof.note':
     'इस पेज पर अभी user count या rating नहीं है, क्योंकि ईमानदारी से बताने लायक कोई है ही नहीं।',
-  'landing.stage.marquee': 'देखिए Vaani आपकी कॉल कैसे उठाती है',
-  'landing.stage.title': 'मिलिए Vaani से।',
+  'landing.stage.marquee': 'देखिए Call Vani आपकी कॉल कैसे उठाती है',
+  'landing.stage.title': 'मिलिए Call Vani से।',
   'landing.stage.sub': 'आपकी revenue voice टीम,\nहर कॉल उठाती हुई।',
   'landing.stage.widgetHears': 'ग्राहक को समझती है',
   'landing.stage.widgetActs': 'काम कॉल पर ही पूरा करती है',
   'landing.story.eyebrow': 'बात सिर्फ़ कॉल उठाने पर ख़त्म नहीं होती।',
-  'landing.story.title': 'Vaani कॉल उठाने से\nकहीं आगे जाती है।',
-  'landing.story.answer.title': 'पहली घंटी पर उठ जाती है।',
+  'landing.story.title': 'Call Vani कॉल उठाने से\nकहीं आगे जाती है।',
+  'landing.story.answer.title': 'जानें कौन कॉल कर रहा है—और क्यों।',
   'landing.story.answer.body':
     'अपने business hours और calling setup के अनुसार एजेंट को उपलब्ध रखें — व्यस्त समय में भी आपकी टीम की मदद के लिए।',
   'landing.story.answer.proof':
     'अपने चुने हुए voice और calling setup पर response time टेस्ट करें।',
-  'landing.story.understand.title': 'समझती है कि उन्हें असल में चाहिए क्या।',
+  'landing.story.understand.title': 'सिर्फ़ नंबर नहीं, पूरी बातचीत साथ रखें।',
   'landing.story.understand.body':
     'कोई "1 दबाइए" वाला मेन्यू नहीं। ग्राहक अपने शब्दों में कहता है, और एजेंट बजट, इलाक़ा और ख़रीदने की तैयारी — तीनों निकाल लेती है।',
   'landing.story.understand.proof':
     'हर लाइन का transcript, और जिस intent पर score दिया गया वो भी।',
-  'landing.story.act.title': 'काम कॉल पर ही पूरा कर देती है।',
+  'landing.story.act.title': 'बातचीत से सही अगला कदम।',
   'landing.story.act.body':
-    'बुकिंग हो गई, पेमेंट लिंक चला गया, कैलेंडर में स्लॉट रुक गया — ग्राहक के फ़ोन रखने से पहले, किसी भूल जाने वाले follow-up में नहीं।',
-  'landing.story.act.proof': 'एक कॉल से — बुकिंग, WhatsApp मैसेज और कैलेंडर एंट्री।',
-  'landing.story.handover.title': 'आपकी टीम को लीड पूरी लिखी-लिखाई मिलती है।',
+    'कनेक्ट किए हुए टूल्स से बुकिंग, WhatsApp फॉलो-अप या CRM अपडेट तैयार करें—आपके ज़रूरी अप्रूवल के साथ।',
+  'landing.story.act.proof': 'उपलब्ध कार्रवाइयाँ इंटीग्रेशन और अनुमतियों पर निर्भर हैं।',
+  'landing.story.handover.title': 'हर अनुरोध, सही टीम के पास।',
   'landing.story.handover.body':
-    'सारांश, रिकॉर्डिंग और अगला क़दम सीधे आपके CRM में। न कोई कॉल दोबारा टाइप करता है, न किसी ऐसे ग्राहक को फ़ोन जाता है जिसे घंटे भर पहले किया जा चुका है।',
-  'landing.story.handover.proof': 'सीधे आपके CRM, WhatsApp और शीट में।',
+    'सेल्स, सपोर्ट, बुकिंग और भुगतान की पूछताछ अलग करें। सही संदर्भ के साथ उन्हें सही टीम तक पहुँचाएँ।',
+  'landing.story.handover.proof': 'अपने वर्कस्पेस में कतारें, रोल और हैंडऑफ़ के नियम चुनें।',
   'landing.story.language.title': 'उसी भाषा में जिसमें ग्राहक सहज है।',
   'landing.story.language.body':
     'हिन्दी, हिंग्लिश, अंग्रेज़ी और भी — वही एक एजेंट, ग्राहक जिस भाषा में बात शुरू करे उसी में, बीच वाक्य में भी अगर वो ऐसे ही बोलता है।',
@@ -1391,16 +1402,16 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'landing.loop.eyebrow': 'क्लिक से क्लोज़ तक',
   'landing.loop.title': 'एक ही न रुकने वाला revenue loop.',
   'landing.loop.sub':
-    'Vaani कॉल करके रुक नहीं जाता। यह विज्ञापन, बातचीत, CRM की कार्रवाई और retargeting को जोड़ता है, ताकि कोई lead बीच में न अटके।',
+    'Call Vani कॉल करके रुक नहीं जाता। यह विज्ञापन, बातचीत, CRM की कार्रवाई और retargeting को जोड़ता है, ताकि कोई lead बीच में न अटके।',
   'landing.loop.1.title': 'हर lead पकड़िए',
   'landing.loop.1.description':
     'Meta Lead Ads, Google Ads, वेबसाइट फ़ॉर्म और CRM की घटनाएँ — सब एक ही सहमति-सजग lead inbox में।',
   'landing.loop.2.title': 'ख़रीदार को समझिए',
   'landing.loop.2.description':
-    'Vaani Sense स्रोत, इरादा, भाषा, किस चीज़ में दिलचस्पी, जल्दी कितनी है और lead की क्वालिटी जोड़ देता है।',
+    'Call Vani Sense स्रोत, इरादा, भाषा, किस चीज़ में दिलचस्पी, जल्दी कितनी है और lead की क्वालिटी जोड़ देता है।',
   'landing.loop.3.title': 'सही वक़्त पर कॉल',
   'landing.loop.3.description':
-    'Vaani Sara सहज बात करती है, सवालों के जवाब देती है, आपत्तियाँ सँभालती है और जानती है कब इंसान को देना है।',
+    'Call Vani Sara सहज बात करती है, सवालों के जवाब देती है, आपत्तियाँ सँभालती है और जानती है कब इंसान को देना है।',
   'landing.loop.4.title': 'Revenue आगे बढ़ाइए',
   'landing.loop.4.description':
     'अपॉइंटमेंट बुक कीजिए, CRM अपडेट कीजिए, WhatsApp भेजिए, और जो न बदले उन्हें retargeting loop में रखिए।',
@@ -1492,10 +1503,10 @@ const hi: Partial<Record<TranslationKey, string>> = {
     'ग्राहक के असली इरादे से ऑफ़र और retargeting चलाइए',
   'landing.industry.commerce.outcome': 'हर नतीजा अपने आप अगला कदम बन जाता है',
 
-  'landing.engines.eyebrow': 'Vaani इंजन परिवार',
+  'landing.engines.eyebrow': 'Call Vani इंजन परिवार',
   'landing.engines.title': 'पूरे voice stack पर एक ही ब्रांड.',
   'landing.engines.sub':
-    'ग्राहक Vaani की प्रोडक्ट क्षमताओं के साथ काम करते हैं — इंफ़्रास्ट्रक्चर वेंडर, मॉडल ID और provider credentials की भूलभुलैया के साथ नहीं।',
+    'ग्राहक Call Vani की प्रोडक्ट क्षमताओं के साथ काम करते हैं — इंफ़्रास्ट्रक्चर वेंडर, मॉडल ID और provider credentials की भूलभुलैया के साथ नहीं।',
 
   'landing.pricing.eyebrow': 'आसान शुरुआती प्लान',
   'landing.pricing.title': 'मुफ़्त शुरू कीजिए. कॉल बढ़ें तो क्षमता बढ़ाइए.',
@@ -1545,7 +1556,7 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'landing.cta.title': 'हर पूछताछ को एक असली बातचीत दीजिए.',
   'landing.cta.sub':
     'प्रोडक्ट वर्कस्पेस खोलिए और ग्राहक व एडमिन पैनल, CRM, lead capture, कॉलिंग और retargeting देखिए।',
-  'landing.cta.button': 'Vaani प्लेटफ़ॉर्म खोलें',
+  'landing.cta.button': 'Call Vani प्लेटफ़ॉर्म खोलें',
 
   'landing.footer.tagline': 'AI कॉलिंग ऑपरेशन्स',
   'landing.footer.createAccount': 'मुफ़्त खाता बनाइए',
@@ -1580,9 +1591,10 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'showcase.creditsPerTurn': 'हर बारी 10 credits',
   'showcase.actionsPreviewed': 'कार्रवाई पहले दिखती है',
   'showcase.previewEyebrow': 'लाइव जवाब का प्रीव्यू',
-  'showcase.previewTitle': 'सुनिए कि Vaani कैसे समझता, जवाब देता और काम करता है.',
+  'showcase.previewTitle':
+    'सुनिए कि Call Vani कैसे समझता, जवाब देता और काम करता है.',
   'showcase.customer': 'ग्राहक',
-  'showcase.response': 'Vaani का जवाब',
+  'showcase.response': 'Call Vani का जवाब',
   'showcase.preview': 'प्रीव्यू',
   'showcase.testMode': 'Razorpay जोड़ने तक असली भुगतान टेस्ट मोड में ही रहते हैं',
   'showcase.tryYourOwn': 'अपना एजेंट बनाइए',

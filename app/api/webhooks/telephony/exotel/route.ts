@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { storeRecording } from '@/lib/recording-storage';
+import { exotelCredits, settleExotel } from '@/lib/exotel-settlement';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,15 +72,16 @@ export async function POST(request: Request) {
   }
   const credits =
     status === 'completed' && Number(call.cost_credits || 0) === 0
-      ? Math.max(10, Math.ceil(Math.max(1, duration) / 60) * 10)
+      ? exotelCredits(duration)
       : 0;
-  const callUpdate = await db
+  const settled = credits > 0 ? await settleExotel(db, call.organization_id, call.id, credits) : false;
+  await db
     .prepare(`UPDATE call_records SET status = ?, duration_seconds = CASE WHEN ? > 0 THEN ? ELSE duration_seconds END,
       recording_status = ?, recording_storage_key = coalesce(?, recording_storage_key),
-      recording_url = coalesce(?, recording_url), cost_credits = CASE WHEN ? > 0 THEN ? ELSE cost_credits END,
+      recording_url = coalesce(?, recording_url),
       analysis_json = json_set(analysis_json, '$.providerReference', ?),
       ended_at = CASE WHEN ? IN ('completed','failed','busy','no_answer') THEN CURRENT_TIMESTAMP ELSE ended_at END
-      WHERE id = ? AND (? = 0 OR cost_credits = 0)`)
+      WHERE id = ?`)
     .bind(
       status,
       duration,
@@ -87,12 +89,9 @@ export async function POST(request: Request) {
       recordingStatus,
       recordingKey,
       recordingUrl,
-      credits,
-      credits,
       providerReference,
       status,
       call.id,
-      credits,
     )
     .run();
   const statements = [
@@ -105,36 +104,10 @@ export async function POST(request: Request) {
         `usage_${crypto.randomUUID()}`,
         call.organization_id,
         Math.max(1, duration),
-        callUpdate.meta.changes ? credits : 0,
+        settled ? credits : 0,
         providerReference || call.id,
       ),
   ];
-  if (credits > 0 && callUpdate.meta.changes) {
-    const wallet = await db
-      .prepare(
-        'SELECT balance FROM organization_wallets WHERE organization_id = ?',
-      )
-      .bind(call.organization_id)
-      .first<{ balance: number }>();
-    const after = Math.max(0, Number(wallet?.balance || 0) - credits);
-    statements.push(
-      db
-        .prepare(
-          'UPDATE organization_wallets SET balance = ?, updated_at = CURRENT_TIMESTAMP WHERE organization_id = ?',
-        )
-        .bind(after, call.organization_id),
-      db
-        .prepare(`INSERT INTO credit_ledger (id, organization_id, type, amount, balance_after, reference_type, reference_id, description)
-        VALUES (?, ?, 'usage', ?, ?, 'call', ?, 'Live calling usage')`)
-        .bind(
-          `credit_${crypto.randomUUID()}`,
-          call.organization_id,
-          -credits,
-          after,
-          call.id,
-        ),
-    );
-  }
   await db.batch(statements);
   return NextResponse.json({ received: true, callId, status });
 }

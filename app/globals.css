@@ -4,6 +4,20 @@
 
 @custom-variant dark (&:is(.dark *));
 
+.cv-api-docs {
+  --primary: #17613f;
+  --primary-foreground: #fff;
+  --ring: #17613f;
+  --surface: #fff;
+  --surface-muted: #f4f8f3;
+  --hairline: #dce6dc;
+  --ink: #172a20;
+  --ink-body: #3a5043;
+  --ink-muted: #56695d;
+  overflow-wrap: anywhere;
+}
+.cv-api-docs pre { overflow-wrap: normal; }
+
 .portal-shell {
   --portal-accent: #17613f;
   --ring: #17613f;

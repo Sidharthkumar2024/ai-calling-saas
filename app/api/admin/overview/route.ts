@@ -359,21 +359,23 @@ export async function GET(request: Request) {
   // plan charge to survive a customer who uses everything they paid for.
   const rateRows = await db
     .prepare(
-      `SELECT provider, model, category, unit, price_micros, effective_from
+      `SELECT provider, model, category, unit, price_micros, currency, effective_from
        FROM provider_rate_cards
        WHERE effective_from <= ? AND (effective_to IS NULL OR effective_to > ?)
        ORDER BY effective_from DESC`,
     )
     .bind(new Date().toISOString(), new Date().toISOString())
-    .all<{ category: string; unit: string; price_micros: number }>();
+    .all<{ provider: string; model: string | null; category: string; unit: string; price_micros: number; currency: string }>();
 
-  // Cheapest card in each category, because the model answers "what does a
-  // minute cost if I route it well", not "what is the worst it could be".
+  // Explicit INR Sarvam scenario, NOT a blend of cheapest unrelated suppliers.
+  // Never interpret USD micros as INR. Unknown carrier/fixed costs remain null.
   const cheapest = new Map<string, number>();
   for (const row of rateRows.results ?? []) {
+    if (row.currency !== 'INR' || row.provider !== 'sarvam') continue;
+    if (!((row.category === 'llm' && row.model === 'sarvam-105b') || (row.category === 'tts' && row.model === 'bulbul:v3') || (row.category === 'stt' && row.model === null))) continue;
     const key = `${row.category}:${row.unit}`;
     const price = Number(row.price_micros);
-    if (!cheapest.has(key) || price < cheapest.get(key)!)
+    if (!cheapest.has(key))
       cheapest.set(key, price);
   }
   const lookup = (category: string, unit: string) =>
@@ -420,7 +422,7 @@ export async function GET(request: Request) {
 
   const costModel = {
     targetMargin,
-    assumptions: DEFAULT_ASSUMPTIONS,
+    assumptions: { ...DEFAULT_ASSUMPTIONS, note: 'Illustrative INR-only Sarvam 105B + Bulbul v3 + Sarvam STT stack, not the actual routed provider mix. Carrier and fixed costs are unpriced. ' + DEFAULT_ASSUMPTIONS.note },
     minute,
     call: costPerCall(minute, averageCallMinutes || 1),
     message: costPerMessage(lookup as never),

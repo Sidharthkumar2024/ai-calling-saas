@@ -190,10 +190,12 @@ export async function applyPlanPurchase(input: {
 }) {
   await ensureSchema();
   const db = getRawDb();
+  // New checkout creation requires an active plan. A previously created,
+  // verified paid checkout may finish after that plan becomes legacy.
   const plan = await db
     .prepare(
       `SELECT id, name, included_credits FROM plans
-       WHERE id = ? AND status = 'active' LIMIT 1`,
+       WHERE id = ? AND status IN ('active', 'legacy') LIMIT 1`,
     )
     .bind(input.planId)
     .first<{ id: string; name: string; included_credits: number }>();

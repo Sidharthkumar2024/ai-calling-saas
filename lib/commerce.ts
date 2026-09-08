@@ -1,5 +1,8 @@
 import { getRawDb } from '@/db/index';
-import { decryptSecret } from '@/lib/security';
+import { decryptSecret, sha256 } from '@/lib/security';
+import { decodeProviderSecret } from '@/lib/provider-secret-policy';
+import { readPlatformSecret } from '@/lib/platform-secrets';
+import { replyWindow } from '@/lib/whatsapp-inbox';
 
 type SecretBundle = { apiKey?: string; webhookSecret?: string };
 type IntegrationRow = {
@@ -197,6 +200,14 @@ export async function sendWhatsAppText(input: {
   destination: string;
   body: string;
 }): Promise<CommerceDeliveryResult> {
+  const db = getRawDb();
+  const normalizedPhone = `+${input.destination.replace(/\D/g, '')}`;
+  const digitsPhone = normalizedPhone.slice(1);
+  const suppressed = await db.prepare(`SELECT id FROM suppression_entries WHERE phone_hash IN (?, ?, ?) AND (organization_id = ? OR scope = 'global') AND (expires_at IS NULL OR expires_at > datetime('now')) LIMIT 1`).bind(await sha256(input.destination), await sha256(normalizedPhone), await sha256(digitsPhone), input.organizationId).first();
+  if (suppressed) throw new Error('This customer is on the do-not-contact list.');
+  const inbound = await db.prepare(`SELECT MAX(created_at) AS last_at FROM whatsapp_messages WHERE organization_id = ? AND sender_phone IN (?, ?, ?) AND direction = 'inbound'`).bind(input.organizationId, input.destination, normalizedPhone, digitsPhone).first<{ last_at: string | null }>();
+  const window = replyWindow({ lastInboundAt: inbound?.last_at ?? null });
+  if (!window.open) throw new Error(window.reason);
   const credentials = await whatsAppCredentials(input.organizationId);
   if (!credentials.accessToken || !credentials.phoneNumberId) {
     return {
@@ -264,7 +275,7 @@ export async function getRazorpayCredentials(organizationId: string) {
   const keySecret = bundle.secrets.apiKey;
   if (keyId && keySecret)
     return { keyId, keySecret, source: 'tenant' as const };
-  if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+  if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET && process.env.RAZORPAY_DEFAULT_ORGANIZATION_ID === organizationId) {
     return {
       keyId: process.env.RAZORPAY_KEY_ID,
       keySecret: process.env.RAZORPAY_KEY_SECRET,
@@ -279,12 +290,15 @@ export async function getRazorpayCredentials(organizationId: string) {
  * number would have sent every workspace's messages from one identity.
  */
 async function whatsAppCredentials(organizationId: string) {
+  const platform = await readPlatformSecret('whatsapp');
+  if (platform.disabled) return { accessToken: undefined, phoneNumberId: undefined, graphVersion: 'v23.0', templateName: '', templateLanguage: 'en' };
   const tenant = await integrationSecrets(organizationId, 'whatsapp_cloud');
   const tenantPhoneId = tenant.publicConfig.accountId as string | undefined;
   if (!tenant.secrets.apiKey || !tenantPhoneId) {
     if (
       process.env.WHATSAPP_ACCESS_TOKEN &&
-      process.env.WHATSAPP_PHONE_NUMBER_ID
+      process.env.WHATSAPP_PHONE_NUMBER_ID &&
+      process.env.WHATSAPP_DEFAULT_ORGANIZATION_ID === organizationId
     ) {
       return {
         accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
@@ -311,6 +325,8 @@ async function whatsAppCredentials(organizationId: string) {
 }
 
 async function emailCredentials(organizationId: string) {
+  const platform = await readPlatformSecret('resend');
+  if (platform.disabled) return { apiKey: undefined, from: undefined };
   // The marketplace stores this provider as `resend`; `email_resend` is the
   // legacy type kept so existing connections keep working. They used to
   // disagree, which meant a connected Resend key was never read.
@@ -322,6 +338,8 @@ async function emailCredentials(organizationId: string) {
     if (tenant.secrets.apiKey && from)
       return { apiKey: tenant.secrets.apiKey, from };
   }
+  if (platform.apiKey && typeof platform.config.fromAddress === 'string' && platform.config.fromAddress)
+    return { apiKey: platform.apiKey, from: platform.config.fromAddress };
   if (process.env.RESEND_API_KEY && process.env.EMAIL_FROM)
     return { apiKey: process.env.RESEND_API_KEY, from: process.env.EMAIL_FROM };
   const bundle = await integrationSecrets(organizationId, 'email_resend');
@@ -334,7 +352,8 @@ async function emailCredentials(organizationId: string) {
 async function integrationSecrets(organizationId: string, type: string) {
   const row = await getRawDb()
     .prepare(`SELECT public_config_json, encrypted_secret FROM integration_connections
-      WHERE organization_id = ? AND type = ? LIMIT 1`)
+      WHERE organization_id = ? AND type = ? AND status != 'disabled'
+      AND (type != 'whatsapp_cloud' OR status = 'connected') LIMIT 1`)
     .bind(organizationId, type)
     .first<IntegrationRow>();
   if (!row)
@@ -426,16 +445,21 @@ export async function sendTransactionalEmail(input: {
  * routing key in the delivery.
  */
 export async function whatsAppInboundCredentials(phoneNumberId: string) {
+  if (!/^\d{5,30}$/.test(phoneNumberId)) return null;
   const rows = await getRawDb()
     .prepare(`SELECT organization_id, encrypted_secret, public_config_json
       FROM integration_connections
-      WHERE type = 'whatsapp_cloud' AND status != 'disabled' LIMIT 200`)
-    .bind()
+      WHERE type = 'whatsapp_cloud' AND status = 'connected'
+      AND json_valid(public_config_json)
+      AND json_extract(public_config_json, '$.accountId') = ? LIMIT 2`)
+    .bind(phoneNumberId)
     .all<{
       organization_id: string;
       encrypted_secret: string | null;
       public_config_json: string;
     }>();
+  // An ambiguous asset claim is never routed to whichever tenant happens to be first.
+  if ((rows.results ?? []).length > 1) return null;
   for (const row of rows.results ?? []) {
     let accountId: unknown;
     try {
@@ -448,9 +472,11 @@ export async function whatsAppInboundCredentials(phoneNumberId: string) {
       continue;
     }
     if (accountId !== phoneNumberId || !row.encrypted_secret) continue;
+    const accessToken = decodeProviderSecret(await decryptSecret(row.encrypted_secret)).apiKey;
+    if (!accessToken) return null;
     return {
       organizationId: row.organization_id,
-      accessToken: await decryptSecret(row.encrypted_secret),
+      accessToken,
       graphVersion: process.env.WHATSAPP_GRAPH_VERSION || 'v23.0',
     };
   }

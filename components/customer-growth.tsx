@@ -1,10 +1,12 @@
 'use client';
+import { ProviderLogo } from '@/components/provider-logo';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Check, Copy, RefreshCw, Send, Square, ArrowUpRight, Leaf, MessageCircle, Database, ShieldCheck, ChevronDown } from 'lucide-react';
 
 import { type Block, type Inline, parseBlocks } from '@/lib/chat-markdown';
 import { DISCOVERY_QUESTIONS, type Confidence } from '@/lib/growth-manager';
+import { BusinessOnboarding } from '@/components/business-onboarding';
 import {
   actionSummary,
   type ExecutedAction,
@@ -68,6 +70,7 @@ type ChatThread = {
 };
 
 type Board = {
+  canManage?: boolean;
   runs?: ScanRun[];
   chats?: ChatThread[];
   chips?: Array<{ id: string; label: string; value: string }>;
@@ -109,6 +112,7 @@ export function CustomerGrowth() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [editingBrief, setEditingBrief] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -116,13 +120,15 @@ export function CustomerGrowth() {
       const body = (await response.json()) as Board & { error?: string };
       if (!response.ok) {
         setError(body.error ?? 'Could not load the business manager.');
-        return;
+        return false;
       }
       setBoard(body);
       setAnswers(body.discovery.answers ?? {});
       setError('');
+      return true;
     } catch {
       setError('Could not load the business manager.');
+      return false;
     }
   }, []);
 
@@ -158,10 +164,13 @@ export function CustomerGrowth() {
 
   const byId = new Map(board.observations.map((item) => [item.id, item]));
 
+  if (board.canManage && (!board.discovery.complete || editingBrief)) return <div className="vani-growth space-y-6"><header className="vani-growth-heading"><div><h1>AI Business Manager</h1><p>Three short steps to a workspace built around your business.</p></div></header><BusinessOnboarding initial={board.discovery.answers} onDone={async () => { if (!await load()) throw new Error('Answers saved, but the workspace could not reload. Please retry.'); setEditingBrief(false); }} onCancel={board.discovery.complete ? () => setEditingBrief(false) : undefined} /></div>;
+
   return (
     <div className="vani-growth space-y-6">
       <header className="vani-growth-heading"><div><span className="vani-growth-kicker"><Leaf className="size-4" /> YOUR BUSINESS, IN FOCUS</span><h1>AI Business Manager</h1><p>Understand what happened. Decide what comes next.</p></div><span className="vani-growth-permission"><ShieldCheck className="size-4" /> Actions stay permission-controlled</span></header>
       {error ? <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-danger-text">{error}</p> : null}
+      {board.canManage ? <button type="button" onClick={() => setEditingBrief(true)} className="rounded-full border border-hairline bg-surface px-4 py-2 text-sm font-medium">Edit business brief</button> : <p className="text-sm text-ink-muted">A workspace owner or admin manages your business brief.</p>}
       <div className="vani-growth-summary">
         <div><Database /><span>Connected sources</span><strong>{board.sources.connected.length}</strong></div>
         <div><MessageCircle /><span>Saved conversations</span><strong>{board.chats?.length ?? 0}</strong></div>
@@ -173,8 +182,7 @@ export function CustomerGrowth() {
         <section className="mt-5">
         <h2 className="text-sm font-semibold">Tell me about your business</h2>
         <p className="mt-1 text-[11px] text-ink-muted">
-          Every answer changes something: the agent’s opening, what it qualifies
-          for, and how this board ranks its advice.
+          These answers give Business Manager context for its advice. Live agent prompts and qualification rules are reviewed separately in the agent studio.
         </p>
         {/* The answers as chips, so a person can see at a glance what the
             product is working from without re-reading six textareas. */}
@@ -455,7 +463,7 @@ function Connectors() {
             className="rounded-xl border border-hairline bg-surface px-3 py-2.5"
           >
             <div className="flex flex-wrap items-baseline gap-2">
-              <span className="text-[11px] font-medium">{connector.label}</span>
+              <span className="inline-flex items-center gap-2 text-xs font-medium"><ProviderLogo provider={connector.id === 'ga4' ? 'google_analytics' : connector.id === 'search_console' ? 'google_search_console' : connector.id} size={20} />{connector.label}</span>
               <span
                 className={`ml-auto text-[11px] ${
                   connector.state === 'connected'
@@ -583,7 +591,7 @@ function Execution({
   recommendationId: string;
   offers: ExecutionOffer[];
   actions: ExecutedAction[];
-  onDone: () => Promise<void> | void;
+  onDone: () => Promise<unknown> | void;
 }) {
   const [busy, setBusy] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
@@ -747,7 +755,7 @@ function SiteScan({
   onDone,
 }: {
   runs: ScanRun[];
-  onDone: () => Promise<void>;
+  onDone: () => Promise<unknown>;
 }) {
   const [site, setSite] = useState('');
   const [running, setRunning] = useState(false);
@@ -978,7 +986,7 @@ function GrowthChat({
   chips: Array<{ id: string; label: string; value: string }>;
   suggestedGoal: string;
   chats: ChatThread[];
-  onDone: () => Promise<void>;
+  onDone: () => Promise<unknown>;
 }) {
   const [question, setQuestion] = useState('');
   const [chatId, setChatId] = useState<string | null>(null);

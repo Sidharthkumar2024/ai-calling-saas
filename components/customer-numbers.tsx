@@ -60,7 +60,7 @@ const providers = [
   {
     id: 'auto',
     name: 'Best available route',
-    note: 'Vaani selects by country, compliance and quality',
+    note: 'Call Vani selects by country, compliance and quality',
   },
   {
     id: 'exotel',
@@ -244,7 +244,7 @@ export function CustomerNumbers({
           Connect, verify and activate a business number
         </h1>
         <p className="mt-2 max-w-3xl text-xs leading-5 text-ink-muted sm:text-sm">
-          Choose a managed Vaani number or import your own carrier route.
+          Choose a managed Call Vani number or import your own carrier route.
           Credentials stay encrypted, documents stay private, and calling
           remains locked until approval.
         </p>
@@ -255,7 +255,7 @@ export function CustomerNumbers({
           {/* §15: numbers come from the workspace's own telephony account. The
               platform does not resell them, so there is no second mode. */}
           <p className="rounded-xl bg-surface-strong px-3 py-2.5 text-[11px] text-ink-body">
-            Numbers come from your own telephony account. Vaani does not sell
+            Numbers come from your own telephony account. Call Vani does not sell
             numbers — connect a Twilio, Exotel, Plivo or SIP number you already
             own.
           </p>
@@ -538,7 +538,7 @@ export function CustomerNumbers({
         </h2>
         <p className="mt-1 text-[11px] text-ink-muted">
           Provider routing is visible to workspace owners; voice-engine vendors
-          remain private behind Vaani products.
+          remain private behind Call Vani products.
         </p>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[1050px] text-left text-xs">

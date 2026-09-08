@@ -24,6 +24,8 @@ import {
   type ExecutionStatus,
 } from '@/lib/growth-execution';
 import { composeGoalPrompt, workspaceChips } from '@/lib/growth-chat';
+import { businessStepError } from '@/lib/business-onboarding';
+import { DISCOVERY_QUESTIONS } from '@/lib/growth-manager';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,6 +70,7 @@ export async function GET(request: Request) {
   );
   return NextResponse.json({
     ...board,
+    canManage: auth.access.permissions.includes('workspace.manage'),
     runs,
     chats,
     actions,
@@ -85,7 +88,8 @@ export async function POST(request: Request) {
   // same permission as reading the board. Saving discovery answers steers what
   // the agent says on live calls, and scanning makes the server fetch a URL —
   // both are workspace changes and are gated as such.
-  const body = (await request.json()) as {
+  const body = (await request.json().catch(() => null)) as {
+    step?: number;
     action?: string;
     answers?: Record<string, string>;
     siteUrl?: string;
@@ -96,6 +100,7 @@ export async function POST(request: Request) {
     actionId?: string;
     status?: string;
   };
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return NextResponse.json({ error: 'A JSON object is required.' }, { status: 400 });
   const auth = await requireCustomerPermission(
     request,
     body.action === 'ask' ? 'analytics.view' : 'workspace.manage',
@@ -161,6 +166,15 @@ export async function POST(request: Request) {
 
   if (body.action !== 'save_discovery')
     return NextResponse.json({ error: 'Unknown action.' }, { status: 400 });
+  if (!body.answers || typeof body.answers !== 'object' || Array.isArray(body.answers) || Object.entries(body.answers).some(([key, value]) => !DISCOVERY_QUESTIONS.some(question => question.id === key) || typeof value !== 'string' || value.length > 2000))
+    return NextResponse.json({ error: 'Provide supported business answers, each up to 2000 characters.' }, { status: 400 });
+  if (body.step !== undefined) {
+    if (![0, 1, 2].includes(body.step)) return NextResponse.json({ error: 'Invalid setup step.' }, { status: 400 });
+    for (let step = 0; step <= body.step; step++) {
+      const error = businessStepError(step, body.answers);
+      if (error) return NextResponse.json({ error }, { status: 400 });
+    }
+  }
   const state = await saveDiscovery({
     organizationId: auth.session.organizationId!,
     answers: body.answers ?? {},

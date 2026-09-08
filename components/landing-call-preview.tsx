@@ -32,7 +32,7 @@ export function LandingCallPreview({
   const text = (en: string, hindi: string) => (hi ? hindi : en);
   const labels = [
     text('Incoming enquiry', 'नई पूछताछ'),
-    text('VANI is listening', 'VANI सुन रही है'),
+    text('Call Vani is listening', 'Call Vani सुन रही है'),
     text('A natural conversation', 'एक सहज बातचीत'),
     text('Next step, taken care of', 'अगला काम भी पूरा'),
     text('Ready for your team', 'आपकी टीम के लिए तैयार'),
@@ -50,7 +50,7 @@ export function LandingCallPreview({
       </div>
       <div className="vani-phone-brand">
         <Activity size={17} />
-        <strong>VANI</strong>
+        <strong>Call Vani</strong>
         <span>{text('DEMO', 'डेमो')}</span>
       </div>
       <div className="vani-call-identity">

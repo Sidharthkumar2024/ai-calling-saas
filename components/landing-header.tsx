@@ -60,7 +60,7 @@ export function LandingHeader({
           <span className="vani-brand-icon">
             <Activity size={23} strokeWidth={2} />
           </span>
-          <span>VANI</span>
+          <span>Call Vani</span>
         </a>
         <nav className="vani-desktop-nav" aria-label={t('landing.nav.aria')}>
           {navigation.map(([href, key]) => (
@@ -88,7 +88,7 @@ export function LandingHeader({
             </SheetTrigger>
             <SheetContent className="!w-[min(90vw,380px)] !bg-white !text-[#17221e]">
               <SheetHeader>
-                <SheetTitle className="!text-[#17221e]">VANI</SheetTitle>
+                <SheetTitle className="!text-[#17221e]">Call Vani</SheetTitle>
               </SheetHeader>
               <nav
                 className="flex flex-col gap-1 px-5"
@@ -110,7 +110,18 @@ export function LandingHeader({
                   </Link>
                 ))}
               </nav>
-              <div className="mt-auto px-8 pb-8">{languageSelector}</div>
+              <div className="mt-auto space-y-4 px-8 pb-8">
+                <Button
+                  className="vani-platform-button w-full"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onEnterWorkspace();
+                  }}
+                >
+                  {t('landing.openPlatform')} <ArrowRight className="size-4" />
+                </Button>
+                {languageSelector}
+              </div>
             </SheetContent>
           </Sheet>
         </div>

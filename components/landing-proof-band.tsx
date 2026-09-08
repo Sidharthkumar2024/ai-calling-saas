@@ -5,6 +5,8 @@ import { SUPPORTED_LANGUAGES } from '@/lib/languages';
 import { SELECTABLE_TOOLS } from '@/lib/agent-tool-catalog';
 import { VAANI_ENGINES } from '@/lib/vaani-engine-catalog';
 import type { TranslationKey } from '@/lib/i18n';
+import { LandingPhoneScene } from '@/components/landing-phone-scene';
+import { ArrowUpRight, CalendarCheck2, Headphones, Target } from 'lucide-react';
 
 /**
  * The numbers band, and what is deliberately not in it.
@@ -23,7 +25,8 @@ import type { TranslationKey } from '@/lib/i18n';
  * platform's own tables, not typed into this file.
  */
 export function LandingProofBand() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
+  const hi = locale === 'hi';
 
   const facts: Array<{ value: string; key: TranslationKey }> = [
     {
@@ -36,19 +39,36 @@ export function LandingProofBand() {
   ];
 
   return (
-    <section className="border-y border-hairline bg-surface py-20 sm:py-24">
+    <section className="cv-proof-section bg-surface py-20 sm:py-24">
       <div className="mx-auto max-w-[1240px] px-4 sm:px-6">
-        <h2 className="max-w-3xl whitespace-pre-line text-[32px] font-normal leading-[1.1] tracking-[-0.02em] sm:text-[44px]">
-          {t('landing.proof.title')}
+        <h2 className="cv-title mx-auto max-w-3xl text-center">
+          {hi ? (
+            <>
+              बातचीत में कम भागदौड़।
+              <br />
+              <em>बिज़नेस के लिए ज़्यादा समय।</em>
+            </>
+          ) : (
+            <>
+              Less chasing conversations.
+              <br />
+              <em>More room for your business.</em>
+            </>
+          )}
         </h2>
-        <p className="mt-4 max-w-xl text-base leading-7 text-ink-body">
-          {t('landing.proof.sub')}
+        <p className="cv-sub mx-auto mt-5 text-center">
+          {hi
+            ? 'लीड की जानकारी, कॉल और अगले काम एक साथ—आपकी टीम के लिए।'
+            : 'Bring lead context, calls and next steps together for the people who grow your business.'}
         </p>
-
-        <div className="mt-12 grid grid-cols-2 gap-8 sm:gap-10 lg:grid-cols-4">
+        <div className="cv-proof-phone">
+          <LandingPhoneScene compact />
+          <div className="cv-proof-fade" />
+        </div>
+        <div className="cv-proof-facts grid grid-cols-2 gap-8 sm:gap-10 lg:grid-cols-4">
           {facts.map((fact) => (
-            <div key={fact.key}>
-              <p className="text-[44px] font-semibold leading-none tracking-[-0.03em] sm:text-[56px]">
+            <div key={fact.key} className="text-center">
+              <p className="text-[44px] font-semibold leading-none tracking-[-0.03em] sm:text-[56px] text-[#285d29]">
                 {fact.value}
               </p>
               <p className="mt-3 text-base text-ink-body">{t(fact.key)}</p>
@@ -56,9 +76,49 @@ export function LandingProofBand() {
           ))}
         </div>
 
-        <p className="mt-10 text-sm text-ink-muted">
-          {t('landing.proof.note')}
+        <p className="mt-8 text-center text-xs text-ink-muted">
+          {hi
+            ? 'प्रोडक्ट कैटलॉग से लिए गए आँकड़े, ग्राहक या उपयोग के दावे नहीं। लाइव उपयोग के लिए सही कॉन्फ़िगरेशन आवश्यक है।'
+            : 'Product catalog counts—not customer or usage claims. Live availability depends on your configuration.'}
         </p>
+        <div className="cv-outcome-cards">
+          {[
+            [
+              Target,
+              hi ? 'सेल्स की अगली बातचीत' : 'For your next sales conversation',
+              hi
+                ? 'लीड का संदर्भ और फॉलो-अप एक जगह।'
+                : 'Lead context and a prepared follow-up, together.',
+            ],
+            [
+              Headphones,
+              hi ? 'सपोर्ट का आसान हैंडऑफ़' : 'For a smoother support handover',
+              hi
+                ? 'टीम को जानकारी दें, सिर्फ़ फ़ोन नंबर नहीं।'
+                : 'Give your team the context, not just a phone number.',
+            ],
+            [
+              CalendarCheck2,
+              hi ? 'बुकिंग में कम भागदौड़' : 'For a better booking journey',
+              hi
+                ? 'पसंद का समय लें और अगला कदम तय करें।'
+                : 'Collect the preferred time and prepare the next step.',
+            ],
+          ].map(([Icon, title, body]) => {
+            const I = Icon as typeof Target;
+            return (
+              <article key={String(title)}>
+                <I size={24} />
+                <h3>{String(title)}</h3>
+                <p>{String(body)}</p>
+                <a href="#solutions">
+                  {hi ? 'उदाहरण देखें' : 'Explore the example'}{' '}
+                  <ArrowUpRight size={16} />
+                </a>
+              </article>
+            );
+          })}
+        </div>
       </div>
     </section>
   );

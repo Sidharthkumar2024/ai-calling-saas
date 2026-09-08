@@ -92,7 +92,7 @@ export function LandingHeroStage({
               <span />
               {t('landing.hero.badge')}
             </p>
-            <h1>{t('landing.stage.title')}</h1>
+            <h2>{locale === 'hi' ? 'पहला हैलो। सही अगला कदम।' : 'First hello. Next step.'}</h2>
             <p className="vani-product-sub">{t('landing.stage.sub')}</p>
             <div className="vani-product-actions">
               <Button onClick={onEnterWorkspace} className="vani-demo-cta">

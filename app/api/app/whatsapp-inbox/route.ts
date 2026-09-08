@@ -38,6 +38,12 @@ export async function GET(request: Request) {
       window: replyWindow(conversation),
     }),
   );
+  const inbound = await getRawDb().prepare(`SELECT sender_phone, MAX(created_at) AS last_at FROM whatsapp_messages WHERE organization_id = ? AND direction = 'inbound' GROUP BY sender_phone`).bind(auth.session.organizationId).all<{ sender_phone: string; last_at: string }>();
+  const inboundByPhone = new Map((inbound.results ?? []).map(row => [row.sender_phone, row.last_at]));
+  for (const conversation of conversations) {
+    conversation.lastInboundAt = inboundByPhone.get(conversation.phone) ?? null;
+    conversation.window = replyWindow(conversation);
+  }
   return NextResponse.json({
     conversations,
     connected: await whatsAppConnected(auth.session.organizationId!),
@@ -59,17 +65,19 @@ export async function POST(request: Request) {
   ]);
   if (auth.response) return auth.response;
   await ensureSchema();
-  const body = (await request.json()) as { phone?: string; text?: string };
-  const phone = String(body.phone ?? '').trim();
-  const text = String(body.text ?? '').trim();
-  if (!phone || !text)
+  const body = await request.json().catch(() => null) as { phone?: unknown; text?: unknown } | null;
+  const phone = typeof body?.phone === 'string' ? body.phone.trim() : '';
+  const text = typeof body?.text === 'string' ? body.text.trim() : '';
+  if (!/^\+?[1-9]\d{6,14}$/.test(phone) || !text || text.length > 4000)
     return NextResponse.json(
-      { error: 'A number and a message are both required.' },
+      { error: 'Use a valid international number and a message of 1–4000 characters.' },
       { status: 400 },
     );
 
   const db = getRawDb();
   const organizationId = auth.session.organizationId!;
+  if (!await whatsAppConnected(organizationId))
+    return NextResponse.json({ error: 'Connect and verify this workspace’s WhatsApp number in Integrations before sending.' }, { status: 409 });
   const history = await db
     .prepare(`SELECT id, sender_phone, direction, message_type, body, media_id, created_at
       FROM whatsapp_messages
@@ -91,19 +99,21 @@ export async function POST(request: Request) {
       { error: 'No conversation with that number.' },
       { status: 404 },
     );
-  const window = replyWindow(conversation);
+  const inbound = await db.prepare(`SELECT MAX(created_at) AS last_at FROM whatsapp_messages WHERE organization_id = ? AND sender_phone = ? AND direction = 'inbound'`).bind(organizationId, phone).first<{ last_at: string | null }>();
+  const window = replyWindow({ lastInboundAt: inbound?.last_at ?? null });
   if (!window.open)
     return NextResponse.json({ error: window.reason }, { status: 409 });
 
-  const result = await sendWhatsAppText({
-    organizationId,
-    destination: phone,
-    body: text,
-  });
+  let result;
+  try {
+    result = await sendWhatsAppText({ organizationId, destination: phone, body: text });
+  } catch {
+    return NextResponse.json({ error: 'Meta did not accept the reply. Check the connection and try again.' }, { status: 502 });
+  }
+  if (result.status !== 'sent')
+    return NextResponse.json({ error: 'The reply was not sent. Reconnect WhatsApp before trying again.' }, { status: 409 });
 
-  // Recorded either way, including a sandbox send, so the thread shows what
-  // this workspace said even when no credentials are connected — and marked
-  // with how it went rather than as an unqualified "sent".
+  // Record only accepted sends. Provider acceptance is not a delivery receipt.
   await db
     .prepare(`INSERT INTO whatsapp_messages
       (id, organization_id, phone_number_id, wa_message_id, direction,

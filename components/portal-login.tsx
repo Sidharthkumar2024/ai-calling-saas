@@ -28,7 +28,7 @@ type PortalLoginProps = {
 const portalCopy = {
   admin: {
     eyebrow: 'Platform control',
-    title: 'Vaani admin console',
+    title: 'Call Vani admin console',
     description:
       'Manage tenants, KYC, calling operations, plans, credits, integrations and platform health.',
     icon: ShieldCheck,
@@ -68,7 +68,9 @@ export function PortalLogin({ portal }: PortalLoginProps) {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('reset_token');
     if (token) { setResetToken(token); setResetMode(true); }
-    if (params.has('error')) setError('Google sign-in could not be completed. Use your email and password, or contact support.');
+    if (params.has('error')) setError(params.get('error') === 'google_verification_required'
+      ? 'This workspace account must be verified before Google sign-in can be linked. Use your email and password for now.'
+      : 'Google sign-in could not be completed. Use your email and password, or contact support.');
     if (token) window.history.replaceState(null, '', window.location.pathname);
     }, 0);
     return () => window.clearTimeout(timer);
@@ -191,7 +193,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                 <Activity className="size-5" />
               </span>
               <span>
-                <span className="block text-base font-semibold">Vaani</span>
+                <span className="block text-base font-semibold">Call Vani</span>
                 <span className="block text-[11px] uppercase tracking-[0.2em] text-ink-muted">
                   {t('login.tagline')}
                 </span>
@@ -359,7 +361,13 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                     <Input
                       id={`${portal}-email`}
                       value={email}
-                      onChange={(event) => setEmail(event.target.value)}
+                      disabled={loading}
+                      onChange={(event) => {
+                        setEmail(event.target.value);
+                        setMfaRequired(false);
+                        setOtp('');
+                        setError('');
+                      }}
                       type="email"
                       autoComplete="username"
                       className="mt-2 h-11 border-hairline bg-surface-strong text-ink placeholder:text-ink-muted"

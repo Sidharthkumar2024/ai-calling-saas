@@ -15,6 +15,8 @@ import {
   providerReadiness,
 } from '@/lib/provider-adapters';
 import { encryptSecret } from '@/lib/security';
+import { splitProviderConfig } from '@/lib/provider-secret-policy';
+import { googleAuthConfig } from '@/lib/google-auth-config';
 
 // Providers whose keys the admin panel may store.
 // Sign-in providers whose OAuth credentials the platform admin may store.
@@ -25,6 +27,8 @@ const MANAGED_PROVIDERS = new Set([
   'elevenlabs',
   'anthropic',
   'openai',
+  'deepgram',
+  'resend',
   'razorpay',
   'whatsapp',
   'exotel',
@@ -165,7 +169,11 @@ export async function GET(request: Request) {
   return NextResponse.json({
     authProviders: authProviders.results,
     platformProviders: platformProviderRows,
-    providerKeys: providerKeys.results,
+    providerKeys: providerKeys.results.map(row => {
+      let value: unknown = {};
+      try { value = JSON.parse(typeof row.public_config_json === 'string' ? row.public_config_json : '{}'); } catch { /* A malformed legacy row must not break the admin screen. */ }
+      return { ...row, public_config_json: JSON.stringify(splitProviderConfig(value).config) };
+    }),
     providerReadiness: readiness,
     tickets: tickets.results,
     ticketMessages: messages.results,
@@ -227,16 +235,20 @@ export async function PATCH(request: Request) {
   const db = getRawDb();
 
   if (body.action === 'provider_key_save') {
+    if ((typeof body.apiKey === 'string' && body.apiKey.length > 4000) || (body.config && typeof body.config === 'object' && Object.values(body.config).some(value => typeof value === 'string' && value.length > 4000)))
+      return NextResponse.json({ error: 'Each credential or configuration value must be at most 4000 characters.' }, { status: 400 });
     const provider = String(body.provider || '');
     if (!MANAGED_PROVIDERS.has(provider))
       return NextResponse.json(
         { error: 'Unsupported provider.' },
         { status: 400 },
       );
-    const config = JSON.stringify(body.config ?? {});
+    const split = splitProviderConfig(body.config);
+    const previous = await platformProviderSecret(provider);
+    const config = JSON.stringify(split.config);
     const apiKey = typeof body.apiKey === 'string' ? body.apiKey.trim() : '';
-    if (apiKey) {
-      const encrypted = await encryptSecret(apiKey);
+    if (apiKey || Object.keys(split.secrets).length || Object.keys(previous.secrets).length) {
+      const encrypted = await encryptSecret(JSON.stringify({ ...previous.secrets, ...split.secrets, ...(apiKey ? { apiKey } : {}) }));
       await db
         .prepare(
           `INSERT INTO platform_provider_secrets (provider, encrypted_secret, public_config_json, updated_by, updated_at)
@@ -264,7 +276,7 @@ export async function PATCH(request: Request) {
       'provider_key.saved',
       'platform_provider',
       provider,
-      { hasKey: Boolean(apiKey), config: body.config ?? {} },
+      { hasKey: Boolean(apiKey), config: split.config, secretFieldsUpdated: Object.keys(split.secrets) },
     );
     return NextResponse.json({ saved: true });
   }
@@ -543,14 +555,9 @@ export async function PATCH(request: Request) {
         hasStored = false;
       }
     }
-    const configured =
-      hasStored ||
-      (provider === 'google' &&
-        Boolean(
-          process.env.GOOGLE_CLIENT_ID &&
-          process.env.GOOGLE_CLIENT_SECRET &&
-          process.env.GOOGLE_REDIRECT_URI,
-        ));
+    const configured = provider === 'google' ? Boolean(await googleAuthConfig()) : hasStored;
+    if (body.enabled && provider !== 'google')
+      return NextResponse.json({ error: 'This sign-in provider’s callback is not implemented yet. Keep it disabled.' }, { status: 409 });
     if (body.enabled && !configured) {
       return NextResponse.json(
         {

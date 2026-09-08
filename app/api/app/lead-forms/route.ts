@@ -4,20 +4,16 @@ import { getRawDb } from '@/db/index';
 import { requireCustomer } from '@/lib/api-session';
 import { requireCustomerPermission } from '@/lib/customer-rbac';
 import { recordAudit } from '@/lib/demo-seed';
+import { DEFAULT_LEAD_FIELDS, validateLeadFields, safeLogo } from '@/lib/lead-form-fields';
 
 export const dynamic = 'force-dynamic';
 
-const DEFAULT_FIELDS = [
-  { key: 'name', label: 'Name', required: true },
-  { key: 'phone', label: 'Phone', required: true },
-  { key: 'email', label: 'Email', required: false },
-  { key: 'productInterest', label: 'Interested in', required: false },
-];
+const DEFAULT_FIELDS = DEFAULT_LEAD_FIELDS;
 
 const DEFAULT_SETTINGS = {
   title: 'Let us call you back',
   description:
-    'Share your details and our AI specialist will call in under a minute.',
+    'Share your details and our team will help with your enquiry.',
   buttonText: 'Request a call',
   successMessage: 'Thanks — your request is in the CRM.',
   placement: 'bottom_right',
@@ -77,43 +73,51 @@ export async function PATCH(request: Request) {
   // A lead form is a public page carrying this workspace’s name.
   const auth = await requireCustomerPermission(request, 'crm.manage');
   if (auth.response) return auth.response;
-  const body = (await request.json()) as {
+  const body = (await request.json().catch(() => null)) as {
+    fields?: unknown;
     id?: string;
     action?: 'save' | 'publish' | 'unpublish';
     name?: string;
     allowedDomains?: string[];
     settings?: Record<string, unknown>;
   };
-  if (!body.id)
+  if (!body?.id)
     return NextResponse.json({ error: 'Form is required.' }, { status: 400 });
   const existing = await getRawDb()
-    .prepare(`SELECT id, settings_json FROM lead_forms
+    .prepare(`SELECT id, settings_json, fields_json, allowed_domains_json FROM lead_forms
     WHERE id = ? AND organization_id = ? LIMIT 1`)
     .bind(body.id, auth.session.organizationId)
-    .first<{ id: string; settings_json: string }>();
+    .first<{ id: string; settings_json: string; fields_json: string; allowed_domains_json: string }>();
   if (!existing)
     return NextResponse.json({ error: 'Form not found.' }, { status: 404 });
   const current = safeObject(existing.settings_json);
+  let fields;
+  try { fields = validateLeadFields(body.fields ?? JSON.parse(existing.fields_json)); }
+  catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : 'Invalid fields.' }, { status: 400 }); }
+  if (body.allowedDomains !== undefined && !Array.isArray(body.allowedDomains)) return NextResponse.json({ error: 'Allowed domains must be a list.' }, { status: 400 });
   const settings = validateSettings({
     ...DEFAULT_SETTINGS,
     ...current,
     ...body.settings,
   });
-  const domains = (body.allowedDomains ?? [])
+  const domains = (body.allowedDomains ?? safeArray(existing.allowed_domains_json))
     .map(normalizeOrigin)
     .filter(Boolean)
     .slice(0, 20);
   const action = body.action ?? 'save';
+  if (!['save', 'publish', 'unpublish'].includes(action)) return NextResponse.json({ error: 'Unknown form action.' }, { status: 400 });
+  if (action === 'publish' && !domains.length) return NextResponse.json({ error: 'Add at least one allowed website origin before publishing.' }, { status: 400 });
   const status =
     action === 'publish' ? 'active' : action === 'unpublish' ? 'draft' : null;
   const result = await getRawDb()
-    .prepare(`UPDATE lead_forms SET name = ?, settings_json = ?,
+    .prepare(`UPDATE lead_forms SET name = ?, settings_json = ?, fields_json = ?,
       allowed_domains_json = ?, status = coalesce(?, status), version = version + 1,
       published_at = CASE WHEN ? = 'active' THEN CURRENT_TIMESTAMP ELSE published_at END,
       updated_at = CURRENT_TIMESTAMP WHERE id = ? AND organization_id = ?`)
     .bind(
       clean(body.name, 80) || 'Website callback popup',
       JSON.stringify(settings),
+      JSON.stringify(fields),
       JSON.stringify(domains),
       status,
       status,
@@ -159,13 +163,14 @@ function validateSettings(value: Record<string, unknown>) {
   ) => (values.includes(candidate as T) ? (candidate as T) : fallback);
   return {
     title: clean(value.title, 80) || DEFAULT_SETTINGS.title,
+    logoUrl: safeLogo(value.logoUrl),
     description: clean(value.description, 180) || DEFAULT_SETTINGS.description,
     buttonText: clean(value.buttonText, 40) || DEFAULT_SETTINGS.buttonText,
     successMessage:
       clean(value.successMessage, 120) || DEFAULT_SETTINGS.successMessage,
     placement: allowed(
       value.placement,
-      ['bottom_right', 'bottom_left', 'center_modal', 'inline'],
+      ['bottom_right', 'bottom_left', 'center_modal'],
       'bottom_right',
     ),
     trigger: allowed(

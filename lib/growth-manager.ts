@@ -44,24 +44,28 @@ export type DiscoveryQuestion = {
  */
 export const DISCOVERY_QUESTIONS: DiscoveryQuestion[] = [
   {
+    id: 'company', chip: 'Company', question: 'What is your company called?',
+    purpose: 'Gives your business brief a clear identity.', required: false,
+  },
+  {
     id: 'business',
     chip: 'Sells',
     question: 'What does your business sell, in your own words?',
-    purpose: 'Decides the object schema and the agent’s opening.',
+    purpose: 'Gives Business Manager context for product and messaging advice.',
     required: true,
   },
   {
     id: 'website',
     chip: 'Website',
     question: 'What is your website?',
-    purpose: 'Read for offers, pricing and pages worth answering from.',
+    purpose: 'The website you can choose to scan for offers, pricing and pages.',
     required: false,
   },
   {
     id: 'lead_definition',
     chip: 'A lead is',
     question: 'What counts as a lead for you?',
-    purpose: 'Sets what the agent qualifies for and how leads are scored.',
+    purpose: 'Helps the manager suggest relevant qualification criteria.',
     required: true,
   },
   {
@@ -83,7 +87,7 @@ export const DISCOVERY_QUESTIONS: DiscoveryQuestion[] = [
     id: 'competitors',
     chip: 'Competitors',
     question: 'Who do customers compare you with?',
-    purpose: 'Prepares the objection playbook for named comparisons.',
+    purpose: 'Adds comparison context to the manager’s recommendations.',
     required: false,
   },
 ];

@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { ensureSchema } from '@/db/bootstrap';
 import { intakeWhatsAppDocument } from '@/lib/document-inbox';
 import { whatsAppInboundCredentials } from '@/lib/commerce';
+import { readPlatformSecret } from '@/lib/platform-secrets';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +21,9 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
-  const expected = process.env.WHATSAPP_VERIFY_TOKEN;
+  await ensureSchema();
+  const platform = await readPlatformSecret('whatsapp');
+  const expected = platform.secrets.verifyToken || process.env.WHATSAPP_VERIFY_TOKEN;
   if (
     expected &&
     params.get('hub.mode') === 'subscribe' &&
@@ -34,7 +37,8 @@ export async function POST(request: Request) {
   await ensureSchema();
   const raw = await request.text();
   const signature = request.headers.get('x-hub-signature-256') ?? '';
-  const appSecret = process.env.WHATSAPP_APP_SECRET;
+  const platform = await readPlatformSecret('whatsapp');
+  const appSecret = platform.secrets.appSecret || process.env.WHATSAPP_APP_SECRET;
   if (!appSecret)
     // Refused rather than trusted. An unverifiable webhook that writes files
     // into a workspace is worse than one that does not run.

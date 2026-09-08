@@ -78,5 +78,13 @@ assert.equal(sqlite.prepare('SELECT plan_id FROM subscriptions').get().plan_id,'
 assert.equal(sqlite.prepare('SELECT current_period_end FROM subscriptions').get().current_period_end,renewal);
 assert.equal(sqlite.prepare("SELECT balance FROM organization_wallets WHERE organization_id='one'").get().balance,450);
 assert.deepEqual(sqlite.prepare('SELECT sequence_number FROM invoices ORDER BY sequence_number').all().map(x=>x.sequence_number),[1,2,3,4,5,6,7]);
+sqlite.prepare("UPDATE plans SET status='legacy' WHERE id='basic'").run();
+await plan('basic','cs_pending_before_catalog_change');
+assert.equal(sqlite.prepare('SELECT plan_id FROM subscriptions').get().plan_id,'basic');
+assert.equal(sqlite.prepare("SELECT balance FROM organization_wallets WHERE organization_id='one'").get().balance,500);
+await plan('basic','cs_pending_before_catalog_change');
+assert.equal(sqlite.prepare("SELECT balance FROM organization_wallets WHERE organization_id='one'").get().balance,500);
+sqlite.prepare("UPDATE plans SET status='disabled' WHERE id='basic'").run();
+await assert.rejects(plan('basic','cs_disabled'),/Plan not found/);
 sqlite.close();
-console.log('Billing fulfillment: 24 assertions passed (isolated SQLite).');
+console.log('Billing fulfillment: 28 assertions passed (isolated SQLite).');

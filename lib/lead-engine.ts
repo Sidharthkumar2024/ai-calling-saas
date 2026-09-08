@@ -28,6 +28,7 @@ export type LeadInput = {
   productInterest?: string;
   notes?: string;
   estimatedValue?: number;
+  formContext?: { formId: string; version: number; pageUrl: string; answers: Record<string, string> };
 };
 
 export function isLeadSourceType(value: unknown): value is LeadSourceType {
@@ -144,7 +145,7 @@ export async function ingestLead(organizationId: string, input: LeadInput) {
       organizationId,
       leadId,
       eventType: 'lead.captured',
-      payloadJson: JSON.stringify({ source: input.sourceType }),
+      payloadJson: JSON.stringify({ source: input.sourceType, form: input.formContext }),
       createdAt: capturedAt,
     },
     {

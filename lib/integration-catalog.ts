@@ -300,7 +300,7 @@ export const INTEGRATION_CATALOG: IntegrationDefinition[] = [
     category: 'messaging',
     blurb: 'Send payment links and confirmations from your own number.',
     monogram: 'Wa',
-    verifiable: false,
+    verifiable: true,
     fields: [
       { key: 'accountId', label: 'Phone number ID', required: true },
       KEY('Access token'),

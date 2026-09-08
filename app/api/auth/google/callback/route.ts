@@ -4,6 +4,7 @@ import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { sessionCookie } from '@/lib/app-auth';
 import { createOpaqueToken, decryptSecret, sha256 } from '@/lib/security';
+import { googleAuthConfig } from '@/lib/google-auth-config';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,13 +35,12 @@ export async function GET(request: Request) {
     return NextResponse.redirect(
       new URL('/login?error=google_state', request.url),
     );
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI;
-  if (!clientId || !clientSecret || !redirectUri)
+  const config = await googleAuthConfig();
+  if (!config)
     return NextResponse.redirect(
       new URL('/login?error=google_config', request.url),
     );
+  const { clientId, clientSecret, redirectUri } = config;
   const consumed = await getRawDb().prepare('UPDATE oauth_states SET consumed_at = CURRENT_TIMESTAMP WHERE id = ? AND consumed_at IS NULL RETURNING id').bind(oauth.id).first();
   if (!consumed) return NextResponse.redirect(new URL('/login?error=google_state', request.url));
   const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -84,7 +84,8 @@ export async function GET(request: Request) {
     !issuerValid ||
     !expiryValid ||
     identity.email_verified !== 'true' ||
-    !identity.email
+    !identity.email ||
+    !identity.sub
   ) {
     return NextResponse.redirect(
       new URL('/login?error=google_identity', request.url),
@@ -107,8 +108,12 @@ export async function GET(request: Request) {
   }
   // Password sign-in remains the supported second-factor flow. Never issue an
   // OAuth session that silently bypasses an enrolled authenticator.
-  const security = await getRawDb().prepare('SELECT mfa_enabled FROM user_security_settings WHERE user_id = ?').bind(user.id).first<{ mfa_enabled: number }>();
+  const security = await getRawDb().prepare('SELECT mfa_enabled, email_verified_at FROM user_security_settings WHERE user_id = ?').bind(user.id).first<{ mfa_enabled: number; email_verified_at: string | null }>();
   if (security?.mfa_enabled) return NextResponse.redirect(new URL('/login?error=google_mfa_use_password', request.url));
+  // A verified Google identity does not prove who created this password account.
+  // Never silently merge it with an unverified signup and retain that signup's
+  // password/sessions. Account ownership must already have been verified.
+  if (!security?.email_verified_at) return NextResponse.redirect(new URL('/login?error=google_verification_required', request.url));
   const sessionToken = createOpaqueToken('vs_');
   const sessionId = `session_${crypto.randomUUID()}`;
   await getRawDb().batch([
@@ -127,10 +132,6 @@ export async function GET(request: Request) {
         await sha256(sessionToken),
         new Date(Date.now() + 7 * 24 * 60 * 60_000).toISOString(),
       ),
-    getRawDb()
-      .prepare(`INSERT INTO user_security_settings (user_id, email_verified_at)
-      VALUES (?, CURRENT_TIMESTAMP) ON CONFLICT(user_id) DO UPDATE SET email_verified_at=CURRENT_TIMESTAMP`)
-      .bind(user.id),
   ]);
   const response = NextResponse.redirect(new URL(oauth.return_to, request.url));
   response.headers.set(

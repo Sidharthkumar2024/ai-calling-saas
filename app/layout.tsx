@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
+import './call-vaani.css';
 import { LocaleProvider } from '@/components/locale-provider';
 
 const geistSans = Geist({
@@ -14,28 +15,28 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Vaani — AI Calling & Revenue Automation',
+  title: 'Call Vani — AI Calling & Revenue Automation',
   description:
     'Capture leads, understand intent, call in the right language and turn every conversation into a revenue action.',
   openGraph: {
-    title: 'Vaani — AI Calling & Revenue Automation',
+    title: 'Call Vani — AI Calling & Revenue Automation',
     description:
       'From lead capture to conversation, CRM action and retargeting.',
     images: [
       {
-        url: '/og.png',
-        width: 1200,
-        height: 630,
-        alt: 'Vaani AI calling operations dashboard',
+        url: '/media/call-vaani-phone.png',
+        width: 1024,
+        height: 1536,
+        alt: 'Call Vani AI calling assistant',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Vaani — AI Calling & Revenue Automation',
+    title: 'Call Vani — AI Calling & Revenue Automation',
     description:
       'From lead capture to conversation, CRM action and retargeting.',
-    images: ['/og.png'],
+    images: ['/media/call-vaani-phone.png'],
   },
 };
 

@@ -307,6 +307,10 @@ export async function saveDiscovery(input: {
   const clean: DiscoveryAnswers = {};
   for (const [key, value] of Object.entries(input.answers ?? {}))
     if (typeof value === 'string') clean[key] = value.trim().slice(0, 2000);
+  const existing = await getRawDb().prepare('SELECT answers_json FROM business_profiles WHERE organization_id = ?').bind(input.organizationId).first<{ answers_json: string }>();
+  let previous: DiscoveryAnswers = {};
+  try { previous = JSON.parse(existing?.answers_json || '{}'); } catch { /* Preserve all valid submitted answers. */ }
+  const merged = { ...previous, ...clean };
   await getRawDb()
     .prepare(
       `INSERT INTO business_profiles (organization_id, answers_json, updated_at)
@@ -315,9 +319,9 @@ export async function saveDiscovery(input: {
          answers_json = excluded.answers_json,
          updated_at = CURRENT_TIMESTAMP`,
     )
-    .bind(input.organizationId, JSON.stringify(clean))
+    .bind(input.organizationId, JSON.stringify(merged))
     .run();
-  return discoveryState(clean);
+  return discoveryState(merged);
 }
 
 /**

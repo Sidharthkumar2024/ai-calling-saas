@@ -14,8 +14,9 @@ export async function authenticateApiKey(
   if (!token || !token.startsWith('vaani_live_')) return null;
   const row = await getRawDb()
     .prepare(
-      `SELECT id, organization_id, scopes_json FROM api_credentials
-       WHERE key_hash = ? AND revoked_at IS NULL LIMIT 1`,
+      `SELECT k.id, k.organization_id, k.scopes_json FROM api_credentials k
+       JOIN organizations o ON o.id = k.organization_id
+       WHERE k.key_hash = ? AND k.revoked_at IS NULL AND o.status = 'active' LIMIT 1`,
     )
     .bind(await sha256(token))
     .first<{ id: string; organization_id: string; scopes_json: string }>();

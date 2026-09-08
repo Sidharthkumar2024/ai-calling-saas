@@ -1,4 +1,5 @@
 'use client';
+import Image from 'next/image';
 
 import { useEffect, useState } from 'react';
 import {
@@ -24,6 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 export type LeadFormSettings = {
+  logoUrl?: string;
   title: string;
   description: string;
   buttonText: string;
@@ -38,6 +40,7 @@ export type LeadFormSettings = {
 };
 
 export type LeadFormRow = {
+  fields?: import('@/lib/lead-form-fields').LeadFormField[];
   id: string;
   name: string;
   publicKey: string;
@@ -70,6 +73,12 @@ export function CustomerLeadCapture({
     selected?.settings ?? null,
   );
   const [name, setName] = useState(selected?.name ?? '');
+  const [fields, setFields] = useState(
+    selected?.fields ?? [
+      { key: 'name', label: 'Name', type: 'text' as const, required: true },
+      { key: 'phone', label: 'Phone', type: 'tel' as const, required: true },
+    ],
+  );
   const [domains, setDomains] = useState(
     (selected?.allowedDomains ?? []).join(', '),
   );
@@ -77,12 +86,14 @@ export function CustomerLeadCapture({
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [previewOpen, setPreviewOpen] = useState(true);
+  const [previewKey, setPreviewKey] = useState(0);
 
   useEffect(() => {
     if (!selected) return;
     const timer = window.setTimeout(() => {
       setSettings(selected.settings);
       setName(selected.name);
+      setFields(selected.fields ?? []);
       setDomains(selected.allowedDomains.join(', '));
       setPreviewOpen(true);
     }, 0);
@@ -129,6 +140,7 @@ export function CustomerLeadCapture({
           action,
           name,
           settings,
+          fields,
           allowedDomains: domains
             .split(',')
             .map((item) => item.trim())
@@ -156,8 +168,15 @@ export function CustomerLeadCapture({
   }
 
   async function copy(value: string) {
-    await navigator.clipboard.writeText(value);
-    setNotice('Copied to clipboard.');
+    setError('');
+    try {
+      await navigator.clipboard.writeText(value);
+      setNotice('Copied to clipboard.');
+    } catch {
+      setError(
+        'Clipboard access is unavailable. Select and copy the displayed script instead.',
+      );
+    }
   }
 
   if (!selected || !settings) {
@@ -214,8 +233,8 @@ export function CustomerLeadCapture({
             disabled={saving}
             className="border-hairline bg-transparent"
           >
-            {saving ? <Loader2 className="animate-spin" /> : <Save />} Save
-            draft
+            {saving ? <Loader2 className="animate-spin" /> : <Save />}{' '}
+            {selected.status === 'active' ? 'Save live changes' : 'Save draft'}
           </Button>
           <Button
             onClick={() =>
@@ -230,12 +249,17 @@ export function CustomerLeadCapture({
         </div>
       </div>
       {notice ? (
-        <p className="rounded-xl border border-emerald-400/15 bg-emerald-400/5 px-4 py-3 text-xs text-success-text">
+        <output
+          className="block rounded-xl border border-emerald-400/15 bg-emerald-400/5 px-4 py-3 text-xs text-success-text"
+        >
           {notice}
-        </p>
+        </output>
       ) : null}
       {error ? (
-        <p className="rounded-xl border border-red-400/15 bg-red-400/5 px-4 py-3 text-xs text-danger-text">
+        <p
+          role="alert"
+          className="rounded-xl border border-red-400/15 bg-red-400/5 px-4 py-3 text-xs text-danger-text"
+        >
           {error}
         </p>
       ) : null}
@@ -277,6 +301,121 @@ export function CustomerLeadCapture({
                 onChange={(event) => update('buttonText', event.target.value)}
               />
             </Field>
+            <Field label="Logo URL (HTTPS)">
+              <Input
+                value={settings.logoUrl ?? ''}
+                onChange={(event) => update('logoUrl', event.target.value)}
+                placeholder="https://your-site.com/logo.png"
+              />
+              <p className="mt-2 text-xs">
+                Use a logo you own. Saving an active form updates the live
+                embed.
+              </p>
+            </Field>
+            <div className="space-y-3 rounded-xl border border-hairline p-3">
+              <h3 className="text-sm font-semibold">Form fields</h3>
+              {fields.map((field, index) => (
+                <div
+                  className="space-y-2 border-b border-hairline pb-3"
+                  key={field.key}
+                >
+                  <label className="block text-xs">
+                    Label · {field.key}
+                    <Input
+                      aria-label={`Label for ${field.key}`}
+                      value={field.label}
+                      maxLength={80}
+                      onChange={(event) =>
+                        setFields(
+                          fields.map((item, at) =>
+                            at === index
+                              ? { ...item, label: event.target.value }
+                              : item,
+                          ),
+                        )
+                      }
+                    />
+                  </label>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <select
+                      aria-label={`Type for ${field.key}`}
+                      disabled={['name', 'phone', 'email'].includes(field.key)}
+                      value={
+                        field.type ||
+                        (field.key === 'phone'
+                          ? 'tel'
+                          : field.key === 'email'
+                            ? 'email'
+                            : 'text')
+                      }
+                      onChange={(event) =>
+                        setFields(
+                          fields.map((item, at) =>
+                            at === index
+                              ? {
+                                  ...item,
+                                  type: event.target.value as typeof item.type,
+                                }
+                              : item,
+                          ),
+                        )
+                      }
+                      className="rounded-lg border border-hairline bg-surface p-2 text-sm"
+                    >
+                      <option value="text">Text</option>
+                      <option value="tel">Phone</option>
+                      <option value="email">Email</option>
+                      <option value="number">Number</option>
+                    </select>
+                    <label className="flex items-center gap-2 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={field.required}
+                        disabled={['name', 'phone'].includes(field.key)}
+                        onChange={(event) =>
+                          setFields(
+                            fields.map((item, at) =>
+                              at === index
+                                ? { ...item, required: event.target.checked }
+                                : item,
+                            ),
+                          )
+                        }
+                      />
+                      Required
+                    </label>
+                    {!['name', 'phone'].includes(field.key) ? (
+                      <button
+                        type="button"
+                        className="text-xs text-danger-text"
+                        onClick={() =>
+                          setFields(fields.filter((_, at) => at !== index))
+                        }
+                      >
+                        Remove {field.label}
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+              <Button
+                variant="outline"
+                disabled={fields.length >= 12}
+                onClick={() =>
+                  setFields([
+                    ...fields,
+                    {
+                      key: `custom_${crypto.randomUUID().slice(0, 8)}`,
+                      label: 'New question',
+                      type: 'text',
+                      required: false,
+                    },
+                  ])
+                }
+              >
+                Add custom field
+              </Button>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Accent">
                 <input
@@ -302,6 +441,8 @@ export function CustomerLeadCapture({
                     <button
                       key={placement}
                       type="button"
+                      aria-label={`Place form ${placement.replaceAll('_', ' ')}`}
+                      aria-pressed={settings.placement === placement}
                       onClick={() => update('placement', placement)}
                       className={`grid h-10 place-items-center rounded-lg border ${settings.placement === placement ? 'border-indigo-300/35 bg-indigo-300/10 text-indigo-700' : 'border-hairline bg-surface-muted text-ink-muted'}`}
                     >
@@ -376,8 +517,8 @@ export function CustomerLeadCapture({
                 placeholder="https://example.com, https://shop.example.com"
               />
               <p className="mt-2 text-[11px] leading-4 text-ink-muted">
-                Comma-separated exact origins. Leave empty only while testing
-                locally.
+                Comma-separated exact origins. Add at least one before
+                publishing; use http://localhost:3000 for local testing.
               </p>
             </Field>
           </div>
@@ -395,7 +536,10 @@ export function CustomerLeadCapture({
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => setPreviewOpen((value) => !value)}
+                onClick={() => {
+                  setPreviewOpen(true);
+                  setPreviewKey((value) => value + 1);
+                }}
                 className="border-hairline bg-transparent"
               >
                 <Play /> Replay
@@ -410,12 +554,15 @@ export function CustomerLeadCapture({
               </div>
               {previewOpen ? (
                 <Preview
+                  key={previewKey}
                   settings={settings}
+                  fields={fields}
                   onClose={() => setPreviewOpen(false)}
                 />
               ) : (
                 <button
                   type="button"
+                  aria-label="Open form preview"
                   onClick={() => setPreviewOpen(true)}
                   className="absolute bottom-7 right-7 grid size-14 place-items-center rounded-full text-ink shadow-2xl"
                   style={{ background: settings.accent }}
@@ -530,16 +677,18 @@ function readableInk(background: string) {
     (i) => parseInt(full.slice(i, i + 2), 16) / 255,
   );
   const lin = (v: number) =>
-    v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+    v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
   const luminance = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-  return luminance > 0.45 ? '#111827' : '#f8fafc';
+  return luminance > 0.179 ? '#101b15' : '#ffffff';
 }
 
 function Preview({
   settings,
+  fields,
   onClose,
 }: {
   settings: LeadFormSettings;
+  fields: NonNullable<LeadFormRow['fields']>;
   onClose: () => void;
 }) {
   const ink = readableInk(settings.background);
@@ -551,34 +700,46 @@ function Preview({
         : 'bottom-5 right-5';
   return (
     <div
-      className={`absolute w-[min(370px,calc(100%-24px))] rounded-[22px] border border-hairline p-5 shadow-2xl ${placement}`}
+      className={`absolute max-h-[420px] overflow-y-auto w-[min(370px,calc(100%-24px))] rounded-[22px] border border-hairline p-5 shadow-2xl ${placement}`}
       style={{ background: settings.background, color: ink }}
     >
       <button
         type="button"
+        aria-label="Close form preview"
         onClick={onClose}
         className="float-right text-lg opacity-60"
       >
         ×
       </button>
       <Palette className="size-4" style={{ color: settings.accent }} />
+      {settings.logoUrl?.startsWith('https://') ? (
+        <Image
+          unoptimized
+          src={settings.logoUrl}
+          alt="Business logo"
+          width={140}
+          height={40}
+          className="mt-3 h-10 max-w-40 object-contain"
+          referrerPolicy="no-referrer"
+        />
+      ) : null}
       <h3 className="mt-4 text-lg font-semibold">{settings.title}</h3>
       <p className="mt-2 text-[11px] leading-5 opacity-75">
         {settings.description}
       </p>
       <div className="mt-4 grid gap-2">
-        <input
-          disabled
-          placeholder="Name *"
-          className="h-10 rounded-xl border border-current/15 bg-current/5 px-3 text-xs"
-        />
-        <input
-          disabled
-          placeholder="Phone *"
-          className="h-10 rounded-xl border border-current/15 bg-current/5 px-3 text-xs"
-        />
+        {fields.map((field) => (
+          <input
+            key={field.key}
+            disabled
+            placeholder={`${field.label}${field.required ? ' *' : ''}`}
+            className="h-10 rounded-xl border border-current/15 bg-current/5 px-3 text-xs"
+          />
+        ))}
         <button
           type="button"
+          disabled
+          title="Preview only — submit the published form to capture a lead"
           className="h-11 rounded-xl text-xs font-semibold"
           style={{
             background: settings.accent,

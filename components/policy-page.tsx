@@ -11,18 +11,18 @@ const privacy = [
   ['Cookies and local preferences', 'Sign-in uses session cookies. Browser storage remembers choices such as language and notification sounds. Signing out ends the current authenticated session.'],
 ];
 const terms = [
-  ['Using VANI', 'VANI provides tools for business conversations and automation. You are responsible for your account, authorised team members, business content and the activities initiated in your workspace. Keep credentials private.'],
+  ['Using Call Vani', 'Call Vani provides tools for business conversations and automation. You are responsible for your account, authorised team members, business content and the activities initiated in your workspace. Keep credentials private.'],
   ['Calling and messaging', 'Use only contacts and phone numbers you are authorised to contact. Honour consent, opt-outs, calling restrictions and channel rules. Do not use the service for impersonation, harassment, spam or other unlawful activity.'],
   ['AI and human oversight', 'AI output can be inaccurate. Review agent prompts, knowledge, payment details and customer-facing actions before enabling automation. Use approval gates and human handoff where an action needs review.'],
   ['Plans, credits and payments', 'Review the plan, credit quantity, currency and checkout total before paying. Production purchases are confirmed after verification by the payment system. Sandbox purchases are simulations, not money transfers. Commercial refund, cancellation and expiry terms must be finalised and disclosed before paid public launch.'],
-  ['Your data and integrations', 'You retain responsibility for your uploaded content and connected accounts. Connect only services you are authorised to manage, and review each provider’s permissions. Customer payment collections are separate from VANI subscription billing.'],
+  ['Your data and integrations', 'You retain responsibility for your uploaded content and connected accounts. Connect only services you are authorised to manage, and review each provider’s permissions. Customer payment collections are separate from Call Vani subscription billing.'],
   ['Service and support', 'Availability depends on the platform and configured service providers. Support commitments, liability terms, governing law and the operating legal entity are pending commercial and legal review. This preview is not a published service-level agreement.'],
 ];
 export function PolicyPage({ type }: { type: 'privacy' | 'terms' }) {
   const title = type === 'privacy' ? 'Privacy Policy' : 'Terms & Conditions';
   return <main className="vani-auth min-h-screen text-ink">
     <article className="mx-auto max-w-3xl px-6 py-12 sm:py-20">
-      <Link href="/" className="inline-flex items-center gap-2 text-sm text-primary"><ArrowLeft className="size-4" /> Back to VANI</Link>
+      <Link href="/" className="inline-flex items-center gap-2 text-sm text-primary"><ArrowLeft className="size-4" /> Back to Call Vani</Link>
       <ShieldCheck className="mt-12 size-9 text-primary" /><h1 className="mt-5 text-4xl font-semibold tracking-tight">{title}</h1>
       <p className="mt-4 text-sm text-ink-muted">Last updated: 7 September 2026</p>
       <aside className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">Pre-launch draft. The operating company, contact details and commercial/legal terms still require review before this policy can be used for a public launch.</aside>

@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { Loader2, Send } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Loader2, Send, RefreshCw, Search, MessageCircle } from 'lucide-react';
 
 import { useT } from '@/components/locale-provider';
 import type { Conversation, ReplyWindow } from '@/lib/whatsapp-inbox';
@@ -25,7 +25,9 @@ type Thread = Conversation & { window: ReplyWindow };
 export function CustomerWhatsAppInbox() {
   const t = useT();
   const [threads, setThreads] = useState<Thread[]>([]);
-  const [connected, setConnected] = useState(true);
+  const [connected, setConnected] = useState(false);
+  const [search, setSearch] = useState('');
+  const controller = useRef<AbortController | null>(null);
   const [openPhone, setOpenPhone] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(true);
@@ -33,9 +35,13 @@ export function CustomerWhatsAppInbox() {
   const [notice, setNotice] = useState('');
 
   const load = useCallback(async () => {
+    controller.current?.abort();
+    const current = new AbortController();
+    controller.current = current;
     try {
       const response = await fetch('/api/app/whatsapp-inbox', {
         cache: 'no-store',
+        signal: current.signal,
       });
       const body = (await response.json()) as {
         conversations?: Thread[];
@@ -47,17 +53,21 @@ export function CustomerWhatsAppInbox() {
         return;
       }
       setThreads(body.conversations ?? []);
-      setConnected(body.connected !== false);
+      setConnected(body.connected === true);
     } catch {
+      if (current.signal.aborted) return;
       setNotice('Could not load the inbox.');
     } finally {
-      setLoading(false);
+      if (!current.signal.aborted) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
-    return () => window.clearTimeout(timer);
+    const poll = window.setInterval(() => { if (document.visibilityState === 'visible') void load(); }, 15_000);
+    const onVisible = () => { if (document.visibilityState === 'visible') void load(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { window.clearTimeout(timer); window.clearInterval(poll); controller.current?.abort(); document.removeEventListener('visibilitychange', onVisible); };
   }, [load]);
 
   async function reply(phone: string) {
@@ -84,7 +94,7 @@ export function CustomerWhatsAppInbox() {
       // that thinks it has been replying to customers.
       setNotice(
         body.status === 'sent'
-          ? 'Sent.'
+          ? 'Accepted by Meta. Delivery confirmation may arrive later.'
           : 'Recorded, but WhatsApp is not connected — nothing left this workspace.',
       );
       setDraft('');
@@ -107,37 +117,39 @@ export function CustomerWhatsAppInbox() {
 
   return (
     <div className="space-y-4">
-      <div>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
         <h1 className="text-xl font-semibold tracking-tight">
           {t('screen.whatsapp_inbox.title')}
         </h1>
         <p className="mt-1 text-[11px] text-ink-muted">
           {t('screen.whatsapp_inbox.description')}
         </p>
+        </div>
+        <button type="button" onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border border-hairline px-4 py-2 text-sm"><RefreshCw className="size-4" /> Refresh inbox</button>
       </div>
 
       {!connected ? (
         <p className="rounded-lg border border-hairline bg-surface-muted px-3 py-2 text-[11px] text-ink-body">
-          WhatsApp is not connected for this workspace. Messages that arrive are
-          still stored, and anything you send here is recorded but not
-          delivered.
+          Connect and verify your own WhatsApp number in Integrations & API. Replies stay disabled until that connection is ready.
         </p>
       ) : null}
       {notice ? (
-        <p className="rounded-lg border border-hairline bg-surface-muted px-3 py-2 text-[11px] text-ink">
+        <output className="block rounded-lg border border-hairline bg-surface-muted px-3 py-2 text-sm text-ink">
           {notice}
-        </p>
+        </output>
       ) : null}
 
       <section className="portal-panel grid gap-4 p-5 lg:grid-cols-[280px_minmax(0,1fr)]">
         <div className="space-y-1.5">
+          <label className="mb-4 flex items-center gap-2 rounded-xl border border-hairline p-3"><Search className="size-4 text-ink-muted" /><input aria-label="Search conversations" placeholder="Search number or message" value={search} onChange={event => setSearch(event.target.value)} className="min-w-0 w-full bg-transparent text-sm outline-none" /></label>
           {threads.length === 0 ? (
             <p className="text-[11px] text-ink-muted">
               Nothing yet. Messages appear here when a customer writes to your
               WhatsApp number.
             </p>
           ) : null}
-          {threads.map((thread) => (
+          {threads.filter(thread => `${thread.phone} ${thread.preview}`.toLowerCase().includes(search.toLowerCase())).map((thread) => (
             <button
               key={thread.phone}
               type="button"
@@ -169,9 +181,7 @@ export function CustomerWhatsAppInbox() {
 
         <div className="min-w-0">
           {!open ? (
-            <p className="text-[11px] text-ink-muted">
-              Choose a conversation to read it.
-            </p>
+            <div className="flex min-h-72 flex-col items-center justify-center gap-3 rounded-2xl bg-emerald-50/60 p-6 text-center text-emerald-950"><MessageCircle className="size-10" /><h2 className="text-xl font-semibold">Your customer conversations, together.</h2><p className="max-w-sm text-sm">Choose a conversation to reply. This inbox refreshes every 15 seconds while visible. The latest 200 messages are shown.</p></div>
           ) : (
             <>
               <div className="max-h-[26rem] space-y-2 overflow-y-auto rounded-xl border border-hairline bg-surface-muted/50 p-3">
@@ -184,7 +194,7 @@ export function CustomerWhatsAppInbox() {
                         : 'ml-auto bg-primary text-primary-foreground'
                     }`}
                   >
-                    <p className="whitespace-pre-wrap">
+                    <p className="whitespace-pre-wrap break-words text-sm">
                       {message.body ??
                         `[${message.message_type || 'attachment'}]`}
                     </p>
@@ -204,6 +214,8 @@ export function CustomerWhatsAppInbox() {
               {open.window.open ? (
                 <div className="mt-3 flex items-end gap-2 rounded-xl border border-hairline bg-surface p-2">
                   <textarea
+                    maxLength={4000}
+                    disabled={!connected || sending}
                     value={draft}
                     rows={2}
                     onChange={(event) => setDraft(event.target.value)}
@@ -213,7 +225,7 @@ export function CustomerWhatsAppInbox() {
                   />
                   <button
                     type="button"
-                    disabled={!draft.trim() || sending}
+                    disabled={!connected || !draft.trim() || sending}
                     onClick={() => void reply(open.phone)}
                     aria-label="Send reply"
                     className="portal-primary rounded-lg px-3 py-2 text-[11px] disabled:opacity-40"

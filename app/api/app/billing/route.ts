@@ -20,7 +20,9 @@ export async function GET(request: Request) {
         .first(),
       db
         .prepare(
-          `SELECT s.status, s.current_period_end, p.*
+          `SELECT p.id, p.code, p.name, p.monthly_price, p.included_credits,
+           p.max_agents, p.max_numbers, p.concurrency, p.features_json,
+           p.status AS catalog_status, s.status, s.current_period_end
          FROM subscriptions s INNER JOIN plans p ON p.id = s.plan_id
          WHERE s.organization_id = ? LIMIT 1`,
         )

@@ -133,7 +133,7 @@ export function CustomerCommerce({
             AI commerce actions
           </h1>
           <p className="mt-2 max-w-3xl text-xs leading-5 text-ink-muted sm:text-sm">
-            When a customer asks for details or a payment link, Vaani can act
+            When a customer asks for details or a payment link, Call Vani can act
             immediately or remember the requested time.
           </p>
         </div>
@@ -342,7 +342,7 @@ export function CustomerCommerce({
               [
                 '3',
                 'Create link',
-                'Razorpay Payment Links API with Vaani reference ID',
+                'Razorpay Payment Links API with Call Vani reference ID',
               ],
               [
                 '4',

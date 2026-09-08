@@ -41,3 +41,18 @@
 - The attached Growth Manager blueprint informed the UX review. This pass does not certify every roadmap item in that document as implemented or production-ready.
 
 Changes are local only. No deployment, GitHub push or provider-account configuration was performed.
+
+## Resume verification — 8 September 2026
+
+- Restarted the local preview at `http://localhost:3000/`; the previously saved UI is present. Reused the existing customer account to sign in without changing its password.
+- Inspected the Browser tab at the default 652px viewport: the green orb is circular, with no square corners; Start conversation, connection state, permission notice and message controls are visible. No microphone session or charged test was started. Browser error log was empty during this check.
+- Fixed the login account-switch issue: editing the email clears the previous MFA requirement, OTP and error. The email field is disabled while submitting so an older response cannot reapply another account's MFA challenge after an edit. This handler was code-reviewed; an enrolled real account was not altered to manufacture a browser MFA test.
+- Google callback now requires a subject identifier and prior local email verification before issuing a session. It no longer marks an unverified local signup as verified merely because the Google email matches. The existing MFA and portal restrictions remain.
+- Added an actual-callback regression harness with isolated SQLite and synthetic Google responses: 62 assertions for unverified/missing accounts, valid sessions, admin/customer separation, MFA, state cookies, replay, disabled provider and invalid identity claims. No Google network requests or real environment credentials are used by the harness.
+- Reran `npm run test:ui-safety` (162 assertions), the existing full `npm test`, `npx tsc --noEmit`, `npm run lint` and `npm run build`: all passed. Build still reports a bundle-size warning for chunks over 500kB; this is not a latency/load-test result.
+
+### Google activation limitation
+
+Only the earlier Google callback wrote `email_verified_at`; a standalone email-verification or explicit authenticated account-linking flow is not yet implemented. The new guard therefore deliberately blocks first-time Google sign-in for ordinary unverified local accounts. Do not enable Google for public use until ownership verification/linking is implemented and tested. The guard prevents new unsafe automatic links; it does not repair any account linked by the previous implementation or revoke that account's old password/sessions.
+
+The production configuration and live-validation items above remain open. This resume pass did not deploy, push to GitHub, change provider settings or claim production readiness.

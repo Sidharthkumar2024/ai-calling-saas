@@ -7,6 +7,11 @@ import {
   MessageSquareText,
   PhoneIncoming,
   UserRoundPlus,
+  ArrowUpRight,
+  CheckCheck,
+  FileText,
+  PhoneCall,
+  Headphones,
 } from 'lucide-react';
 
 import { DeviceHalo, DeviceShell } from '@/components/landing-device';
@@ -230,6 +235,7 @@ export function LandingScrollStory() {
  * and the reference this layout follows carries 72px at weight 400.
  */
 function StoryHeading({ t }: { t: (key: TranslationKey) => string }) {
+  const { locale } = useLocale();
   return (
     <div>
       <p className="text-lg font-medium text-ink-muted">
@@ -239,7 +245,9 @@ function StoryHeading({ t }: { t: (key: TranslationKey) => string }) {
           headline breaks is a decision about that language's word order and
           belongs with the translation rather than in the JSX. */}
       <h2 className="mt-3 max-w-4xl whitespace-pre-line text-[38px] font-normal leading-[1.06] tracking-[-0.03em] sm:text-[56px] lg:text-[72px]">
-        {t('landing.story.title')}
+        <mark className="cv-brand-highlight">Call Vani</mark>
+        <br />
+        {locale === 'hi' ? 'बातचीत से अगले कदम तक।' : 'Beyond the conversation.'}
       </h2>
     </div>
   );
@@ -259,16 +267,14 @@ function StoryCopy({
   return (
     <div>
       <div className="flex items-center gap-2.5">
-        <span
-          className={`grid size-9 place-items-center rounded-xl border ${
-            active
-              ? 'border-primary/30 bg-primary/10 text-primary'
-              : 'border-hairline text-ink-muted'
-          }`}
-        >
-          <step.icon className="size-4" />
-        </span>
-        <span className="font-mono text-[11px] text-ink-muted">
+        <div className="cv-story-icons" aria-hidden="true">
+          {STEPS.map((item, i) => (
+            <span key={item.id} data-active={active && i === index}>
+              <item.icon size={19} />
+            </span>
+          ))}
+        </div>
+        <span className="font-mono text-xs text-ink-muted">
           {String(index + 1).padStart(2, '0')} /{' '}
           {String(STEPS.length).padStart(2, '0')}
         </span>
@@ -292,6 +298,8 @@ function StoryCopy({
  * is a promise the page cannot keep.
  */
 function StoryPanel({ step, active }: { step: Step; active: boolean }) {
+  const { locale } = useLocale();
+  const hi = locale === 'hi';
   if (step.video)
     return (
       <video
@@ -308,18 +316,144 @@ function StoryPanel({ step, active }: { step: Step; active: boolean }) {
     /* The same stage the hero uses, at rest: a tinted plate, the device in
        perspective, the light behind it. Below the fold the page should not
        look like it stopped trying. */
-    <div className="vani-story-panel stage-scene">
-      <DeviceHalo className="size-[420px]" />
-      <DeviceShell tilt={-4} className="vani-story-device">
-        <LandingCallPreview
-          step={
-            { answer: 1, understand: 2, act: 3, handover: 4, language: 5 }[
-              step.id
-            ] ?? 0
-          }
-          active={active}
-        />
-      </DeviceShell>
+    <div
+      className={`vani-story-panel stage-scene cv-story-preview cv-story-${step.id}`}
+      data-active={active}
+    >
+      <span className="cv-story-demo-label">
+        {hi ? 'प्रोडक्ट प्रीव्यू' : 'Product preview'}
+      </span>
+      {step.id === 'language' ? (
+        <div className="cv-language-grid">
+          {[
+            ['E', 'English'],
+            ['ह', 'Hindi'],
+            ['த', 'Tamil'],
+            ['म', 'Marathi'],
+            ['മ', 'Malayalam'],
+            ['ಕ', 'Kannada'],
+            ['ગ', 'Gujarati'],
+            ['ਪ', 'Punjabi'],
+            ['ব', 'Bengali'],
+          ].map(([letter, name], index) => (
+            <div key={name} style={{ animationDelay: `${index * 80}ms` }}>
+              <strong>{letter}</strong>
+              <span>{name}</span>
+            </div>
+          ))}
+          <p>
+            {hi
+              ? 'आवाज़ और भाषा की उपलब्धता चुने हुए प्रोवाइडर पर निर्भर है।'
+              : 'Voice and language availability depends on your configured provider.'}
+          </p>
+        </div>
+      ) : step.id === 'handover' ? (
+        <div className="cv-category-board">
+          {[0, 1, 2, 3].map((row) => (
+            <div key={row} className="cv-category-row" aria-hidden={row > 0}>
+              {[
+                [PhoneCall, hi ? 'नई लीड' : 'New leads'],
+                [Headphones, hi ? 'सपोर्ट' : 'Support'],
+                [CalendarCheck2, hi ? 'बुकिंग' : 'Bookings'],
+                [FileText, hi ? 'भुगतान' : 'Payments'],
+                [UserRoundPlus, hi ? 'हैंडऑफ़' : 'Handoffs'],
+              ].map(([Icon, name], index) => {
+                const I = Icon as typeof PhoneCall;
+                return (
+                  <span key={String(name)} data-tone={(index + row) % 4}>
+                    <I size={24} />
+                    {String(name)}
+                  </span>
+                );
+              })}
+            </div>
+          ))}
+          <div className="cv-category-caption">
+            <CheckCheck size={19} />
+            {hi ? 'सही संदर्भ। सही टीम।' : 'The right context. The right team.'}
+          </div>
+        </div>
+      ) : (
+        <>
+          <DeviceHalo className="size-[420px]" />
+          <DeviceShell tilt={-4} className="vani-story-device">
+            <LandingCallPreview
+              step={
+                { answer: 1, understand: 2, act: 3, handover: 4, language: 5 }[
+                  step.id
+                ] ?? 0
+              }
+              active={active}
+            />
+          </DeviceShell>
+          {step.id === 'answer' && (
+            <div className="cv-caller-insight">
+              <header>
+                <PhoneIncoming size={17} />
+                {hi ? 'नई पूछताछ' : 'Incoming enquiry'}
+                <span>Call Vani</span>
+              </header>
+              <div>
+                <small>
+                  {hi ? 'वेबसाइट लीड · सेल्स' : 'WEBSITE LEAD · SALES'}
+                </small>
+                <strong>
+                  {hi
+                    ? '“मुझे डेमो देखना है। क्या आपकी टीम बात कर सकती है?”'
+                    : '“I’d like a demo. Can someone walk me through it?”'}
+                </strong>
+                <p>
+                  <ArrowUpRight size={17} />
+                  {hi
+                    ? 'इरादा समझें। अगला कदम तय करें।'
+                    : 'Understand the intent. Prepare the next step.'}
+                </p>
+              </div>
+            </div>
+          )}
+          {step.id === 'understand' && (
+            <div className="cv-transcript-note">
+              <MessageSquareText size={20} />
+              <div>
+                <strong>
+                  {hi ? 'बातचीत का पूरा संदर्भ' : 'The conversation, captured'}
+                </strong>
+                <p>
+                  {hi
+                    ? 'ट्रांसक्रिप्ट · सारांश · लीड की जानकारी'
+                    : 'Transcript · Summary · Lead context'}
+                </p>
+              </div>
+              <CheckCheck size={18} />
+            </div>
+          )}
+          {step.id === 'act' && (
+            <div
+              className="cv-action-cloud"
+              aria-label={hi ? 'उदाहरण कार्रवाइयाँ' : 'Example actions'}
+            >
+              {[
+                [CalendarCheck2, hi ? 'बुकिंग रिक्वेस्ट' : 'Request a booking'],
+                [
+                  MessageSquareText,
+                  hi ? 'WhatsApp फॉलो-अप' : 'WhatsApp follow-up',
+                ],
+                [FileText, hi ? 'CRM अपडेट' : 'Update the CRM'],
+                [UserRoundPlus, hi ? 'टीम को सौंपें' : 'Hand over to team'],
+              ].map(([Icon, label], index) => {
+                const I = Icon as typeof FileText;
+                return (
+                  <span key={String(label)} className={`cv-action-${index}`}>
+                    <I size={21} />
+                    {String(label)}
+                    <ArrowUpRight size={16} />
+                  </span>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

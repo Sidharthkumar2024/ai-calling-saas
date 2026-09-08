@@ -141,7 +141,7 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
               <Activity className="size-5" />
             </span>
             <span>
-              <span className="block text-sm font-semibold">Vaani</span>
+              <span className="block text-sm font-semibold">Call Vani</span>
               <span className="block text-[11px] uppercase tracking-[0.18em] text-ink-muted">
                 Revenue Voice OS
               </span>

@@ -1,4 +1,5 @@
 'use client';
+import { PricingReference } from '@/components/pricing-reference';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CreditCelebration } from '@/components/credit-celebration';
@@ -176,6 +177,7 @@ export function CustomerBilling({
 
   return (
     <div className="vani-billing space-y-6">
+      <PricingReference />
       {receipt ? <CreditCelebration key={receipt.invoiceId} receipt={receipt} onDismiss={dismissReceipt} /> : null}
       <div>
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-warning-text">

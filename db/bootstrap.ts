@@ -1,5 +1,6 @@
 import { getRawDb } from './index';
 import { SEED_RATE_CARDS } from '@/lib/rate-cards';
+import { publishCommercialCatalog } from '@/lib/publish-commercial-catalog';
 
 let bootstrapPromise: Promise<void> | null = null;
 
@@ -2629,6 +2630,7 @@ async function bootstrap() {
   }
 
   await db.prepare('PRAGMA optimize').run();
+  await publishCommercialCatalog(db);
 }
 
 async function seedLocalDemo(db: D1Database) {

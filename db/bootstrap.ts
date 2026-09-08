@@ -2449,6 +2449,30 @@ async function bootstrap() {
       PRIMARY KEY (organization_id, phone)
     )`)
     .run();
+
+  // Approved message templates — the only thing WhatsApp accepts once the
+  // 24-hour window has closed. Kept per workspace and keyed by (name,
+  // language) the way Meta keys them, because the same template exists once
+  // per language and sending picks one of those, not one of these rows.
+  await db
+    .prepare(`CREATE TABLE IF NOT EXISTS whatsapp_templates (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      language TEXT DEFAULT 'en' NOT NULL,
+      category TEXT DEFAULT 'UTILITY' NOT NULL,
+      header TEXT,
+      body TEXT NOT NULL,
+      footer TEXT,
+      status TEXT DEFAULT 'draft' NOT NULL,
+      provider_id TEXT,
+      rejected_reason TEXT,
+      submitted_at TEXT,
+      synced_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      UNIQUE (organization_id, name, language)
+    )`)
+    .run();
   await ensureColumn(db, 'handoffs', 'call_id', 'TEXT');
   await ensureColumn(db, 'handoffs', 'enqueued_at', 'TEXT');
   await ensureColumn(db, 'handoffs', 'accepted_at', 'TEXT');

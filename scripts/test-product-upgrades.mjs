@@ -28,6 +28,10 @@ const equal = (actual, expected) => {
   assert.deepEqual(actual, expected);
   checks++;
 };
+const match = (actual, pattern) => {
+  assert.match(actual, pattern);
+  checks++;
+};
 const throws = (fn) => {
   assert.throws(fn);
   checks++;
@@ -178,10 +182,12 @@ try {
 // Exercise the actual inbox route with synthetic auth/data. Never sends a real message.
 let saved = 0,
   sends = 0,
+  templateSends = 0,
   connected = true,
+  templateRow = null,
   inbound = new Date().toISOString();
 const sql = {
-  prepare(_query) {
+  prepare(query) {
     return {
       bind() {
         return this;
@@ -201,6 +207,9 @@ const sql = {
         };
       },
       async first() {
+        // The template lookup and the inbound-window read are both `first()`
+        // on this fake, so they are told apart by what was asked for.
+        if (/FROM whatsapp_templates/.test(query)) return templateRow;
         return { last_at: inbound };
       },
       async run() {
@@ -227,8 +236,13 @@ const modules = {
       sends++;
       return { status: 'sent', providerReference: 'synthetic-message' };
     },
+    sendWhatsAppTemplate: async () => {
+      templateSends++;
+      return { status: 'sent', providerReference: 'synthetic-template' };
+    },
   },
   '@/lib/whatsapp-inbox': await import('../lib/whatsapp-inbox.ts'),
+  '@/lib/whatsapp-templates': await import('../lib/whatsapp-templates.ts'),
 };
 const route = {};
 compileFunction(
@@ -276,6 +290,43 @@ inbound = new Date().toISOString();
 equal((await reply({ phone: '+919876543210', text: 'Hi' })).status, 200);
 equal(sends, 1);
 equal(saved, 1);
+
+// Templates: the answer to a closed window, not a way around it.
+const approved = {
+  id: 'wt_1',
+  name: 'appointment_reminder',
+  language: 'en',
+  category: 'UTILITY',
+  header: null,
+  body: 'Hello {{1}}, your visit is on {{2}}.',
+  footer: null,
+  status: 'APPROVED',
+  provider_id: 'meta_1',
+  rejected_reason: null,
+};
+const sendTemplate = (data) =>
+  reply({ action: 'send_template', phone: '+919876543210', ...data });
+templateRow = null;
+equal((await sendTemplate({ templateId: 'wt_missing' })).status, 404);
+// A template still in review cannot be sent, whatever the screen believed.
+templateRow = { ...approved, status: 'PENDING' };
+equal((await sendTemplate({ templateId: 'wt_1', params: ['A', 'B'] })).status, 409);
+templateRow = approved;
+equal((await sendTemplate({ templateId: 'wt_1', params: ['A'] })).status, 400);
+equal((await sendTemplate({ templateId: 'wt_1', params: ['A', 'two\nlines'] })).status, 400);
+equal(templateSends, 0);
+connected = false;
+equal((await sendTemplate({ templateId: 'wt_1', params: ['A', 'B'] })).status, 409);
+equal(templateSends, 0);
+connected = true;
+// The window is closed and this still goes, which is the whole point.
+inbound = '2020-01-01 00:00:00';
+const savedBefore = saved;
+equal((await sendTemplate({ templateId: 'wt_1', params: ['Asha', 'Tuesday'] })).status, 200);
+equal(templateSends, 1);
+equal(saved, savedBefore + 1);
+templateRow = null;
+inbound = new Date().toISOString();
 // Actual commerce adapter: tenant routing, structured encrypted token decoding,
 // canonical phone matching, suppression and no cross-workspace sender fallback.
 const commerceDb = new DatabaseSync(':memory:');
@@ -292,9 +343,22 @@ equal((await commerce.whatsAppInboundCredentials('123456')).accessToken, 'tenant
 equal(await commerce.whatsAppConnected('org_B'), false);
 equal((await commerce.sendWhatsAppText({ organizationId: 'org_A', destination: '+919876543210', body: 'Hello' })).status, 'sent');
 equal(commerceFetches, 1);
+// A template is what WhatsApp accepts once the window has closed, so this
+// sender deliberately does not check the window — proven by closing it.
+commerceDb.prepare('DELETE FROM whatsapp_messages').run();
+await assert.rejects(() => commerce.sendWhatsAppText({ organizationId: 'org_A', destination: '+919876543210', body: 'Hello' }), /approved template/i); checks++;
+equal((await commerce.sendWhatsAppTemplate({ organizationId: 'org_A', destination: '+919876543210', name: 'appointment_reminder', language: 'en', params: ['Asha', 'Tuesday'] })).status, 'sent');
+equal(commerceFetches, 2);
+// Templates live on the business account, so a workspace can be able to send
+// and still be unable to manage them. Those are different sentences.
+equal((await commerce.whatsAppTemplateAccess('org_A')).ok, false);
+match((await commerce.whatsAppTemplateAccess('org_A')).reason, /Business Account ID/);
+match((await commerce.whatsAppTemplateAccess('org_unconnected')).reason, /Integrations/);
 commerceDb.prepare('INSERT INTO suppression_entries VALUES (?,?,?,?,NULL)').run('block', await sha256('+919876543210'), 'org_A', 'organization');
 await assert.rejects(() => commerce.sendWhatsAppText({ organizationId: 'org_A', destination: '919876543210', body: 'Hello' }), /do-not-contact/); checks++;
-equal(commerceFetches, 1);
+// Someone who asked not to be contacted did not thereby agree to templates.
+await assert.rejects(() => commerce.sendWhatsAppTemplate({ organizationId: 'org_A', destination: '919876543210', name: 'appointment_reminder', language: 'en', params: [] }), /do-not-contact/); checks++;
+equal(commerceFetches, 2);
 commerceDb.prepare('INSERT INTO integration_connections VALUES (?,?,?,?,?)').run('org_B', 'whatsapp_cloud', '{"accountId":"123456"}', '{"apiKey":"other-token"}', 'connected');
 equal(await commerce.whatsAppInboundCredentials('123456'), null);
 commerceDb.close();

@@ -3,7 +3,16 @@ import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { requireAnyCustomerPermission } from '@/lib/customer-rbac';
 import { recordAudit } from '@/lib/demo-seed';
-import { sendWhatsAppText, whatsAppConnected } from '@/lib/commerce';
+import {
+  sendWhatsAppTemplate,
+  sendWhatsAppText,
+  whatsAppConnected,
+} from '@/lib/commerce';
+import {
+  fillTemplate,
+  validateParams,
+  type Template,
+} from '@/lib/whatsapp-templates';
 import {
   PAGE_SIZE,
   replyWindow,
@@ -111,6 +120,16 @@ export async function GET(request: Request) {
     )
     .bind(auth.session.organizationId, auth.session.userId)
     .first<{ id: string }>();
+  // Only approved ones. A template still in review cannot be sent, and
+  // offering it here would be offering a button that fails at Meta.
+  const templates = await getRawDb()
+    .prepare(`SELECT id, name, language, category, header, body, footer, status,
+      provider_id, rejected_reason
+      FROM whatsapp_templates
+      WHERE organization_id = ? AND status = 'APPROVED'
+      ORDER BY name`)
+    .bind(auth.session.organizationId)
+    .all<Template>();
 
   return NextResponse.json({
     conversations: conversations.map((conversation) => {
@@ -127,6 +146,7 @@ export async function GET(request: Request) {
     }),
     agents: agents.results ?? [],
     me: me?.id ?? null,
+    templates: templates.results ?? [],
     connected: await whatsAppConnected(auth.session.organizationId!),
   });
 }
@@ -151,6 +171,8 @@ export async function POST(request: Request) {
     phone?: unknown;
     text?: unknown;
     supportAgentId?: unknown;
+    templateId?: unknown;
+    params?: unknown;
   } | null;
   const phone = typeof body?.phone === 'string' ? body.phone.trim() : '';
 
@@ -205,6 +227,112 @@ export async function POST(request: Request) {
       { agentId },
     );
     return NextResponse.json({ ok: true, agentId });
+  }
+
+  /**
+   * Sending an approved template.
+   *
+   * This is the answer to a closed reply window rather than a way around it:
+   * outside 24 hours WhatsApp accepts nothing else, and until now the inbox
+   * stated the reason and stopped there.
+   */
+  if (body?.action === 'send_template') {
+    const db = getRawDb();
+    const organizationId = auth.session.organizationId!;
+    if (!/^\+?[1-9]\d{6,14}$/.test(phone))
+      return NextResponse.json(
+        { error: 'A conversation is required.' },
+        { status: 400 },
+      );
+    const template = await db
+      .prepare(`SELECT id, name, language, category, header, body, footer,
+        status, provider_id, rejected_reason
+        FROM whatsapp_templates
+        WHERE id = ? AND organization_id = ?`)
+      .bind(
+        typeof body.templateId === 'string' ? body.templateId : '',
+        organizationId,
+      )
+      .first<Template>();
+    if (!template)
+      return NextResponse.json(
+        { error: 'That template is not in this workspace.' },
+        { status: 404 },
+      );
+    // Checked here as well as on screen: the screen's copy of the status can
+    // be a minute old, and Meta pauses a template without warning anyone.
+    if (template.status !== 'APPROVED')
+      return NextResponse.json(
+        { error: 'Only an approved template can be sent.' },
+        { status: 409 },
+      );
+    const params = Array.isArray(body.params)
+      ? (body.params as unknown[]).map((value) =>
+          typeof value === 'string' ? value.trim() : '',
+        )
+      : [];
+    const problems = validateParams(template.body, params);
+    if (problems.length)
+      return NextResponse.json({ error: problems.join(' ') }, { status: 400 });
+    if (!(await whatsAppConnected(organizationId)))
+      return NextResponse.json(
+        {
+          error:
+            'Connect and verify this workspace\u2019s WhatsApp number in Integrations before sending.',
+        },
+        { status: 409 },
+      );
+    let result;
+    try {
+      result = await sendWhatsAppTemplate({
+        organizationId,
+        destination: phone,
+        name: template.name,
+        language: template.language,
+        params: params.slice(0, 20),
+      });
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Meta did not accept the template.',
+        },
+        { status: 502 },
+      );
+    }
+    if (result.status !== 'sent')
+      return NextResponse.json(
+        {
+          error:
+            'The template was not sent. Reconnect WhatsApp before trying again.',
+        },
+        { status: 409 },
+      );
+    // Stored filled in, because what belongs in the transcript is what the
+    // customer read — not the template with its slots still showing.
+    await db
+      .prepare(`INSERT INTO whatsapp_messages
+        (id, organization_id, phone_number_id, wa_message_id, direction,
+         sender_phone, message_type, body, media_id)
+        VALUES (?, ?, 'outbound', ?, 'outbound', ?, 'template', ?, NULL)`)
+      .bind(
+        `wam_${crypto.randomUUID()}`,
+        organizationId,
+        result.providerReference,
+        phone,
+        fillTemplate(template.body, params).slice(0, 4000),
+      )
+      .run();
+    await recordAudit(
+      auth.session,
+      'whatsapp.template_sent',
+      'whatsapp',
+      phone,
+      { template: template.name, language: template.language },
+    );
+    return NextResponse.json({ ok: true, status: result.status });
   }
 
   const text = typeof body?.text === 'string' ? body.text.trim() : '';

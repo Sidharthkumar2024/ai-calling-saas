@@ -18,6 +18,12 @@ import {
   type InboxMessage,
   type ReplyWindow,
 } from '@/lib/whatsapp-inbox';
+import {
+  fillTemplate,
+  placeholders,
+  validateParams,
+  type Template,
+} from '@/lib/whatsapp-templates';
 
 /**
  * The WhatsApp inbox.
@@ -54,6 +60,9 @@ export function CustomerWhatsAppInbox() {
   const t = useT();
   const [threads, setThreads] = useState<Thread[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [templateId, setTemplateId] = useState('');
+  const [params, setParams] = useState<string[]>([]);
   const [me, setMe] = useState<string | null>(null);
   const [backfill, setBackfill] = useState<Record<string, Backfill>>({});
   const [reading, setReading] = useState(false);
@@ -83,6 +92,7 @@ export function CustomerWhatsAppInbox() {
       const body = (await response.json()) as {
         conversations?: Thread[];
         agents?: Agent[];
+        templates?: Template[];
         me?: string | null;
         connected?: boolean;
         error?: string;
@@ -93,6 +103,7 @@ export function CustomerWhatsAppInbox() {
       }
       setThreads(body.conversations ?? []);
       setAgents(body.agents ?? []);
+      setTemplates(body.templates ?? []);
       setMe(body.me ?? null);
       setConnected(body.connected === true);
     } catch {
@@ -234,6 +245,44 @@ export function CustomerWhatsAppInbox() {
     }
   }
 
+  /** Sends an approved template to a conversation whose window has closed. */
+  async function sendTemplate(phone: string) {
+    const template = templates.find((row) => row.id === templateId);
+    if (!template) return;
+    const problems = validateParams(template.body, params);
+    if (problems.length) {
+      setNotice(problems.join(' '));
+      return;
+    }
+    setSending(true);
+    setNotice('');
+    try {
+      const response = await fetch('/api/app/whatsapp-inbox', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: 'send_template',
+          phone,
+          templateId,
+          params,
+        }),
+      });
+      const body = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        setNotice(body.error ?? 'That template did not send.');
+        return;
+      }
+      setNotice('Accepted by Meta. Delivery confirmation may arrive later.');
+      setParams([]);
+      setTemplateId('');
+      await load();
+    } catch {
+      setNotice('That template did not send.');
+    } finally {
+      setSending(false);
+    }
+  }
+
   function chooseAgent(thread: Thread, agentId: string) {
     const change = assignmentChange(
       thread.assignment ?? null,
@@ -265,6 +314,9 @@ export function CustomerWhatsAppInbox() {
   };
   const transcript = open ? [...earlier.messages, ...open.messages] : [];
   const oldestOnScreen = transcript[0]?.created_at ?? null;
+  const chosen =
+    templates.find((template) => template.id === templateId) ?? null;
+  const slots = chosen ? placeholders(chosen.body) : [];
 
   return (
     <div className="space-y-4">
@@ -495,9 +547,85 @@ export function CustomerWhatsAppInbox() {
                   </button>
                 </div>
               ) : (
-                <p className="mt-3 rounded-xl border border-hairline bg-surface-muted px-3 py-2.5 text-[11px] text-ink-body">
-                  {open.window.reason}
-                </p>
+                <div className="mt-3 rounded-xl border border-hairline bg-surface-muted px-3 py-2.5">
+                  <p className="text-[11px] text-ink-body">
+                    {open.window.reason}
+                  </p>
+                  {/* The window closing is not the end of the conversation —
+                      an approved template is what WhatsApp accepts instead,
+                      and this is where a person reaches one. */}
+                  {templates.length === 0 ? (
+                    <p className="mt-2 text-[11px] text-ink-muted">
+                      No approved template to send. Write one on the WhatsApp
+                      templates screen and submit it to Meta for review.
+                    </p>
+                  ) : (
+                    <div className="mt-2.5 space-y-2">
+                      <label
+                        className="block text-[11px] text-ink-muted"
+                        htmlFor="whatsapp-template"
+                      >
+                        Send an approved template instead
+                      </label>
+                      <select
+                        id="whatsapp-template"
+                        value={templateId}
+                        onChange={(event) => {
+                          setTemplateId(event.target.value);
+                          setParams([]);
+                        }}
+                        className="w-full rounded-lg border border-hairline bg-surface px-2 py-1.5 text-[11px]"
+                      >
+                        <option value="">Choose a template…</option>
+                        {templates.map((template) => (
+                          <option key={template.id} value={template.id}>
+                            {template.name} · {template.language}
+                          </option>
+                        ))}
+                      </select>
+                      {chosen ? (
+                        <>
+                          {slots.map((slot) => (
+                            <input
+                              key={slot}
+                              value={params[slot - 1] ?? ''}
+                              maxLength={200}
+                              placeholder={`Variable {{${slot}}}`}
+                              aria-label={`Variable ${slot}`}
+                              onChange={(event) =>
+                                setParams((current) => {
+                                  const next = [...current];
+                                  next[slot - 1] = event.target.value;
+                                  return next;
+                                })
+                              }
+                              className="w-full rounded-lg border border-hairline bg-surface px-2 py-1.5 text-[11px]"
+                            />
+                          ))}
+                          {/* Filled in, exactly as the customer will read it.
+                              An unfilled slot stays visible as {{2}} rather
+                              than disappearing into a gap in a sentence. */}
+                          <p className="whitespace-pre-wrap rounded-lg border border-hairline bg-surface px-2.5 py-2 text-[12px] text-ink">
+                            {fillTemplate(chosen.body, params)}
+                          </p>
+                          <button
+                            type="button"
+                            disabled={!connected || sending}
+                            onClick={() => void sendTemplate(open.phone)}
+                            className="portal-primary inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] disabled:opacity-40"
+                          >
+                            {sending ? (
+                              <Loader2 className="size-3.5 animate-spin" />
+                            ) : (
+                              <Send className="size-3.5" />
+                            )}
+                            Send template
+                          </button>
+                        </>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
               )}
             </>
           )}

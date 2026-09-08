@@ -203,9 +203,25 @@ export async function sendWhatsAppText(input: {
   const db = getRawDb();
   const normalizedPhone = `+${input.destination.replace(/\D/g, '')}`;
   const digitsPhone = normalizedPhone.slice(1);
-  const suppressed = await db.prepare(`SELECT id FROM suppression_entries WHERE phone_hash IN (?, ?, ?) AND (organization_id = ? OR scope = 'global') AND (expires_at IS NULL OR expires_at > datetime('now')) LIMIT 1`).bind(await sha256(input.destination), await sha256(normalizedPhone), await sha256(digitsPhone), input.organizationId).first();
-  if (suppressed) throw new Error('This customer is on the do-not-contact list.');
-  const inbound = await db.prepare(`SELECT MAX(created_at) AS last_at FROM whatsapp_messages WHERE organization_id = ? AND sender_phone IN (?, ?, ?) AND direction = 'inbound'`).bind(input.organizationId, input.destination, normalizedPhone, digitsPhone).first<{ last_at: string | null }>();
+  const suppressed = await db
+    .prepare(
+      `SELECT id FROM suppression_entries WHERE phone_hash IN (?, ?, ?) AND (organization_id = ? OR scope = 'global') AND (expires_at IS NULL OR expires_at > datetime('now')) LIMIT 1`,
+    )
+    .bind(
+      await sha256(input.destination),
+      await sha256(normalizedPhone),
+      await sha256(digitsPhone),
+      input.organizationId,
+    )
+    .first();
+  if (suppressed)
+    throw new Error('This customer is on the do-not-contact list.');
+  const inbound = await db
+    .prepare(
+      `SELECT MAX(created_at) AS last_at FROM whatsapp_messages WHERE organization_id = ? AND sender_phone IN (?, ?, ?) AND direction = 'inbound'`,
+    )
+    .bind(input.organizationId, input.destination, normalizedPhone, digitsPhone)
+    .first<{ last_at: string | null }>();
   const window = replyWindow({ lastInboundAt: inbound?.last_at ?? null });
   if (!window.open) throw new Error(window.reason);
   const credentials = await whatsAppCredentials(input.organizationId);
@@ -248,6 +264,186 @@ export async function sendWhatsAppText(input: {
   };
 }
 
+/**
+ * Sends an approved template.
+ *
+ * The counterpart to `sendWhatsAppText`, and the only thing that reaches a
+ * customer whose 24-hour window has closed — so it deliberately does *not*
+ * check that window. It does check the do-not-contact list, which the window
+ * never had anything to do with: somebody who asked not to be contacted did
+ * not thereby agree to receive templates.
+ */
+export async function sendWhatsAppTemplate(input: {
+  organizationId: string;
+  destination: string;
+  name: string;
+  language: string;
+  params: string[];
+}): Promise<CommerceDeliveryResult> {
+  const db = getRawDb();
+  const normalizedPhone = `+${input.destination.replace(/\D/g, '')}`;
+  const digitsPhone = normalizedPhone.slice(1);
+  const suppressed = await db
+    .prepare(
+      `SELECT id FROM suppression_entries WHERE phone_hash IN (?, ?, ?) AND (organization_id = ? OR scope = 'global') AND (expires_at IS NULL OR expires_at > datetime('now')) LIMIT 1`,
+    )
+    .bind(
+      await sha256(input.destination),
+      await sha256(normalizedPhone),
+      await sha256(digitsPhone),
+      input.organizationId,
+    )
+    .first();
+  if (suppressed)
+    throw new Error('This customer is on the do-not-contact list.');
+
+  const credentials = await whatsAppCredentials(input.organizationId);
+  if (!credentials.accessToken || !credentials.phoneNumberId) {
+    return {
+      status: 'sandbox_delivered',
+      providerReference: `sandbox_${crypto.randomUUID()}`,
+      payload: {
+        mode: 'local_sandbox',
+        reason: 'WhatsApp Cloud API credentials are not connected.',
+      },
+    };
+  }
+  const components = input.params.length
+    ? [
+        {
+          type: 'body',
+          parameters: input.params.map((text) => ({ type: 'text', text })),
+        },
+      ]
+    : [];
+  const response = await fetch(
+    `https://graph.facebook.com/${credentials.graphVersion}/${credentials.phoneNumberId}/messages`,
+    {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${credentials.accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: input.destination.replace(/^\+/, ''),
+        type: 'template',
+        template: {
+          name: input.name,
+          language: { code: input.language },
+          ...(components.length ? { components } : {}),
+        },
+      }),
+    },
+  );
+  const payload = (await response.json()) as {
+    messages?: Array<{ id: string }>;
+    error?: { message?: string };
+  };
+  if (!response.ok || !payload.messages?.[0]?.id)
+    throw new Error(payload.error?.message ?? 'WhatsApp refused the template.');
+  return { status: 'sent', providerReference: payload.messages[0].id, payload };
+}
+
+/**
+ * What this workspace can do about templates, and why not when it cannot.
+ *
+ * Templates live on the WhatsApp Business Account rather than on the phone
+ * number, so a workspace can be perfectly able to send messages and still be
+ * unable to manage templates. That is a different sentence from "WhatsApp is
+ * not connected", and the screen says whichever is true.
+ */
+export async function whatsAppTemplateAccess(organizationId: string) {
+  const credentials = await whatsAppCredentials(organizationId);
+  if (!credentials.accessToken)
+    return {
+      ok: false as const,
+      reason:
+        'Connect this workspace\u2019s WhatsApp number in Integrations & API first.',
+    };
+  if (!credentials.wabaId)
+    return {
+      ok: false as const,
+      reason:
+        'Add your WhatsApp Business Account ID to the WhatsApp connection. Templates live on the business account, not on the phone number.',
+    };
+  return {
+    ok: true as const,
+    accessToken: credentials.accessToken,
+    wabaId: credentials.wabaId,
+    graphVersion: credentials.graphVersion,
+  };
+}
+
+/** Sends a draft to Meta for review. Returns Meta\u2019s id and first status. */
+export async function submitWhatsAppTemplate(
+  organizationId: string,
+  payload: unknown,
+): Promise<{ id: string; status: string }> {
+  const access = await whatsAppTemplateAccess(organizationId);
+  if (!access.ok) throw new Error(access.reason);
+  const response = await fetch(
+    `https://graph.facebook.com/${access.graphVersion}/${access.wabaId}/message_templates`,
+    {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${access.accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+  const body = (await response.json()) as {
+    id?: string;
+    status?: string;
+    error?: { error_user_msg?: string; message?: string };
+  };
+  if (!response.ok || !body.id)
+    throw new Error(
+      body.error?.error_user_msg ??
+        body.error?.message ??
+        'Meta refused the template.',
+    );
+  return { id: body.id, status: body.status ?? 'PENDING' };
+}
+
+/** Reads back what Meta currently thinks of this workspace\u2019s templates. */
+export async function fetchWhatsAppTemplates(organizationId: string): Promise<
+  Array<{
+    id: string;
+    name: string;
+    language: string;
+    status: string;
+    category?: string;
+    components?: unknown;
+    rejected_reason?: string;
+  }>
+> {
+  const access = await whatsAppTemplateAccess(organizationId);
+  if (!access.ok) throw new Error(access.reason);
+  const response = await fetch(
+    `https://graph.facebook.com/${access.graphVersion}/${access.wabaId}/message_templates?limit=200`,
+    { headers: { authorization: `Bearer ${access.accessToken}` } },
+  );
+  const body = (await response.json()) as {
+    data?: Array<{
+      id: string;
+      name: string;
+      language: string;
+      status: string;
+      category?: string;
+      components?: unknown;
+      rejected_reason?: string;
+    }>;
+    error?: { message?: string };
+  };
+  if (!response.ok)
+    throw new Error(
+      body.error?.message ?? 'Meta did not return the templates.',
+    );
+  return body.data ?? [];
+}
+
 /** Whether this workspace could send a WhatsApp message at all right now. */
 export async function whatsAppConnected(organizationId: string) {
   const credentials = await whatsAppCredentials(organizationId);
@@ -275,7 +471,11 @@ export async function getRazorpayCredentials(organizationId: string) {
   const keySecret = bundle.secrets.apiKey;
   if (keyId && keySecret)
     return { keyId, keySecret, source: 'tenant' as const };
-  if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET && process.env.RAZORPAY_DEFAULT_ORGANIZATION_ID === organizationId) {
+  if (
+    process.env.RAZORPAY_KEY_ID &&
+    process.env.RAZORPAY_KEY_SECRET &&
+    process.env.RAZORPAY_DEFAULT_ORGANIZATION_ID === organizationId
+  ) {
     return {
       keyId: process.env.RAZORPAY_KEY_ID,
       keySecret: process.env.RAZORPAY_KEY_SECRET,
@@ -291,7 +491,15 @@ export async function getRazorpayCredentials(organizationId: string) {
  */
 async function whatsAppCredentials(organizationId: string) {
   const platform = await readPlatformSecret('whatsapp');
-  if (platform.disabled) return { accessToken: undefined, phoneNumberId: undefined, graphVersion: 'v23.0', templateName: '', templateLanguage: 'en' };
+  if (platform.disabled)
+    return {
+      accessToken: undefined,
+      phoneNumberId: undefined,
+      wabaId: undefined,
+      graphVersion: 'v23.0',
+      templateName: '',
+      templateLanguage: 'en',
+    };
   const tenant = await integrationSecrets(organizationId, 'whatsapp_cloud');
   const tenantPhoneId = tenant.publicConfig.accountId as string | undefined;
   if (!tenant.secrets.apiKey || !tenantPhoneId) {
@@ -303,6 +511,7 @@ async function whatsAppCredentials(organizationId: string) {
       return {
         accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
         phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
+        wabaId: process.env.WHATSAPP_BUSINESS_ACCOUNT_ID,
         graphVersion: process.env.WHATSAPP_GRAPH_VERSION || 'v23.0',
         templateName:
           process.env.WHATSAPP_PAYMENT_TEMPLATE || 'vaani_payment_link',
@@ -314,6 +523,10 @@ async function whatsAppCredentials(organizationId: string) {
   return {
     accessToken: bundle.secrets.apiKey,
     phoneNumberId: bundle.publicConfig.accountId as string | undefined,
+    // Templates live on the WhatsApp Business Account, not on the phone
+    // number. A workspace can send without it and cannot manage templates
+    // without it, so its absence is reported rather than assumed.
+    wabaId: bundle.publicConfig.wabaId as string | undefined,
     graphVersion:
       (bundle.publicConfig.graphVersion as string | undefined) || 'v23.0',
     templateName:
@@ -338,7 +551,11 @@ async function emailCredentials(organizationId: string) {
     if (tenant.secrets.apiKey && from)
       return { apiKey: tenant.secrets.apiKey, from };
   }
-  if (platform.apiKey && typeof platform.config.fromAddress === 'string' && platform.config.fromAddress)
+  if (
+    platform.apiKey &&
+    typeof platform.config.fromAddress === 'string' &&
+    platform.config.fromAddress
+  )
     return { apiKey: platform.apiKey, from: platform.config.fromAddress };
   if (process.env.RESEND_API_KEY && process.env.EMAIL_FROM)
     return { apiKey: process.env.RESEND_API_KEY, from: process.env.EMAIL_FROM };
@@ -472,7 +689,9 @@ export async function whatsAppInboundCredentials(phoneNumberId: string) {
       continue;
     }
     if (accountId !== phoneNumberId || !row.encrypted_secret) continue;
-    const accessToken = decodeProviderSecret(await decryptSecret(row.encrypted_secret)).apiKey;
+    const accessToken = decodeProviderSecret(
+      await decryptSecret(row.encrypted_secret),
+    ).apiKey;
     if (!accessToken) return null;
     return {
       organizationId: row.organization_id,

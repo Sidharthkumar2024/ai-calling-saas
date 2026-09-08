@@ -115,6 +115,11 @@ const CustomerWhatsAppTemplates = lazy(() =>
     default: m.CustomerWhatsAppTemplates,
   })),
 );
+const CustomerWhatsAppFlows = lazy(() =>
+  import('@/components/customer-whatsapp-flows').then((m) => ({
+    default: m.CustomerWhatsAppFlows,
+  })),
+);
 const CustomerOrgStructure = lazy(() =>
   import('@/components/customer-org-structure').then((m) => ({
     default: m.CustomerOrgStructure,
@@ -518,6 +523,12 @@ const groups: PortalNavGroup[] = [
         translationKey: 'nav.whatsapp_templates',
       },
       {
+        id: 'whatsapp_flows',
+        label: 'WhatsApp forms',
+        icon: MessageCircleMore,
+        translationKey: 'nav.whatsapp_flows',
+      },
+      {
         id: 'agent_desk',
         label: 'Agent desk',
         icon: Headphones,
@@ -591,6 +602,7 @@ const navPermissions: Record<string, string> = {
   objects: 'crm.manage',
   whatsapp_inbox: 'crm.manage',
   whatsapp_templates: 'crm.manage',
+  whatsapp_flows: 'crm.manage',
   agent_desk: 'calls.monitor',
   dialer: 'calls.monitor',
   diagnostics: 'calls.monitor',
@@ -938,6 +950,9 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
             ) : null}
             {!loading && !error && active === 'whatsapp_templates' ? (
               <CustomerWhatsAppTemplates />
+            ) : null}
+            {!loading && !error && active === 'whatsapp_flows' ? (
+              <CustomerWhatsAppFlows />
             ) : null}
             {!loading && !error && active === 'dialer' ? (
               <CustomerDialer />

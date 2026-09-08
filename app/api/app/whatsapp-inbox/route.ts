@@ -4,6 +4,7 @@ import { getRawDb } from '@/db/index';
 import { requireAnyCustomerPermission } from '@/lib/customer-rbac';
 import { recordAudit } from '@/lib/demo-seed';
 import {
+  sendWhatsAppFlow,
   sendWhatsAppTemplate,
   sendWhatsAppText,
   whatsAppConnected,
@@ -131,6 +132,14 @@ export async function GET(request: Request) {
       ORDER BY name`)
     .bind(auth.session.organizationId)
     .all<Template>();
+  // Published forms only, for the same reason as templates: offering one that
+  // cannot open is offering a button that fails at Meta.
+  const flows = await getRawDb()
+    .prepare(`SELECT id, name, cta_label FROM whatsapp_flows
+      WHERE organization_id = ? AND status = 'PUBLISHED' AND provider_id IS NOT NULL
+      ORDER BY name`)
+    .bind(auth.session.organizationId)
+    .all<{ id: string; name: string; cta_label: string }>();
 
   return NextResponse.json({
     conversations: conversations.map((conversation) => {
@@ -148,6 +157,7 @@ export async function GET(request: Request) {
     agents: agents.results ?? [],
     me: me?.id ?? null,
     templates: templates.results ?? [],
+    flows: flows.results ?? [],
     connected: await whatsAppConnected(auth.session.organizationId!),
   });
 }
@@ -174,6 +184,7 @@ export async function POST(request: Request) {
     supportAgentId?: unknown;
     templateId?: unknown;
     params?: unknown;
+    flowId?: unknown;
   } | null;
   const phone = typeof body?.phone === 'string' ? body.phone.trim() : '';
 
@@ -347,6 +358,159 @@ export async function POST(request: Request) {
       'whatsapp',
       phone,
       { template: template.name, language: template.language },
+    );
+    return NextResponse.json({ ok: true, status: result.status });
+  }
+
+  /**
+   * Sending a form the customer fills in inside WhatsApp.
+   *
+   * Like a typed reply, this only works inside the 24-hour window — a Flow is
+   * an interactive message, not a template — so the same rule is checked here.
+   * A row is written before the send with the token Meta will echo, which is
+   * how the answers find their way back to the person who was asked.
+   */
+  if (body?.action === 'send_flow') {
+    const db = getRawDb();
+    const organizationId = auth.session.organizationId!;
+    if (!/^\+?[1-9]\d{6,14}$/.test(phone))
+      return NextResponse.json(
+        { error: 'A conversation is required.' },
+        { status: 400 },
+      );
+    const flow = await db
+      .prepare(`SELECT id, name, cta_label, screens_json, status, provider_id
+        FROM whatsapp_flows WHERE id = ? AND organization_id = ?`)
+      .bind(typeof body.flowId === 'string' ? body.flowId : '', organizationId)
+      .first<{
+        id: string;
+        name: string;
+        cta_label: string;
+        screens_json: string;
+        status: string;
+        provider_id: string | null;
+      }>();
+    if (!flow)
+      return NextResponse.json(
+        { error: 'That form is not in this workspace.' },
+        { status: 404 },
+      );
+    if (flow.status !== 'PUBLISHED' || !flow.provider_id)
+      return NextResponse.json(
+        { error: 'Only a published form can be sent.' },
+        { status: 409 },
+      );
+    let firstScreen = '';
+    try {
+      const screens = JSON.parse(flow.screens_json) as Array<{ id?: string }>;
+      firstScreen = String(screens?.[0]?.id ?? '');
+    } catch {
+      firstScreen = '';
+    }
+    if (!firstScreen)
+      return NextResponse.json(
+        { error: 'This form has no screen to open.' },
+        { status: 409 },
+      );
+    const inbound = await db
+      .prepare(
+        `SELECT MAX(created_at) AS last_at FROM whatsapp_messages WHERE organization_id = ? AND sender_phone = ? AND direction = 'inbound'`,
+      )
+      .bind(organizationId, phone)
+      .first<{ last_at: string | null }>();
+    const window = replyWindow({ lastInboundAt: inbound?.last_at ?? null });
+    if (!window.open)
+      return NextResponse.json({ error: window.reason }, { status: 409 });
+    if (!(await whatsAppConnected(organizationId)))
+      return NextResponse.json(
+        {
+          error:
+            'Connect and verify this workspace\u2019s WhatsApp number in Integrations before sending.',
+        },
+        { status: 409 },
+      );
+
+    const message =
+      typeof body.text === 'string' && body.text.trim()
+        ? body.text.trim().slice(0, 1024)
+        : `Please fill in this short form: ${flow.name}`;
+    const flowToken = `wft_${crypto.randomUUID()}`;
+    // Written before the send. If the send fails the row is removed; if the
+    // process dies between the two, an unanswered row is a smaller problem
+    // than an answer arriving with no row to match it to.
+    await db
+      .prepare(`INSERT INTO whatsapp_flow_responses
+        (id, organization_id, flow_id, flow_token, phone, status)
+        VALUES (?, ?, ?, ?, ?, 'sent')`)
+      .bind(
+        `wfr_${crypto.randomUUID()}`,
+        organizationId,
+        flow.id,
+        flowToken,
+        phone,
+      )
+      .run();
+    let result;
+    try {
+      result = await sendWhatsAppFlow({
+        organizationId,
+        destination: phone,
+        flowProviderId: flow.provider_id,
+        flowToken,
+        screenId: firstScreen,
+        ctaLabel: flow.cta_label,
+        body: message,
+      });
+    } catch (error) {
+      await db
+        .prepare(
+          `DELETE FROM whatsapp_flow_responses WHERE organization_id = ? AND flow_token = ?`,
+        )
+        .bind(organizationId, flowToken)
+        .run();
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Meta did not accept the form.',
+        },
+        { status: 502 },
+      );
+    }
+    if (result.status !== 'sent') {
+      await db
+        .prepare(
+          `DELETE FROM whatsapp_flow_responses WHERE organization_id = ? AND flow_token = ?`,
+        )
+        .bind(organizationId, flowToken)
+        .run();
+      return NextResponse.json(
+        { error: 'The form was not sent. Reconnect WhatsApp and try again.' },
+        { status: 409 },
+      );
+    }
+    await db
+      .prepare(`INSERT INTO whatsapp_messages
+        (id, organization_id, phone_number_id, wa_message_id, direction,
+         sender_phone, message_type, body, media_id)
+        VALUES (?, ?, 'outbound', ?, 'outbound', ?, 'interactive', ?, NULL)`)
+      .bind(
+        `wam_${crypto.randomUUID()}`,
+        organizationId,
+        result.providerReference,
+        phone,
+        `${message}\n[form: ${flow.name}]`,
+      )
+      .run();
+    await recordAudit(
+      auth.session,
+      'whatsapp.flow_sent_to',
+      'whatsapp',
+      phone,
+      {
+        flow: flow.name,
+      },
     );
     return NextResponse.json({ ok: true, status: result.status });
   }

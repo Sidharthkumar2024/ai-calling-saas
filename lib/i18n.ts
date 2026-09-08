@@ -557,6 +557,7 @@ const en = {
     'No section matches. This searches sections, not leads or calls.',
   'nav.whatsapp_inbox': 'WhatsApp inbox',
   'nav.whatsapp_templates': 'WhatsApp templates',
+  'nav.whatsapp_flows': 'WhatsApp forms',
   'screen.whatsapp_inbox.title': 'WhatsApp inbox',
   'screen.whatsapp_inbox.description':
     'What customers wrote to your WhatsApp number, and your side of it. WhatsApp only accepts a typed reply within 24 hours of their last message, so the box appears when it would actually be delivered.',
@@ -1356,6 +1357,7 @@ const hi: Partial<Record<TranslationKey, string>> = {
     'कोई section नहीं मिला। यहाँ sections खोजे जाते हैं, leads या calls नहीं।',
   'nav.whatsapp_inbox': 'WhatsApp inbox',
   'nav.whatsapp_templates': 'WhatsApp टेम्पलेट',
+  'nav.whatsapp_flows': 'WhatsApp फ़ॉर्म',
   'screen.whatsapp_inbox.title': 'WhatsApp inbox',
   'screen.whatsapp_inbox.description':
     'ग्राहकों ने आपके WhatsApp नंबर पर क्या लिखा, और आपने क्या जवाब दिया। WhatsApp टाइप किया हुआ जवाब उनके आख़िरी मैसेज के 24 घंटे के अंदर ही लेता है, इसलिए बॉक्स तभी दिखता है जब वो सचमुच पहुँचेगा।',

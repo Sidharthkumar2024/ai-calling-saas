@@ -2491,6 +2491,41 @@ async function bootstrap() {
           published_version = version
       WHERE status = 'active' AND published_fields_json IS NULL`)
     .run();
+
+  // Flows — a form the customer fills in without leaving WhatsApp. Defined
+  // here, published at Meta, answered on the customer's phone.
+  await db
+    .prepare(`CREATE TABLE IF NOT EXISTS whatsapp_flows (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      cta_label TEXT DEFAULT 'Open form' NOT NULL,
+      screens_json TEXT NOT NULL,
+      status TEXT DEFAULT 'draft' NOT NULL,
+      provider_id TEXT,
+      error TEXT,
+      published_at TEXT,
+      synced_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      UNIQUE (organization_id, name)
+    )`)
+    .run();
+  // One row per send, so the answers that come back can be matched to the flow
+  // that asked and the person who was asked. The token is what Meta echoes.
+  await db
+    .prepare(`CREATE TABLE IF NOT EXISTS whatsapp_flow_responses (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      flow_id TEXT REFERENCES whatsapp_flows(id) ON DELETE SET NULL,
+      flow_token TEXT NOT NULL,
+      phone TEXT NOT NULL,
+      status TEXT DEFAULT 'sent' NOT NULL,
+      answers_json TEXT,
+      sent_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      answered_at TEXT,
+      UNIQUE (organization_id, flow_token)
+    )`)
+    .run();
   await ensureColumn(db, 'handoffs', 'call_id', 'TEXT');
   await ensureColumn(db, 'handoffs', 'enqueued_at', 'TEXT');
   await ensureColumn(db, 'handoffs', 'accepted_at', 'TEXT');

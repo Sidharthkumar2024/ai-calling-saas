@@ -5,6 +5,7 @@ import { intakeWhatsAppDocument } from '@/lib/document-inbox';
 import { whatsAppInboundCredentials } from '@/lib/commerce';
 import { readPlatformSecret } from '@/lib/platform-secrets';
 import { dispatchInboundMessage } from '@/lib/whatsapp-bot';
+import { parseFlowReply } from '@/lib/whatsapp-flows';
 
 export const dynamic = 'force-dynamic';
 
@@ -109,6 +110,21 @@ export async function POST(request: Request) {
           if (verdict.acted !== 'none')
             results.push({ waMessageId, bot: verdict.acted });
         }
+        // A completed Flow. The answers arrive in one piece rather than as a
+        // conversation, which is the whole point of asking with a form.
+        const flowReply =
+          message.interactive?.type === 'nfm_reply'
+            ? parseFlowReply(message.interactive.nfm_reply)
+            : null;
+        if (flowReply) {
+          const recorded = await dbRecordFlowAnswers({
+            organizationId: credentials.organizationId,
+            flowToken: flowReply.flowToken,
+            phone: message.from ?? '',
+            answers: flowReply.answers,
+          });
+          results.push({ waMessageId, flow: recorded });
+        }
         if (!media?.id) continue;
         const result = await intakeWhatsAppDocument({
           organizationId: credentials.organizationId,
@@ -192,6 +208,61 @@ async function dbInsertInboxMessage(input: {
   };
 }
 
+/**
+ * Stores the answers a customer filled in.
+ *
+ * Matched on the token this workspace generated when it sent the form, not on
+ * the number: the same person can be sent two different forms, and a number
+ * alone cannot say which one came back.
+ *
+ * An answer with no matching row is recorded anyway rather than dropped — it
+ * means a send this workspace did not write down, which is worth being able to
+ * see — and it is scoped to the workspace whose number received it, so one
+ * tenant's token can never claim another's row.
+ */
+async function dbRecordFlowAnswers(input: {
+  organizationId: string;
+  flowToken: string;
+  phone: string;
+  answers: Record<string, string>;
+}): Promise<'matched' | 'unmatched' | 'duplicate'> {
+  const { getRawDb } = await import('@/db/index');
+  const db = getRawDb();
+  const answers = JSON.stringify(input.answers);
+  if (input.flowToken) {
+    const existing = await db
+      .prepare(
+        `SELECT id, status FROM whatsapp_flow_responses WHERE organization_id = ? AND flow_token = ? LIMIT 1`,
+      )
+      .bind(input.organizationId, input.flowToken)
+      .first<{ id: string; status: string }>();
+    if (existing) {
+      // Meta retries. The first set of answers is the one the customer sent.
+      if (existing.status === 'answered') return 'duplicate';
+      await db
+        .prepare(`UPDATE whatsapp_flow_responses
+          SET status = 'answered', answers_json = ?, answered_at = CURRENT_TIMESTAMP
+          WHERE id = ?`)
+        .bind(answers, existing.id)
+        .run();
+      return 'matched';
+    }
+  }
+  await db
+    .prepare(`INSERT INTO whatsapp_flow_responses
+      (id, organization_id, flow_id, flow_token, phone, status, answers_json, answered_at)
+      VALUES (?, ?, NULL, ?, ?, 'answered_unmatched', ?, CURRENT_TIMESTAMP)`)
+    .bind(
+      `wfr_${crypto.randomUUID()}`,
+      input.organizationId,
+      input.flowToken || `unknown_${crypto.randomUUID()}`,
+      input.phone,
+      answers,
+    )
+    .run();
+  return 'unmatched';
+}
+
 async function signatureValid(body: string, header: string, secret: string) {
   const provided = header.replace(/^sha256=/, '').trim();
   if (!/^[a-f0-9]{64}$/i.test(provided)) return false;
@@ -238,6 +309,10 @@ type WebhookBody = {
           document?: WebhookMedia;
           video?: WebhookMedia;
           audio?: WebhookMedia;
+          interactive?: {
+            type?: string;
+            nfm_reply?: { response_json?: string; name?: string };
+          };
         }>;
       };
     }>;

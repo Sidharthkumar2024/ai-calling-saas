@@ -61,6 +61,9 @@ export function CustomerWhatsAppInbox() {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [flows, setFlows] = useState<
+    Array<{ id: string; name: string; cta_label: string }>
+  >([]);
   const [templateId, setTemplateId] = useState('');
   const [params, setParams] = useState<string[]>([]);
   const [me, setMe] = useState<string | null>(null);
@@ -93,6 +96,7 @@ export function CustomerWhatsAppInbox() {
         conversations?: Thread[];
         agents?: Agent[];
         templates?: Template[];
+        flows?: Array<{ id: string; name: string; cta_label: string }>;
         me?: string | null;
         connected?: boolean;
         error?: string;
@@ -104,6 +108,7 @@ export function CustomerWhatsAppInbox() {
       setThreads(body.conversations ?? []);
       setAgents(body.agents ?? []);
       setTemplates(body.templates ?? []);
+      setFlows(body.flows ?? []);
       setMe(body.me ?? null);
       setConnected(body.connected === true);
     } catch {
@@ -278,6 +283,37 @@ export function CustomerWhatsAppInbox() {
       await load();
     } catch {
       setNotice('That template did not send.');
+    } finally {
+      setSending(false);
+    }
+  }
+
+  /**
+   * Sends a form the customer fills in inside WhatsApp.
+   *
+   * Only inside the window — a form is an interactive message, not a template
+   * — so this sits with the reply box rather than with the templates.
+   */
+  async function sendFlow(phone: string, flowId: string) {
+    setSending(true);
+    setNotice('');
+    try {
+      const response = await fetch('/api/app/whatsapp-inbox', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'send_flow', phone, flowId }),
+      });
+      const body = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        setNotice(body.error ?? 'That form did not send.');
+        return;
+      }
+      setNotice(
+        'Form sent. The answers appear on the WhatsApp forms screen when they arrive.',
+      );
+      await load();
+    } catch {
+      setNotice('That form did not send.');
     } finally {
       setSending(false);
     }
@@ -545,6 +581,33 @@ export function CustomerWhatsAppInbox() {
                   >
                     <Send className="size-3.5" />
                   </button>
+                </div>
+              ) : null}
+              {open.window.open && flows.length ? (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <label
+                    className="text-[11px] text-ink-muted"
+                    htmlFor="whatsapp-flow"
+                  >
+                    Or send a form
+                  </label>
+                  <select
+                    id="whatsapp-flow"
+                    value=""
+                    disabled={!connected || sending}
+                    onChange={(event) => {
+                      if (event.target.value)
+                        void sendFlow(open.phone, event.target.value);
+                    }}
+                    className="rounded-lg border border-hairline bg-surface px-2 py-1 text-[11px] disabled:opacity-40"
+                  >
+                    <option value="">Choose a form…</option>
+                    {flows.map((flow) => (
+                      <option key={flow.id} value={flow.id}>
+                        {flow.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               ) : (
                 <div className="mt-3 rounded-xl border border-hairline bg-surface-muted px-3 py-2.5">

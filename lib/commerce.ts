@@ -444,6 +444,210 @@ export async function fetchWhatsAppTemplates(organizationId: string): Promise<
   return body.data ?? [];
 }
 
+/**
+ * Creates a Flow at Meta and uploads its definition.
+ *
+ * Two calls, because Meta separates the flow from what is in it: the first
+ * makes an empty draft, the second attaches the Flow JSON. A draft that exists
+ * with nothing in it is reported as the failure it is rather than left looking
+ * like a flow somebody could publish.
+ */
+export async function createWhatsAppFlow(
+  organizationId: string,
+  input: { name: string; flowJson: Record<string, unknown> },
+): Promise<{ id: string }> {
+  const access = await whatsAppTemplateAccess(organizationId);
+  if (!access.ok) throw new Error(access.reason);
+  const created = await fetch(
+    `https://graph.facebook.com/${access.graphVersion}/${access.wabaId}/flows`,
+    {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${access.accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: input.name,
+        categories: ['LEAD_GENERATION'],
+      }),
+    },
+  );
+  const createdBody = (await created.json()) as {
+    id?: string;
+    error?: { error_user_msg?: string; message?: string };
+  };
+  if (!created.ok || !createdBody.id)
+    throw new Error(
+      createdBody.error?.error_user_msg ??
+        createdBody.error?.message ??
+        'Meta would not create the flow.',
+    );
+
+  const form = new FormData();
+  form.append('name', 'flow.json');
+  form.append('asset_type', 'FLOW_JSON');
+  form.append(
+    'file',
+    new Blob([JSON.stringify(input.flowJson)], { type: 'application/json' }),
+    'flow.json',
+  );
+  const uploaded = await fetch(
+    `https://graph.facebook.com/${access.graphVersion}/${createdBody.id}/assets`,
+    {
+      method: 'POST',
+      headers: { authorization: `Bearer ${access.accessToken}` },
+      body: form,
+    },
+  );
+  const uploadedBody = (await uploaded.json()) as {
+    success?: boolean;
+    validation_errors?: Array<{ message?: string }>;
+    error?: { error_user_msg?: string; message?: string };
+  };
+  if (!uploaded.ok || uploadedBody.success === false) {
+    // Meta's validation errors name the screen and the component. Rewritten,
+    // they would be unsearchable; kept, they point at the thing to fix.
+    const detail =
+      uploadedBody.validation_errors
+        ?.map((issue) => issue.message)
+        .filter(Boolean)
+        .join(' ') ||
+      uploadedBody.error?.error_user_msg ||
+      uploadedBody.error?.message ||
+      'Meta would not accept the flow definition.';
+    throw new Error(detail);
+  }
+  return { id: createdBody.id };
+}
+
+/** Publishes a flow. After this, its definition is fixed at Meta. */
+export async function publishWhatsAppFlow(
+  organizationId: string,
+  providerId: string,
+): Promise<void> {
+  const access = await whatsAppTemplateAccess(organizationId);
+  if (!access.ok) throw new Error(access.reason);
+  const response = await fetch(
+    `https://graph.facebook.com/${access.graphVersion}/${providerId}/publish`,
+    {
+      method: 'POST',
+      headers: { authorization: `Bearer ${access.accessToken}` },
+    },
+  );
+  const body = (await response.json()) as {
+    success?: boolean;
+    error?: { error_user_msg?: string; message?: string };
+  };
+  if (!response.ok || body.success === false)
+    throw new Error(
+      body.error?.error_user_msg ??
+        body.error?.message ??
+        'Meta would not publish the flow.',
+    );
+}
+
+/** Reads back what Meta currently thinks of this workspace\u2019s flows. */
+export async function fetchWhatsAppFlows(
+  organizationId: string,
+): Promise<Array<{ id: string; name: string; status: string }>> {
+  const access = await whatsAppTemplateAccess(organizationId);
+  if (!access.ok) throw new Error(access.reason);
+  const response = await fetch(
+    `https://graph.facebook.com/${access.graphVersion}/${access.wabaId}/flows?limit=200`,
+    { headers: { authorization: `Bearer ${access.accessToken}` } },
+  );
+  const body = (await response.json()) as {
+    data?: Array<{ id: string; name: string; status: string }>;
+    error?: { message?: string };
+  };
+  if (!response.ok)
+    throw new Error(body.error?.message ?? 'Meta did not return the flows.');
+  return body.data ?? [];
+}
+
+/**
+ * Sends a published flow to one customer.
+ *
+ * Inside the 24-hour window, like any interactive message. The token is ours
+ * and comes back with the answers, which is how a reply is matched to the
+ * person who was asked rather than guessed from the number alone.
+ */
+export async function sendWhatsAppFlow(input: {
+  organizationId: string;
+  destination: string;
+  flowProviderId: string;
+  flowToken: string;
+  screenId: string;
+  ctaLabel: string;
+  body: string;
+}): Promise<CommerceDeliveryResult> {
+  const db = getRawDb();
+  const normalizedPhone = `+${input.destination.replace(/\D/g, '')}`;
+  const digitsPhone = normalizedPhone.slice(1);
+  const suppressed = await db
+    .prepare(
+      `SELECT id FROM suppression_entries WHERE phone_hash IN (?, ?, ?) AND (organization_id = ? OR scope = 'global') AND (expires_at IS NULL OR expires_at > datetime('now')) LIMIT 1`,
+    )
+    .bind(
+      await sha256(input.destination),
+      await sha256(normalizedPhone),
+      await sha256(digitsPhone),
+      input.organizationId,
+    )
+    .first();
+  if (suppressed)
+    throw new Error('This customer is on the do-not-contact list.');
+
+  const credentials = await whatsAppCredentials(input.organizationId);
+  if (!credentials.accessToken || !credentials.phoneNumberId) {
+    return {
+      status: 'sandbox_delivered',
+      providerReference: `sandbox_${crypto.randomUUID()}`,
+      payload: {
+        mode: 'local_sandbox',
+        reason: 'WhatsApp Cloud API credentials are not connected.',
+      },
+    };
+  }
+  const response = await fetch(
+    `https://graph.facebook.com/${credentials.graphVersion}/${credentials.phoneNumberId}/messages`,
+    {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${credentials.accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: input.destination.replace(/^\+/, ''),
+        type: 'interactive',
+        interactive: {
+          type: 'flow',
+          body: { text: input.body.slice(0, 1024) },
+          action: {
+            name: 'flow',
+            parameters: {
+              flow_message_version: '3',
+              flow_token: input.flowToken,
+              flow_id: input.flowProviderId,
+              flow_cta: input.ctaLabel.slice(0, 20),
+              flow_action: 'navigate',
+              flow_action_payload: { screen: input.screenId },
+            },
+          },
+        },
+      }),
+    },
+  );
+  const payload = (await response.json()) as {
+    messages?: Array<{ id: string }>;
+    error?: { message?: string };
+  };
+  if (!response.ok || !payload.messages?.[0]?.id)
+    throw new Error(payload.error?.message ?? 'WhatsApp refused the flow.');
+  return { status: 'sent', providerReference: payload.messages[0].id, payload };
+}
+
 /** Whether this workspace could send a WhatsApp message at all right now. */
 export async function whatsAppConnected(organizationId: string) {
   const credentials = await whatsAppCredentials(organizationId);

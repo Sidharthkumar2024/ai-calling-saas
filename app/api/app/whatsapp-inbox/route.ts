@@ -102,6 +102,15 @@ export async function GET(request: Request) {
     )
     .bind(auth.session.organizationId)
     .all<{ id: string; name: string }>();
+  // Which of those agents is the person reading this. The screen needs it to
+  // tell "I am handing my own conversation on" apart from "I am taking one off
+  // a colleague" — only the second is worth a warning.
+  const me = await getRawDb()
+    .prepare(
+      `SELECT id FROM support_agents WHERE organization_id = ? AND user_id = ? LIMIT 1`,
+    )
+    .bind(auth.session.organizationId, auth.session.userId)
+    .first<{ id: string }>();
 
   return NextResponse.json({
     conversations: conversations.map((conversation) => {
@@ -117,6 +126,7 @@ export async function GET(request: Request) {
       };
     }),
     agents: agents.results ?? [],
+    me: me?.id ?? null,
     connected: await whatsAppConnected(auth.session.organizationId!),
   });
 }

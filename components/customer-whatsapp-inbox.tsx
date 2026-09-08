@@ -1,10 +1,23 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Loader2, Send, RefreshCw, Search, MessageCircle } from 'lucide-react';
+import {
+  ChevronUp,
+  Loader2,
+  Send,
+  RefreshCw,
+  Search,
+  MessageCircle,
+} from 'lucide-react';
 
 import { useT } from '@/components/locale-provider';
-import type { Conversation, ReplyWindow } from '@/lib/whatsapp-inbox';
+import {
+  assignmentChange,
+  type Assignment,
+  type Conversation,
+  type InboxMessage,
+  type ReplyWindow,
+} from '@/lib/whatsapp-inbox';
 
 /**
  * The WhatsApp inbox.
@@ -18,13 +31,37 @@ import type { Conversation, ReplyWindow } from '@/lib/whatsapp-inbox';
  * message: within 24 hours of the customer's last one. Outside that the box is
  * replaced by the reason, because a text box that produces a Meta error the
  * moment you press send is worse than no text box.
+ *
+ * The list carries the newest 200 messages across every conversation, so an
+ * older one can arrive already truncated. "Older messages" reads further back
+ * through the cursor endpoint, and what it fetches is kept aside from the
+ * polled list — the 15-second refresh replaces the list, and merging the two
+ * in one place would throw away everything a person had just scrolled back to.
  */
 
-type Thread = Conversation & { window: ReplyWindow };
+type Thread = Conversation & { window: ReplyWindow; assignment: Assignment };
+
+type Agent = { id: string; name: string };
+
+/** A conversation read back past the list's 200-message horizon. */
+type Backfill = {
+  messages: InboxMessage[];
+  before: string | null;
+  done: boolean;
+};
 
 export function CustomerWhatsAppInbox() {
   const t = useT();
   const [threads, setThreads] = useState<Thread[]>([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [me, setMe] = useState<string | null>(null);
+  const [backfill, setBackfill] = useState<Record<string, Backfill>>({});
+  const [reading, setReading] = useState(false);
+  const [pending, setPending] = useState<{
+    phone: string;
+    agentId: string;
+    warning: string;
+  } | null>(null);
   const [connected, setConnected] = useState(false);
   const [search, setSearch] = useState('');
   const controller = useRef<AbortController | null>(null);
@@ -45,6 +82,8 @@ export function CustomerWhatsAppInbox() {
       });
       const body = (await response.json()) as {
         conversations?: Thread[];
+        agents?: Agent[];
+        me?: string | null;
         connected?: boolean;
         error?: string;
       };
@@ -53,6 +92,8 @@ export function CustomerWhatsAppInbox() {
         return;
       }
       setThreads(body.conversations ?? []);
+      setAgents(body.agents ?? []);
+      setMe(body.me ?? null);
       setConnected(body.connected === true);
     } catch {
       if (current.signal.aborted) return;
@@ -64,10 +105,19 @@ export function CustomerWhatsAppInbox() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
-    const poll = window.setInterval(() => { if (document.visibilityState === 'visible') void load(); }, 15_000);
-    const onVisible = () => { if (document.visibilityState === 'visible') void load(); };
+    const poll = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void load();
+    }, 15_000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void load();
+    };
     document.addEventListener('visibilitychange', onVisible);
-    return () => { window.clearTimeout(timer); window.clearInterval(poll); controller.current?.abort(); document.removeEventListener('visibilitychange', onVisible); };
+    return () => {
+      window.clearTimeout(timer);
+      window.clearInterval(poll);
+      controller.current?.abort();
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [load]);
 
   async function reply(phone: string) {
@@ -106,6 +156,98 @@ export function CustomerWhatsAppInbox() {
     }
   }
 
+  /**
+   * Reads one page further back.
+   *
+   * The cursor is the oldest message on screen, not a page number: messages
+   * keep arriving while somebody reads, and counting from the top would show
+   * one twice or skip one.
+   */
+  async function readOlder(phone: string, oldestOnScreen: string) {
+    const state = backfill[phone];
+    const before = state ? state.before : oldestOnScreen;
+    if (!before || state?.done) return;
+    setReading(true);
+    setNotice('');
+    try {
+      const response = await fetch(
+        `/api/app/whatsapp-inbox?phone=${encodeURIComponent(phone)}&before=${encodeURIComponent(before)}`,
+        { cache: 'no-store' },
+      );
+      const body = (await response.json()) as {
+        messages?: InboxMessage[];
+        cursor?: string | null;
+        hasMore?: boolean;
+        error?: string;
+      };
+      if (!response.ok) {
+        setNotice(body.error ?? 'Could not read further back.');
+        return;
+      }
+      const fetched = body.messages ?? [];
+      setBackfill((current) => {
+        const held = current[phone];
+        return {
+          ...current,
+          [phone]: {
+            messages: [...fetched, ...(held?.messages ?? [])],
+            before: body.cursor ?? null,
+            done: body.hasMore !== true,
+          },
+        };
+      });
+    } catch {
+      setNotice('Could not read further back.');
+    } finally {
+      setReading(false);
+    }
+  }
+
+  /**
+   * Puts a name on a conversation.
+   *
+   * Taking one off a colleague is allowed — somebody goes to lunch mid-thread
+   * and the customer should not wait — but it is a different act from picking
+   * up an unclaimed one, so it asks first and says whose it was.
+   */
+  async function assign(phone: string, agentId: string) {
+    setNotice('');
+    setPending(null);
+    try {
+      const response = await fetch('/api/app/whatsapp-inbox', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: 'assign',
+          phone,
+          supportAgentId: agentId || null,
+        }),
+      });
+      const body = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        setNotice(body.error ?? 'That assignment did not save.');
+        return;
+      }
+      await load();
+    } catch {
+      setNotice('That assignment did not save.');
+    }
+  }
+
+  function chooseAgent(thread: Thread, agentId: string) {
+    const change = assignmentChange(
+      thread.assignment ?? null,
+      agentId || null,
+      me ?? '',
+    );
+    if (change.kind === 'noop') return;
+    if (change.warning) {
+      setPending({ phone: thread.phone, agentId, warning: change.warning });
+      return;
+    }
+    void assign(thread.phone, agentId);
+  }
+
   if (loading)
     return (
       <div className="flex items-center gap-2 text-[11px] text-ink-muted">
@@ -114,24 +256,40 @@ export function CustomerWhatsAppInbox() {
     );
 
   const open = threads.find((thread) => thread.phone === openPhone) ?? null;
+  // The polled list and the pages read back are kept apart in state and joined
+  // only here, so a refresh cannot discard what somebody scrolled back to.
+  const earlier = (open && backfill[open.phone]) ?? {
+    messages: [],
+    before: null,
+    done: false,
+  };
+  const transcript = open ? [...earlier.messages, ...open.messages] : [];
+  const oldestOnScreen = transcript[0]?.created_at ?? null;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-        <h1 className="text-xl font-semibold tracking-tight">
-          {t('screen.whatsapp_inbox.title')}
-        </h1>
-        <p className="mt-1 text-[11px] text-ink-muted">
-          {t('screen.whatsapp_inbox.description')}
-        </p>
+          <h1 className="text-xl font-semibold tracking-tight">
+            {t('screen.whatsapp_inbox.title')}
+          </h1>
+          <p className="mt-1 text-[11px] text-ink-muted">
+            {t('screen.whatsapp_inbox.description')}
+          </p>
         </div>
-        <button type="button" onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border border-hairline px-4 py-2 text-sm"><RefreshCw className="size-4" /> Refresh inbox</button>
+        <button
+          type="button"
+          onClick={() => void load()}
+          className="inline-flex items-center gap-2 rounded-xl border border-hairline px-4 py-2 text-sm"
+        >
+          <RefreshCw className="size-4" /> Refresh inbox
+        </button>
       </div>
 
       {!connected ? (
         <p className="rounded-lg border border-hairline bg-surface-muted px-3 py-2 text-[11px] text-ink-body">
-          Connect and verify your own WhatsApp number in Integrations & API. Replies stay disabled until that connection is ready.
+          Connect and verify your own WhatsApp number in Integrations & API.
+          Replies stay disabled until that connection is ready.
         </p>
       ) : null}
       {notice ? (
@@ -142,50 +300,153 @@ export function CustomerWhatsAppInbox() {
 
       <section className="portal-panel grid gap-4 p-5 lg:grid-cols-[280px_minmax(0,1fr)]">
         <div className="space-y-1.5">
-          <label className="mb-4 flex items-center gap-2 rounded-xl border border-hairline p-3"><Search className="size-4 text-ink-muted" /><input aria-label="Search conversations" placeholder="Search number or message" value={search} onChange={event => setSearch(event.target.value)} className="min-w-0 w-full bg-transparent text-sm outline-none" /></label>
+          <label className="mb-4 flex items-center gap-2 rounded-xl border border-hairline p-3">
+            <Search className="size-4 text-ink-muted" />
+            <input
+              aria-label="Search conversations"
+              placeholder="Search number or message"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="min-w-0 w-full bg-transparent text-sm outline-none"
+            />
+          </label>
           {threads.length === 0 ? (
             <p className="text-[11px] text-ink-muted">
               Nothing yet. Messages appear here when a customer writes to your
               WhatsApp number.
             </p>
           ) : null}
-          {threads.filter(thread => `${thread.phone} ${thread.preview}`.toLowerCase().includes(search.toLowerCase())).map((thread) => (
-            <button
-              key={thread.phone}
-              type="button"
-              onClick={() => {
-                setOpenPhone(thread.phone);
-                setDraft('');
-                setNotice('');
-              }}
-              className={`w-full rounded-xl border px-3 py-2.5 text-left text-[11px] ${
-                thread.phone === openPhone
-                  ? 'border-primary/40 bg-primary/[0.06]'
-                  : 'border-hairline hover:bg-surface-strong'
-              }`}
-            >
-              <span className="block font-mono font-medium">
-                {thread.phone}
-              </span>
-              <span className="mt-0.5 block truncate text-ink-muted">
-                {thread.preview}
-              </span>
-              <span className="mt-1 block text-[11px] text-ink-muted">
-                {thread.window.open
-                  ? `${thread.window.hoursLeft}h to reply`
-                  : 'reply window closed'}
-              </span>
-            </button>
-          ))}
+          {threads
+            .filter((thread) =>
+              `${thread.phone} ${thread.preview}`
+                .toLowerCase()
+                .includes(search.toLowerCase()),
+            )
+            .map((thread) => (
+              <button
+                key={thread.phone}
+                type="button"
+                onClick={() => {
+                  setOpenPhone(thread.phone);
+                  setDraft('');
+                  setNotice('');
+                }}
+                className={`w-full rounded-xl border px-3 py-2.5 text-left text-[11px] ${
+                  thread.phone === openPhone
+                    ? 'border-primary/40 bg-primary/[0.06]'
+                    : 'border-hairline hover:bg-surface-strong'
+                }`}
+              >
+                <span className="block font-mono font-medium">
+                  {thread.phone}
+                </span>
+                <span className="mt-0.5 block truncate text-ink-muted">
+                  {thread.preview}
+                </span>
+                <span className="mt-1 block text-[11px] text-ink-muted">
+                  {thread.window.open
+                    ? `${thread.window.hoursLeft}h to reply`
+                    : 'reply window closed'}
+                  {thread.assignment?.agentName
+                    ? ` · ${thread.assignment.agentName}`
+                    : ''}
+                </span>
+              </button>
+            ))}
         </div>
 
         <div className="min-w-0">
           {!open ? (
-            <div className="flex min-h-72 flex-col items-center justify-center gap-3 rounded-2xl bg-emerald-50/60 p-6 text-center text-emerald-950"><MessageCircle className="size-10" /><h2 className="text-xl font-semibold">Your customer conversations, together.</h2><p className="max-w-sm text-sm">Choose a conversation to reply. This inbox refreshes every 15 seconds while visible. The latest 200 messages are shown.</p></div>
+            <div className="flex min-h-72 flex-col items-center justify-center gap-3 rounded-2xl bg-emerald-50/60 p-6 text-center text-emerald-950">
+              <MessageCircle className="size-10" />
+              <h2 className="text-xl font-semibold">
+                Your customer conversations, together.
+              </h2>
+              <p className="max-w-sm text-sm">
+                Choose a conversation to reply. This inbox refreshes every 15
+                seconds while visible. The latest 200 messages are shown.
+              </p>
+            </div>
           ) : (
             <>
+              <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-hairline bg-surface-muted/50 px-3 py-2">
+                <label
+                  className="text-[11px] text-ink-muted"
+                  htmlFor="whatsapp-assignee"
+                >
+                  Answering
+                </label>
+                <select
+                  id="whatsapp-assignee"
+                  value={open.assignment?.agentId ?? ''}
+                  onChange={(event) => chooseAgent(open, event.target.value)}
+                  className="rounded-lg border border-hairline bg-surface px-2 py-1 text-[11px]"
+                >
+                  <option value="">Nobody yet</option>
+                  {agents.map((agent) => (
+                    <option key={agent.id} value={agent.id}>
+                      {agent.name}
+                      {agent.id === me ? ' (you)' : ''}
+                    </option>
+                  ))}
+                </select>
+                {agents.length === 0 ? (
+                  <span className="text-[11px] text-ink-muted">
+                    No support agents on this workspace yet.
+                  </span>
+                ) : null}
+                {open.assignment?.assignedAt ? (
+                  <span className="text-[11px] text-ink-muted">
+                    since {open.assignment.assignedAt}
+                  </span>
+                ) : null}
+              </div>
+              {pending && pending.phone === open.phone ? (
+                <div className="mb-3 rounded-xl border border-warning-text/30 bg-warning-text/[0.05] px-3 py-2 text-[11px] text-warning-text">
+                  <p>{pending.warning}</p>
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void assign(pending.phone, pending.agentId)
+                      }
+                      className="portal-primary rounded-lg px-3 py-1.5 text-[11px]"
+                    >
+                      Take it over
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPending(null)}
+                      className="rounded-lg border border-hairline px-3 py-1.5 text-[11px]"
+                    >
+                      Leave it
+                    </button>
+                  </div>
+                </div>
+              ) : null}
               <div className="max-h-[26rem] space-y-2 overflow-y-auto rounded-xl border border-hairline bg-surface-muted/50 p-3">
-                {open.messages.map((message) => (
+                {earlier.done ? (
+                  <p className="pb-1 text-center text-[11px] text-ink-muted">
+                    The beginning of this conversation.
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={reading || !oldestOnScreen}
+                    onClick={() =>
+                      void readOlder(open.phone, oldestOnScreen ?? '')
+                    }
+                    className="mx-auto flex items-center gap-1.5 rounded-lg border border-hairline bg-surface px-3 py-1.5 text-[11px] disabled:opacity-40"
+                  >
+                    {reading ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <ChevronUp className="size-3.5" />
+                    )}
+                    Older messages
+                  </button>
+                )}
+                {transcript.map((message) => (
                   <div
                     key={message.id}
                     className={`max-w-[85%] rounded-xl px-3 py-2 text-[12px] leading-5 ${

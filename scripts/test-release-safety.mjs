@@ -7,6 +7,7 @@ import * as catalog from '../lib/commercial-catalog.ts';
 import { reserveRealtime, refundRealtime } from '../lib/realtime-reservations.ts';
 import { exotelCredits, settleExotel } from '../lib/exotel-settlement.ts';
 import { settlePlaygroundTurn } from '../lib/playground-settlement.ts';
+import { browserCallCredits, settleBrowserCall } from '../lib/browser-call-settlement.ts';
 import { contribution, PLANS, CREDIT_PACKS } from '../lib/commercial-catalog.ts';
 import { PUBLIC_API_SPEC } from '../lib/public-api-spec.ts';
 const sqlite = new DatabaseSync(':memory:');
@@ -108,4 +109,56 @@ assert.equal(
 );
 assert.rejects(settlePlaygroundTurn(db,{organizationId:'org',sessionId:'sess',turnId:'bad',credits:0}),/Invalid turn charge/);
 
-sqlite.close();console.log('Release safety: reservation races, replay, refunds, rollback, Exotel settlement, debt, playground turn settlement, catalog publication, preserved contracts, pricing and API contract passed.');
+// --- browser calls ------------------------------------------------------------
+// The hole this closes: the dialer read the balance, refused below ten, and
+// then charged nothing. The check was a race with nothing held behind it, and
+// a browser call was free.
+assert.equal(browserCallCredits(0),10);
+assert.equal(browserCallCredits(1),10);
+assert.equal(browserCallCredits(60),10);
+assert.equal(browserCallCredits(61),20);
+assert.equal(browserCallCredits(150),30);
+assert.throws(()=>browserCallCredits(-1),/Invalid duration/);
+
+sqlite.prepare("UPDATE organization_wallets SET balance=100 WHERE organization_id='org'").run();
+sqlite.prepare("INSERT INTO call_records VALUES ('bcall','org',0)").run();
+// Start: the reservation is the held first minute.
+await reserve('bcall');
+assert.equal(balance(),90);
+// A call under a minute is already paid for — settlement charges nothing more.
+const short = await settleBrowserCall(db,{organizationId:'org',callId:'bcall',seconds:42});
+assert.equal(short.settled,true);assert.equal(short.credits,10);assert.equal(short.extra,0);
+assert.equal(balance(),90);
+assert.equal(sqlite.prepare("SELECT status FROM realtime_reservations WHERE id='bcall'").get().status,'settled');
+assert.equal(sqlite.prepare("SELECT cost_credits FROM call_records WHERE id='bcall'").get().cost_credits,10);
+
+// A longer call charges only the minutes beyond the reservation — never the
+// reservation over again.
+sqlite.prepare("INSERT INTO call_records VALUES ('bcall2','org',0)").run();
+await reserve('bcall2');assert.equal(balance(),80);
+const long = await settleBrowserCall(db,{organizationId:'org',callId:'bcall2',seconds:185});
+assert.equal(long.credits,40);assert.equal(long.extra,30);assert.equal(balance(),50);
+assert.equal(sqlite.prepare("SELECT cost_credits FROM call_records WHERE id='bcall2'").get().cost_credits,40);
+
+// Two ends racing — a double-clicked hang-up, or a gateway reporting twice —
+// settle once.
+sqlite.prepare("INSERT INTO call_records VALUES ('bcall3','org',0)").run();
+await reserve('bcall3');const beforeRace=balance();
+const [e1,e2]=await Promise.all([
+  settleBrowserCall(db,{organizationId:'org',callId:'bcall3',seconds:120}),
+  settleBrowserCall(db,{organizationId:'org',callId:'bcall3',seconds:120}),
+]);
+assert.equal([e1,e2].filter(r=>r.settled).length,1);
+assert.equal([e1,e2].filter(r=>r.alreadySettled).length,1);
+assert.equal(balance(),beforeRace-10);
+assert.equal(sqlite.prepare("SELECT count(*) n FROM credit_ledger WHERE id='browser_settlement_bcall3'").get().n,1);
+
+// Debt is kept, not erased: a long call on a thin wallet goes negative rather
+// than quietly costing nothing.
+sqlite.prepare("UPDATE organization_wallets SET balance=10 WHERE organization_id='org'").run();
+sqlite.prepare("INSERT INTO call_records VALUES ('bcall4','org',0)").run();
+await reserve('bcall4');assert.equal(balance(),0);
+await settleBrowserCall(db,{organizationId:'org',callId:'bcall4',seconds:300});
+assert.equal(balance(),-40);
+
+sqlite.close();console.log('Release safety: reservation races, replay, refunds, rollback, Exotel settlement, debt, playground turn settlement, browser call reservation and settlement, catalog publication, preserved contracts, pricing and API contract passed.');

@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 
+import { settleBrowserCall } from '@/lib/browser-call-settlement';
+import { realtimeDigest, reserveRealtime } from '@/lib/realtime-reservations';
+
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { requireCustomerPermission } from '@/lib/customer-rbac';
@@ -90,6 +93,19 @@ export async function POST(request: Request) {
       outcome: 'unknown',
       disconnectReason: 'ended_by_agent',
     });
+    // `completeCall` has just written the duration, so it is read back rather
+    // than timed here: the tab's own clock is not what anyone is billed on.
+    const finished = await db
+      .prepare(
+        `SELECT duration_seconds FROM call_records WHERE id = ? AND organization_id = ? LIMIT 1`,
+      )
+      .bind(callId, organizationId)
+      .first<{ duration_seconds: number | null }>();
+    const settlement = await settleBrowserCall(db, {
+      organizationId,
+      callId,
+      seconds: Number(finished?.duration_seconds ?? 0),
+    });
     // §6: the tab reports what its own socket carried. Every field is bounded
     // here rather than trusted — these numbers end up in support reports, and
     // a tab can send anything.
@@ -125,7 +141,13 @@ export async function POST(request: Request) {
         )
         .run();
     }
-    return NextResponse.json({ ended: true, ...result });
+    return NextResponse.json({
+      ended: true,
+      ...result,
+      // What the call cost, and how much of it was already held at start.
+      credits: settlement.credits,
+      chargedNow: settlement.extra,
+    });
   }
 
   if (body.action === 'monitor') {
@@ -253,17 +275,6 @@ export async function POST(request: Request) {
   }
 
   await ensureSchema();
-  const wallet = await db
-    .prepare(
-      `SELECT balance FROM organization_wallets WHERE organization_id = ? LIMIT 1`,
-    )
-    .bind(organizationId)
-    .first<{ balance: number }>();
-  if (Number(wallet?.balance ?? 0) < 10)
-    return NextResponse.json(
-      { error: 'At least 10 credits are required to start a call.' },
-      { status: 402 },
-    );
 
   // Reuse the telemetry writer so a browser call produces the same turns,
   // transcript, summary and QA review as any other conversation.
@@ -275,6 +286,32 @@ export async function POST(request: Request) {
     agentName: agent.name,
     language: agent.primary_language,
   });
+
+  // Held, not just checked. This was a `SELECT balance` and a comparison, with
+  // nothing between the read and the call — ten starts arriving together on a
+  // ten-credit wallet all read the same balance and all passed. The
+  // reservation is the first started minute, so a call under a minute is
+  // already paid for by the time it ends.
+  const reservation = await reserveRealtime(db, {
+    id: callId,
+    organizationId,
+    agentId: agent.id,
+    requestHash: await realtimeDigest(
+      `${agent.id}:${destination ?? 'ai_agent'}`,
+    ),
+  });
+  if (reservation.status !== 'reserved' && !reservation.replay) {
+    await db
+      .prepare(
+        `UPDATE call_records SET status = 'failed', disconnect_reason = 'insufficient_credits' WHERE id = ?`,
+      )
+      .bind(callId)
+      .run();
+    return NextResponse.json(
+      { error: 'At least 10 credits are required to start a call.' },
+      { status: 402 },
+    );
+  }
   await db
     .prepare(`UPDATE call_records SET channel = 'browser', direction = 'outbound',
       from_number = ?, to_number = ? WHERE id = ?`)

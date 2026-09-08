@@ -7,7 +7,7 @@ import * as catalog from '../lib/commercial-catalog.ts';
 import { reserveRealtime, refundRealtime } from '../lib/realtime-reservations.ts';
 import { exotelCredits, settleExotel } from '../lib/exotel-settlement.ts';
 import { settlePlaygroundTurn } from '../lib/playground-settlement.ts';
-import { browserCallCredits, settleBrowserCall } from '../lib/browser-call-settlement.ts';
+import { browserCallCredits, settleBrowserCall, closeStaleReservations } from '../lib/browser-call-settlement.ts';
 import { MAX_CONCURRENT_CALLS } from '../lib/call-limits.ts';
 import { contribution, PLANS, CREDIT_PACKS } from '../lib/commercial-catalog.ts';
 import { PUBLIC_API_SPEC } from '../lib/public-api-spec.ts';
@@ -197,4 +197,35 @@ assert.equal((await reserve('cap-after','hash-after')).status,'reserved');
 sqlite.prepare("UPDATE organization_wallets SET balance=1000 WHERE organization_id='other'").run();
 assert.equal((await reserve('other-cap','hash-other','other')).status,'reserved');
 
-sqlite.close();console.log('Release safety: reservation races, replay, refunds, rollback, Exotel settlement, debt, playground turn settlement, browser call reservation and settlement, concurrency ceiling, catalog publication, preserved contracts, pricing and API contract passed.');
+// --- reservations nothing ever closed -----------------------------------------
+// A realtime session reserves and runs, and nothing ends it. Invisible until a
+// concurrency cap was put on that table: six of them and the workspace could
+// never call again, because the slots were held by sessions that ended hours
+// ago in the only place that knew — the browser.
+sqlite.prepare("DELETE FROM realtime_reservations").run();
+sqlite.prepare("UPDATE organization_wallets SET balance=1000 WHERE organization_id='org'").run();
+await reserve('fresh','hash-fresh');
+await reserve('stale','hash-stale');
+sqlite.prepare("UPDATE realtime_reservations SET created_at = datetime('now','-120 minutes') WHERE id='stale'").run();
+const balanceBeforeSweep = balance();
+const released = await closeStaleReservations(db,'org',90);
+assert.equal(released,1);
+assert.equal(sqlite.prepare("SELECT status FROM realtime_reservations WHERE id='stale'").get().status,'settled');
+assert.equal(sqlite.prepare("SELECT error_code FROM realtime_reservations WHERE id='stale'").get().error_code,'closed_without_end_signal');
+// A session still inside the ceiling keeps its slot.
+assert.equal(sqlite.prepare("SELECT status FROM realtime_reservations WHERE id='fresh'").get().status,'reserved');
+// Nothing is charged for minutes nobody measured.
+assert.equal(balance(),balanceBeforeSweep);
+// Sweeping again finds nothing and charges nothing.
+assert.equal(await closeStaleReservations(db,'org',90),0);
+assert.equal(balance(),balanceBeforeSweep);
+// Another workspace's stale reservation is not this one's to close.
+await reserve('other-stale','hash-os','other');
+sqlite.prepare("UPDATE realtime_reservations SET created_at = datetime('now','-120 minutes') WHERE id='other-stale'").run();
+assert.equal(await closeStaleReservations(db,'org',90),0);
+assert.equal(sqlite.prepare("SELECT status FROM realtime_reservations WHERE id='other-stale'").get().status,'reserved');
+// And the freed slot is usable again.
+sqlite.prepare("DELETE FROM realtime_reservations WHERE id='fresh'").run();
+assert.equal((await reserve('after-release','hash-ar')).status,'reserved');
+
+sqlite.close();console.log('Release safety: reservation races, replay, refunds, rollback, Exotel settlement, debt, playground turn settlement, browser call reservation and settlement, concurrency ceiling, stale reservation release, catalog publication, preserved contracts, pricing and API contract passed.');

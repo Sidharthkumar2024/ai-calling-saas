@@ -1079,7 +1079,18 @@ async function syncAudience(job: JobRow, payload: Record<string, unknown>) {
 async function closeIdleCalls(job: JobRow) {
   if (!job.organization_id) throw new Error('Organization scope is required.');
   const closed = await closeIdlePlaygroundCalls(job.organization_id);
-  return { closed };
+  // Reservations outlive the calls that took them when nothing reports an end
+  // — which is every realtime session. Left alone they hold a concurrency slot
+  // for ever, so the workspace stops being able to call at all.
+  const { closeStaleReservations } =
+    await import('@/lib/browser-call-settlement');
+  const { MAX_CALL_MINUTES } = await import('@/lib/call-limits');
+  const released = await closeStaleReservations(
+    getRawDb(),
+    job.organization_id,
+    MAX_CALL_MINUTES,
+  );
+  return { closed, reservationsReleased: released };
 }
 
 async function analyseCall(job: JobRow, payload: Record<string, unknown>) {

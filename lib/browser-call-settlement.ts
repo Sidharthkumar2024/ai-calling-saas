@@ -125,3 +125,48 @@ export async function settleBrowserCall(
   }
   return { settled: true, credits, extra, alreadySettled: false };
 }
+
+/**
+ * Reservations that were taken and never closed.
+ *
+ * A realtime session reserves its first minute, negotiates with the provider,
+ * and then runs — and nothing ends it. The reservation stayed `reserved` for
+ * ever, which was invisible until a concurrency cap was put on that very table:
+ * six realtime sessions and the workspace could never start another call
+ * again, permanently, because the slots were held by sessions that had ended
+ * hours ago in the only place that knew — the browser.
+ *
+ * This closes them once they are past any real call's length. It charges
+ * nothing beyond the minute already reserved, and that is deliberate: no end
+ * signal reaches this server, so the platform cannot evidence a single minute
+ * beyond the first. Billing a duration nobody measured would be a guess in the
+ * supplier's favour, and the customer is the one who cannot check it.
+ *
+ * Real duration billing for realtime needs the gateway to report the end of a
+ * session. Until it does, this releases the slot and says why, rather than
+ * leaving a workspace quietly unable to call.
+ */
+export const STALE_RESERVATION_SQL = `UPDATE realtime_reservations
+   SET status = 'settled', error_code = 'closed_without_end_signal', updated_at = CURRENT_TIMESTAMP
+   WHERE organization_id = ? AND status = 'reserved' AND created_at <= datetime('now', ?)`;
+
+export async function closeStaleReservations(
+  db: D1Database,
+  organizationId: string,
+  maxMinutes: number,
+): Promise<number> {
+  const stale = await db
+    .prepare(
+      `SELECT count(*) AS n FROM realtime_reservations
+       WHERE organization_id = ? AND status = 'reserved' AND created_at <= datetime('now', ?)`,
+    )
+    .bind(organizationId, `-${maxMinutes} minutes`)
+    .first<{ n: number }>();
+  const count = Number(stale?.n ?? 0);
+  if (count === 0) return 0;
+  await db
+    .prepare(STALE_RESERVATION_SQL)
+    .bind(organizationId, `-${maxMinutes} minutes`)
+    .run();
+  return count;
+}

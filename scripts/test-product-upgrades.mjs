@@ -243,6 +243,7 @@ const modules = {
   },
   '@/lib/whatsapp-inbox': await import('../lib/whatsapp-inbox.ts'),
   '@/lib/whatsapp-templates': await import('../lib/whatsapp-templates.ts'),
+  '@/lib/whatsapp-bot-rules': await import('../lib/whatsapp-bot-rules.ts'),
 };
 const route = {};
 compileFunction(

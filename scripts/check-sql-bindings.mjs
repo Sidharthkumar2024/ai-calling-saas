@@ -71,6 +71,20 @@ for (const file of files) {
     let nonSpace = false;
     while (i < src.length && depth > 0) {
       const ch = src[i];
+      // Comments first. A comma inside one is punctuation, not an argument
+      // separator — counting it inflated the binding count on any .bind() with
+      // a prose comment between its arguments, and could equally have hidden a
+      // real mismatch by making a short list look right.
+      if (ch === '/' && src[i + 1] === '/') {
+        while (i < src.length && src[i] !== '\n') i += 1;
+        continue;
+      }
+      if (ch === '/' && src[i + 1] === '*') {
+        i += 2;
+        while (i < src.length && !(src[i] === '*' && src[i + 1] === '/')) i += 1;
+        i += 2;
+        continue;
+      }
       if (ch === '`' || ch === "'" || ch === '"') {
         const quote = ch;
         i += 1;

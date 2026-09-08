@@ -13,6 +13,7 @@ import {
   validateParams,
   type Template,
 } from '@/lib/whatsapp-templates';
+import { normalisePhone } from '@/lib/whatsapp-bot-rules';
 import {
   PAGE_SIZE,
   replyWindow,
@@ -210,6 +211,21 @@ export async function POST(request: Request) {
           DO UPDATE SET support_agent_id = excluded.support_agent_id,
                         assigned_at = CURRENT_TIMESTAMP`)
         .bind(organizationId, phone, agentId)
+        .run();
+      // A person taking the conversation ends the bot's, rather than leaving
+      // its question parked. Otherwise the run waits through the whole human
+      // exchange and then reads whatever the customer says next — "ok, thanks"
+      // — as the answer to a question asked hours ago.
+      await db
+        .prepare(`UPDATE workflow_runs
+          SET status = 'stopped', waiting_on = NULL, resume_node = NULL,
+              completed_at = CURRENT_TIMESTAMP, error = ?
+          WHERE organization_id = ? AND status = 'waiting' AND waiting_on = ?`)
+        .bind(
+          'Someone on the team took over this conversation, so the workflow stopped waiting for a reply.',
+          organizationId,
+          `whatsapp:${normalisePhone(phone)}`,
+        )
         .run();
     } else {
       await db

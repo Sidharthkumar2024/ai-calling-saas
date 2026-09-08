@@ -4,6 +4,7 @@ import { ensureSchema } from '@/db/bootstrap';
 import { intakeWhatsAppDocument } from '@/lib/document-inbox';
 import { whatsAppInboundCredentials } from '@/lib/commerce';
 import { readPlatformSecret } from '@/lib/platform-secrets';
+import { dispatchInboundMessage } from '@/lib/whatsapp-bot';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +24,8 @@ export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
   await ensureSchema();
   const platform = await readPlatformSecret('whatsapp');
-  const expected = platform.secrets.verifyToken || process.env.WHATSAPP_VERIFY_TOKEN;
+  const expected =
+    platform.secrets.verifyToken || process.env.WHATSAPP_VERIFY_TOKEN;
   if (
     expected &&
     params.get('hub.mode') === 'subscribe' &&
@@ -38,7 +40,8 @@ export async function POST(request: Request) {
   const raw = await request.text();
   const signature = request.headers.get('x-hub-signature-256') ?? '';
   const platform = await readPlatformSecret('whatsapp');
-  const appSecret = platform.secrets.appSecret || process.env.WHATSAPP_APP_SECRET;
+  const appSecret =
+    platform.secrets.appSecret || process.env.WHATSAPP_APP_SECRET;
   if (!appSecret)
     // Refused rather than trusted. An unverifiable webhook that writes files
     // into a workspace is worse than one that does not run.
@@ -80,7 +83,7 @@ export async function POST(request: Request) {
         const mediaId = media?.id ?? null;
         const waMessageId = message.id;
         if (waMessageId && message.from) {
-          await dbInsertInboxMessage({
+          const stored = await dbInsertInboxMessage({
             organizationId: credentials.organizationId,
             phoneNumberId,
             waMessageId,
@@ -89,6 +92,22 @@ export async function POST(request: Request) {
             body: messageBody,
             mediaId,
           });
+          // Hand it to a workflow, if this workspace published one and no
+          // colleague has claimed the conversation. Whether the row was new
+          // decides it: Meta retries a webhook it did not get a 200 from, and
+          // answering the same message twice is the mistake that shows.
+          const verdict = await dispatchInboundMessage({
+            organizationId: credentials.organizationId,
+            phone: message.from,
+            message: {
+              messageType,
+              body: messageBody,
+              isNew: stored.inserted,
+              assignedAgentId: stored.assignedAgentId,
+            },
+          });
+          if (verdict.acted !== 'none')
+            results.push({ waMessageId, bot: verdict.acted });
         }
         if (!media?.id) continue;
         const result = await intakeWhatsAppDocument({
@@ -115,6 +134,14 @@ export async function POST(request: Request) {
   return NextResponse.json({ received: results.length, results });
 }
 
+/**
+ * Stores an inbound message, and reports two things the caller needs.
+ *
+ * `inserted` is read back rather than taken from the driver's change count:
+ * `INSERT OR IGNORE` reports zero changes for a duplicate on every driver, but
+ * the envelope that carries the count differs between D1 and node:sqlite, and
+ * this decides whether a bot speaks.
+ */
 async function dbInsertInboxMessage(input: {
   organizationId: string;
   phoneNumberId: string;
@@ -123,16 +150,17 @@ async function dbInsertInboxMessage(input: {
   messageType: string;
   body: string | null;
   mediaId: string | null;
-}) {
+}): Promise<{ inserted: boolean; assignedAgentId: string | null }> {
   const { getRawDb } = await import('@/db/index');
   const db = getRawDb();
+  const id = `wam_${crypto.randomUUID()}`;
   await db
     .prepare(`INSERT OR IGNORE INTO whatsapp_messages
       (id, organization_id, phone_number_id, wa_message_id, direction,
        sender_phone, message_type, body, media_id)
       VALUES (?, ?, ?, ?, 'inbound', ?, ?, ?, ?)`)
     .bind(
-      `wam_${crypto.randomUUID()}`,
+      id,
       input.organizationId,
       input.phoneNumberId,
       input.waMessageId,
@@ -142,6 +170,26 @@ async function dbInsertInboxMessage(input: {
       input.mediaId,
     )
     .run();
+  const stored = await db
+    .prepare(
+      `SELECT id FROM whatsapp_messages WHERE organization_id = ? AND wa_message_id = ? LIMIT 1`,
+    )
+    .bind(input.organizationId, input.waMessageId)
+    .first<{ id: string }>();
+  const held = await db
+    .prepare(
+      `SELECT support_agent_id FROM whatsapp_assignments WHERE organization_id = ? AND phone IN (?, ?) LIMIT 1`,
+    )
+    .bind(
+      input.organizationId,
+      input.senderPhone,
+      `+${input.senderPhone.replace(/\D/g, '')}`,
+    )
+    .first<{ support_agent_id: string | null }>();
+  return {
+    inserted: stored?.id === id,
+    assignedAgentId: held?.support_agent_id ?? null,
+  };
 }
 
 async function signatureValid(body: string, header: string, secret: string) {

@@ -6,6 +6,7 @@ import {
   branchesOf,
   layoutGraph,
   NODE_SPECS,
+  CHAT_TRIGGERS,
   SILENT_TRIGGERS,
   validateWorkflow,
   type NodeKind,
@@ -380,6 +381,7 @@ export function CustomerWorkflowBuilder() {
   const triggerEvent = (current.nodes.find((entry) => entry.kind === 'trigger')
     ?.config.event ?? '') as TriggerEvent | '';
   const silent = triggerEvent !== '' && SILENT_TRIGGERS.includes(triggerEvent);
+  const onChat = triggerEvent !== '' && CHAT_TRIGGERS.includes(triggerEvent);
 
   return (
     <div className="space-y-4">
@@ -502,6 +504,18 @@ export function CustomerWorkflowBuilder() {
         ) : null}
       </section>
 
+      {/* Say and Ask mean something different here, and somebody building this
+          graph should read that before they build it rather than after the
+          first customer waits an hour for an answer. */}
+      {onChat ? (
+        <p className="rounded-xl border border-hairline bg-surface-muted px-4 py-3 text-[11px] text-ink-body">
+          This workflow answers WhatsApp. <strong>Say</strong> sends a message
+          rather than speaking, and <strong>Ask</strong> sends the question and
+          then stops — the run picks up again whenever the customer writes back,
+          which may be minutes or a day. Nothing is sent to a conversation
+          somebody on your team has claimed in the inbox.
+        </p>
+      ) : null}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <section className="portal-panel overflow-hidden p-0">
           <div className="flex flex-wrap items-center gap-1.5 border-b border-hairline p-3">

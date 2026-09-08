@@ -102,21 +102,34 @@ export const TRIGGER_EVENTS = [
   'inbound_call',
   'outbound_campaign',
   'web_voice',
+  'whatsapp_message',
   'webhook',
   'scheduled',
 ] as const;
 
 export type TriggerEvent = (typeof TRIGGER_EVENTS)[number];
 
-/** The triggers with no live audio channel, where `ask`/`say` cannot mean anything. */
+/**
+ * Triggers where nobody can be spoken to or written to, so `say` and `ask`
+ * cannot mean anything.
+ *
+ * `whatsapp_message` is deliberately not here. It has no audio, but it does
+ * have somebody at the other end and a way to reach them — the difference is
+ * that a WhatsApp `ask` waits minutes or hours for the answer instead of
+ * seconds, which the engine handles by parking the run rather than by
+ * forbidding the step.
+ */
 export const SILENT_TRIGGERS: TriggerEvent[] = ['webhook', 'scheduled'];
+
+/** Triggers that carry a WhatsApp conversation rather than a voice call. */
+export const CHAT_TRIGGERS: TriggerEvent[] = ['whatsapp_message'];
 
 export const NODE_SPECS: Record<NodeKind, NodeSpec> = {
   trigger: {
     kind: 'trigger',
     label: 'Trigger',
     purpose:
-      'Inbound call, outbound campaign, web voice, webhook, scheduled event.',
+      'Inbound call, outbound campaign, web voice, WhatsApp message, webhook, scheduled event.',
     fields: [
       {
         key: 'event',
@@ -141,7 +154,8 @@ export const NODE_SPECS: Record<NodeKind, NodeSpec> = {
   say: {
     kind: 'say',
     label: 'Say',
-    purpose: 'Communicate information to the caller.',
+    purpose:
+      'Tell the customer something. Spoken on a call, sent as a message on WhatsApp.',
     fields: [
       {
         key: 'text',
@@ -159,7 +173,8 @@ export const NODE_SPECS: Record<NodeKind, NodeSpec> = {
   ask: {
     kind: 'ask',
     label: 'Ask',
-    purpose: 'Collect information from the caller.',
+    purpose:
+      'Ask the customer something and wait for the answer. On a call that is seconds; on WhatsApp the run parks until they reply.',
     fields: [
       { key: 'question', label: 'Question', type: 'textarea', required: true },
       {
@@ -180,7 +195,9 @@ export const NODE_SPECS: Record<NodeKind, NodeSpec> = {
     ],
     branches: ['next'],
     needsConversation: true,
-    canSuspend: false,
+    // On WhatsApp the answer arrives whenever the customer gets round to it,
+    // so the run is parked rather than held open.
+    canSuspend: true,
     sideEffect: false,
   },
   ai_decision: {

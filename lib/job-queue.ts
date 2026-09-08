@@ -999,6 +999,12 @@ async function executeWorkflow(job: JobRow, payload: Record<string, unknown>) {
     .bind(runId)
     .run();
 
+  // A WhatsApp run has nobody on the line and somebody at the other end all
+  // the same, so it carries the number to write to. Anything else is headless.
+  const chatPhone =
+    stringValue(payload.channel) === 'whatsapp'
+      ? stringValue(payload.phone)
+      : '';
   const outcome = await executeGraph({
     graph,
     context: {
@@ -1008,6 +1014,9 @@ async function executeWorkflow(job: JobRow, payload: Record<string, unknown>) {
       // A queued run has nobody on the line. Steps that speak to a caller are
       // recorded as skipped with that reason rather than as spoken.
       live: false,
+      ...(chatPhone
+        ? { channel: 'whatsapp' as const, contactPhone: chatPhone }
+        : {}),
     },
     variables: safeJson(run.variables_json),
   });

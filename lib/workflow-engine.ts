@@ -24,6 +24,14 @@
 
 import { getRawDb } from '@/db/index';
 import { normalisePhone } from './whatsapp-bot-rules.ts';
+import {
+  decisionMessages,
+  decisionSystemPrompt,
+  fallbackOutcome,
+  readDecision,
+  undecidedReason,
+} from './ai-decision.ts';
+import { reasonWithTools } from '@/lib/provider-adapters';
 import { executeAgentTool } from '@/lib/agent-tools';
 import { createDocumentRequest } from '@/lib/document-request-service';
 import { normaliseDocumentLabel } from '@/lib/document-requests';
@@ -200,8 +208,12 @@ export async function executeGraph(input: {
 
     if (result.status === 'failed') {
       status = 'failed';
+      // The sentence before the code. `detail` is written for the person
+      // reading the run list; `reason` is a slug for grouping, and a run whose
+      // only explanation is "undecided_unreadable" tells them nothing.
       error =
         textValue(result.output.error) ||
+        textValue(result.output.detail) ||
         textValue(result.output.reason) ||
         'A step failed.';
       break;
@@ -367,8 +379,10 @@ async function runNode(
       return objectSearch(node, config, context);
 
     case 'ai_decision':
-      // A classification needs the conversation to classify. Headless, there
-      // is no transcript, so this names what it would have needed.
+      // On WhatsApp there is a conversation to read, so the decision is really
+      // made. Everywhere else this stays what it was: a note that the live
+      // agent decides and this replay did not.
+      if (onChat) return aiDecision(node, config, context, exits);
       return {
         status: 'skipped',
         branch: exits[0] ?? null,
@@ -474,6 +488,107 @@ async function sendChat(
     branch: 'next',
     output: { ...outcome, channel: 'whatsapp', sent: body },
   };
+}
+
+/**
+ * Decides which exit to take from what the customer actually wrote.
+ *
+ * The rule that matters is what happens when it cannot decide. Taking the
+ * first exit — which is what this node did on every non-voice run — sends
+ * every customer down one path and reports success. So an undecided run takes
+ * the fallback exit the author named, and stops if they named none.
+ */
+async function aiDecision(
+  node: WorkflowNode,
+  config: Record<string, unknown>,
+  context: ExecutionContext,
+  exits: string[],
+): Promise<StepResult> {
+  const instruction = textValue(config.instruction).trim();
+  const fallback = fallbackOutcome(node.config?.fallback, exits);
+  const stop = (detail: string, reason: string): StepResult =>
+    fallback
+      ? {
+          status: 'completed',
+          branch: fallback,
+          output: { reason, detail, outcome: fallback, usedFallback: true },
+        }
+      : { status: 'failed', branch: null, output: { reason, detail } };
+
+  if (!instruction || exits.length < 2)
+    return stop(
+      'This step has no question to decide, or fewer than two outcomes to decide between.',
+      'not_decidable',
+    );
+
+  const transcript = await chatTranscript(context);
+  let said: string;
+  try {
+    const answer = await reasonWithTools({
+      organizationId: context.organizationId,
+      system: decisionSystemPrompt(exits),
+      messages: decisionMessages({ instruction, outcomes: exits, transcript }),
+      maxTokens: 40,
+    });
+    said = (answer.content ?? [])
+      .map((part) => {
+        const text = (part as { text?: unknown } | null)?.text;
+        return typeof text === 'string' ? text : '';
+      })
+      .join(' ')
+      .trim();
+  } catch (error) {
+    // Not connected, or the provider refused. Either way this run did not
+    // decide anything, and saying so beats a branch nobody chose.
+    return stop(
+      error instanceof Error
+        ? error.message
+        : 'The reasoning provider could not be reached.',
+      'no_decision_available',
+    );
+  }
+
+  const reading = readDecision(said, exits);
+  if (reading.kind === 'decided')
+    return {
+      status: 'completed',
+      branch: reading.outcome,
+      output: {
+        instruction,
+        outcome: reading.outcome,
+        outcomes: exits,
+        readMessages: transcript.length,
+      },
+    };
+  return stop(undecidedReason(reading), `undecided_${reading.kind}`);
+}
+
+/**
+ * The conversation this run is part of, oldest first.
+ *
+ * Read from the stored messages rather than from run variables, because a
+ * chatbot's own questions and the customer's answers are both in there and a
+ * decision usually turns on the pair.
+ */
+async function chatTranscript(
+  context: ExecutionContext,
+): Promise<Array<{ from: 'customer' | 'business'; text: string }>> {
+  const phone = normalisePhone(context.contactPhone ?? '');
+  if (!phone) return [];
+  const rows = await getRawDb()
+    .prepare(`SELECT direction, body FROM whatsapp_messages
+      WHERE organization_id = ? AND sender_phone IN (?, ?)
+        AND body IS NOT NULL AND body <> ''
+      ORDER BY created_at DESC LIMIT 24`)
+    .bind(context.organizationId, phone, phone.slice(1))
+    .all<{ direction: string; body: string }>();
+  return (rows.results ?? []).reverse().map((row) => ({
+    from:
+      row.direction === 'inbound'
+        ? ('customer' as const)
+        : ('business' as const),
+    text: row.body,
+  }));
 }
 
 async function crmLookup(

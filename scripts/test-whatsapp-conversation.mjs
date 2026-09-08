@@ -13,6 +13,7 @@ import ts from 'typescript';
 
 import * as nodes from '../lib/workflow-nodes.ts';
 import * as rules from '../lib/whatsapp-bot-rules.ts';
+import * as aiDecision from '../lib/ai-decision.ts';
 
 let checks = 0;
 const equal = (actual, expected) => {
@@ -33,6 +34,8 @@ db.exec(`
     status TEXT, input_json TEXT, output_json TEXT, variables_json TEXT, error TEXT,
     resume_node TEXT, waiting_on TEXT, call_id TEXT, started_at TEXT, completed_at TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+  CREATE TABLE whatsapp_messages (id TEXT PRIMARY KEY, organization_id TEXT, direction TEXT,
+    sender_phone TEXT, body TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP);
   CREATE TABLE workflow_run_steps (id TEXT PRIMARY KEY, run_id TEXT, step_index INTEGER,
     step_type TEXT, status TEXT DEFAULT 'pending', input_json TEXT DEFAULT '{}',
     output_json TEXT DEFAULT '{}', error TEXT, started_at TEXT, completed_at TEXT,
@@ -58,10 +61,21 @@ function statement(query, args = []) {
 /** Every WhatsApp message the engine tried to send. */
 const sent = [];
 let sendOk = true;
+/** What the reasoning provider answers, or an error to throw instead. */
+let reasoning = { text: 'buying' };
+const reasoningCalls = [];
 
 const modules = {
   '@/db/index': { getRawDb: () => ({ prepare: statement }) },
   './whatsapp-bot-rules.ts': rules,
+  './ai-decision.ts': aiDecision,
+  '@/lib/provider-adapters': {
+    reasonWithTools: async (input) => {
+      reasoningCalls.push(input);
+      if (reasoning.throws) throw new Error(reasoning.throws);
+      return { id: 'msg_1', content: [{ type: 'text', text: reasoning.text }] };
+    },
+  },
   '@/lib/agent-tools': {
     executeAgentTool: async (tool, args) => {
       sent.push({ tool, ...args });
@@ -280,6 +294,118 @@ equal(sent.length, before);
 ok(
   headless.trace.some((step) => step.kind === 'ask' && step.status === 'skipped'),
 );
+
+// --- an AI decision reads what was actually said --------------------------------
+
+const routing = {
+  nodes: [
+    { id: 't', kind: 'trigger', config: { event: 'whatsapp_message' }, next: { next: 'd' } },
+    {
+      id: 'd',
+      kind: 'ai_decision',
+      config: {
+        instruction: 'Are they buying or renting?',
+        outcomes: ['buying', 'renting'],
+      },
+      next: { buying: 'sale', renting: 'rent' },
+    },
+    { id: 'sale', kind: 'say', config: { text: 'Our sales team will call.' }, next: { next: 'e' } },
+    { id: 'rent', kind: 'say', config: { text: 'Our rentals team will call.' }, next: { next: 'e' } },
+    { id: 'e', kind: 'end', config: { disposition: 'routed' }, next: {} },
+  ],
+};
+
+function freshRun(id) {
+  db.prepare(
+    `INSERT INTO workflow_runs (id, organization_id, workflow_id, trigger_type, status, input_json, output_json, variables_json, started_at)
+     VALUES (?,?,?,?,'running','{}','{}','{}',CURRENT_TIMESTAMP)`,
+  ).run(id, ORG, 'wf_1', 'whatsapp_message');
+  return { ...context, runId: id };
+}
+
+db.prepare(
+  `INSERT INTO whatsapp_messages (id, organization_id, direction, sender_phone, body) VALUES (?,?,?,?,?)`,
+).run('m1', ORG, 'inbound', PHONE, 'Looking for a 2BHK on rent for 11 months');
+
+reasoning = { text: 'renting' };
+const decided = await engine.executeGraph({
+  graph: routing,
+  context: freshRun('run_ai_1'),
+  variables: {},
+});
+equal(decided.status, 'completed');
+// The decision reached the model with the conversation, not just the question.
+ok(/2BHK on rent/.test(JSON.stringify(reasoningCalls.at(-1).messages)));
+equal(sent.at(-1).message, 'Our rentals team will call.');
+
+// The failure this replaces: taking the first exit and reporting success.
+reasoning = { text: 'leasing' };
+const undecided = await engine.executeGraph({
+  graph: routing,
+  context: freshRun('run_ai_2'),
+  variables: {},
+});
+equal(undecided.status, 'failed');
+ok(!sent.some((m) => m.message === 'Our sales team will call.'));
+// The run list shows this, so it has to be a sentence rather than a slug.
+ok(
+  db
+    .prepare(`SELECT error FROM workflow_runs WHERE id = 'run_ai_2'`)
+    .get()
+    .error.includes('leasing'),
+);
+
+// No model connected is also not a decision.
+reasoning = { throws: 'Vaani Sense is not connected.' };
+const offline = await engine.executeGraph({
+  graph: routing,
+  context: freshRun('run_ai_3'),
+  variables: {},
+});
+equal(offline.status, 'failed');
+ok(!sent.some((m) => m.message === 'Our sales team will call.'));
+
+// With a fallback the author chose, the run continues down a path somebody
+// actually decided on.
+const withFallback = {
+  nodes: routing.nodes.map((node) =>
+    node.id === 'd'
+      ? { ...node, config: { ...node.config, fallback: 'renting' } }
+      : node,
+  ),
+};
+const fellBack = await engine.executeGraph({
+  graph: withFallback,
+  context: freshRun('run_ai_4'),
+  variables: {},
+});
+equal(fellBack.status, 'completed');
+equal(sent.at(-1).message, 'Our rentals team will call.');
+
+// A fallback that is not one of the outcomes cannot be taken.
+const badFallback = {
+  nodes: routing.nodes.map((node) =>
+    node.id === 'd'
+      ? { ...node, config: { ...node.config, fallback: 'escalate' } }
+      : node,
+  ),
+};
+equal(
+  (await engine.executeGraph({ graph: badFallback, context: freshRun('run_ai_5'), variables: {} }))
+    .status,
+  'failed',
+);
+reasoning = { text: 'buying' };
+
+// Headless, the old behaviour is unchanged: no model is called at all.
+const callsBefore = reasoningCalls.length;
+const headlessDecision = await engine.executeGraph({
+  graph: routing,
+  context: { organizationId: ORG, runId: freshRun('run_ai_6').runId, sessionId: null, live: false },
+  variables: {},
+});
+equal(reasoningCalls.length, callsBefore);
+ok(headlessDecision.trace.some((step) => step.kind === 'ai_decision' && step.status === 'skipped'));
 
 db.close();
 console.log(`whatsapp conversation: ${checks} assertions passed; no provider contacted.`);

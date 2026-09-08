@@ -219,6 +219,13 @@ export const NODE_SPECS: Record<NodeKind, NodeSpec> = {
         required: true,
         help: 'Each outcome becomes an exit you can wire separately.',
       },
+      {
+        key: 'fallback',
+        label: 'If it cannot decide',
+        type: 'text',
+        required: false,
+        help: 'One of the outcomes above. Without it, a run that cannot decide stops instead of guessing.',
+      },
     ],
     branches: 'dynamic',
     needsConversation: false,

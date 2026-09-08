@@ -2526,6 +2526,18 @@ async function bootstrap() {
       UNIQUE (organization_id, flow_token)
     )`)
     .run();
+  // Every workspace needs somewhere for a WhatsApp form's answers to land.
+  // Without this, an existing organisation's first filled-in form fails on
+  // "Lead source is not configured" — after the customer has already answered.
+  await db
+    .prepare(`INSERT INTO lead_sources (id, organization_id, type, name, status)
+      SELECT 'src_wa_' || o.id, o.id, 'whatsapp', 'WhatsApp Form', 'connected'
+      FROM organizations o
+      WHERE NOT EXISTS (
+        SELECT 1 FROM lead_sources s
+        WHERE s.organization_id = o.id AND s.type = 'whatsapp'
+      )`)
+    .run();
   await ensureColumn(db, 'handoffs', 'call_id', 'TEXT');
   await ensureColumn(db, 'handoffs', 'enqueued_at', 'TEXT');
   await ensureColumn(db, 'handoffs', 'accepted_at', 'TEXT');
@@ -2765,6 +2777,9 @@ async function seedLocalDemo(db: D1Database) {
     db.prepare(`INSERT OR IGNORE INTO lead_sources
       (id, organization_id, type, name, status)
       VALUES ('source_demo_manual', 'org_vaani_demo', 'manual', 'Manual / CSV', 'connected')`),
+    db.prepare(`INSERT OR IGNORE INTO lead_sources
+      (id, organization_id, type, name, status)
+      VALUES ('source_demo_whatsapp', 'org_vaani_demo', 'whatsapp', 'WhatsApp Form', 'connected')`),
     db
       .prepare(`INSERT OR IGNORE INTO lead_forms
       (id, organization_id, name, public_key, fields_json, allowed_domains_json, status)

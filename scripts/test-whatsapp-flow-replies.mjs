@@ -14,6 +14,7 @@ import { compileFunction } from 'node:vm';
 import ts from 'typescript';
 
 import * as flows from '../lib/whatsapp-flows.ts';
+import * as flowLeads from '../lib/whatsapp-flow-leads.ts';
 
 let checks = 0;
 const equal = (actual, expected) => {
@@ -36,6 +37,8 @@ db.exec(`
     body TEXT, media_id TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP);
   CREATE TABLE whatsapp_assignments (organization_id TEXT, phone TEXT, support_agent_id TEXT,
     assigned_at TEXT);
+  CREATE TABLE whatsapp_flows (id TEXT PRIMARY KEY, organization_id TEXT, name TEXT,
+    cta_label TEXT, screens_json TEXT, status TEXT, provider_id TEXT);
   CREATE TABLE whatsapp_flow_responses (id TEXT PRIMARY KEY, organization_id TEXT, flow_id TEXT,
     flow_token TEXT, phone TEXT, status TEXT, answers_json TEXT,
     sent_at TEXT DEFAULT CURRENT_TIMESTAMP, answered_at TEXT);
@@ -58,6 +61,8 @@ function statement(query, args = []) {
 }
 
 const dispatched = [];
+/** Every lead the webhook tried to create. */
+const ingested = [];
 const modules = {
   'next/server': {
     NextResponse: { json: (body, init) => Response.json(body, init) },
@@ -81,6 +86,15 @@ const modules = {
     },
   },
   '@/lib/whatsapp-flows': flows,
+  '@/lib/whatsapp-flow-leads': flowLeads,
+  '@/lib/lead-engine': {
+    normalizeLeadInput: (value) => value,
+    ingestLead: async (organizationId, input) => {
+      ingested.push({ organizationId, input });
+      if (input.name.includes('EXPLODE')) throw new Error('synthetic failure');
+      return { id: 'lead_1' };
+    },
+  },
 };
 
 const route = {};
@@ -145,6 +159,9 @@ equal(db.prepare('SELECT COUNT(*) n FROM whatsapp_flow_responses').get().n, 0);
 // --- answers matched to the send that asked ------------------------------------
 
 db.prepare(
+  `INSERT INTO whatsapp_flows (id, organization_id, name, status) VALUES ('wfl_1', ?, 'Site visit request', 'PUBLISHED')`,
+).run(ORG);
+db.prepare(
   `INSERT INTO whatsapp_flow_responses (id, organization_id, flow_id, flow_token, phone, status)
    VALUES ('r1', ?, 'wfl_1', 'tok_sent', ?, 'sent')`,
 ).run(ORG, `+${PHONE}`);
@@ -196,12 +213,47 @@ equal(
   ORG,
 );
 
+// --- the answers become a lead --------------------------------------------------
+
+// A form that asks a name, a budget and a date, and then leaves all three in a
+// list nobody follows up from, is a form that captured nothing.
+equal(ingested.length, 3);
+equal(ingested[0].organizationId, ORG);
+equal(ingested[0].input.sourceType, 'whatsapp');
+equal(ingested[0].input.name, 'Asha');
+equal(ingested[0].input.phone, `+${PHONE}`);
+// The send token, so the retry above created no second lead.
+equal(ingested[0].input.externalLeadId, 'tok_sent');
+ok(ingested[0].input.notes.includes('budget: Above 1Cr'));
+// An unmatched answer is still somebody who filled in a form.
+equal(ingested[1].input.name, 'Ravi');
+// Including the one whose token belonged to another workspace: the lead goes
+// to the workspace whose number received it, never to the token's owner.
+equal(ingested[2].organizationId, ORG);
+equal(ingested[2].input.name, 'Nope');
+
+// A CRM failure must not turn a 200 into a retry loop that asks Meta to send
+// the same completed form again.
+db.prepare(
+  `INSERT INTO whatsapp_flow_responses (id, organization_id, flow_id, flow_token, phone, status)
+   VALUES ('r3', ?, 'wfl_1', 'tok_explode', ?, 'sent')`,
+).run(ORG, `+${PHONE}`);
+const survived = await post(
+  envelope(flowReply('tok_explode', { full_name: 'EXPLODE Test' }, 'wamid_boom')),
+);
+equal(survived.status, 200);
+// The answers are stored even though the lead was not.
+equal(
+  db.prepare(`SELECT status FROM whatsapp_flow_responses WHERE id = 'r3'`).get().status,
+  'answered',
+);
+
 // --- a plain message still reaches the bot -------------------------------------
 
 // A completed form is offered to the bot like anything else, and the bot's own
 // rule refuses it — a form is not a sentence to branch on.
 ok(dispatched.every((entry) => entry.message.messageType !== 'text'));
-equal(dispatched.length, 4);
+equal(dispatched.length, 5);
 
 await post(
   envelope({ id: 'wamid_5', type: 'text', from: PHONE, text: { body: 'hello' } }),

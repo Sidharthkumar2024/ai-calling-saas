@@ -13,6 +13,10 @@ export const leadSourceTypes = [
   'meta_ads',
   'google_ads',
   'website_form',
+  // A form filled in inside WhatsApp. Its own source rather than a website
+  // form, because "where did this lead come from" is a question the answer to
+  // which decides who follows it up and how.
+  'whatsapp',
   'manual',
 ] as const;
 

@@ -6,6 +6,8 @@ import { whatsAppInboundCredentials } from '@/lib/commerce';
 import { readPlatformSecret } from '@/lib/platform-secrets';
 import { dispatchInboundMessage } from '@/lib/whatsapp-bot';
 import { parseFlowReply } from '@/lib/whatsapp-flows';
+import { leadFromFlowAnswers } from '@/lib/whatsapp-flow-leads';
+import { ingestLead, normalizeLeadInput } from '@/lib/lead-engine';
 
 export const dynamic = 'force-dynamic';
 
@@ -232,10 +234,12 @@ async function dbRecordFlowAnswers(input: {
   if (input.flowToken) {
     const existing = await db
       .prepare(
-        `SELECT id, status FROM whatsapp_flow_responses WHERE organization_id = ? AND flow_token = ? LIMIT 1`,
+        `SELECT r.id, r.status, f.name AS flow_name FROM whatsapp_flow_responses r
+         LEFT JOIN whatsapp_flows f ON f.id = r.flow_id
+         WHERE r.organization_id = ? AND r.flow_token = ? LIMIT 1`,
       )
       .bind(input.organizationId, input.flowToken)
-      .first<{ id: string; status: string }>();
+      .first<{ id: string; status: string; flow_name: string | null }>();
     if (existing) {
       // Meta retries. The first set of answers is the one the customer sent.
       if (existing.status === 'answered') return 'duplicate';
@@ -245,6 +249,13 @@ async function dbRecordFlowAnswers(input: {
           WHERE id = ?`)
         .bind(answers, existing.id)
         .run();
+      await captureFlowLead({
+        organizationId: input.organizationId,
+        answers: input.answers,
+        senderPhone: input.phone,
+        flowName: existing.flow_name ?? 'WhatsApp form',
+        flowToken: input.flowToken,
+      });
       return 'matched';
     }
   }
@@ -260,7 +271,48 @@ async function dbRecordFlowAnswers(input: {
       answers,
     )
     .run();
+  await captureFlowLead({
+    organizationId: input.organizationId,
+    answers: input.answers,
+    senderPhone: input.phone,
+    flowName: 'WhatsApp form',
+    flowToken: input.flowToken || `unmatched_${input.phone}`,
+  });
   return 'unmatched';
+}
+
+/**
+ * Puts a filled-in form into the CRM.
+ *
+ * Answers used to land on a screen and stop there — a form that asks for
+ * somebody's name, budget and preferred date, and then leaves all three in a
+ * list nobody follows up from.
+ *
+ * A failure here is swallowed on purpose. The answers are already stored; a
+ * duplicate lead or a misconfigured source must not turn a 200 into a retry
+ * loop that asks Meta to send the same completed form again.
+ */
+async function captureFlowLead(input: {
+  organizationId: string;
+  answers: Record<string, string>;
+  senderPhone: string;
+  flowName: string;
+  flowToken: string;
+}) {
+  const lead = leadFromFlowAnswers({
+    answers: input.answers,
+    senderPhone: input.senderPhone,
+    flowName: input.flowName,
+    flowToken: input.flowToken,
+  });
+  // No number to call. A lead nobody can contact wastes somebody's time in a
+  // queue, and the answers are on the forms screen either way.
+  if (!lead) return;
+  try {
+    await ingestLead(input.organizationId, normalizeLeadInput(lead));
+  } catch {
+    /* The answers are stored; the CRM row is the part that can fail. */
+  }
 }
 
 async function signatureValid(body: string, header: string, secret: string) {

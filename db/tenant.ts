@@ -88,6 +88,13 @@ export async function ensureTenant(user: ChatGPTUser): Promise<TenantContext> {
     {
       id: `source_${crypto.randomUUID()}`,
       organizationId,
+      type: 'whatsapp',
+      name: 'WhatsApp Form',
+      status: 'connected',
+    },
+    {
+      id: `source_${crypto.randomUUID()}`,
+      organizationId,
       type: 'manual',
       name: 'Manual / CSV',
       status: 'connected',

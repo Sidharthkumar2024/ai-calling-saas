@@ -6,6 +6,7 @@ import ts from 'typescript';
 import * as catalog from '../lib/commercial-catalog.ts';
 import { reserveRealtime, refundRealtime } from '../lib/realtime-reservations.ts';
 import { exotelCredits, settleExotel } from '../lib/exotel-settlement.ts';
+import { settlePlaygroundTurn } from '../lib/playground-settlement.ts';
 import { contribution, PLANS, CREDIT_PACKS } from '../lib/commercial-catalog.ts';
 import { PUBLIC_API_SPEC } from '../lib/public-api-spec.ts';
 const sqlite = new DatabaseSync(':memory:');
@@ -63,4 +64,48 @@ const billingRoute=readFileSync(new URL('../app/api/app/billing/route.ts',import
 const subscriptionSql=billingRoute.match(/`(SELECT p\.id,[\s\S]*?WHERE s\.organization_id = \? LIMIT 1)`/)[1];
 const contract=sqlite.prepare(subscriptionSql).get('org');
 assert.equal(contract.status,'active');assert.equal(contract.catalog_status,'legacy');
-sqlite.close();console.log('Release safety: reservation races, replay, refunds, rollback, Exotel settlement, debt, catalog publication, preserved contracts, pricing and API contract passed.');
+
+// --- playground turn settlement ------------------------------------------------
+// The hole this closes: the debit carried `balance >= cost` as a guard and the
+// ledger insert beside it did not, so a wallet that could not pay produced a
+// ledger row for a debit that never happened — and the turn was delivered free.
+sqlite.prepare("INSERT INTO agent_test_sessions VALUES ('sess','org','agent','text','active',0,NULL)").run();
+sqlite.prepare("UPDATE organization_wallets SET balance=25 WHERE organization_id='org'").run();
+const settleTurn=(turnId)=>settlePlaygroundTurn(db,{organizationId:'org',sessionId:'sess',turnId,credits:10});
+assert.equal((await settleTurn('t1')).charged,true);assert.equal(balance(),15);
+// A retry of the same turn settles once, and says so rather than charging again.
+const retry=await settleTurn('t1');assert.equal(retry.charged,false);assert.equal(retry.alreadySettled,true);assert.equal(balance(),15);
+// Two turns racing on a wallet that can only pay for one: exactly one is
+// charged, the other is refused, and the balance never goes negative — which
+// is what the shared `balance >= cost` predicate on both statements buys.
+sqlite.prepare("UPDATE organization_wallets SET balance=15 WHERE organization_id='org'").run();
+const [r1,r2]=await Promise.all([settleTurn('t2'),settleTurn('t3')]);
+assert.equal([r1,r2].filter(r=>r.charged).length,1);
+assert.equal([r1,r2].filter(r=>r.reason).length,1);
+assert.equal(balance(),5);
+// With room for both, both settle.
+sqlite.prepare("UPDATE organization_wallets SET balance=25 WHERE organization_id='org'").run();
+const [r3,r4]=await Promise.all([settleTurn('t2b'),settleTurn('t3b')]);
+assert.equal([r3,r4].filter(r=>r.charged).length,2);assert.equal(balance(),5);
+// THE ONE THAT LEAKED: with too little left, neither the debit nor the ledger
+// row happens — previously the ledger row happened alone.
+sqlite.prepare("UPDATE organization_wallets SET balance=4 WHERE organization_id='org'").run();
+const poor=await settleTurn('t4');
+assert.equal(poor.charged,false);assert.equal(poor.alreadySettled,false);
+assert.match(poor.reason,/Not enough credits/);
+assert.equal(balance(),4);
+assert.equal(sqlite.prepare("SELECT count(*) n FROM credit_ledger WHERE id='playground_turn_t4'").get().n,0);
+// `balance_after` comes from the wallet at debit time, not from a value read
+// before the provider was called: two settled turns cannot share one.
+sqlite.prepare("UPDATE organization_wallets SET balance=100 WHERE organization_id='org'").run();
+await settleTurn('t5');await settleTurn('t6');
+const afters=sqlite.prepare("SELECT balance_after FROM credit_ledger WHERE id IN ('playground_turn_t5','playground_turn_t6') ORDER BY balance_after DESC").all().map(r=>r.balance_after);
+assert.deepEqual(afters,[90,80]);
+// The session's own counter moves with the wallet, never on its own.
+assert.equal(
+  sqlite.prepare("SELECT credits_used FROM agent_test_sessions WHERE id='sess'").get().credits_used,
+  10 * sqlite.prepare("SELECT count(*) n FROM credit_ledger WHERE id LIKE 'playground_turn_%'").get().n,
+);
+assert.rejects(settlePlaygroundTurn(db,{organizationId:'org',sessionId:'sess',turnId:'bad',credits:0}),/Invalid turn charge/);
+
+sqlite.close();console.log('Release safety: reservation races, replay, refunds, rollback, Exotel settlement, debt, playground turn settlement, catalog publication, preserved contracts, pricing and API contract passed.');

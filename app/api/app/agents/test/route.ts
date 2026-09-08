@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 
+import { settlePlaygroundTurn } from '@/lib/playground-settlement';
+
 import { getRawDb } from '@/db/index';
 import { requireCustomerPermission } from '@/lib/customer-rbac';
 import { simulateAgentTurn } from '@/lib/agent-simulator';
@@ -298,10 +300,8 @@ export async function POST(request: Request) {
     const turnActions = executedActions.length
       ? executedActions
       : simulated.actions;
-    const nextBalance = Number(session.balance) - TEST_TURN_COST;
     const userMessageId = `message_${crypto.randomUUID()}`;
     const assistantMessageId = `message_${crypto.randomUUID()}`;
-    const ledgerId = `credit_${crypto.randomUUID()}`;
     await db.batch([
       db
         .prepare(`INSERT INTO agent_test_messages
@@ -318,20 +318,18 @@ export async function POST(request: Request) {
           JSON.stringify(turnActions),
           latencyMs,
         ),
-      db
-        .prepare(`UPDATE agent_test_sessions SET credits_used = credits_used + ${TEST_TURN_COST},
-          updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
-        .bind(session.id),
-      db
-        .prepare(`UPDATE organization_wallets SET balance = balance - ${TEST_TURN_COST},
-          updated_at = CURRENT_TIMESTAMP WHERE organization_id = ? AND balance >= ${TEST_TURN_COST}`)
-        .bind(auth.session.organizationId),
-      db
-        .prepare(`INSERT INTO credit_ledger
-          (id, organization_id, type, amount, balance_after, reference_type, reference_id, description)
-          VALUES (?, ?, 'trial_usage', -${TEST_TURN_COST}, ?, 'agent_test', ?, 'No-call agent playground turn')`)
-        .bind(ledgerId, auth.session.organizationId, nextBalance, session.id),
     ]);
+    // The charge is its own transaction, keyed on the assistant message so a
+    // retried request settles once. It used to sit in the batch above with
+    // `balance >= cost` on the debit and nothing on the ledger insert beside
+    // it, which meant a wallet that could not pay still got a ledger row for a
+    // debit that never happened — and the turn was delivered free.
+    const settlement = await settlePlaygroundTurn(db, {
+      organizationId: auth.session.organizationId!,
+      sessionId: session.id,
+      turnId: assistantMessageId,
+      credits: TEST_TURN_COST,
+    });
     // Mirror the exchange into call telemetry so transcripts, summaries and
     // QA reviews come from real conversations instead of seed rows.
     const callId = await ensurePlaygroundCallRecord({
@@ -383,7 +381,24 @@ export async function POST(request: Request) {
       },
       turnId: turnId + 1,
       deduplicated: false,
-      creditsRemaining: nextBalance,
+      // Read back rather than calculated: the balance the caller is told is the
+      // one the wallet holds, not one derived from a figure fetched before the
+      // provider was called.
+      creditsRemaining: Number(
+        (
+          await db
+            .prepare(
+              'SELECT balance FROM organization_wallets WHERE organization_id = ?',
+            )
+            .bind(auth.session.organizationId)
+            .first<{ balance: number }>()
+        )?.balance ?? 0,
+      ),
+      // Said plainly when it happens: the turn was answered and the wallet
+      // could not pay for it, which the customer should hear now rather than
+      // discover in a ledger that disagrees with their balance.
+      charged: settlement.charged,
+      ...(settlement.charged ? {} : { chargeNote: settlement.reason }),
     });
   }
 

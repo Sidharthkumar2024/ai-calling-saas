@@ -50,6 +50,19 @@ export type LeadFormRow = {
   allowedDomains: string[];
   embedScript: string;
   endpoint: string;
+  /**
+   * The draft above is what this screen edits. These describe what visitors
+   * are actually being served, which used to be the same thing — editing a
+   * published popup rewrote the running form keystroke by keystroke.
+   */
+  publishState?: 'draft' | 'published' | 'unpublished_changes' | 'unpublished';
+  publishDiff?: string[];
+  published?: {
+    fields: import('@/lib/lead-form-fields').LeadFormField[];
+    settings: LeadFormSettings;
+    allowedDomains: string[];
+    version: number;
+  } | null;
 };
 
 export type LeadFormsData = { forms?: LeadFormRow[] };
@@ -126,7 +139,9 @@ export function CustomerLeadCapture({
     }
   }
 
-  async function save(action: 'save' | 'publish' | 'unpublish') {
+  async function save(
+    action: 'save' | 'publish' | 'unpublish' | 'discard_draft',
+  ) {
     if (!selected || !settings) return;
     setSaving(true);
     setError('');
@@ -152,10 +167,14 @@ export function CustomerLeadCapture({
         throw new Error(payload.error || 'Unable to save form.');
       setNotice(
         action === 'publish'
-          ? 'Published. The embed script is now live.'
+          ? 'Published. This is now the form on your website.'
           : action === 'unpublish'
-            ? 'Unpublished. Existing embeds will stop loading.'
-            : 'Form design saved as a new version.',
+            ? 'Taken down. Existing embeds stop loading; the draft is untouched.'
+            : action === 'discard_draft'
+              ? 'Draft reset to the form that is live.'
+              : // No longer "saved as a new version": saving changes nothing a
+                // visitor sees until it is published.
+                'Draft saved. Nothing on your website has changed yet.',
       );
       await onChanged();
     } catch (caught) {
@@ -207,6 +226,7 @@ export function CustomerLeadCapture({
     );
   }
 
+  const state = selected.publishState ?? 'draft';
   const update = <K extends keyof LeadFormSettings>(
     key: K,
     value: LeadFormSettings[K],
@@ -233,25 +253,62 @@ export function CustomerLeadCapture({
             disabled={saving}
             className="border-hairline bg-transparent"
           >
-            {saving ? <Loader2 className="animate-spin" /> : <Save />}{' '}
-            {selected.status === 'active' ? 'Save live changes' : 'Save draft'}
+            {saving ? <Loader2 className="animate-spin" /> : <Save />} Save
+            draft
           </Button>
+          {state === 'unpublished_changes' ? (
+            <Button
+              variant="outline"
+              onClick={() => void save('discard_draft')}
+              disabled={saving}
+              className="border-hairline bg-transparent"
+            >
+              Discard draft changes
+            </Button>
+          ) : null}
           <Button
-            onClick={() =>
-              void save(selected.status === 'active' ? 'unpublish' : 'publish')
-            }
-            disabled={saving}
+            onClick={() => void save('publish')}
+            disabled={saving || state === 'published'}
             className="portal-primary"
           >
-            {selected.status === 'active' ? <PanelLeft /> : <Play />}
-            {selected.status === 'active' ? 'Unpublish' : 'Publish form'}
+            <Play />
+            {state === 'draft' ? 'Publish form' : 'Publish changes'}
           </Button>
+          {selected.status === 'active' ? (
+            <Button
+              variant="outline"
+              onClick={() => void save('unpublish')}
+              disabled={saving}
+              className="border-hairline bg-transparent"
+            >
+              <PanelLeft /> Take down
+            </Button>
+          ) : null}
         </div>
       </div>
+      {/* What publishing would change, before it changes it. Publishing
+          replaces a form people may be filling in right now, and "removes the
+          Budget field" is a better warning than "are you sure". */}
+      <div className="rounded-xl border border-hairline bg-surface-muted px-4 py-3 text-xs">
+        <p className="font-medium">
+          {state === 'published'
+            ? 'Your website is showing this form.'
+            : state === 'unpublished_changes'
+              ? 'Your website is still showing the previously published form.'
+              : state === 'unpublished'
+                ? 'This form is not on any website right now.'
+                : 'This form has never been published.'}
+        </p>
+        {state === 'unpublished_changes' || state === 'draft' ? (
+          <ul className="mt-1.5 space-y-0.5 text-ink-muted">
+            {(selected.publishDiff ?? []).map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
       {notice ? (
-        <output
-          className="block rounded-xl border border-emerald-400/15 bg-emerald-400/5 px-4 py-3 text-xs text-success-text"
-        >
+        <output className="block rounded-xl border border-emerald-400/15 bg-emerald-400/5 px-4 py-3 text-xs text-success-text">
           {notice}
         </output>
       ) : null}
@@ -366,6 +423,10 @@ export function CustomerLeadCapture({
                       <option value="tel">Phone</option>
                       <option value="email">Email</option>
                       <option value="number">Number</option>
+                      <option value="textarea">Paragraph</option>
+                      <option value="select">Dropdown</option>
+                      <option value="date">Date</option>
+                      <option value="checkbox">Tick box</option>
                     </select>
                     <label className="flex items-center gap-2 text-xs">
                       <input
@@ -396,6 +457,38 @@ export function CustomerLeadCapture({
                       </button>
                     ) : null}
                   </div>
+                  {/* A dropdown's choices are also the only answers the
+                      endpoint accepts, so they are edited here rather than
+                      left to whatever a visitor types. */}
+                  {field.type === 'select' ? (
+                    <label className="block text-xs">
+                      Choices, one per line
+                      <textarea
+                        aria-label={`Choices for ${field.key}`}
+                        rows={3}
+                        value={(field.options ?? []).join('\n')}
+                        onChange={(event) =>
+                          setFields(
+                            fields.map((item, at) =>
+                              at === index
+                                ? {
+                                    ...item,
+                                    options: event.target.value.split('\n'),
+                                  }
+                                : item,
+                            ),
+                          )
+                        }
+                        className="mt-1 w-full resize-y rounded-lg border border-hairline bg-surface p-2 text-sm"
+                      />
+                      {(field.options ?? []).filter((option) => option.trim())
+                        .length < 2 ? (
+                        <span className="text-warning-text">
+                          Give at least two choices, or nobody can answer this.
+                        </span>
+                      ) : null}
+                    </label>
+                  ) : null}
                 </div>
               ))}
               <Button
@@ -728,14 +821,58 @@ function Preview({
         {settings.description}
       </p>
       <div className="mt-4 grid gap-2">
-        {fields.map((field) => (
-          <input
-            key={field.key}
-            disabled
-            placeholder={`${field.label}${field.required ? ' *' : ''}`}
-            className="h-10 rounded-xl border border-current/15 bg-current/5 px-3 text-xs"
-          />
-        ))}
+        {/* Shown as the control a visitor will actually get: a dropdown that
+            previews as a text box is a preview of a different form. */}
+        {fields.map((field) => {
+          const label = `${field.label}${field.required ? ' *' : ''}`;
+          const box =
+            'rounded-xl border border-current/15 bg-current/5 px-3 text-xs';
+          if (field.type === 'checkbox')
+            return (
+              <span
+                key={field.key}
+                className="flex items-center gap-2 text-[11px] opacity-75"
+              >
+                <input type="checkbox" disabled className="size-4" />
+                {label}
+              </span>
+            );
+          if (field.type === 'textarea')
+            return (
+              <textarea
+                key={field.key}
+                disabled
+                rows={3}
+                placeholder={label}
+                className={`resize-none py-2 ${box}`}
+              />
+            );
+          if (field.type === 'select')
+            return (
+              <select
+                key={field.key}
+                disabled
+                className={`h-10 ${box}`}
+                value=""
+                onChange={() => {}}
+              >
+                <option value="">{label}</option>
+                {(field.options ?? []).map((option) => (
+                  <option key={option}>{option}</option>
+                ))}
+              </select>
+            );
+          return (
+            <input
+              key={field.key}
+              disabled
+              type={field.type === 'date' ? 'date' : 'text'}
+              placeholder={label}
+              aria-label={label}
+              className={`h-10 ${box}`}
+            />
+          );
+        })}
         <button
           type="button"
           disabled

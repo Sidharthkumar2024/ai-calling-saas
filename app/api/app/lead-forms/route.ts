@@ -4,7 +4,17 @@ import { getRawDb } from '@/db/index';
 import { requireCustomer } from '@/lib/api-session';
 import { requireCustomerPermission } from '@/lib/customer-rbac';
 import { recordAudit } from '@/lib/demo-seed';
-import { DEFAULT_LEAD_FIELDS, validateLeadFields, safeLogo } from '@/lib/lead-form-fields';
+import {
+  DEFAULT_LEAD_FIELDS,
+  validateLeadFields,
+  safeLogo,
+} from '@/lib/lead-form-fields';
+import {
+  publishDiff,
+  publishState,
+  publishedOf,
+  type FormRow,
+} from '@/lib/lead-form-publishing';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,8 +22,7 @@ const DEFAULT_FIELDS = DEFAULT_LEAD_FIELDS;
 
 const DEFAULT_SETTINGS = {
   title: 'Let us call you back',
-  description:
-    'Share your details and our team will help with your enquiry.',
+  description: 'Share your details and our team will help with your enquiry.',
   buttonText: 'Request a call',
   successMessage: 'Thanks — your request is in the CRM.',
   placement: 'bottom_right',
@@ -30,7 +39,9 @@ export async function GET(request: Request) {
   if (auth.response) return auth.response;
   const rows = await getRawDb()
     .prepare(`SELECT id, name, public_key, fields_json,
-      allowed_domains_json, settings_json, status, version, published_at, updated_at, created_at
+      allowed_domains_json, settings_json, status, version, published_at,
+      published_fields_json, published_settings_json, published_domains_json,
+      published_version, updated_at, created_at
     FROM lead_forms WHERE organization_id = ? ORDER BY created_at DESC`)
     .bind(auth.session.organizationId)
     .all<Record<string, unknown>>();
@@ -76,7 +87,7 @@ export async function PATCH(request: Request) {
   const body = (await request.json().catch(() => null)) as {
     fields?: unknown;
     id?: string;
-    action?: 'save' | 'publish' | 'unpublish';
+    action?: 'save' | 'publish' | 'unpublish' | 'discard_draft';
     name?: string;
     allowedDomains?: string[];
     settings?: Record<string, unknown>;
@@ -84,34 +95,101 @@ export async function PATCH(request: Request) {
   if (!body?.id)
     return NextResponse.json({ error: 'Form is required.' }, { status: 400 });
   const existing = await getRawDb()
-    .prepare(`SELECT id, settings_json, fields_json, allowed_domains_json FROM lead_forms
-    WHERE id = ? AND organization_id = ? LIMIT 1`)
+    .prepare(`SELECT id, status, version, settings_json, fields_json, allowed_domains_json,
+      published_fields_json, published_settings_json, published_domains_json, published_version
+    FROM lead_forms WHERE id = ? AND organization_id = ? LIMIT 1`)
     .bind(body.id, auth.session.organizationId)
-    .first<{ id: string; settings_json: string; fields_json: string; allowed_domains_json: string }>();
+    .first<FormRow & { id: string }>();
   if (!existing)
     return NextResponse.json({ error: 'Form not found.' }, { status: 404 });
+
+  /**
+   * Throwing away edits and going back to what is live.
+   *
+   * The other half of a draft: without it, a draft somebody regrets can only
+   * be undone by retyping the published form from memory.
+   */
+  if (body.action === 'discard_draft') {
+    if (existing.published_fields_json == null)
+      return NextResponse.json(
+        {
+          error:
+            'This form has never been published, so there is nothing to go back to.',
+        },
+        { status: 409 },
+      );
+    await getRawDb()
+      .prepare(`UPDATE lead_forms
+        SET fields_json = published_fields_json,
+            settings_json = published_settings_json,
+            allowed_domains_json = published_domains_json,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND organization_id = ?`)
+      .bind(body.id, auth.session.organizationId)
+      .run();
+    await recordAudit(
+      auth.session,
+      'lead_form.discard_draft',
+      'lead_form',
+      body.id,
+      {},
+    );
+    return NextResponse.json({ updated: true, status: 'reverted' });
+  }
   const current = safeObject(existing.settings_json);
   let fields;
-  try { fields = validateLeadFields(body.fields ?? JSON.parse(existing.fields_json)); }
-  catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : 'Invalid fields.' }, { status: 400 }); }
-  if (body.allowedDomains !== undefined && !Array.isArray(body.allowedDomains)) return NextResponse.json({ error: 'Allowed domains must be a list.' }, { status: 400 });
+  try {
+    fields = validateLeadFields(
+      body.fields ?? JSON.parse(existing.fields_json),
+    );
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Invalid fields.' },
+      { status: 400 },
+    );
+  }
+  if (body.allowedDomains !== undefined && !Array.isArray(body.allowedDomains))
+    return NextResponse.json(
+      { error: 'Allowed domains must be a list.' },
+      { status: 400 },
+    );
   const settings = validateSettings({
     ...DEFAULT_SETTINGS,
     ...current,
     ...body.settings,
   });
-  const domains = (body.allowedDomains ?? safeArray(existing.allowed_domains_json))
+  const domains = (
+    body.allowedDomains ?? safeArray(existing.allowed_domains_json)
+  )
     .map(normalizeOrigin)
     .filter(Boolean)
     .slice(0, 20);
   const action = body.action ?? 'save';
-  if (!['save', 'publish', 'unpublish'].includes(action)) return NextResponse.json({ error: 'Unknown form action.' }, { status: 400 });
-  if (action === 'publish' && !domains.length) return NextResponse.json({ error: 'Add at least one allowed website origin before publishing.' }, { status: 400 });
+  if (!['save', 'publish', 'unpublish'].includes(action))
+    return NextResponse.json(
+      { error: 'Unknown form action.' },
+      { status: 400 },
+    );
+  if (action === 'publish' && !domains.length)
+    return NextResponse.json(
+      { error: 'Add at least one allowed website origin before publishing.' },
+      { status: 400 },
+    );
   const status =
     action === 'publish' ? 'active' : action === 'unpublish' ? 'draft' : null;
+  // Saving writes the draft and nothing else. Publishing is the one act that
+  // copies the draft into the snapshot visitors are served, which is why the
+  // snapshot columns are written here and only here.
+  //
+  // Unpublishing keeps the snapshot: taking a form down and putting the same
+  // one back up should not require rebuilding it.
   const result = await getRawDb()
     .prepare(`UPDATE lead_forms SET name = ?, settings_json = ?, fields_json = ?,
       allowed_domains_json = ?, status = coalesce(?, status), version = version + 1,
+      published_fields_json = CASE WHEN ? = 'publish' THEN ? ELSE published_fields_json END,
+      published_settings_json = CASE WHEN ? = 'publish' THEN ? ELSE published_settings_json END,
+      published_domains_json = CASE WHEN ? = 'publish' THEN ? ELSE published_domains_json END,
+      published_version = CASE WHEN ? = 'publish' THEN version + 1 ELSE published_version END,
       published_at = CASE WHEN ? = 'active' THEN CURRENT_TIMESTAMP ELSE published_at END,
       updated_at = CURRENT_TIMESTAMP WHERE id = ? AND organization_id = ?`)
     .bind(
@@ -120,6 +198,13 @@ export async function PATCH(request: Request) {
       JSON.stringify(fields),
       JSON.stringify(domains),
       status,
+      action,
+      JSON.stringify(fields),
+      action,
+      JSON.stringify(settings),
+      action,
+      JSON.stringify(domains),
+      action,
       status,
       body.id,
       auth.session.organizationId,
@@ -140,6 +225,10 @@ function serialize(row: Record<string, unknown>, origin: string) {
     ...safeObject(rowString(row.settings_json, '{}')),
   };
   const publicKey = rowString(row.public_key);
+  // The editor needs to know three different things that used to be one: what
+  // it is editing, what visitors are being served, and whether those differ.
+  const formRow = row as unknown as FormRow;
+  const live = publishedOf(formRow);
   return {
     id: rowString(row.id),
     name: rowString(row.name),
@@ -149,6 +238,16 @@ function serialize(row: Record<string, unknown>, origin: string) {
     settings,
     status: rowString(row.status),
     version: Number(row.version ?? 1),
+    publishState: publishState(formRow),
+    publishDiff: publishDiff(formRow),
+    published: live
+      ? {
+          fields: live.fields,
+          settings: { ...DEFAULT_SETTINGS, ...live.settings },
+          allowedDomains: live.domains,
+          version: Number(row.published_version ?? 0),
+        }
+      : null,
     publishedAt: row.published_at,
     embedScript: `<script async src="${origin}/api/widget/${publicKey}"></script>`,
     endpoint: `${origin}/api/forms/${publicKey}/leads`,

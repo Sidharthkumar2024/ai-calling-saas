@@ -79,6 +79,12 @@ export const leadForms = sqliteTable(
     settingsJson: text('settings_json').notNull().default('{}'),
     status: text('status').notNull().default('draft'),
     version: integer('version').notNull().default(1),
+    // What visitors are served, as a snapshot taken at publish. The columns
+    // above are the draft; only these reach a website.
+    publishedFieldsJson: text('published_fields_json'),
+    publishedSettingsJson: text('published_settings_json'),
+    publishedDomainsJson: text('published_domains_json'),
+    publishedVersion: integer('published_version'),
     publishedAt: text('published_at'),
     updatedAt: text('updated_at')
       .notNull()
@@ -669,16 +675,24 @@ export const agentTestSessions = sqliteTable(
 
 export const realtimeReservations = sqliteTable('realtime_reservations', {
   id: text('id').primaryKey(),
-  organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
-  agentId: text('agent_id').notNull().references(() => voiceAgents.id, { onDelete: 'cascade' }),
+  organizationId: text('organization_id')
+    .notNull()
+    .references(() => organizations.id, { onDelete: 'cascade' }),
+  agentId: text('agent_id')
+    .notNull()
+    .references(() => voiceAgents.id, { onDelete: 'cascade' }),
   requestHash: text('request_hash').notNull(),
   unit: text('unit').notNull().default('realtime_session_v1'),
   credits: integer('credits').notNull().default(10),
   status: text('status').notNull(),
   providerReference: text('provider_reference'),
   errorCode: text('error_code'),
-  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  createdAt: text('created_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const agentTestMessages = sqliteTable(

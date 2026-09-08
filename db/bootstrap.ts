@@ -2473,6 +2473,24 @@ async function bootstrap() {
       UNIQUE (organization_id, name, language)
     )`)
     .run();
+  // What visitors are actually being served, as a snapshot taken when
+  // somebody pressed publish. Before this a form had one copy of itself, so
+  // editing a published popup rewrote the running form keystroke by keystroke.
+  await ensureColumn(db, 'lead_forms', 'published_fields_json', 'TEXT');
+  await ensureColumn(db, 'lead_forms', 'published_settings_json', 'TEXT');
+  await ensureColumn(db, 'lead_forms', 'published_domains_json', 'TEXT');
+  await ensureColumn(db, 'lead_forms', 'published_version', 'INTEGER');
+  // Forms that were already live have no snapshot, and without this they
+  // would go dark the moment this ships. Their current configuration is what
+  // visitors are being served, so that is exactly the snapshot to take.
+  await db
+    .prepare(`UPDATE lead_forms
+      SET published_fields_json = fields_json,
+          published_settings_json = settings_json,
+          published_domains_json = allowed_domains_json,
+          published_version = version
+      WHERE status = 'active' AND published_fields_json IS NULL`)
+    .run();
   await ensureColumn(db, 'handoffs', 'call_id', 'TEXT');
   await ensureColumn(db, 'handoffs', 'enqueued_at', 'TEXT');
   await ensureColumn(db, 'handoffs', 'accepted_at', 'TEXT');

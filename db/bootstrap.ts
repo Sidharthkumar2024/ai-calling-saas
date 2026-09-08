@@ -2437,6 +2437,18 @@ async function bootstrap() {
   // one. Without this a dev or test database has the table and not the column,
   // and every heartbeat fails on a database that looks otherwise healthy.
   await ensureColumn(db, 'realtime_reservations', 'last_heartbeat_at', 'TEXT');
+  // Who is answering which WhatsApp conversation. Keyed by the customer's
+  // number rather than by a message, because a conversation is the thing a
+  // person picks up — and a new message must not silently unassign it.
+  await db
+    .prepare(`CREATE TABLE IF NOT EXISTS whatsapp_assignments (
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      phone TEXT NOT NULL,
+      support_agent_id TEXT REFERENCES support_agents(id) ON DELETE SET NULL,
+      assigned_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      PRIMARY KEY (organization_id, phone)
+    )`)
+    .run();
   await ensureColumn(db, 'handoffs', 'call_id', 'TEXT');
   await ensureColumn(db, 'handoffs', 'enqueued_at', 'TEXT');
   await ensureColumn(db, 'handoffs', 'accepted_at', 'TEXT');

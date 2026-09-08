@@ -119,7 +119,12 @@ export function replyWindow(
     };
   const elapsed = now - when(conversation.lastInboundAt);
   if (!when(conversation.lastInboundAt) || elapsed < 0 || !Number.isFinite(now))
-    return { open: false, hoursLeft: 0, reason: 'The last customer-message timestamp is invalid. Refresh before replying.' };
+    return {
+      open: false,
+      hoursLeft: 0,
+      reason:
+        'The last customer-message timestamp is invalid. Refresh before replying.',
+    };
   if (elapsed >= REPLY_WINDOW_MS)
     return {
       open: false,
@@ -135,5 +140,83 @@ export function replyWindow(
     open: true,
     hoursLeft,
     reason: `${hoursLeft} ${hoursLeft === 1 ? 'hour' : 'hours'} left to reply in your own words.`,
+  };
+}
+
+/* ------------------------------------------------------------------ *
+ * Reading further back
+ *
+ * The inbox loads the most recent messages and stops. For a busy number that
+ * means older conversations simply are not there — and worse, a conversation
+ * whose recent messages are all outbound looks like it began with the
+ * business talking, because the customer's opening line fell off the end.
+ *
+ * A cursor is the created_at of the oldest message already shown. It is not an
+ * offset: rows arrive while someone reads, and an offset would show them a
+ * message twice or skip one entirely.
+ * ------------------------------------------------------------------ */
+
+/** How many messages one page carries. */
+export const PAGE_SIZE = 50;
+
+export type Page = {
+  messages: InboxMessage[];
+  /** Pass back to read further; null when the beginning has been reached. */
+  cursor: string | null;
+  hasMore: boolean;
+};
+
+/**
+ * Turns a fetched batch into a page.
+ *
+ * The query asks for one more row than a page holds, which is how "is there
+ * more" is answered without a second count that could disagree with the rows
+ * just read.
+ */
+export function toPage(rows: InboxMessage[], pageSize = PAGE_SIZE): Page {
+  const hasMore = rows.length > pageSize;
+  const messages = hasMore ? rows.slice(0, pageSize) : rows;
+  const oldest = messages[messages.length - 1];
+  return {
+    messages,
+    cursor: hasMore && oldest ? oldest.created_at : null,
+    hasMore,
+  };
+}
+
+/* ------------------------------------------------------------------ *
+ * Who is answering
+ * ------------------------------------------------------------------ */
+
+export type Assignment = {
+  phone: string;
+  agentId: string | null;
+  agentName: string | null;
+  assignedAt: string | null;
+};
+
+/**
+ * Whether this person may take a conversation someone else is already on.
+ *
+ * Taking it is allowed — a colleague goes to lunch mid-conversation and the
+ * customer should not wait — but it is a different act from picking up an
+ * unassigned one, and the screen says so rather than silently reassigning.
+ */
+export function assignmentChange(
+  current: Assignment | null,
+  nextAgentId: string | null,
+  actingAgentId: string,
+): { kind: 'claim' | 'release' | 'takeover' | 'noop'; warning?: string } {
+  const held = current?.agentId ?? null;
+  if (nextAgentId === null)
+    return held ? { kind: 'release' } : { kind: 'noop' };
+  if (held === nextAgentId) return { kind: 'noop' };
+  if (!held) return { kind: 'claim' };
+  return {
+    kind: 'takeover',
+    warning:
+      held === actingAgentId
+        ? undefined
+        : 'Someone else is on this conversation. Taking it over moves it to you.',
   };
 }

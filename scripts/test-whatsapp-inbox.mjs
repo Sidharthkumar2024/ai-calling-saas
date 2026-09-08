@@ -152,3 +152,62 @@ check(() => {
 });
 
 console.log(`whatsapp-inbox: ${checks} assertions passed`);
+
+// --- paging -------------------------------------------------------------------
+
+const { toPage, PAGE_SIZE, assignmentChange } = await import(
+  '../lib/whatsapp-inbox.ts'
+);
+
+const page = (n) =>
+  Array.from({ length: n }, (_, index) =>
+    msg({ id: `p${index}`, created_at: `2026-09-08 10:${String(index).padStart(2, '0')}:00` }),
+  );
+
+check(() => {
+  const result = toPage(page(10), 50);
+  assert.equal(result.messages.length, 10);
+  // The beginning has been reached, so there is nothing to come back for.
+  assert.equal(result.cursor, null);
+  assert.equal(result.hasMore, false);
+});
+
+// The query asks for one more than a page, which is how "is there more" is
+// answered without a second count that could disagree with the rows just read.
+check(() => {
+  const result = toPage(page(51), 50);
+  assert.equal(result.messages.length, 50);
+  assert.equal(result.hasMore, true);
+  assert.equal(result.cursor, result.messages[49].created_at);
+});
+
+check(() => {
+  const result = toPage([], 50);
+  assert.equal(result.hasMore, false);
+  assert.equal(result.cursor, null);
+});
+check(() => assert.equal(PAGE_SIZE, 50));
+
+// --- assignment ---------------------------------------------------------------
+
+const held = (agentId) => ({ phone: '+91', agentId, agentName: 'x', assignedAt: 'now' });
+
+check(() => assert.equal(assignmentChange(null, 'sa_1', 'sa_1').kind, 'claim'));
+check(() => assert.equal(assignmentChange(held('sa_1'), null, 'sa_1').kind, 'release'));
+check(() => assert.equal(assignmentChange(null, null, 'sa_1').kind, 'noop'));
+// Assigning it to whoever already holds it changes nothing.
+check(() => assert.equal(assignmentChange(held('sa_1'), 'sa_1', 'sa_1').kind, 'noop'));
+// Taking a colleague's conversation is allowed and named, not silent.
+check(() => {
+  const change = assignmentChange(held('sa_1'), 'sa_2', 'sa_2');
+  assert.equal(change.kind, 'takeover');
+  assert.match(change.warning, /Someone else is on this conversation/);
+});
+// Moving your own conversation to someone else needs no warning about yourself.
+check(() => {
+  const change = assignmentChange(held('sa_1'), 'sa_2', 'sa_1');
+  assert.equal(change.kind, 'takeover');
+  assert.equal(change.warning, undefined);
+});
+
+console.log(`whatsapp-inbox: ${checks} assertions passed (with paging and assignment)`);

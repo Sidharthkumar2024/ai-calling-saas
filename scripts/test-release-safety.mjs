@@ -161,4 +161,16 @@ await reserve('bcall4');assert.equal(balance(),0);
 await settleBrowserCall(db,{organizationId:'org',callId:'bcall4',seconds:300});
 assert.equal(balance(),-40);
 
+// An abandoned browser call — a closed tab, or a widget session that has no
+// end at all — must not leave its reservation held for ever. The idle closer
+// settles it, and settling twice does not charge twice.
+sqlite.prepare("UPDATE organization_wallets SET balance=100 WHERE organization_id='org'").run();
+sqlite.prepare("INSERT INTO call_records VALUES ('abandoned','org',0)").run();
+await reserve('abandoned');assert.equal(balance(),90);
+const swept = await settleBrowserCall(db,{organizationId:'org',callId:'abandoned',seconds:0});
+assert.equal(swept.settled,true);assert.equal(swept.extra,0);
+assert.equal(sqlite.prepare("SELECT status FROM realtime_reservations WHERE id='abandoned'").get().status,'settled');
+const sweptAgain = await settleBrowserCall(db,{organizationId:'org',callId:'abandoned',seconds:0});
+assert.equal(sweptAgain.alreadySettled,true);assert.equal(balance(),90);
+
 sqlite.close();console.log('Release safety: reservation races, replay, refunds, rollback, Exotel settlement, debt, playground turn settlement, browser call reservation and settlement, catalog publication, preserved contracts, pricing and API contract passed.');

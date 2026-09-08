@@ -229,15 +229,15 @@ export async function closeIdlePlaygroundCalls(
 ) {
   const db = getRawDb();
   const stale = await db
-    .prepare(`SELECT c.id FROM call_records c
-      WHERE c.organization_id = ? AND c.channel = 'playground'
+    .prepare(`SELECT c.id, c.channel FROM call_records c
+      WHERE c.organization_id = ? AND c.channel IN ('playground', 'browser')
         AND c.status = 'in_progress'
         AND (
           SELECT coalesce(max(t.created_at), c.started_at) FROM call_turns t WHERE t.call_id = c.id
         ) <= datetime('now', ?)
       LIMIT 50`)
     .bind(organizationId, `-${idleMinutes} minutes`)
-    .all<{ id: string }>();
+    .all<{ id: string; channel: string }>();
   let closed = 0;
   for (const row of stale.results ?? []) {
     const result = await completeCall({
@@ -246,7 +246,28 @@ export async function closeIdlePlaygroundCalls(
       outcome: 'incomplete',
       disconnectReason: 'idle_timeout',
     });
-    if (result.completed) closed += 1;
+    if (!result.completed) continue;
+    closed += 1;
+    // A browser call — the dialer's or the widget's — holds a credit
+    // reservation from the moment it starts. The dialer releases it on `end`,
+    // but a closed tab never sends one and the widget has no end at all, so
+    // without this the credits stayed held for ever and the call stayed
+    // `in_progress` for ever with them.
+    if (row.channel === 'browser') {
+      const { settleBrowserCall } =
+        await import('@/lib/browser-call-settlement');
+      const finished = await db
+        .prepare(
+          `SELECT duration_seconds FROM call_records WHERE id = ? AND organization_id = ? LIMIT 1`,
+        )
+        .bind(row.id, organizationId)
+        .first<{ duration_seconds: number | null }>();
+      await settleBrowserCall(db, {
+        organizationId,
+        callId: row.id,
+        seconds: Number(finished?.duration_seconds ?? 0),
+      });
+    }
   }
   return closed;
 }

@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { DIALER_TOKEN_TTL_SECONDS, mintDialerToken } from '@/lib/dialer-token';
+import { realtimeDigest, reserveRealtime } from '@/lib/realtime-reservations';
 import { ensurePlaygroundCallRecord } from '@/lib/call-telemetry';
 import { enforceRateLimit, requestFingerprint } from '@/lib/rate-limit';
 import {
@@ -174,6 +175,27 @@ export async function POST(
       from_number = 'web_widget', to_number = 'ai_agent' WHERE id = ?`)
     .bind(callId)
     .run();
+  // Held, not just checked. `voiceWidgetDecision` reads the wallet balance and
+  // refuses below ten credits, but a public endpoint on a customer's website
+  // can be hit by many visitors at once — they would all read the same balance
+  // and all pass. The reservation is the first started minute, the same one the
+  // dialer takes, and settlement charges only the minutes beyond it.
+  const reservation = await reserveRealtime(db, {
+    id: callId,
+    organizationId: widget.organization_id,
+    agentId: agent.id,
+    requestHash: await realtimeDigest(`${widget.id}:${sessionId}`),
+  });
+  if (reservation.status !== 'reserved' && !reservation.replay) {
+    await db
+      .prepare(
+        `UPDATE call_records SET status = 'failed', disconnect_reason = 'insufficient_credits' WHERE id = ?`,
+      )
+      .bind(callId)
+      .run();
+    await record('refused', 'no_credit', callId);
+    return refuse(origin, 'no_credit');
+  }
   await record('started', null, callId);
 
   const token = await mintDialerToken({ callId, secret, role: 'customer' });

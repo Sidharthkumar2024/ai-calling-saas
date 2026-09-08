@@ -76,11 +76,26 @@ export async function settleBrowserCall(
   const extra = credits - REALTIME_CREDITS;
   const ledgerId = `browser_settlement_${callId}`;
 
-  const existing = await db
-    .prepare('SELECT id FROM credit_ledger WHERE id = ?')
-    .bind(ledgerId)
-    .first<{ id: string }>();
-  if (existing) return { settled: false, credits, extra, alreadySettled: true };
+  // Two gates, because one is not enough. The ledger row only exists when there
+  // were extra minutes to charge, so a call under a minute wrote nothing and a
+  // second settlement sailed straight through — harmless while the duration
+  // still reads zero, and a double charge the moment a later reading of the
+  // same call is longer. The reservation's own status covers every call,
+  // charged or not.
+  const [existing, reservation] = await Promise.all([
+    db
+      .prepare('SELECT id FROM credit_ledger WHERE id = ?')
+      .bind(ledgerId)
+      .first<{ id: string }>(),
+    db
+      .prepare(
+        'SELECT status FROM realtime_reservations WHERE id = ? AND organization_id = ?',
+      )
+      .bind(callId, organizationId)
+      .first<{ status: string }>(),
+  ]);
+  if (existing || reservation?.status === 'settled')
+    return { settled: false, credits, extra, alreadySettled: true };
 
   const statements = [];
   if (extra > 0) {

@@ -2,7 +2,7 @@
 import { ProviderLogo } from '@/components/provider-logo';
 import { displayBrand } from '@/lib/display-brand';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { CallActivityWatch } from '@/components/call-activity-watch';
 import {
   AlertTriangle,
@@ -46,76 +46,188 @@ import {
   FileBarChart2,
 } from 'lucide-react';
 
-import {
-  CustomerCrm,
-  type LeadTimelineEvent,
-  type SavedLeadView,
-  type CrmActivity,
-  type CrmLead,
+/**
+ * Screens arrive when they are opened.
+ *
+ * Every screen used to be imported at the top of this file, so opening the
+ * portal downloaded all of them — around fifty screens in one 517 KB chunk to
+ * look at the overview. On an Indian mobile connection that is the first thing
+ * the product does to somebody.
+ *
+ * The types stay static: `import type` is erased at build time and costs
+ * nothing, so the props below are still checked exactly as before.
+ */
+const CustomerCrm = lazy(() =>
+  import('@/components/customer-crm').then((m) => ({ default: m.CustomerCrm })),
+);
+const CustomerBilling = lazy(() =>
+  import('@/components/customer-billing').then((m) => ({
+    default: m.CustomerBilling,
+  })),
+);
+const CustomerIntegrations = lazy(() =>
+  import('@/components/customer-integrations').then((m) => ({
+    default: m.CustomerIntegrations,
+  })),
+);
+const CustomerNumbers = lazy(() =>
+  import('@/components/customer-numbers').then((m) => ({
+    default: m.CustomerNumbers,
+  })),
+);
+const CustomerAgentStudio = lazy(() =>
+  import('@/components/customer-agent-studio').then((m) => ({
+    default: m.CustomerAgentStudio,
+  })),
+);
+const CustomerCommerce = lazy(() =>
+  import('@/components/customer-commerce').then((m) => ({
+    default: m.CustomerCommerce,
+  })),
+);
+const CustomerAgentDesk = lazy(() =>
+  import('@/components/customer-agent-desk').then((m) => ({
+    default: m.CustomerAgentDesk,
+  })),
+);
+const CustomerDialer = lazy(() =>
+  import('@/components/customer-dialer').then((m) => ({
+    default: m.CustomerDialer,
+  })),
+);
+const CustomerDiagnostics = lazy(() =>
+  import('@/components/customer-diagnostics').then((m) => ({
+    default: m.CustomerDiagnostics,
+  })),
+);
+const CustomerObjects = lazy(() =>
+  import('@/components/customer-objects').then((m) => ({
+    default: m.CustomerObjects,
+  })),
+);
+const CustomerWhatsAppInbox = lazy(() =>
+  import('@/components/customer-whatsapp-inbox').then((m) => ({
+    default: m.CustomerWhatsAppInbox,
+  })),
+);
+const CustomerWhatsAppTemplates = lazy(() =>
+  import('@/components/customer-whatsapp-templates').then((m) => ({
+    default: m.CustomerWhatsAppTemplates,
+  })),
+);
+const CustomerOrgStructure = lazy(() =>
+  import('@/components/customer-org-structure').then((m) => ({
+    default: m.CustomerOrgStructure,
+  })),
+);
+const CustomerApprovals = lazy(() =>
+  import('@/components/customer-approvals').then((m) => ({
+    default: m.CustomerApprovals,
+  })),
+);
+const CustomerVoiceProfiles = lazy(() =>
+  import('@/components/customer-voice-profiles').then((m) => ({
+    default: m.CustomerVoiceProfiles,
+  })),
+);
+const CustomerSecurity = lazy(() =>
+  import('@/components/customer-security').then((m) => ({
+    default: m.CustomerSecurity,
+  })),
+);
+const CustomerGrowth = lazy(() =>
+  import('@/components/customer-growth').then((m) => ({
+    default: m.CustomerGrowth,
+  })),
+);
+const CustomerWorkflowBuilder = lazy(() =>
+  import('@/components/customer-workflow-builder').then((m) => ({
+    default: m.CustomerWorkflowBuilder,
+  })),
+);
+const CustomerPlaybook = lazy(() =>
+  import('@/components/customer-playbook').then((m) => ({
+    default: m.CustomerPlaybook,
+  })),
+);
+const CustomerAppointments = lazy(() =>
+  import('@/components/customer-appointments').then((m) => ({
+    default: m.CustomerAppointments,
+  })),
+);
+const CustomerDocuments = lazy(() =>
+  import('@/components/customer-documents').then((m) => ({
+    default: m.CustomerDocuments,
+  })),
+);
+const CustomerWebWidget = lazy(() =>
+  import('@/components/customer-web-widget').then((m) => ({
+    default: m.CustomerWebWidget,
+  })),
+);
+const CustomerOperations = lazy(() =>
+  import('@/components/customer-operations').then((m) => ({
+    default: m.CustomerOperations,
+  })),
+);
+const CustomerTickets = lazy(() =>
+  import('@/components/customer-tickets').then((m) => ({
+    default: m.CustomerTickets,
+  })),
+);
+const CustomerTeam = lazy(() =>
+  import('@/components/customer-team').then((m) => ({
+    default: m.CustomerTeam,
+  })),
+);
+const CustomerLeadCapture = lazy(() =>
+  import('@/components/customer-lead-capture').then((m) => ({
+    default: m.CustomerLeadCapture,
+  })),
+);
+// The charting library is the single biggest dependency here and it draws two
+// panels below the fold on one screen. The overview renders without it and the
+// charts fill their own space when it arrives.
+const ActivityAreaChart = lazy(() =>
+  import('@/components/analytics-charts').then((m) => ({
+    default: m.ActivityAreaChart,
+  })),
+);
+const DistributionChart = lazy(() =>
+  import('@/components/analytics-charts').then((m) => ({
+    default: m.DistributionChart,
+  })),
+);
+
+import type {
+  LeadTimelineEvent,
+  SavedLeadView,
+  CrmActivity,
+  CrmLead,
 } from '@/components/customer-crm';
-import {
-  CustomerBilling,
-  type BillingData,
-} from '@/components/customer-billing';
-import {
-  CustomerIntegrations,
-  type ApiKeysData,
-  type IntegrationsData,
-  type WebhooksData,
+import type { BillingData } from '@/components/customer-billing';
+import type {
+  ApiKeysData,
+  IntegrationsData,
+  WebhooksData,
 } from '@/components/customer-integrations';
-import {
-  CustomerNumbers,
-  type CustomerNumbersData,
-} from '@/components/customer-numbers';
-import {
-  CustomerAgentStudio,
-  type AgentsData,
-} from '@/components/customer-agent-studio';
-import {
-  CustomerCommerce,
-  type CommerceData,
-} from '@/components/customer-commerce';
-import { CustomerAgentDesk } from '@/components/customer-agent-desk';
-import { CustomerDialer } from '@/components/customer-dialer';
-import { CustomerDiagnostics } from '@/components/customer-diagnostics';
-import { CustomerObjects } from '@/components/customer-objects';
-import { CustomerWhatsAppInbox } from '@/components/customer-whatsapp-inbox';
-import { CustomerWhatsAppTemplates } from '@/components/customer-whatsapp-templates';
-import { CustomerOrgStructure } from '@/components/customer-org-structure';
-import { CustomerApprovals } from '@/components/customer-approvals';
-import { CustomerVoiceProfiles } from '@/components/customer-voice-profiles';
+import type { CustomerNumbersData } from '@/components/customer-numbers';
+import type { AgentsData } from '@/components/customer-agent-studio';
+import type { CommerceData } from '@/components/customer-commerce';
+import type {
+  OperationsData,
+  OperationsModule,
+} from '@/components/customer-operations';
+import type { TicketsData } from '@/components/customer-tickets';
+import type { TeamData } from '@/components/customer-team';
+import type { LeadFormsData } from '@/components/customer-lead-capture';
 import { PortalShell, type PortalNavGroup } from '@/components/portal-shell';
 import {
   CreditWatch,
   NotificationCenter,
 } from '@/components/notification-center';
-import { CustomerSecurity } from '@/components/customer-security';
-import { CustomerGrowth } from '@/components/customer-growth';
-import { CustomerWorkflowBuilder } from '@/components/customer-workflow-builder';
-import { CustomerPlaybook } from '@/components/customer-playbook';
-import { CustomerAppointments } from '@/components/customer-appointments';
-import { CustomerDocuments } from '@/components/customer-documents';
-import { CustomerWebWidget } from '@/components/customer-web-widget';
-import {
-  CustomerOperations,
-  type OperationsData,
-  type OperationsModule,
-} from '@/components/customer-operations';
-import {
-  CustomerTickets,
-  type TicketsData,
-} from '@/components/customer-tickets';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  ActivityAreaChart,
-  DistributionChart,
-} from '@/components/analytics-charts';
-import { CustomerTeam, type TeamData } from '@/components/customer-team';
-import {
-  CustomerLeadCapture,
-  type LeadFormsData,
-} from '@/components/customer-lead-capture';
 
 type CustomerSession = {
   name: string;
@@ -714,142 +826,164 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
           ) : error ? (
             <ErrorState error={error} retry={load} />
           ) : null}
-          {!loading && !error && active === 'overview' ? (
-            <CustomerOverview data={data.overview} onNavigate={setActive} />
-          ) : null}
-          {!loading && !error && active === 'crm' ? (
-            <CustomerCrm
-              leads={data.crm.pipeline}
-              activities={data.crm.activities}
-              timeline={data.crm.timeline}
-              savedViews={data.crm.savedViews}
-              onMove={moveLead}
-              onChanged={load}
-              onStartFollowUp={() => setActive('campaigns')}
-            />
-          ) : null}
-          {!loading && !error && active === 'growth' ? (
-            <CustomerGrowth />
-          ) : null}
-          {!loading && !error && active === 'workflows' ? (
-            <CustomerWorkflowBuilder />
-          ) : null}
-          {!loading && !error && active === 'playbook' ? (
-            <CustomerPlaybook />
-          ) : null}
-          {!loading && !error && active === 'documents' ? (
-            <CustomerDocuments />
-          ) : null}
-          {!loading && !error && active === 'appointments' ? (
-            <CustomerAppointments />
-          ) : null}
-          {!loading && !error && active === 'web_widget' ? (
-            <CustomerWebWidget />
-          ) : null}
-          {!loading && !error && active === 'agents' ? (
-            <CustomerAgentStudio
-              data={data.agents}
-              businessName={session.organizationName}
-              onChanged={load}
-            />
-          ) : null}
-          {!loading &&
-          !error &&
-          [
-            'campaigns',
-            'sip_trunks',
-            'knowledge',
-            'graph_agents',
-            'call_history',
-            'live_monitor',
-            'analytics',
-            'quality',
-            'alerts',
-            'reports',
-          ].includes(active) ? (
-            <CustomerOperations
-              module={active as OperationsModule}
-              data={data.operations}
-              onChanged={load}
-            />
-          ) : null}
-          {!loading && !error && active === 'voice_profiles' ? (
-            <CustomerVoiceProfiles />
-          ) : null}
-          {!loading && !error && active === 'numbers' ? (
-            <CustomerNumbers
-              data={data.numbers}
-              onChanged={load}
-              onNavigate={setActive}
-            />
-          ) : null}
-          {!loading && !error && active === 'lead_capture' ? (
-            <CustomerLeadCapture
-              data={data.leadForms}
-              sources={data.overview.sources ?? []}
-              onChanged={load}
-              onNavigate={setActive}
-            />
-          ) : null}
-          {!loading && !error && active === 'retargeting' ? (
-            <Retargeting data={data.retargeting} onChanged={load} />
-          ) : null}
-          {!loading && !error && active === 'commerce' ? (
-            <CustomerCommerce data={data.commerce} onChanged={load} />
-          ) : null}
-          {!loading && !error && active === 'integrations' ? (
-            <CustomerIntegrations
-              apiKeys={data.apiKeys}
-              webhooks={data.webhooks}
-              onChanged={load}
-            />
-          ) : null}
-          {!loading && !error && active === 'billing' ? (
-            <CustomerBilling data={data.billing} onChanged={load} />
-          ) : null}
-          {!loading && !error && active === 'team' ? (
-            <CustomerTeam data={data.team} onChanged={load} />
-          ) : null}
-          {!loading && !error && active === 'org_structure' ? (
-            <CustomerOrgStructure />
-          ) : null}
-          {!loading && !error && active === 'objects' ? (
-            <CustomerObjects />
-          ) : null}
-          {!loading && !error && active === 'whatsapp_inbox' ? (
-            <CustomerWhatsAppInbox />
-          ) : null}
-          {!loading && !error && active === 'whatsapp_templates' ? (
-            <CustomerWhatsAppTemplates />
-          ) : null}
-          {!loading && !error && active === 'dialer' ? (
-            <CustomerDialer />
-          ) : null}
-          {!loading && !error && active === 'diagnostics' ? (
-            <CustomerDiagnostics />
-          ) : null}
-          {!loading && !error && active === 'agent_desk' ? (
-            <CustomerAgentDesk view="desk" />
-          ) : null}
-          {!loading && !error && active === 'wallboard' ? (
-            <CustomerAgentDesk view="wallboard" />
-          ) : null}
-          {!loading && !error && active === 'approvals' ? (
-            <CustomerApprovals />
-          ) : null}
-          {!loading && !error && active === 'tickets' ? (
-            <CustomerTickets data={data.tickets} onChanged={load} />
-          ) : null}
-          {!loading && !error && active === 'settings' ? (
-            <CustomerOperations
-              module="settings"
-              data={data.operations}
-              onChanged={load}
-            />
-          ) : null}
+          {/* One boundary for every screen. A screen's code is fetched when it
+              is opened, and until it arrives this shows the same loader the
+              data fetch already uses — so a slow network reads as "loading",
+              not as a blank page. */}
+          <Suspense fallback={<Loading />}>
+            {!loading && !error && active === 'overview' ? (
+              <CustomerOverview data={data.overview} onNavigate={setActive} />
+            ) : null}
+            {!loading && !error && active === 'crm' ? (
+              <CustomerCrm
+                leads={data.crm.pipeline}
+                activities={data.crm.activities}
+                timeline={data.crm.timeline}
+                savedViews={data.crm.savedViews}
+                onMove={moveLead}
+                onChanged={load}
+                onStartFollowUp={() => setActive('campaigns')}
+              />
+            ) : null}
+            {!loading && !error && active === 'growth' ? (
+              <CustomerGrowth />
+            ) : null}
+            {!loading && !error && active === 'workflows' ? (
+              <CustomerWorkflowBuilder />
+            ) : null}
+            {!loading && !error && active === 'playbook' ? (
+              <CustomerPlaybook />
+            ) : null}
+            {!loading && !error && active === 'documents' ? (
+              <CustomerDocuments />
+            ) : null}
+            {!loading && !error && active === 'appointments' ? (
+              <CustomerAppointments />
+            ) : null}
+            {!loading && !error && active === 'web_widget' ? (
+              <CustomerWebWidget />
+            ) : null}
+            {!loading && !error && active === 'agents' ? (
+              <CustomerAgentStudio
+                data={data.agents}
+                businessName={session.organizationName}
+                onChanged={load}
+              />
+            ) : null}
+            {!loading &&
+            !error &&
+            [
+              'campaigns',
+              'sip_trunks',
+              'knowledge',
+              'graph_agents',
+              'call_history',
+              'live_monitor',
+              'analytics',
+              'quality',
+              'alerts',
+              'reports',
+            ].includes(active) ? (
+              <CustomerOperations
+                module={active as OperationsModule}
+                data={data.operations}
+                onChanged={load}
+              />
+            ) : null}
+            {!loading && !error && active === 'voice_profiles' ? (
+              <CustomerVoiceProfiles />
+            ) : null}
+            {!loading && !error && active === 'numbers' ? (
+              <CustomerNumbers
+                data={data.numbers}
+                onChanged={load}
+                onNavigate={setActive}
+              />
+            ) : null}
+            {!loading && !error && active === 'lead_capture' ? (
+              <CustomerLeadCapture
+                data={data.leadForms}
+                sources={data.overview.sources ?? []}
+                onChanged={load}
+                onNavigate={setActive}
+              />
+            ) : null}
+            {!loading && !error && active === 'retargeting' ? (
+              <Retargeting data={data.retargeting} onChanged={load} />
+            ) : null}
+            {!loading && !error && active === 'commerce' ? (
+              <CustomerCommerce data={data.commerce} onChanged={load} />
+            ) : null}
+            {!loading && !error && active === 'integrations' ? (
+              <CustomerIntegrations
+                apiKeys={data.apiKeys}
+                webhooks={data.webhooks}
+                onChanged={load}
+              />
+            ) : null}
+            {!loading && !error && active === 'billing' ? (
+              <CustomerBilling data={data.billing} onChanged={load} />
+            ) : null}
+            {!loading && !error && active === 'team' ? (
+              <CustomerTeam data={data.team} onChanged={load} />
+            ) : null}
+            {!loading && !error && active === 'org_structure' ? (
+              <CustomerOrgStructure />
+            ) : null}
+            {!loading && !error && active === 'objects' ? (
+              <CustomerObjects />
+            ) : null}
+            {!loading && !error && active === 'whatsapp_inbox' ? (
+              <CustomerWhatsAppInbox />
+            ) : null}
+            {!loading && !error && active === 'whatsapp_templates' ? (
+              <CustomerWhatsAppTemplates />
+            ) : null}
+            {!loading && !error && active === 'dialer' ? (
+              <CustomerDialer />
+            ) : null}
+            {!loading && !error && active === 'diagnostics' ? (
+              <CustomerDiagnostics />
+            ) : null}
+            {!loading && !error && active === 'agent_desk' ? (
+              <CustomerAgentDesk view="desk" />
+            ) : null}
+            {!loading && !error && active === 'wallboard' ? (
+              <CustomerAgentDesk view="wallboard" />
+            ) : null}
+            {!loading && !error && active === 'approvals' ? (
+              <CustomerApprovals />
+            ) : null}
+            {!loading && !error && active === 'tickets' ? (
+              <CustomerTickets data={data.tickets} onChanged={load} />
+            ) : null}
+            {!loading && !error && active === 'settings' ? (
+              <CustomerOperations
+                module="settings"
+                data={data.operations}
+                onChanged={load}
+              />
+            ) : null}
+          </Suspense>
         </div>
       </PortalShell>
     </NotificationCenter>
+  );
+}
+
+/**
+ * The space a chart will occupy, held open while its library loads.
+ *
+ * Matching the chart's own height matters more than what it looks like: a
+ * placeholder of the wrong size moves everything under it when the real chart
+ * arrives, which is worse than waiting.
+ */
+function ChartSpace({ height }: { height: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`${height} animate-pulse rounded-xl bg-surface-muted`}
+    />
   );
 }
 
@@ -1010,14 +1144,18 @@ function CustomerOverview({
             title="Lead-to-revenue velocity"
             note="14 days · leads, calls and conversions"
           />
-          <ActivityAreaChart data={data.activitySeries ?? []} />
+          <Suspense fallback={<ChartSpace height="h-[260px]" />}>
+            <ActivityAreaChart data={data.activitySeries ?? []} />
+          </Suspense>
         </Panel>
         <Panel>
           <PanelTitle
             title="Outcome intelligence"
             note="Every recorded conversation outcome"
           />
-          <DistributionChart data={data.outcomeBreakdown ?? []} />
+          <Suspense fallback={<ChartSpace height="h-[240px]" />}>
+            <DistributionChart data={data.outcomeBreakdown ?? []} />
+          </Suspense>
         </Panel>
       </div>
 
@@ -1081,7 +1219,8 @@ function CustomerOverview({
             {(data.sources ?? []).map((source) => (
               <div key={source.type} className="flex items-center gap-3">
                 <span className="grid size-9 place-items-center rounded-xl bg-surface-strong">
-                  {source.type === 'meta_ads' || source.type === 'google_ads' ? (
+                  {source.type === 'meta_ads' ||
+                  source.type === 'google_ads' ? (
                     <ProviderLogo provider={source.type} size={24} />
                   ) : source.type === 'website_form' ? (
                     <Globe2 className="size-4 text-cyan-700" />

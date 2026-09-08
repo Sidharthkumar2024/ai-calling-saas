@@ -11,6 +11,8 @@ import {
   realtimeDigest,
   reserveRealtime,
   refundRealtime,
+  heartbeatRealtime,
+  HEARTBEAT_SECONDS,
 } from '@/lib/realtime-reservations';
 
 export const dynamic = 'force-dynamic';
@@ -21,6 +23,29 @@ export async function POST(request: Request) {
     string,
     unknown
   > | null;
+  const db0 = getRawDb();
+  const org0 = auth.session.organizationId!;
+
+  // A live session reporting itself. Its beats are the only evidence this
+  // server can have of how long it ran: the negotiation is browser-to-provider
+  // and nothing here sees it end, so without them a session cost ten credits
+  // whether it lasted ten seconds or an hour.
+  if (body?.action === 'heartbeat') {
+    const sessionId = typeof body.sessionId === 'string' ? body.sessionId : '';
+    if (!/^[a-zA-Z0-9_-]{8,100}$/.test(sessionId))
+      return Response.json(
+        { error: 'Session id is required.' },
+        { status: 400 },
+      );
+    const alive = await heartbeatRealtime(db0, sessionId, org0);
+    return Response.json({
+      alive,
+      // Told rather than assumed: a tab that has been closed server-side
+      // should stop beating instead of talking to a session that is gone.
+      nextInSeconds: HEARTBEAT_SECONDS,
+    });
+  }
+
   const key = request.headers.get('idempotency-key') ?? body?.requestKey ?? '';
   if (
     !body ||

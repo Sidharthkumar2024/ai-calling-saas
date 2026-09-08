@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { compileFunction } from 'node:vm';
 import ts from 'typescript';
 import * as catalog from '../lib/commercial-catalog.ts';
-import { reserveRealtime, refundRealtime, reconcileAsNotStarted, reconcileAsStarted, pendingReconciliations } from '../lib/realtime-reservations.ts';
+import { reserveRealtime, refundRealtime, reconcileAsNotStarted, reconcileAsStarted, pendingReconciliations, heartbeatRealtime, measuredSeconds } from '../lib/realtime-reservations.ts';
 import { exotelCredits, settleExotel } from '../lib/exotel-settlement.ts';
 import { settlePlaygroundTurn } from '../lib/playground-settlement.ts';
 import { browserCallCredits, settleBrowserCall, closeStaleReservations } from '../lib/browser-call-settlement.ts';
@@ -18,6 +18,7 @@ CREATE TABLE credit_ledger(id TEXT PRIMARY KEY, organization_id TEXT, type TEXT,
 CREATE TABLE agent_test_sessions(id TEXT PRIMARY KEY, organization_id TEXT, agent_id TEXT, mode TEXT,status TEXT,credits_used INTEGER,updated_at TEXT);
 CREATE TABLE call_records(id TEXT PRIMARY KEY,organization_id TEXT,cost_credits INTEGER); INSERT INTO call_records VALUES ('call','org',0);`);
 sqlite.exec(readFileSync(new URL('../drizzle/0009_naive_lionheart.sql',import.meta.url),'utf8'));
+sqlite.exec(readFileSync(new URL('../drizzle/0010_session_heartbeat.sql',import.meta.url),'utf8'));
 let injectFailure = false;
 const db = {
   prepare(sql) { return { sql, args: [], bind(...args) { this.args=args; return this; }, async first(){return sqlite.prepare(sql).get(...this.args) ?? null;}, async all(){return {results: sqlite.prepare(sql).all(...this.args)};}, async run(){const r=sqlite.prepare(sql).run(...this.args); return {...r, meta:{changes:r.changes}};} }; },
@@ -258,4 +259,56 @@ assert.equal((await reconcileAsNotStarted(db,'normal','wrong path')).resolved,fa
 assert.equal((await reconcileAsStarted(db,'normal','wrong path')).resolved,false);
 assert.equal(sqlite.prepare("SELECT status FROM realtime_reservations WHERE id='normal'").get().status,'reserved');
 
-sqlite.close();console.log('Release safety: reservation races, replay, refunds, rollback, Exotel settlement, debt, playground turn settlement, browser call reservation and settlement, concurrency ceiling, stale reservation release, reconciliation, catalog publication, preserved contracts, pricing and API contract passed.');
+// --- measured realtime duration -------------------------------------------------
+// A realtime session is negotiated browser-to-provider, so nothing server-side
+// sees it end. It cost ten credits however long it ran. Its own beats are the
+// only evidence this server can have, and the last one is the end — never a
+// guess at how long the gap since then might have been.
+assert.equal(measuredSeconds('2026-09-08 10:00:00','2026-09-08 10:02:30'),150);
+assert.equal(measuredSeconds('2026-09-08 10:00:00',null),0);
+// A beat that reads earlier than the start is nonsense, not negative time.
+assert.equal(measuredSeconds('2026-09-08 10:05:00','2026-09-08 10:00:00'),0);
+
+sqlite.prepare("DELETE FROM realtime_reservations").run();
+sqlite.prepare("UPDATE organization_wallets SET balance=1000 WHERE organization_id='org'").run();
+
+// Beat, then fall silent: billed for the minutes up to the last beat.
+await reserve('beating','h-beat');
+assert.equal(await heartbeatRealtime(db,'beating','org'),true);
+sqlite.prepare("UPDATE realtime_reservations SET created_at=datetime('now','-200 seconds'), last_heartbeat_at=datetime('now','-190 seconds') WHERE id='beating'").run();
+sqlite.prepare("INSERT INTO call_records VALUES ('beating','org',0)").run();
+const beforeBeatSweep = balance();
+assert.equal(await closeStaleReservations(db,'org',90),1);
+// Ten seconds of life is one started minute, already covered by the reservation.
+assert.equal(balance(),beforeBeatSweep);
+assert.equal(sqlite.prepare("SELECT error_code FROM realtime_reservations WHERE id='beating'").get().error_code,'closed_at_last_heartbeat');
+
+// A longer measured session is charged for the minutes beyond the first.
+await reserve('long-session','h-long');
+await heartbeatRealtime(db,'long-session','org');
+sqlite.prepare("UPDATE realtime_reservations SET created_at=datetime('now','-400 seconds'), last_heartbeat_at=datetime('now','-100 seconds') WHERE id='long-session'").run();
+sqlite.prepare("INSERT INTO call_records VALUES ('long-session','org',0)").run();
+const beforeLong = balance();
+await closeStaleReservations(db,'org',90);
+// 300 seconds is five started minutes: fifty credits, ten of them reserved.
+assert.equal(balance(),beforeLong-40);
+assert.equal(sqlite.prepare("SELECT cost_credits FROM call_records WHERE id='long-session'").get().cost_credits,50);
+
+// THE ONE THAT WOULD HAVE OVERCHARGED: never beat, so nothing beyond the
+// reserved minute is billed however long the row sat there.
+await reserve('silent','h-silent');
+sqlite.prepare("UPDATE realtime_reservations SET created_at=datetime('now','-200 minutes') WHERE id='silent'").run();
+const beforeSilent = balance();
+await closeStaleReservations(db,'org',90);
+assert.equal(balance(),beforeSilent);
+assert.equal(sqlite.prepare("SELECT error_code FROM realtime_reservations WHERE id='silent'").get().error_code,'closed_without_end_signal');
+
+// A session still beating inside the grace window keeps running.
+await reserve('alive','h-alive');
+await heartbeatRealtime(db,'alive','org');
+assert.equal(await closeStaleReservations(db,'org',90),0);
+assert.equal(sqlite.prepare("SELECT status FROM realtime_reservations WHERE id='alive'").get().status,'reserved');
+// And a beat cannot revive a reservation that is already closed.
+assert.equal(await heartbeatRealtime(db,'silent','org'),false);
+
+sqlite.close();console.log('Release safety: reservation races, replay, refunds, rollback, Exotel settlement, debt, playground turn settlement, browser call reservation and settlement, concurrency ceiling, stale reservation release, measured realtime duration, reconciliation, catalog publication, preserved contracts, pricing and API contract passed.');

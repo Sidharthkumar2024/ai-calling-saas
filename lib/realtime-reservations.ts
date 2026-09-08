@@ -228,3 +228,73 @@ export async function pendingReconciliations(
         .all();
   return rows.results ?? [];
 }
+
+/* ------------------------------------------------------------------ *
+ * Duration
+ *
+ * A realtime session is negotiated straight between the browser and the
+ * provider, so no server sees it end. It cost ten credits however long it ran,
+ * and the sweep that releases an abandoned reservation deliberately charges
+ * nothing more, because a duration nobody measured must not be billed.
+ *
+ * This measures it. The session beats every half minute while it is open; a
+ * beat is a fact about a moment the session was alive, which is the most this
+ * server can honestly know. When the tab closes the beats stop, and the last
+ * one is the end — accurate to within one interval, and never longer than the
+ * session actually was.
+ * ------------------------------------------------------------------ */
+
+/** How often an open session should report itself, in seconds. */
+export const HEARTBEAT_SECONDS = 30;
+
+/**
+ * Silence after which a session is taken to have ended.
+ *
+ * Three missed beats rather than one: a browser throttles timers in a
+ * background tab, and ending a live call because a laptop slept for a minute
+ * would bill a conversation as shorter than it was.
+ */
+export const HEARTBEAT_GRACE_SECONDS = HEARTBEAT_SECONDS * 3;
+
+/** Records that a session was alive now. Only ever moves a live reservation. */
+export async function heartbeatRealtime(
+  db: D1Database,
+  id: string,
+  organizationId: string,
+) {
+  const result = await db
+    .prepare(
+      `UPDATE realtime_reservations
+       SET last_heartbeat_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ? AND organization_id = ? AND status = 'reserved'`,
+    )
+    .bind(id, organizationId)
+    .run();
+  return Number(result.meta?.changes ?? 0) > 0;
+}
+
+/**
+ * Seconds a session was alive, from its own beats.
+ *
+ * Deliberately the *last beat*, not now: the gap between the final beat and
+ * whenever this is asked is time nobody can show the session existed for.
+ * Rounding it into the bill would be charging for silence.
+ */
+export function measuredSeconds(
+  createdAt: string,
+  lastBeatAt: string | null,
+): number {
+  const start = parseUtc(createdAt);
+  const end = parseUtc(lastBeatAt ?? createdAt);
+  if (!start || !end || end < start) return 0;
+  return Math.round((end - start) / 1000);
+}
+
+function parseUtc(value: string | null): number | null {
+  if (!value) return null;
+  const normalised = /\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value)
+    ? `${value.replace(' ', 'T')}Z`
+    : value;
+  const parsed = Date.parse(normalised);
+  return Number.isNaN(parsed) ? null : parsed;
+}

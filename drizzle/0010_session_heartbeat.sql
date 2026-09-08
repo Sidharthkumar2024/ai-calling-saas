@@ -1,0 +1,11 @@
+-- A session's own record of being alive.
+--
+-- `updated_at` cannot answer this: it moves whenever any column is written, so
+-- a reservation that never beat once is indistinguishable from one that beat
+-- for two hours. Reading it as a heartbeat billed a session for the whole
+-- window between its creation and the sweep that closed it — time nobody could
+-- show it was alive for.
+--
+-- Null means never beat, which is the state that must not be billed for
+-- duration.
+ALTER TABLE `realtime_reservations` ADD `last_heartbeat_at` text;

@@ -147,26 +147,77 @@ export async function settleBrowserCall(
  * leaving a workspace quietly unable to call.
  */
 export const STALE_RESERVATION_SQL = `UPDATE realtime_reservations
-   SET status = 'settled', error_code = 'closed_without_end_signal', updated_at = CURRENT_TIMESTAMP
-   WHERE organization_id = ? AND status = 'reserved' AND created_at <= datetime('now', ?)`;
+   SET status = 'settled', error_code = ?, updated_at = CURRENT_TIMESTAMP
+   WHERE id = ? AND status = 'reserved'`;
 
+/**
+ * Closes sessions that have stopped reporting themselves, and bills the
+ * minutes they can be shown to have run.
+ *
+ * Two ways in. A session that has beaten recently is alive and is left alone. A
+ * session whose beats stopped is over, and its last beat is the end — so the
+ * duration is measured rather than guessed, accurate to within one heartbeat
+ * interval and never longer than the session was. A session that never beat at
+ * all is closed at the ceiling with nothing beyond the reserved minute charged,
+ * which is the old behaviour and still the right one: no evidence, no bill.
+ */
 export async function closeStaleReservations(
   db: D1Database,
   organizationId: string,
   maxMinutes: number,
 ): Promise<number> {
+  const { HEARTBEAT_GRACE_SECONDS, measuredSeconds } =
+    await import('./realtime-reservations.ts');
   const stale = await db
     .prepare(
-      `SELECT count(*) AS n FROM realtime_reservations
-       WHERE organization_id = ? AND status = 'reserved' AND created_at <= datetime('now', ?)`,
+      `SELECT id, created_at, last_heartbeat_at FROM realtime_reservations
+       WHERE organization_id = ? AND status = 'reserved'
+         AND (
+           (last_heartbeat_at IS NOT NULL AND last_heartbeat_at <= datetime('now', ?))
+           OR created_at <= datetime('now', ?)
+         )
+       LIMIT 100`,
     )
-    .bind(organizationId, `-${maxMinutes} minutes`)
-    .first<{ n: number }>();
-  const count = Number(stale?.n ?? 0);
-  if (count === 0) return 0;
-  await db
-    .prepare(STALE_RESERVATION_SQL)
-    .bind(organizationId, `-${maxMinutes} minutes`)
-    .run();
-  return count;
+    .bind(
+      organizationId,
+      `-${HEARTBEAT_GRACE_SECONDS} seconds`,
+      `-${maxMinutes} minutes`,
+    )
+    .all<{
+      id: string;
+      created_at: string;
+      last_heartbeat_at: string | null;
+    }>();
+
+  let closed = 0;
+  for (const row of stale.results ?? []) {
+    // Null means the session never reported itself. There is nothing to
+    // measure, so nothing beyond the reserved minute is billed — `updated_at`
+    // cannot stand in here, because it moves whenever any column is written
+    // and would have billed the whole window from creation to sweep.
+    const beat = row.last_heartbeat_at;
+    const seconds = beat
+      ? measuredSeconds(row.created_at, row.last_heartbeat_at)
+      : 0;
+    if (beat && seconds > 0) {
+      // Settle *first*. `settleBrowserCall` closes the reservation itself, and
+      // its own guard refuses a reservation already marked settled — so
+      // marking it here first made the settlement a no-op and the measured
+      // minutes were never charged.
+      await settleBrowserCall(db, { organizationId, callId: row.id, seconds });
+      await db
+        .prepare(
+          `UPDATE realtime_reservations SET error_code = 'closed_at_last_heartbeat' WHERE id = ?`,
+        )
+        .bind(row.id)
+        .run();
+    } else {
+      await db
+        .prepare(STALE_RESERVATION_SQL)
+        .bind('closed_without_end_signal', row.id)
+        .run();
+    }
+    closed += 1;
+  }
+  return closed;
 }

@@ -34,6 +34,8 @@ db.exec(`
     status TEXT, input_json TEXT, output_json TEXT, variables_json TEXT, error TEXT,
     resume_node TEXT, waiting_on TEXT, call_id TEXT, started_at TEXT, completed_at TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+  CREATE TABLE whatsapp_assignments (organization_id TEXT, phone TEXT, support_agent_id TEXT,
+    assigned_at TEXT, PRIMARY KEY (organization_id, phone));
   CREATE TABLE whatsapp_messages (id TEXT PRIMARY KEY, organization_id TEXT, direction TEXT,
     sender_phone TEXT, body TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP);
   CREATE TABLE workflow_run_steps (id TEXT PRIMARY KEY, run_id TEXT, step_index INTEGER,
@@ -64,6 +66,8 @@ let sendOk = true;
 /** What the reasoning provider answers, or an error to throw instead. */
 let reasoning = { text: 'buying' };
 const reasoningCalls = [];
+/** What the routing decides for a transfer. */
+let transferResult = { ok: true, transferred: true, agent: { id: 'sa_sup', name: 'Rohit', role: 'support_agent' } };
 
 const modules = {
   '@/db/index': { getRawDb: () => ({ prepare: statement }) },
@@ -78,6 +82,7 @@ const modules = {
   },
   '@/lib/agent-tools': {
     executeAgentTool: async (tool, args) => {
+      if (tool === 'transfer_to_human') return transferResult;
       sent.push({ tool, ...args });
       return sendOk
         ? { ok: true, providerReference: 'synthetic' }
@@ -406,6 +411,77 @@ const headlessDecision = await engine.executeGraph({
 });
 equal(reasoningCalls.length, callsBefore);
 ok(headlessDecision.trace.some((step) => step.kind === 'ai_decision' && step.status === 'skipped'));
+
+// --- handing the conversation to a person ---------------------------------------
+
+const handoff = {
+  nodes: [
+    { id: 't', kind: 'trigger', config: { event: 'whatsapp_message' }, next: { next: 'h' } },
+    {
+      id: 'h',
+      kind: 'human_transfer',
+      config: { reason: 'They asked for a person.' },
+      next: { accepted: 'bye', no_agent: 'sorry' },
+    },
+    { id: 'bye', kind: 'say', config: { text: 'Rohit will reply here shortly.' }, next: { next: 'ask_more' } },
+    {
+      id: 'ask_more',
+      kind: 'ask',
+      config: { question: 'Anything else meanwhile?', variable: 'more' },
+      next: { next: 'e' },
+    },
+    { id: 'sorry', kind: 'say', config: { text: 'Nobody is free right now.' }, next: { next: 'e' } },
+    { id: 'e', kind: 'end', config: { disposition: 'handed_over' }, next: {} },
+  ],
+};
+
+const heldBy = () =>
+  db.prepare(`SELECT support_agent_id FROM whatsapp_assignments WHERE organization_id = ? AND phone = ?`).get(ORG, PHONE)
+    ?.support_agent_id ?? null;
+
+// A run parked on this number before the handover: it is waiting for an answer
+// that is about to belong to a person.
+db.prepare(
+  `INSERT INTO workflow_runs (id, organization_id, workflow_id, trigger_type, status, input_json, output_json, variables_json, waiting_on, resume_node, started_at)
+   VALUES ('run_stale', ?, 'wf_1', 'whatsapp_message', 'waiting', '{}', '{}', '{}', ?, 'q1', CURRENT_TIMESTAMP)`,
+).run(ORG, `whatsapp:${PHONE}`);
+
+equal(heldBy(), null);
+const handedOver = await engine.executeGraph({
+  graph: handoff,
+  context: freshRun('run_h1'),
+  variables: {},
+});
+// The handoff on its own leaves the customer waiting: whoever picks it up has
+// no conversation in their inbox to answer in.
+equal(heldBy(), 'sa_sup');
+equal(sent.at(-1).message, 'Rohit will reply here shortly.');
+// And the run does not then park on a conversation somebody else now owns.
+equal(handedOver.status, 'completed');
+ok(handedOver.trace.some((step) => step.kind === 'ask' && step.status === 'skipped'));
+// The run that was already parked on this number is stopped, not left waiting
+// for an answer going to a person.
+equal(db.prepare(`SELECT status FROM workflow_runs WHERE id = 'run_stale'`).get().status, 'stopped');
+
+// Nobody available: the conversation is left where it was rather than silenced
+// with no one in the bot's place.
+db.prepare('DELETE FROM whatsapp_assignments').run();
+transferResult = { ok: false, transferred: false, message: 'Everyone is busy.' };
+const noAgent = await engine.executeGraph({
+  graph: handoff,
+  context: freshRun('run_h2'),
+  variables: {},
+});
+equal(noAgent.status, 'completed');
+equal(heldBy(), null);
+equal(sent.at(-1).message, 'Nobody is free right now.');
+
+// A handoff nobody named took is also not a claim: silencing the bot with no
+// person in its place is the worst of both.
+transferResult = { ok: true, transferred: false, queueStatus: 'queued' };
+await engine.executeGraph({ graph: handoff, context: freshRun('run_h3'), variables: {} });
+equal(heldBy(), null);
+transferResult = { ok: true, transferred: true, agent: { id: 'sa_sup', name: 'Rohit', role: 'support_agent' } };
 
 db.close();
 console.log(`whatsapp conversation: ${checks} assertions passed; no provider contacted.`);

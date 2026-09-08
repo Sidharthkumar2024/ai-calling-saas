@@ -325,6 +325,18 @@ async function runNode(
           output: { question: textValue(config.question), answer },
         };
       if (onChat) {
+        // A conversation a person has taken over is theirs. Parking here would
+        // wait for an answer that is going to somebody else, forever.
+        if (await conversationClaimed(context))
+          return {
+            status: 'skipped',
+            branch: 'next',
+            output: {
+              reason: 'human_has_the_conversation',
+              detail:
+                'Somebody on the team has this conversation, so the workflow did not ask anything.',
+            },
+          };
         // Ask the question, then stop. The answer arrives when the customer
         // writes back, which may be minutes or a day; holding the run open for
         // that would occupy a worker for nothing.
@@ -561,6 +573,20 @@ async function aiDecision(
       },
     };
   return stop(undecidedReason(reading), `undecided_${reading.kind}`);
+}
+
+/** Whether a person on the team currently holds this conversation. */
+async function conversationClaimed(
+  context: ExecutionContext,
+): Promise<boolean> {
+  const phone = normalisePhone(context.contactPhone ?? '');
+  if (!phone) return false;
+  const held = await getRawDb()
+    .prepare(`SELECT support_agent_id FROM whatsapp_assignments
+      WHERE organization_id = ? AND phone IN (?, ?) LIMIT 1`)
+    .bind(context.organizationId, phone, phone.slice(1))
+    .first<{ support_agent_id: string | null }>();
+  return Boolean(held?.support_agent_id);
 }
 
 /**
@@ -894,6 +920,19 @@ async function message(
   };
 }
 
+/**
+ * Handing the conversation to a person.
+ *
+ * On a call this raises a handoff and the agent desk does the rest. On
+ * WhatsApp a handoff on its own leaves the customer waiting: the person who
+ * picks it up has no conversation in their inbox to answer in, and the bot is
+ * still the only thing that can write.
+ *
+ * So on the chat channel the conversation is *claimed* for whoever the routing
+ * chose. That is the same claim a colleague makes by hand in the inbox, which
+ * is why it also stops the bot answering over them — the rule already exists
+ * and this makes the transfer use it.
+ */
 async function transfer(
   config: Record<string, unknown>,
   context: ExecutionContext,
@@ -908,10 +947,58 @@ async function transfer(
     toolContext(context),
   );
   const accepted = outcome.ok === true;
+  const phone = normalisePhone(context.contactPhone ?? '');
+  const routed = (outcome as unknown as { agent?: { id?: unknown } }).agent;
+  const agentId = typeof routed?.id === 'string' ? routed.id : '';
+  // Only when a named human actually took it. Claiming a conversation for a
+  // queue nobody has picked up would silence the bot and put no one in its
+  // place, which is the worst of both.
+  const claimed =
+    context.channel === 'whatsapp' && phone && accepted && agentId;
+  if (claimed) {
+    const db = getRawDb();
+    await db
+      .prepare(`INSERT INTO whatsapp_assignments
+        (organization_id, phone, support_agent_id, assigned_at)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(organization_id, phone)
+        DO UPDATE SET support_agent_id = excluded.support_agent_id,
+                      assigned_at = CURRENT_TIMESTAMP`)
+      .bind(context.organizationId, phone, agentId)
+      .run();
+    // Any other run parked on this number is now waiting for an answer that
+    // belongs to a person. Same reasoning as a colleague claiming it by hand.
+    await db
+      .prepare(`UPDATE workflow_runs
+        SET status = 'stopped', waiting_on = NULL, resume_node = NULL,
+            completed_at = CURRENT_TIMESTAMP, error = ?
+        WHERE organization_id = ? AND status = 'waiting' AND waiting_on = ? AND id <> ?`)
+      .bind(
+        'This conversation was handed to a person, so the workflow stopped waiting for a reply.',
+        context.organizationId,
+        `whatsapp:${phone}`,
+        context.runId,
+      )
+      .run();
+  }
   return {
     status: 'completed',
     branch: accepted ? 'accepted' : 'no_agent',
-    output: outcome,
+    output: {
+      ...outcome,
+      ...(context.channel === 'whatsapp'
+        ? {
+            conversationClaimed: Boolean(claimed),
+            ...(claimed
+              ? {}
+              : {
+                  claimDetail: accepted
+                    ? 'A handoff was raised but no named person took it, so the conversation was left with the workflow.'
+                    : 'Nobody was available, so the conversation was left where it was.',
+                }),
+          }
+        : {}),
+    },
   };
 }
 

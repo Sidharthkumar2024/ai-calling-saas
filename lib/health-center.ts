@@ -1,4 +1,5 @@
 import { getRawDb } from '@/db/index';
+import { queueVerdict } from '@/lib/queue-health';
 import { summariseSilentRuns } from '@/lib/job-outcomes';
 import {
   DEFAULT_THRESHOLDS,
@@ -197,6 +198,38 @@ async function databaseSample(): Promise<Partial<ServiceSample>> {
   }
 }
 
+/**
+ * Whether background work is being drained.
+ *
+ * Kept apart from `queueSample` because it answers a different question. That
+ * one measures the queue's lifetime success rate and depth, which is what let
+ * a three-day-dead scheduler report healthy: hundreds of old completions, a
+ * ~0% error rate, and nothing running.
+ */
+async function queueMovement() {
+  const row = await getRawDb()
+    .prepare(
+      `SELECT
+         sum(CASE WHEN status IN ('queued','retry') THEN 1 ELSE 0 END) AS waiting,
+         sum(CASE WHEN status = 'dead_letter' THEN 1 ELSE 0 END) AS dead,
+         min(CASE WHEN status IN ('queued','retry') THEN available_at END) AS oldest_waiting_at,
+         max(completed_at) AS last_completed_at
+       FROM background_jobs`,
+    )
+    .first<{
+      waiting: number;
+      dead: number;
+      oldest_waiting_at: string | null;
+      last_completed_at: string | null;
+    }>();
+  return queueVerdict({
+    waiting: Number(row?.waiting ?? 0),
+    dead: Number(row?.dead ?? 0),
+    oldestWaitingAt: row?.oldest_waiting_at ?? null,
+    lastCompletedAt: row?.last_completed_at ?? null,
+  });
+}
+
 async function queueSample(): Promise<Partial<ServiceSample>> {
   const row = await getRawDb()
     .prepare(
@@ -309,19 +342,37 @@ async function silentJobs() {
 }
 
 export async function healthReport(): Promise<HealthReport> {
-  const [providers, stored, webhook, database, queue, readiness, jobs, silent] =
-    await Promise.all([
-      providerSamples(),
-      storedHealth(),
-      webhookSample(),
-      databaseSample(),
-      queueSample(),
-      providerReadiness().catch(() => []),
-      // Never allowed to take the panel down: the health screen exists to be
-      // readable when things are broken.
-      failingJobs().catch(() => []),
-      silentJobs().catch(() => []),
-    ]);
+  const [
+    providers,
+    stored,
+    webhook,
+    database,
+    queue,
+    movement,
+    readiness,
+    jobs,
+    silent,
+  ] = await Promise.all([
+    providerSamples(),
+    storedHealth(),
+    webhookSample(),
+    databaseSample(),
+    queueSample(),
+    queueMovement().catch(
+      () =>
+        ({
+          state: 'unknown',
+          reason: 'The queue could not be read.',
+          waitedMs: null,
+          idleMs: null,
+        }) as const,
+    ),
+    providerReadiness().catch(() => []),
+    // Never allowed to take the panel down: the health screen exists to be
+    // readable when things are broken.
+    failingJobs().catch(() => []),
+    silentJobs().catch(() => []),
+  ]);
 
   const configured = new Map<string, boolean>();
   for (const entry of readiness as Array<{
@@ -387,10 +438,18 @@ export async function healthReport(): Promise<HealthReport> {
   const classified = components.map((sample) =>
     classifyService(sample, DEFAULT_THRESHOLDS),
   );
+  // The queue's verdict replaces the one derived from its error rate. A
+  // stopped scheduler is not a low error rate; it is the whole product not
+  // running, and it has to be able to make the headline red.
+  const withMovement = classified.map((entry) =>
+    entry.component === 'job_queue'
+      ? { ...entry, state: movement.state, reason: movement.reason }
+      : entry,
+  );
   return {
-    overall: rollUp(classified.map((entry) => entry.state)),
+    overall: rollUp(withMovement.map((entry) => entry.state)),
     windowMinutes: WINDOW_MINUTES,
-    components: classified.sort((a, b) =>
+    components: withMovement.sort((a, b) =>
       a.component.localeCompare(b.component),
     ),
     // Worst first: 'always' is a bug in the job, 'intermittent' is usually a

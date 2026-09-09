@@ -9,6 +9,7 @@ import { objectionPlaybook } from '@/lib/sales-intelligence-service';
 import { approvedPlaybookBlock } from '@/lib/playbook-service';
 import { recordMeteredUsage } from '@/lib/metering';
 import type { UsageUnit } from '@/lib/rate-cards';
+import { reasoningBudget } from '@/lib/reasoning-budget';
 import { decryptSecret } from '@/lib/security';
 import { readPlatformSecret } from '@/lib/platform-secrets';
 import { deepgramTranscript } from '@/lib/deepgram-stt';
@@ -89,7 +90,14 @@ export async function providerReadiness(organizationId?: string | null) {
   const connected = new Set(stored.results.map((item) => item.type));
 
   return [
-    readiness('deepgram', 'Deepgram transcription', Boolean(process.env.DEEPGRAM_API_KEY) || platform.set.has('deepgram') || connected.has('deepgram'), ['DEEPGRAM_API_KEY']),
+    readiness(
+      'deepgram',
+      'Deepgram transcription',
+      Boolean(process.env.DEEPGRAM_API_KEY) ||
+        platform.set.has('deepgram') ||
+        connected.has('deepgram'),
+      ['DEEPGRAM_API_KEY'],
+    ),
     readiness(
       'sarvam',
       'Vaani Voice India',
@@ -146,7 +154,16 @@ export async function providerReadiness(organizationId?: string | null) {
       razorpay || connected.has('razorpay'),
       ['RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET', 'RAZORPAY_WEBHOOK_SECRET'],
     ),
-  ].map(item => platform.disabled.has(item.adapter) ? { ...item, configured: false, liveCapable: false, mode: 'disabled' as const } : item);
+  ].map((item) =>
+    platform.disabled.has(item.adapter)
+      ? {
+          ...item,
+          configured: false,
+          liveCapable: false,
+          mode: 'disabled' as const,
+        }
+      : item,
+  );
 }
 
 export async function synthesizeSpeech(input: {
@@ -174,19 +191,31 @@ export async function synthesizeSpeech(input: {
       platformProviderSecret('sarvam'),
       platformProviderSecret('elevenlabs'),
     ]);
-  const apiKey = sarvamPlatform.disabled ? undefined : credentials.secrets.apiKey || sarvamPlatform.apiKey || process.env.SARVAM_API_KEY;
-  const elevenLabsApiKey = elevenPlatform.disabled ? undefined : globalVoice.secrets.apiKey || elevenPlatform.apiKey || process.env.ELEVENLABS_API_KEY;
+  const apiKey = sarvamPlatform.disabled
+    ? undefined
+    : credentials.secrets.apiKey ||
+      sarvamPlatform.apiKey ||
+      process.env.SARVAM_API_KEY;
+  const elevenLabsApiKey = elevenPlatform.disabled
+    ? undefined
+    : globalVoice.secrets.apiKey ||
+      elevenPlatform.apiKey ||
+      process.env.ELEVENLABS_API_KEY;
   // Explicit profile wins. A tenant-owned key uses its own default voice first.
   const profileVoiceId =
     input.voice?.provider === 'elevenlabs' ? input.voice.voiceId || '' : '';
   const elevenLabsVoiceId =
     profileVoiceId ||
-    (globalVoice.secrets.apiKey ? configString(globalVoice.publicConfig, 'accountId') : '') ||
+    (globalVoice.secrets.apiKey
+      ? configString(globalVoice.publicConfig, 'accountId')
+      : '') ||
     configString(elevenPlatform.config, 'voiceId') ||
     process.env.ELEVENLABS_VOICE_ID;
   const elevenLabsModelId =
     (input.voice?.provider === 'elevenlabs' ? input.voice.modelId || '' : '') ||
-    (globalVoice.secrets.apiKey ? configString(globalVoice.publicConfig, 'model') : '') ||
+    (globalVoice.secrets.apiKey
+      ? configString(globalVoice.publicConfig, 'model')
+      : '') ||
     configString(elevenPlatform.config, 'modelId') ||
     process.env.ELEVENLABS_MODEL_ID ||
     undefined;
@@ -279,18 +308,36 @@ export async function transcribeSpeech(input: {
   contentType?: string;
   languageCode?: string;
 }) {
-  const [credentials, platform, elevenPlatform, elevenConnection, deepgramPlatform, deepgramConnection] =
-    await Promise.all([
-      connectionCredentials(input.organizationId, 'sarvam_voice'),
-      platformProviderSecret('sarvam'),
-      platformProviderSecret('elevenlabs'),
-      connectionCredentials(input.organizationId, 'elevenlabs_voice'),
-      platformProviderSecret('deepgram'),
-      connectionCredentials(input.organizationId, 'deepgram'),
-    ]);
-  const sarvamKey = platform.disabled ? undefined : credentials.secrets.apiKey || platform.apiKey || process.env.SARVAM_API_KEY;
-  const elevenKey = elevenPlatform.disabled ? undefined : elevenConnection.secrets.apiKey || elevenPlatform.apiKey || process.env.ELEVENLABS_API_KEY;
-  const deepgramKey = deepgramPlatform.disabled ? undefined : deepgramConnection.secrets.apiKey || deepgramPlatform.apiKey || process.env.DEEPGRAM_API_KEY;
+  const [
+    credentials,
+    platform,
+    elevenPlatform,
+    elevenConnection,
+    deepgramPlatform,
+    deepgramConnection,
+  ] = await Promise.all([
+    connectionCredentials(input.organizationId, 'sarvam_voice'),
+    platformProviderSecret('sarvam'),
+    platformProviderSecret('elevenlabs'),
+    connectionCredentials(input.organizationId, 'elevenlabs_voice'),
+    platformProviderSecret('deepgram'),
+    connectionCredentials(input.organizationId, 'deepgram'),
+  ]);
+  const sarvamKey = platform.disabled
+    ? undefined
+    : credentials.secrets.apiKey ||
+      platform.apiKey ||
+      process.env.SARVAM_API_KEY;
+  const elevenKey = elevenPlatform.disabled
+    ? undefined
+    : elevenConnection.secrets.apiKey ||
+      elevenPlatform.apiKey ||
+      process.env.ELEVENLABS_API_KEY;
+  const deepgramKey = deepgramPlatform.disabled
+    ? undefined
+    : deepgramConnection.secrets.apiKey ||
+      deepgramPlatform.apiKey ||
+      process.env.DEEPGRAM_API_KEY;
   if (!sarvamKey && !elevenKey && !deepgramKey)
     throw new ProviderConfigurationError(
       'No Vaani transcription engine is connected.',
@@ -300,20 +347,37 @@ export async function transcribeSpeech(input: {
     process.env.ELEVENLABS_STT_MODEL_ID ||
     'scribe_v1';
   const failures: string[] = [];
-  const preferred = configString(deepgramPlatform.config, 'preferredLanguages').split(',').map(value => value.trim().toLowerCase());
-  const order: Array<SttProvider | 'deepgram'> = sttProviderOrder(input.languageCode);
+  const preferred = configString(deepgramPlatform.config, 'preferredLanguages')
+    .split(',')
+    .map((value) => value.trim().toLowerCase());
+  const order: Array<SttProvider | 'deepgram'> = sttProviderOrder(
+    input.languageCode,
+  );
   if (deepgramKey) {
-    if (preferred.includes((input.languageCode || 'auto').toLowerCase())) order.unshift('deepgram');
+    if (preferred.includes((input.languageCode || 'auto').toLowerCase()))
+      order.unshift('deepgram');
     else order.push('deepgram');
   }
   for (const provider of order) {
     try {
       if (provider === 'deepgram' && deepgramKey) {
-        const model = configString(deepgramPlatform.config, 'model') || 'nova-3';
+        const model =
+          configString(deepgramPlatform.config, 'model') || 'nova-3';
         const result = await deepgramTranscript(input, deepgramKey, model);
         const { durationSeconds, ...transcription } = result;
-        await recordUsage(input.organizationId, 'provider_deepgram', 'speech', 'stt', result.latencyMs, result.providerReference,
-          typeof durationSeconds === 'number' && Number.isFinite(durationSeconds) && durationSeconds > 0 ? { unit: 'minutes', units: durationSeconds / 60, model } : undefined);
+        await recordUsage(
+          input.organizationId,
+          'provider_deepgram',
+          'speech',
+          'stt',
+          result.latencyMs,
+          result.providerReference,
+          typeof durationSeconds === 'number' &&
+            Number.isFinite(durationSeconds) &&
+            durationSeconds > 0
+            ? { unit: 'minutes', units: durationSeconds / 60, model }
+            : undefined,
+        );
         return { ...transcription, provider: 'deepgram' as const };
       }
       if (provider === 'sarvam' && sarvamKey)
@@ -448,7 +512,11 @@ export async function reasonWithTools(input: {
     connectionCredentials(input.organizationId, 'openai_platform'),
     platformProviderSecret('openai'),
   ]);
-  const openaiApiKey = openaiPlatform.disabled ? undefined : openaiCredentials.secrets.apiKey || openaiPlatform.apiKey || process.env.OPENAI_API_KEY;
+  const openaiApiKey = openaiPlatform.disabled
+    ? undefined
+    : openaiCredentials.secrets.apiKey ||
+      openaiPlatform.apiKey ||
+      process.env.OPENAI_API_KEY;
   if (openaiApiKey)
     return reasonWithOpenAI(
       input,
@@ -460,10 +528,15 @@ export async function reasonWithTools(input: {
     connectionCredentials(input.organizationId, 'anthropic_reasoning'),
     platformProviderSecret('anthropic'),
   ]);
-  const apiKey = anthropicPlatform.disabled ? undefined : credentials.secrets.apiKey || anthropicPlatform.apiKey || process.env.ANTHROPIC_API_KEY;
+  const apiKey = anthropicPlatform.disabled
+    ? undefined
+    : credentials.secrets.apiKey ||
+      anthropicPlatform.apiKey ||
+      process.env.ANTHROPIC_API_KEY;
   const configuredModel =
     configString(credentials.publicConfig, 'model') ||
-    configString(anthropicPlatform.config, 'model') || process.env.ANTHROPIC_MODEL;
+    configString(anthropicPlatform.config, 'model') ||
+    process.env.ANTHROPIC_MODEL;
   // The router may ask for a stronger model on this turn only.
   const model = input.model?.trim() || configuredModel;
   if (!apiKey || !model)
@@ -478,7 +551,7 @@ export async function reasonWithTools(input: {
     },
     body: JSON.stringify({
       model,
-      max_tokens: Math.max(40, Math.min(700, input.maxTokens ?? 700)),
+      max_tokens: reasoningBudget(input.maxTokens),
       system: input.system,
       messages: input.messages,
       ...(input.tools?.length ? { tools: input.tools } : {}),
@@ -857,8 +930,16 @@ export async function createOpenAIRealtimeCall(input: {
   const [credentials, platform] = await Promise.all([
     connectionCredentials(input.organizationId, 'openai_platform'),
     platformProviderSecret('openai'),
-  ]).catch(() => { throw new ProviderConfigurationError('Realtime configuration could not be loaded before submission.'); });
-  const apiKey = platform.disabled ? undefined : credentials.secrets.apiKey || platform.apiKey || process.env.OPENAI_API_KEY;
+  ]).catch(() => {
+    throw new ProviderConfigurationError(
+      'Realtime configuration could not be loaded before submission.',
+    );
+  });
+  const apiKey = platform.disabled
+    ? undefined
+    : credentials.secrets.apiKey ||
+      platform.apiKey ||
+      process.env.OPENAI_API_KEY;
   if (!apiKey)
     throw new ProviderConfigurationError('Vaani Realtime is not connected.');
   const model =
@@ -888,10 +969,17 @@ export async function createOpenAIRealtimeCall(input: {
     }),
     signal: AbortSignal.timeout(20_000),
   });
-  if (response.status >= 400 && response.status < 500 && response.status !== 408)
-    throw new RealtimeRejectedError(`Realtime request was rejected (${response.status}).`);
+  if (
+    response.status >= 400 &&
+    response.status < 500 &&
+    response.status !== 408
+  )
+    throw new RealtimeRejectedError(
+      `Realtime request was rejected (${response.status}).`,
+    );
   const answerSdp = await response.text();
-  if (!response.ok || !answerSdp.startsWith('v=')) throw new Error('Realtime acceptance could not be confirmed.');
+  if (!response.ok || !answerSdp.startsWith('v='))
+    throw new Error('Realtime acceptance could not be confirmed.');
   const latencyMs = Date.now() - started;
   const location = response.headers.get('location');
   let usageRecorded = true;
@@ -902,7 +990,9 @@ export async function createOpenAIRealtimeCall(input: {
     model,
     latencyMs,
     location,
-  ).catch(() => { usageRecorded = false; });
+  ).catch(() => {
+    usageRecorded = false;
+  });
   return { answerSdp, latencyMs, model, location, usageRecorded };
 }
 
@@ -914,7 +1004,10 @@ export async function startOutboundCall(input: {
   timeLimitSeconds?: number;
   recordCall?: boolean;
 }) {
-  if ((await platformProviderSecret('exotel')).disabled) throw new ProviderConfigurationError('Telephony is disabled by the platform admin.');
+  if ((await platformProviderSecret('exotel')).disabled)
+    throw new ProviderConfigurationError(
+      'Telephony is disabled by the platform admin.',
+    );
   const credentials = await connectionCredentials(
     input.organizationId,
     'telephony_exotel',
@@ -1018,10 +1111,15 @@ export async function testIntegrationConnection(
   if (row.type === 'whatsapp_cloud') {
     const phoneId = configString(config, 'accountId');
     if (!phoneId || !/^\d{5,30}$/.test(phoneId) || !secrets.apiKey)
-      throw new Error('A valid Meta phone number ID and access token are required.');
-    return probe(`https://graph.facebook.com/v23.0/${phoneId}?fields=id,display_phone_number,verified_name`, {
-      authorization: `Bearer ${secrets.apiKey}`,
-    });
+      throw new Error(
+        'A valid Meta phone number ID and access token are required.',
+      );
+    return probe(
+      `https://graph.facebook.com/v23.0/${phoneId}?fields=id,display_phone_number,verified_name`,
+      {
+        authorization: `Bearer ${secrets.apiKey}`,
+      },
+    );
   }
   if (row.type === 'razorpay') {
     const keyId = configString(config, 'accountId');
@@ -1295,7 +1393,7 @@ async function reasonWithOpenAI(
         role: message.role,
         content: message.content,
       })),
-      max_output_tokens: Math.max(40, Math.min(700, input.maxTokens ?? 700)),
+      max_output_tokens: reasoningBudget(input.maxTokens),
     }),
     signal: AbortSignal.timeout(25_000),
   });
@@ -1373,17 +1471,31 @@ async function platformSecretMap() {
         public_config_json: string;
       }>();
     const set = new Set<string>();
-    const controls = await getRawDb().prepare("SELECT id FROM platform_providers WHERE status = 'disabled'").all<{ id: string }>();
-    const disabled = new Set((controls.results ?? []).map(row => row.id === 'provider_telephony' ? 'exotel' : row.id.replace(/^provider_/, '')));
+    const controls = await getRawDb()
+      .prepare("SELECT id FROM platform_providers WHERE status = 'disabled'")
+      .all<{ id: string }>();
+    const disabled = new Set(
+      (controls.results ?? []).map((row) =>
+        row.id === 'provider_telephony'
+          ? 'exotel'
+          : row.id.replace(/^provider_/, ''),
+      ),
+    );
     const config = new Map<string, Record<string, unknown>>();
-    await Promise.all((rows.results ?? []).map(async row => {
-      const resolved = await platformProviderSecret(row.provider);
-      if (!resolved.disabled && resolved.apiKey) set.add(row.provider);
-      config.set(row.provider, resolved.config);
-    }));
+    await Promise.all(
+      (rows.results ?? []).map(async (row) => {
+        const resolved = await platformProviderSecret(row.provider);
+        if (!resolved.disabled && resolved.apiKey) set.add(row.provider);
+        config.set(row.provider, resolved.config);
+      }),
+    );
     return { set, config, disabled };
   } catch {
-    return { set: new Set<string>(), config: new Map(), disabled: new Set<string>() };
+    return {
+      set: new Set<string>(),
+      config: new Map(),
+      disabled: new Set<string>(),
+    };
   }
 }
 
@@ -1537,8 +1649,11 @@ export async function streamReasoning(input: {
     connectionCredentials(input.organizationId, 'openai_platform'),
     platformProviderSecret('openai'),
   ]);
-  const openaiApiKey = openaiPlatform.disabled ? undefined :
-    openaiCredentials.secrets.apiKey || openaiPlatform.apiKey || process.env.OPENAI_API_KEY;
+  const openaiApiKey = openaiPlatform.disabled
+    ? undefined
+    : openaiCredentials.secrets.apiKey ||
+      openaiPlatform.apiKey ||
+      process.env.OPENAI_API_KEY;
   if (openaiApiKey) {
     const response = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
@@ -1567,11 +1682,15 @@ export async function streamReasoning(input: {
     connectionCredentials(input.organizationId, 'anthropic_reasoning'),
     platformProviderSecret('anthropic'),
   ]);
-  const apiKey = anthropicPlatform.disabled ? undefined :
-    credentials.secrets.apiKey || anthropicPlatform.apiKey || process.env.ANTHROPIC_API_KEY;
+  const apiKey = anthropicPlatform.disabled
+    ? undefined
+    : credentials.secrets.apiKey ||
+      anthropicPlatform.apiKey ||
+      process.env.ANTHROPIC_API_KEY;
   const model =
     configString(credentials.publicConfig, 'model') ||
-    configString(anthropicPlatform.config, 'model') || process.env.ANTHROPIC_MODEL;
+    configString(anthropicPlatform.config, 'model') ||
+    process.env.ANTHROPIC_MODEL;
   if (!apiKey || !model)
     throw new ProviderConfigurationError('Vaani Sense is not connected.');
   const response = await fetch('https://api.anthropic.com/v1/messages', {

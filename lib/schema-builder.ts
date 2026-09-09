@@ -1,4 +1,5 @@
 import { reasonWithTools } from '@/lib/provider-adapters';
+import { ranOutOfRoom } from '@/lib/reasoning-budget';
 import {
   FIELD_TYPES,
   FIELD_TYPE_LIST,
@@ -76,7 +77,22 @@ export async function proposeSchema(input: {
       type?: string;
       text?: string;
     }>;
-    const meta = result as unknown as { model?: unknown };
+    const meta = result as unknown as {
+      model?: unknown;
+      stop_reason?: unknown;
+    };
+    // A cut-off answer and a bad answer are indistinguishable once the JSON
+    // fails to parse, and only one of them is the model's doing. Saying "the
+    // model did not return a schema this engine could read" about an answer
+    // this product cut off is blaming the wrong side. Only a provider that
+    // reports why it stopped can be told apart this way; the rest still fall
+    // through to the unreadable branch below.
+    if (ranOutOfRoom(meta.stop_reason))
+      return {
+        ok: false,
+        error:
+          'The proposal was cut off before it finished. Describe fewer things at once, or in fewer words.',
+      };
     raw = {
       text: blocks
         .filter(

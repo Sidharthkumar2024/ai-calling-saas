@@ -3,6 +3,11 @@
 /* oxlint-disable jsx-a11y/media-has-caption -- call transcripts and QA summaries are available beside authenticated recordings */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  describeDialPass,
+  dialPassNeedsAttention,
+  type DialSummary,
+} from '@/lib/dial-summary';
 import { SUPPORTED_LANGUAGE_CODES, languagesForRegion } from '@/lib/languages';
 import { SoundSettings } from '@/components/notification-center';
 import {
@@ -180,6 +185,12 @@ function ResourceModule({
   const rows = data[config.key] as Record<string, unknown>[];
   const [loading, setLoading] = useState('');
   const [error, setError] = useState('');
+  // What the dial pass actually did. Starting a campaign runs one immediately
+  // and the answer used to be dropped one function short of the person who
+  // could act on it.
+  const [notice, setNotice] = useState<{ text: string; warn: boolean } | null>(
+    null,
+  );
   const [creatorOpen, setCreatorOpen] = useState(false);
 
   async function create(payloadOverride?: Record<string, unknown>) {
@@ -297,6 +308,17 @@ function ResourceModule({
           {error}
         </p>
       ) : null}
+      {notice ? (
+        <output
+          className={`block rounded-xl border p-3 text-xs ${
+            notice.warn
+              ? 'border-warning-text/30 bg-warning-text/[0.05] text-warning-text'
+              : 'border-hairline bg-surface-muted text-ink-body'
+          }`}
+        >
+          {notice.text}
+        </output>
+      ) : null}
       {module === 'campaigns' ? (
         <CustomerImport
           campaigns={rows.map((row) => ({
@@ -394,6 +416,7 @@ function ResourceModule({
                         },
                         onChanged,
                         setError,
+                        setNotice,
                       )
                     }
                     className="h-7 border-hairline bg-transparent text-[11px]"
@@ -3177,11 +3200,24 @@ async function statusMove(
   payload: Record<string, unknown>,
   onChanged: () => void,
   onError: (message: string) => void,
+  onNotice?: (notice: { text: string; warn: boolean } | null) => void,
 ) {
   try {
-    await mutate(payload);
+    const body = (await mutate(payload)) as { dialer?: DialSummary | null };
+    // Starting a campaign runs one dial pass immediately. Whether anybody was
+    // actually called is the half somebody is waiting to learn.
+    if (onNotice)
+      onNotice(
+        body?.dialer
+          ? {
+              text: describeDialPass(body.dialer),
+              warn: dialPassNeedsAttention(body.dialer),
+            }
+          : null,
+      );
     onChanged();
   } catch (caught) {
+    onNotice?.(null);
     onError(caught instanceof Error ? caught.message : 'That change failed.');
   }
 }

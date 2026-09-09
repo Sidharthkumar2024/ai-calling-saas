@@ -3344,6 +3344,191 @@ function PlatformApis({
   );
 }
 
+/**
+ * Entering a customer's workspace, with their permission.
+ *
+ * A customer issues a one-time code that expires in thirty minutes; an
+ * executive opens a session by quoting it and giving a reason the customer
+ * reads; every record opened during the session is counted; and the customer
+ * can revoke, which ends the session rather than only cancelling the code.
+ *
+ * All of that was built and reachable from nothing — no screen issued a code
+ * and no screen opened a session — so support could not enter any workspace at
+ * all. This is the executive's half.
+ */
+function SupportAccessConsole() {
+  const [sessions, setSessions] = useState<Record<string, unknown>[]>([]);
+  const [organizationId, setOrganizationId] = useState('');
+  const [reason, setReason] = useState('');
+  const [pin, setPin] = useState('');
+  const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+
+  const load = useCallback(async () => {
+    try {
+      const response = await fetch('/api/admin/support', { cache: 'no-store' });
+      const body = (await response.json()) as {
+        sessions?: Record<string, unknown>[];
+        error?: string;
+      };
+      if (!response.ok) {
+        setError(textValue(body.error, 'Could not read support sessions.'));
+        return;
+      }
+      setSessions(body.sessions ?? []);
+    } catch {
+      setError('Could not read support sessions.');
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
+
+  async function post(payload: Record<string, unknown>, key: string) {
+    setBusy(key);
+    setError('');
+    setNotice('');
+    try {
+      const response = await fetch('/api/admin/support', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const body = (await response.json()) as Record<string, unknown>;
+      if (!response.ok) {
+        setError(textValue(body.error, 'That did not work.'));
+        return null;
+      }
+      await load();
+      return body;
+    } catch {
+      setError('That did not work.');
+      return null;
+    } finally {
+      setBusy('');
+    }
+  }
+
+  return (
+    <Panel>
+      <PanelHeader
+        title="Workspace access"
+        description="Nobody can open a customer's workspace without a code they issued. The reason below is shown to them, and every record opened is counted."
+      />
+      {error ? (
+        <p role="alert" className="mt-3 text-[11px] text-danger-text">
+          {error}
+        </p>
+      ) : null}
+      {notice ? (
+        <output className="mt-3 block text-[11px] text-success-text">
+          {notice}
+        </output>
+      ) : null}
+      <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_1.4fr_auto_auto]">
+        <input
+          value={organizationId}
+          onChange={(event) => setOrganizationId(event.target.value)}
+          placeholder="Workspace id"
+          aria-label="Workspace id"
+          className="rounded-lg border border-hairline bg-surface px-2 py-1.5 font-mono text-[11px]"
+        />
+        <input
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+          placeholder="Why — the customer reads this"
+          aria-label="Reason for access"
+          className="rounded-lg border border-hairline bg-surface px-2 py-1.5 text-[11px]"
+        />
+        <input
+          value={pin}
+          onChange={(event) => setPin(event.target.value)}
+          placeholder="Their code"
+          aria-label="Access code"
+          className="w-28 rounded-lg border border-hairline bg-surface px-2 py-1.5 font-mono text-[11px]"
+        />
+        <Button
+          size="sm"
+          disabled={busy === 'open'}
+          onClick={async () => {
+            const body = await post(
+              {
+                action: 'open_session',
+                organizationId: organizationId.trim(),
+                reason: reason.trim(),
+                pin: pin.trim(),
+              },
+              'open',
+            );
+            if (body) {
+              setPin('');
+              setNotice(
+                textValue(
+                  body.note,
+                  'Session open. The customer can see you and can end it.',
+                ),
+              );
+            }
+          }}
+        >
+          Open session
+        </Button>
+      </div>
+      <div className="mt-4 space-y-2">
+        {sessions.length === 0 ? (
+          <p className="text-[11px] text-ink-muted">
+            No sessions have been opened.
+          </p>
+        ) : null}
+        {sessions.map((session) => {
+          const id = textValue(session.id);
+          const state = textValue(session.state, 'unknown');
+          return (
+            <div
+              key={id}
+              className="flex flex-wrap items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2 text-[11px]"
+            >
+              <span className="font-medium text-ink">
+                {textValue(session.organization_name)}
+              </span>
+              <span className="text-ink-muted">
+                {textValue(session.executive_email)}
+              </span>
+              <Status value={state} />
+              <span className="text-ink-muted">
+                {textValue(session.reason, 'no reason given')}
+              </span>
+              <span className="text-ink-muted">
+                {Number(session.view_count ?? 0)} records opened
+              </span>
+              {state === 'open' ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy === id}
+                  onClick={async () => {
+                    const body = await post(
+                      { action: 'end_session', sessionId: id },
+                      id,
+                    );
+                    if (body) setNotice('Session ended.');
+                  }}
+                  className="ml-auto border-hairline bg-transparent"
+                >
+                  End session
+                </Button>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </Panel>
+  );
+}
+
 function SupportDesk({
   data,
   onChanged,
@@ -3395,6 +3580,7 @@ function SupportDesk({
         title={t('adminScreen.support_tickets.title')}
         description={t('adminScreen.support_tickets.description')}
       />
+      <SupportAccessConsole />
       {error ? (
         <p className="rounded-lg border border-red-400/20 bg-red-400/5 px-3 py-2 text-[11px] text-danger-text">
           {error}

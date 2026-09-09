@@ -1,6 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import {
+  CustomerSupportAccess,
+  type SupportAccess,
+} from '@/components/customer-support-access';
 import { LifeBuoy, Loader2, MessageSquareText, Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -9,6 +13,7 @@ import { Input } from '@/components/ui/input';
 export type TicketsData = {
   tickets: Record<string, unknown>[];
   messages: Record<string, unknown>[];
+  supportAccess?: SupportAccess;
 };
 
 export function CustomerTickets({
@@ -64,6 +69,16 @@ export function CustomerTickets({
           responses inside your workspace.
         </p>
       </div>
+      <CustomerSupportAccess
+        access={
+          data.supportAccess ?? {
+            liveSessions: [],
+            recentSessions: [],
+            livePin: null,
+          }
+        }
+        onChanged={onChanged}
+      />
       <div className="grid gap-4 xl:grid-cols-[0.75fr_1.25fr]">
         <section className="rounded-2xl border border-hairline bg-surface p-5">
           <div className="flex items-center gap-3">

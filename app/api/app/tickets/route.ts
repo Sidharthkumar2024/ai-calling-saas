@@ -34,9 +34,43 @@ export async function GET(request: Request) {
       .bind(auth.session.organizationId)
       .all(),
   ]);
+  // Who from support is inside this workspace, and why. A customer can issue a
+  // one-time PIN that lets an executive in and can shut the door again; until
+  // this, neither the door nor the person standing in it was visible anywhere.
+  const [liveSessions, recentSessions, livePin] = await Promise.all([
+    db
+      .prepare(`SELECT id, executive_email, reason, view_count, expires_at, created_at
+        FROM support_sessions
+        WHERE organization_id = ? AND ended_at IS NULL AND expires_at > datetime('now')
+        ORDER BY created_at DESC`)
+      .bind(auth.session.organizationId)
+      .all(),
+    db
+      .prepare(`SELECT id, executive_email, reason, view_count, created_at, ended_at, ended_reason
+        FROM support_sessions
+        WHERE organization_id = ? AND (ended_at IS NOT NULL OR expires_at <= datetime('now'))
+        ORDER BY created_at DESC LIMIT 10`)
+      .bind(auth.session.organizationId)
+      .all(),
+    // The PIN itself is never stored in a form anybody can read back, so this
+    // says only that one is live and until when.
+    db
+      .prepare(`SELECT id, reason, expires_at, attempts, created_at FROM support_pins
+        WHERE organization_id = ? AND used_at IS NULL AND revoked_at IS NULL
+          AND expires_at > datetime('now')
+        ORDER BY created_at DESC LIMIT 1`)
+      .bind(auth.session.organizationId)
+      .first(),
+  ]);
+
   return NextResponse.json({
     tickets: tickets.results,
     messages: messages.results,
+    supportAccess: {
+      liveSessions: liveSessions.results ?? [],
+      recentSessions: recentSessions.results ?? [],
+      livePin: livePin ?? null,
+    },
   });
 }
 

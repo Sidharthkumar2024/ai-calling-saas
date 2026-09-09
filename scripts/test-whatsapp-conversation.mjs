@@ -567,5 +567,55 @@ const elsewhere = {
 await engine.executeGraph({ graph: elsewhere, context: freshRun('run_dest_3'), variables: {} });
 equal(sent.at(-1).phone, '+919000000000');
 
+// --- pausing the workflow ------------------------------------------------------
+//
+// Pause is what the builder's button writes, and the claim it makes on screen
+// has two halves: nothing new starts on it, but a conversation already part-way
+// through still finishes. Both are asserted here, because a pause that quietly
+// abandoned somebody mid-question would be worse than no pause at all — they
+// would be left waiting for the answer to a question this product asked them.
+const parkedPhone = '+919700000001';
+const askOnly = {
+  nodes: [
+    { id: 't', kind: 'trigger', config: { event: 'whatsapp_message' }, next: { next: 'q' } },
+    { id: 'q', kind: 'ask', config: { question: 'Which area?', variable: 'area' }, next: { next: 'e' } },
+    { id: 'e', kind: 'end', config: { disposition: 'qualified' }, next: {} },
+  ],
+};
+db.prepare(
+  `INSERT INTO workflows (id, organization_id, name, trigger_type, status, graph_json) VALUES (?,?,?,?,?,?)`,
+).run('wf_pause', ORG, 'Pausable', 'whatsapp_message', 'active', JSON.stringify(askOnly));
+db.prepare(
+  `INSERT INTO workflow_runs (id, organization_id, workflow_id, trigger_type, status, input_json, output_json, variables_json, started_at)
+   VALUES (?,?,?,?,'running','{}','{}',?,CURRENT_TIMESTAMP)`,
+).run('run_pause', ORG, 'wf_pause', 'whatsapp_message', JSON.stringify({ phone: parkedPhone }));
+
+const asked = await engine.executeGraph({
+  graph: askOnly,
+  context: { ...context, runId: 'run_pause', contactPhone: parkedPhone },
+  variables: { phone: parkedPhone },
+});
+equal(asked.status, 'waiting');
+
+// The button's write, verbatim.
+db.prepare(`UPDATE workflows SET status = 'paused' WHERE id = 'wf_pause'`).run();
+
+const resumedWhilePaused = await engine.resumeAfterWhatsAppReply({
+  organizationId: ORG,
+  phone: parkedPhone,
+  text: 'Bandra',
+});
+ok(resumedWhilePaused, 'a parked conversation still finishes after a pause');
+equal(db.prepare(`SELECT status FROM workflow_runs WHERE id = 'run_pause'`).get().status, 'completed');
+// The other half: the lookup that starts a new conversation takes an active
+// workflow only, so the paused one picks nobody up.
+equal(
+  db
+    .prepare(`SELECT id FROM workflows WHERE organization_id = ? AND trigger_type = 'whatsapp_message'
+      AND status = 'active' AND id = 'wf_pause'`)
+    .get(ORG),
+  undefined,
+);
+
 db.close();
 console.log(`whatsapp conversation: ${checks} assertions passed; no provider contacted.`);

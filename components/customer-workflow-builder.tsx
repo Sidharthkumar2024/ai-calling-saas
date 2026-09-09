@@ -381,6 +381,12 @@ export function CustomerWorkflowBuilder() {
   const triggerEvent = (current.nodes.find((entry) => entry.kind === 'trigger')
     ?.config.event ?? '') as TriggerEvent | '';
   const silent = triggerEvent !== '' && SILENT_TRIGGERS.includes(triggerEvent);
+  // The switch that decides whether this workflow answers anybody:
+  // `status = 'active'` is what the WhatsApp bot and the trigger route look
+  // for. It had a button that turned it on and none that turned it off.
+  const live =
+    catalogue.workflows.find((entry) => entry.id === openId)?.status ===
+    'active';
   const onChat = triggerEvent !== '' && CHAT_TRIGGERS.includes(triggerEvent);
 
   return (
@@ -441,35 +447,68 @@ export function CustomerWorkflowBuilder() {
           >
             {busy === 'save' ? 'Saving…' : 'Save draft'}
           </button>
-          <button
-            type="button"
-            disabled={!openId || busy === 'publish' || !validation?.ok}
-            title={
-              validation?.ok
-                ? 'Go live'
-                : 'Every path has to reach an End step before this can go live.'
-            }
-            onClick={async () => {
-              setBusy('publish');
-              const { ok, payload } = await post({
-                action: 'publish',
-                workflowId: openId,
-              });
-              setBusy('');
-              setNotice(
-                ok
-                  ? 'Live. New calls on this trigger follow it.'
-                  : messageFrom(
-                      payload.error,
-                      'This workflow is not ready to go live.',
-                    ),
-              );
-              void loadCatalogue();
-            }}
-            className="portal-primary rounded-lg px-3 py-1.5 text-[11px] disabled:opacity-50"
-          >
-            {busy === 'publish' ? 'Publishing…' : 'Publish'}
-          </button>
+          {live ? (
+            <button
+              type="button"
+              disabled={busy === 'pause'}
+              title="Stop this workflow answering anything new"
+              onClick={async () => {
+                setBusy('pause');
+                const { ok, payload } = await post({
+                  action: 'pause',
+                  workflowId: openId,
+                });
+                setBusy('');
+                setNotice(
+                  ok
+                    ? // Pausing stops it being picked up. It does not reach into
+                      // a conversation already part-way through it — that run is
+                      // resumed by its own id, not by looking the workflow up
+                      // again — and cutting one off would leave a question asked
+                      // and never answered.
+                      'Paused. Nothing new starts on it. A conversation already part-way through still finishes.'
+                    : messageFrom(
+                        payload.error,
+                        'This workflow could not be paused.',
+                      ),
+                );
+                void loadCatalogue();
+              }}
+              className="rounded-lg border border-hairline px-3 py-1.5 text-[11px] disabled:opacity-60"
+            >
+              {busy === 'pause' ? 'Pausing…' : 'Pause'}
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={!openId || busy === 'publish' || !validation?.ok}
+              title={
+                validation?.ok
+                  ? 'Go live'
+                  : 'Every path has to reach an End step before this can go live.'
+              }
+              onClick={async () => {
+                setBusy('publish');
+                const { ok, payload } = await post({
+                  action: 'publish',
+                  workflowId: openId,
+                });
+                setBusy('');
+                setNotice(
+                  ok
+                    ? 'Live. New calls on this trigger follow it.'
+                    : messageFrom(
+                        payload.error,
+                        'This workflow is not ready to go live.',
+                      ),
+                );
+                void loadCatalogue();
+              }}
+              className="portal-primary rounded-lg px-3 py-1.5 text-[11px] disabled:opacity-50"
+            >
+              {busy === 'publish' ? 'Publishing…' : 'Publish'}
+            </button>
+          )}
           <button
             type="button"
             disabled={!openId || busy === 'test'}

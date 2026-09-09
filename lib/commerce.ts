@@ -785,7 +785,17 @@ async function integrationSecrets(organizationId: string, type: string) {
   const publicConfig = safeObject(row.public_config_json);
   if (!row.encrypted_secret)
     return { publicConfig, secrets: {} as SecretBundle };
-  const decrypted = await decryptSecret(row.encrypted_secret);
+  // A stored secret that will not decrypt — written under a key that has since
+  // changed, or corrupted — used to throw out of here and 500 whatever asked.
+  // The WhatsApp inbox reads this on every load, so one unreadable row took
+  // the whole screen down rather than reading as "not connected", which is
+  // what an unusable credential actually is.
+  let decrypted: string;
+  try {
+    decrypted = await decryptSecret(row.encrypted_secret);
+  } catch {
+    return { publicConfig, secrets: {} as SecretBundle };
+  }
   try {
     const parsed = JSON.parse(decrypted) as SecretBundle;
     return { publicConfig, secrets: parsed };

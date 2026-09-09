@@ -181,6 +181,7 @@ try {
 
 // Exercise the actual inbox route with synthetic auth/data. Never sends a real message.
 let saved = 0,
+  refusal = null,
   sends = 0,
   templateSends = 0,
   connected = true,
@@ -233,6 +234,7 @@ const modules = {
   '@/lib/commerce': {
     whatsAppConnected: async () => connected,
     sendWhatsAppText: async () => {
+      if (refusal) throw new Error(refusal);
       sends++;
       return { status: 'sent', providerReference: 'synthetic-message' };
     },
@@ -291,6 +293,20 @@ inbound = new Date().toISOString();
 equal((await reply({ phone: '+919876543210', text: 'Hi' })).status, 200);
 equal(sends, 1);
 equal(saved, 1);
+
+// A refusal is reported in its own words. The sender turns down a
+// do-not-contact number before it goes near Meta, and "Meta did not accept
+// this, check the connection" sends somebody to look at the integration and
+// try again — over a customer who asked not to be contacted.
+refusal = 'This customer is on the do-not-contact list.';
+const refused = await reply({ phone: '+919876543210', text: 'Hi' });
+equal(refused.status, 409);
+equal((await refused.json()).error, 'This customer is on the do-not-contact list.');
+equal(sends, 1);
+// Anything else is still a gateway problem.
+refusal = 'Meta returned 503.';
+equal((await reply({ phone: '+919876543210', text: 'Hi' })).status, 502);
+refusal = null;
 
 // Templates: the answer to a closed window, not a way around it.
 const approved = {

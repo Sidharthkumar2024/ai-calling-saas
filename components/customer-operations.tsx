@@ -3,6 +3,7 @@
 /* oxlint-disable jsx-a11y/media-has-caption -- call transcripts and QA summaries are available beside authenticated recordings */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { CustomerCompliance } from '@/components/customer-compliance';
 import {
   describeDialPass,
   dialPassNeedsAttention,
@@ -3008,6 +3009,14 @@ function WorkspaceSettings({
           </p>
         </section>
       </div>
+      {/* The rule above, with a way to satisfy it. Recording consent, revoking
+          it and honouring a do-not-contact request were handled by the API and
+          reachable from no screen. */}
+      <CustomerCompliance
+        consents={compliance.consents}
+        suppressionCount={compliance.suppressions.length}
+        onChanged={onChanged}
+      />
       <CustomerSecurity />
     </div>
   );

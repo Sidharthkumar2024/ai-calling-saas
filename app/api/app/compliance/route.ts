@@ -131,6 +131,50 @@ export async function POST(request: Request) {
       .run();
     return NextResponse.json({ id }, { status: 201 });
   }
+  /**
+   * Whether a number is on the do-not-contact list.
+   *
+   * The list stores a hash, never the number, so it cannot be displayed — and
+   * "we hold 40 suppressed contacts" does not answer the only question anybody
+   * asks about it, which is whether *this* person is on it. Answered by
+   * hashing what was typed, so nothing about the list is revealed by asking.
+   */
+  if (body.action === 'check_suppression') {
+    if (!/^\+[1-9]\d{7,14}$/.test(phone))
+      return NextResponse.json(
+        { error: 'A valid E.164 phone is required.' },
+        { status: 400 },
+      );
+    const hit = await db
+      .prepare(`SELECT reason, source, created_at, expires_at FROM suppression_entries
+        WHERE phone_hash = ? AND (organization_id = ? OR scope = 'global')
+          AND (expires_at IS NULL OR expires_at > datetime('now'))
+        LIMIT 1`)
+      .bind(await sha256(phone), organizationId)
+      .first<{
+        reason: string | null;
+        source: string | null;
+        created_at: string;
+        expires_at: string | null;
+      }>();
+    const consent = await db
+      .prepare(`SELECT status, purpose, captured_at, expires_at FROM consent_records
+        WHERE organization_id = ? AND phone = ?
+        ORDER BY captured_at DESC LIMIT 1`)
+      .bind(organizationId, phone)
+      .first<{
+        status: string;
+        purpose: string | null;
+        captured_at: string;
+        expires_at: string | null;
+      }>();
+    return NextResponse.json({
+      suppressed: Boolean(hit),
+      entry: hit ?? null,
+      consent: consent ?? null,
+    });
+  }
+
   return NextResponse.json(
     { error: 'Unsupported compliance action.' },
     { status: 400 },

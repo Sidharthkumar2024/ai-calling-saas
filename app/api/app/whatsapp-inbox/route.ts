@@ -573,13 +573,17 @@ export async function POST(request: Request) {
       destination: phone,
       body: text,
     });
-  } catch {
+  } catch (error) {
+    // The sender refuses a do-not-contact number before it goes near Meta, and
+    // "Meta did not accept this, check the connection" sends somebody to look
+    // at the integration and try again — over a customer who asked not to be
+    // contacted. Its own words, and 409 rather than 502, because nothing is
+    // wrong with the gateway.
+    const reason =
+      error instanceof Error ? error.message : 'Meta did not accept the reply.';
     return NextResponse.json(
-      {
-        error:
-          'Meta did not accept the reply. Check the connection and try again.',
-      },
-      { status: 502 },
+      { error: reason },
+      { status: /do-not-contact/i.test(reason) ? 409 : 502 },
     );
   }
   if (result.status !== 'sent')

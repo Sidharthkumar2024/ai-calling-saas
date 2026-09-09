@@ -281,6 +281,14 @@ export async function POST(request: Request) {
     const branchId = text(body.branchId, 80);
     const teamId = text(body.teamId, 80);
     const departmentId = text(body.departmentId, 80);
+    // `owned` treats an empty id as "not set", which is right for the three
+    // placements and wrong for the agent: without this the update matches no
+    // row and still answers ok, so assigning nobody would read as done.
+    if (!agentId)
+      return NextResponse.json(
+        { error: 'Choose an agent to place.' },
+        { status: 400 },
+      );
     if (!(await owned('support_agents', agentId)))
       return NextResponse.json({ error: 'Agent not found.' }, { status: 404 });
     if (!(await owned('branches', branchId)))

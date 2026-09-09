@@ -159,6 +159,7 @@ export function CustomerOrgStructure() {
       ) : null}
 
       <BranchesAndTeams org={org} run={run} busy={busy} />
+      <AgentPlacement org={org} agents={agents} run={run} busy={busy} />
       <Shifts org={org} agents={agents} run={run} busy={busy} />
       <AgentLanguages agents={agents} run={run} busy={busy} />
       <NumberRoutes
@@ -457,6 +458,173 @@ function BranchesAndTeams({
         </div>
       </div>
     </Panel>
+  );
+}
+
+/**
+ * Who belongs to which branch, team and department.
+ *
+ * The branch rows above have always shown "N agents" and the team rows "N
+ * members", and nothing on any screen could change either number — so on a
+ * workspace that built its own structure they were always zero. The archive
+ * check reads the same counts, which made it worse than cosmetic: archiving a
+ * branch reported that no agent was affected, not because nobody worked there
+ * but because nobody could be recorded as working there.
+ *
+ * This is the org chart, not the dial plan. Who a call reaches is decided by
+ * queues, skills and routing rules, and none of them read these three columns
+ * — so the panel says so rather than letting somebody place an agent here and
+ * wait for their calls to change.
+ */
+function AgentPlacement({
+  org,
+  agents,
+  run,
+  busy,
+}: {
+  org: OrgData;
+  agents: Row[];
+  run: (payload: Record<string, unknown>, success: string) => Promise<boolean>;
+  busy: boolean;
+}) {
+  const [drafts, setDrafts] = useState<
+    Record<string, { branchId: string; teamId: string; departmentId: string }>
+  >({});
+  const placementOf = (agent: Row) => ({
+    branchId: str(agent.branch_id),
+    teamId: str(agent.team_id),
+    departmentId: str(agent.department_id),
+  });
+  const draftOf = (agent: Row) => drafts[str(agent.id)] ?? placementOf(agent);
+  const changed = (agent: Row) => {
+    const current = placementOf(agent);
+    const draft = draftOf(agent);
+    return (
+      current.branchId !== draft.branchId ||
+      current.teamId !== draft.teamId ||
+      current.departmentId !== draft.departmentId
+    );
+  };
+  const pick = (
+    id: string,
+    field: 'branchId' | 'teamId' | 'departmentId',
+    value: string,
+    base: { branchId: string; teamId: string; departmentId: string },
+  ) =>
+    setDrafts((current) => ({
+      ...current,
+      [id]: { ...base, [field]: value },
+    }));
+
+  const options = (rows: Row[]) =>
+    rows.filter((row) => str(row.status, 'active') !== 'archived');
+
+  return (
+    <section className="portal-panel p-5">
+      <h2 className="text-sm font-semibold">Who works where</h2>
+      <p className="mt-1 text-[11px] text-ink-muted">
+        The agent counts on branches and teams come from this, and so does the
+        warning you get before archiving one. It does not decide who a call
+        reaches — queues, skills and routing rules do that.
+      </p>
+
+      <div className="mt-4 space-y-2">
+        {agents.length === 0 ? (
+          <p className="text-[11px] text-ink-muted">
+            No support agents in this workspace yet.
+          </p>
+        ) : null}
+        {agents.map((agent) => {
+          const id = str(agent.id);
+          const draft = draftOf(agent);
+          return (
+            <div
+              key={id}
+              className="rounded-xl border border-hairline bg-surface-muted px-3 py-2.5"
+            >
+              <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                <span className="font-medium">{str(agent.name)}</span>
+                <span className="text-ink-muted">{str(agent.role, '—')}</span>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <select
+                  value={draft.branchId}
+                  aria-label={`Branch for ${str(agent.name)}`}
+                  onChange={(event) =>
+                    pick(id, 'branchId', event.target.value, draft)
+                  }
+                  className="rounded-lg border border-hairline bg-surface px-2 py-1.5 text-[11px]"
+                >
+                  <option value="">No branch</option>
+                  {options(org.branches).map((row) => (
+                    <option key={str(row.id)} value={str(row.id)}>
+                      {str(row.name)}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={draft.teamId}
+                  aria-label={`Team for ${str(agent.name)}`}
+                  onChange={(event) =>
+                    pick(id, 'teamId', event.target.value, draft)
+                  }
+                  className="rounded-lg border border-hairline bg-surface px-2 py-1.5 text-[11px]"
+                >
+                  <option value="">No team</option>
+                  {options(org.teams).map((row) => (
+                    <option key={str(row.id)} value={str(row.id)}>
+                      {str(row.name)}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={draft.departmentId}
+                  aria-label={`Department for ${str(agent.name)}`}
+                  onChange={(event) =>
+                    pick(id, 'departmentId', event.target.value, draft)
+                  }
+                  className="rounded-lg border border-hairline bg-surface px-2 py-1.5 text-[11px]"
+                >
+                  <option value="">No department</option>
+                  {options(org.departments).map((row) => (
+                    <option key={str(row.id)} value={str(row.id)}>
+                      {str(row.name)}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  size="sm"
+                  disabled={busy || !changed(agent)}
+                  onClick={async () => {
+                    // All three go every time, because the server writes all
+                    // three: sending only the one that changed would clear the
+                    // other two.
+                    const saved = await run(
+                      {
+                        action: 'assign_agent',
+                        supportAgentId: id,
+                        branchId: draft.branchId,
+                        teamId: draft.teamId,
+                        departmentId: draft.departmentId,
+                      },
+                      `${str(agent.name)} placed.`,
+                    );
+                    if (saved)
+                      setDrafts((current) => {
+                        const next = { ...current };
+                        delete next[id];
+                        return next;
+                      });
+                  }}
+                >
+                  Save
+                </Button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

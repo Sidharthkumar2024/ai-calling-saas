@@ -78,7 +78,8 @@ export async function GET(request: Request) {
       db
         .prepare(`SELECT id, user_id, name, role, skills_json, languages_json,
         availability, active_calls, coalesce(max_concurrent_calls, 1) AS max_concurrent_calls,
-        priority_tier, last_assigned_at, presence_changed_at
+        priority_tier, last_assigned_at, presence_changed_at,
+        branch_id, team_id, department_id
       FROM support_agents WHERE organization_id = ? ORDER BY name`)
         .bind(organizationId)
         .all(),

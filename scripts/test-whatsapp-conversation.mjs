@@ -42,6 +42,8 @@ db.exec(`
     step_type TEXT, status TEXT DEFAULT 'pending', input_json TEXT DEFAULT '{}',
     output_json TEXT DEFAULT '{}', error TEXT, started_at TEXT, completed_at TEXT,
     node_id TEXT, branch TEXT);
+  CREATE TABLE leads (id TEXT PRIMARY KEY, organization_id TEXT, name TEXT, phone TEXT,
+    email TEXT, score INTEGER);
 `);
 
 function statement(query, args = []) {
@@ -616,6 +618,83 @@ equal(
     .get(ORG),
   undefined,
 );
+
+// --- a lookup with nothing to look up -----------------------------------------
+//
+// `{{caller_phone}}` that the run never collected has no digits in it, and the
+// phone match strips a value to its digits before comparing. That left
+// `LIKE '%'`, which matches every lead in the workspace — so the step reported
+// `found` and handed the first stranger in the table to everything after it as
+// though they were the caller. It has to be a miss, and say why.
+db.prepare(`INSERT INTO leads (id, organization_id, name, phone, score) VALUES (?,?,?,?,?)`)
+  .run('lead_stranger', ORG, 'Somebody else', '+919888800001', 90);
+
+const lookupGraph = (value) => ({
+  nodes: [
+    { id: 't', kind: 'trigger', config: { event: 'webhook' }, next: { next: 'l' } },
+    {
+      id: 'l',
+      kind: 'crm_lookup',
+      config: { entity: 'lead', match: 'phone', value, variable: 'lead' },
+      next: { found: 'e', not_found: 'e' },
+    },
+    { id: 'e', kind: 'end', config: { disposition: 'done' }, next: {} },
+  ],
+});
+
+const unresolved = await engine.executeGraph({
+  graph: lookupGraph('{{caller_phone}}'),
+  context: freshRun('run_lookup_1'),
+  variables: {},
+});
+const unresolvedStep = unresolved.trace.find((step) => step.kind === 'crm_lookup');
+equal(unresolvedStep.status, 'skipped');
+ok(
+  String(unresolvedStep.note ?? '').includes('never collected'),
+  'says the value was never collected rather than reporting a match',
+);
+// The harm was never the branch — it was the row. Nobody may be bound to
+// `lead` by a lookup that had nothing to look up.
+const boundAfterUnresolved = (id) =>
+  String(
+    db.prepare(`SELECT variables_json FROM workflow_runs WHERE id = ?`).get(id)
+      .variables_json ?? '',
+  ).includes('lead_stranger');
+equal(boundAfterUnresolved('run_lookup_1'), false);
+
+// "unknown" is the same hole by another route.
+const noDigits = await engine.executeGraph({
+  graph: lookupGraph('unknown'),
+  context: freshRun('run_lookup_2'),
+  variables: {},
+});
+equal(
+  noDigits.trace.find((step) => step.kind === 'crm_lookup').status,
+  'skipped',
+);
+
+// A real number still finds the person it names, and only them.
+const found = await engine.executeGraph({
+  graph: lookupGraph('+91 98888 00001'),
+  context: freshRun('run_lookup_3'),
+  variables: {},
+});
+const foundStep = found.trace.find((step) => step.kind === 'crm_lookup');
+equal(foundStep.status, 'completed');
+equal(
+  db.prepare(`SELECT variables_json FROM workflow_runs WHERE id = 'run_lookup_3'`).get().variables_json.includes('lead_stranger'),
+  true,
+);
+
+// A number nobody has is a miss, not the nearest row.
+const missing = await engine.executeGraph({
+  graph: lookupGraph('+91 90000 00000'),
+  context: freshRun('run_lookup_4'),
+  variables: {},
+});
+equal(missing.trace.find((step) => step.kind === 'crm_lookup').status, 'completed');
+equal(boundAfterUnresolved('run_lookup_4'), false);
+equal(boundAfterUnresolved('run_lookup_2'), false);
 
 db.close();
 console.log(`whatsapp conversation: ${checks} assertions passed; no provider contacted.`);

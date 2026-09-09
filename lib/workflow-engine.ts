@@ -635,6 +635,22 @@ async function crmLookup(
       },
     };
 
+  // A value that still carries its own placeholder was never collected. It is
+  // not a search with a poor key — there is no key — and the phone branch
+  // below strips `{{caller_phone}}` to no digits at all, leaving `LIKE '%'`,
+  // which matches every lead in the workspace and returns whichever came
+  // first. That is a stranger's record, handed to every step after this one as
+  // the caller's own.
+  if (value.includes('{{'))
+    return {
+      status: 'skipped',
+      branch: 'not_found',
+      output: {
+        reason: 'unresolved_value',
+        detail: `“${value}” still holds a value this run never collected, so there was nothing to look the ${entity} up by.`,
+      },
+    };
+
   const db = getRawDb();
   const table =
     entity === 'order' ? 'orders' : entity === 'contact' ? 'contacts' : 'leads';
@@ -642,6 +658,17 @@ async function crmLookup(
   // Phones are stored in assorted shapes, so the last ten digits are what
   // actually identify a caller in this data.
   const digits = value.replace(/\D/g, '').slice(-10);
+  // No digits is the same hole by another route — "unknown", a name, an empty
+  // interpolation — and it matches everybody for the same reason.
+  if (column === 'phone' && !digits)
+    return {
+      status: 'skipped',
+      branch: 'not_found',
+      output: {
+        reason: 'no_digits',
+        detail: `“${value}” has no digits in it, so it cannot identify anybody.`,
+      },
+    };
   const row =
     column === 'phone'
       ? await db

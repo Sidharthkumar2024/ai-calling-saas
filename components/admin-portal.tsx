@@ -48,6 +48,7 @@ import {
   nextKycStatuses,
 } from '@/lib/kyc-documents';
 import { USAGE_UNITS } from '@/lib/rate-cards';
+import { reactivationNote, suspensionNote } from '@/lib/tenant-suspension';
 
 type AdminSession = { name: string; email: string };
 
@@ -891,12 +892,18 @@ function TenantLifecycle() {
                     <Button
                       className="ml-auto"
                       disabled={busy === `on-${id}`}
-                      onClick={() =>
-                        void act(`on-${id}`, {
+                      onClick={async () => {
+                        const body = await act(`on-${id}`, {
                           action: 'reactivate',
                           organizationId: id,
-                        })
-                      }
+                        });
+                        if (body)
+                          setNotice(
+                            reactivationNote({
+                              campaignsPaused: body.campaignsStillPaused,
+                            }),
+                          );
+                      }}
                     >
                       Reactivate
                     </Button>
@@ -914,13 +921,20 @@ function TenantLifecycle() {
                         disabled={
                           busy === `off-${id}` || !(reason[id] ?? '').trim()
                         }
-                        onClick={() =>
-                          void act(`off-${id}`, {
+                        onClick={async () => {
+                          const body = await act(`off-${id}`, {
                             action: 'suspend',
                             organizationId: id,
                             reason: reason[id],
-                          })
-                        }
+                          });
+                          if (body)
+                            setNotice(
+                              suspensionNote({
+                                campaignsPaused: body.campaignsPaused,
+                                jobsCancelled: body.jobsCancelled,
+                              }),
+                            );
+                        }}
                       >
                         Suspend
                       </Button>

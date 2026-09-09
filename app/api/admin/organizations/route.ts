@@ -243,20 +243,40 @@ export async function POST(request: Request) {
       )
       .run();
     // Suspension must stop work in flight, not just hide the workspace.
+    let campaignsPaused = 0;
+    let jobsCancelled = 0;
     if (suspending) {
-      await db
+      const paused = await db
         .prepare(
           `UPDATE campaigns SET status = 'paused' WHERE organization_id = ? AND status = 'running'`,
         )
         .bind(organizationId)
         .run();
-      await db
+      const cancelled = await db
         .prepare(
           `UPDATE background_jobs SET status = 'cancelled' WHERE organization_id = ? AND status = 'queued'`,
         )
         .bind(organizationId)
         .run();
+      campaignsPaused = Number(paused.meta?.changes ?? 0);
+      jobsCancelled = Number(cancelled.meta?.changes ?? 0);
     }
+    // Reactivating does not undo any of that, and nothing else will: a paused
+    // campaign is started by a person. A workspace switched back on with its
+    // campaigns still paused makes no calls and looks exactly like one that is
+    // working, so the count goes back to whoever pressed the button.
+    const stillPaused = suspending
+      ? 0
+      : Number(
+          (
+            await db
+              .prepare(
+                `SELECT count(*) AS n FROM campaigns WHERE organization_id = ? AND status = 'paused'`,
+              )
+              .bind(organizationId)
+              .first<{ n: number }>()
+          )?.n ?? 0,
+        );
     await recordAudit(
       auth.session,
       suspending ? 'organization.suspended' : 'organization.reactivated',
@@ -267,7 +287,11 @@ export async function POST(request: Request) {
     return NextResponse.json({
       organizationId,
       status: suspending ? 'suspended' : 'active',
-      campaignsPaused: suspending,
+      // Counts, not a boolean repeating the verb back. What a suspension
+      // actually stopped is the part nobody could see.
+      campaignsPaused,
+      jobsCancelled,
+      campaignsStillPaused: stillPaused,
     });
   }
 

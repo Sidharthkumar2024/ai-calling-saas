@@ -435,6 +435,12 @@ function ObjectDesigner({
           <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
             Fields
           </p>
+          <p className="text-[11px] text-ink-muted">
+            Tick <span className="font-medium">searchable</span> on anything a
+            caller would narrow by — a price, a locality, a size. A field that
+            is not searchable is stored and shown but cannot be filtered on, so
+            the agent can read it out and cannot find records by it.
+          </p>
           {fields.map((field, index) => (
             <div
               key={index}
@@ -499,6 +505,19 @@ function ObjectDesigner({
               >
                 Remove
               </button>
+              <FieldDetail
+                field={field}
+                objects={objects}
+                canFilter={
+                  fieldTypes.find((type) => type.type === field.type)
+                    ?.filterable ?? false
+                }
+                onChange={(patch) => {
+                  const next = [...fields];
+                  next[index] = { ...field, ...patch };
+                  setFields(next);
+                }}
+              />
             </div>
           ))}
           <button
@@ -715,6 +734,95 @@ function SchemaProposer({
         </div>
       ) : null}
     </section>
+  );
+}
+
+/**
+ * The rest of a field.
+ *
+ * The type picker above offers select, currency and relation, and this screen
+ * had nowhere to say which choices, which currency or which object — so a
+ * select created here constrained nothing, a currency had none and a relation
+ * pointed at no object. The API has stored all three from the beginning.
+ *
+ * `filterable` was the same omission with a longer reach: it decides whether a
+ * field is projected into the searchable table at all, and a filter on a field
+ * that is not projected is dropped with "field is not filterable". Nothing set
+ * it, so every object a workspace built for itself could be read out on a call
+ * and never searched — the seeded demo objects were filterable and the ones
+ * customers made never could be.
+ */
+function FieldDetail({
+  field,
+  objects,
+  canFilter,
+  onChange,
+}: {
+  field: ObjectField;
+  objects: CustomObject[];
+  canFilter: boolean;
+  onChange: (patch: Partial<ObjectField>) => void;
+}) {
+  const needsOptions = field.type === 'select';
+  const needsCurrency = field.type === 'currency';
+  const needsRelation = field.type === 'relation';
+  if (!canFilter && !needsOptions && !needsCurrency && !needsRelation)
+    return null;
+
+  return (
+    <div className="flex w-full flex-wrap items-center gap-2 pl-0.5">
+      {canFilter ? (
+        <label className="flex items-center gap-1.5 text-[11px] text-ink-muted">
+          <input
+            type="checkbox"
+            checked={Boolean(field.filterable)}
+            onChange={(event) => onChange({ filterable: event.target.checked })}
+          />
+          searchable
+        </label>
+      ) : null}
+      {needsOptions ? (
+        <input
+          // Kept as typed, empty entries and all: the server drops the blanks,
+          // and filtering them here would eat the comma the moment it is typed.
+          value={(field.options ?? []).join(', ')}
+          aria-label={`Choices for ${field.label || field.key}`}
+          onChange={(event) =>
+            onChange({
+              options: event.target.value.split(',').map((one) => one.trim()),
+            })
+          }
+          placeholder="Choices, comma separated"
+          className="min-w-48 flex-1 rounded-lg border border-hairline bg-surface px-2.5 py-1.5 text-[11px] text-ink"
+        />
+      ) : null}
+      {needsCurrency ? (
+        <input
+          value={field.currency ?? ''}
+          aria-label={`Currency for ${field.label || field.key}`}
+          onChange={(event) => onChange({ currency: event.target.value })}
+          placeholder="INR"
+          className="w-24 rounded-lg border border-hairline bg-surface px-2.5 py-1.5 text-[11px] text-ink"
+        />
+      ) : null}
+      {needsRelation ? (
+        <select
+          value={field.relatedObject ?? ''}
+          aria-label={`Related object for ${field.label || field.key}`}
+          onChange={(event) =>
+            onChange({ relatedObject: event.target.value || null })
+          }
+          className="rounded-lg border border-hairline bg-surface px-2 py-1.5 text-[11px] text-ink"
+        >
+          <option value="">Points at nothing yet</option>
+          {objects.map((object) => (
+            <option key={object.key} value={object.key}>
+              {object.name}
+            </option>
+          ))}
+        </select>
+      ) : null}
+    </div>
   );
 }
 

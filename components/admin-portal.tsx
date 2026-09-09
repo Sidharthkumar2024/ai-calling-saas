@@ -61,6 +61,7 @@ type AdminPayload = {
   priceBooks?: Record<string, unknown>[];
   numbers?: Record<string, unknown>[];
   kycDocuments?: Record<string, unknown>[];
+  voiceConsents?: Record<string, unknown>[];
   rateCards?: Record<string, unknown>[];
   costModel?: {
     assumptions: { note: string };
@@ -1730,7 +1731,181 @@ function NumbersKyc({
       </Panel>
 
       <KycDocumentReview data={data} onChanged={onChanged} />
+      <VoiceConsentReview data={data} onChanged={onChanged} />
     </div>
+  );
+}
+
+/**
+ * Consent to clone somebody's voice, decided by a person.
+ *
+ * A workspace records who agreed, what they agreed to, and where the evidence
+ * is; the voice cannot be used until a reviewer has read it. The review action
+ * has existed as long as that rule, and until now nothing showed the queue —
+ * so a submission sat at "waiting for review" with nobody able to see it, and
+ * the workspace was left with a voice it could not use and no explanation.
+ *
+ * The evidence reference is shown rather than linked. It points at a stored
+ * recording or signed document, and turning it into a link from an admin
+ * screen is how a private file becomes a public one.
+ */
+function VoiceConsentReview({
+  data,
+  onChanged,
+}: {
+  data: AdminPayload;
+  onChanged: () => Promise<void>;
+}) {
+  const [busy, setBusy] = useState('');
+  const [problem, setProblem] = useState('');
+  const rows = data.voiceConsents ?? [];
+
+  async function act(payload: Record<string, unknown>, key: string) {
+    setBusy(key);
+    setProblem('');
+    const message = await platformAction(payload, onChanged);
+    if (message) setProblem(message);
+    setBusy('');
+  }
+
+  return (
+    <Panel>
+      <PanelHeader
+        title="Voice consent awaiting review"
+        description="A cloned voice cannot be used until somebody has read who agreed to it and what evidence backs that. Blocking a voice unbinds it from every agent in every workspace."
+      />
+      {problem ? (
+        <p role="alert" className="mt-3 text-[11px] text-danger-text">
+          {problem}
+        </p>
+      ) : null}
+      {rows.length === 0 ? (
+        <p className="mt-3 text-[11px] text-ink-muted">
+          Nothing is waiting. Rejected and blocked voices appear here too.
+        </p>
+      ) : null}
+      <div className="mt-4 space-y-2">
+        {rows.map((row) => {
+          const id = textValue(row.voice_profile_id);
+          const state = textValue(row.state);
+          const blocked = Number(row.platform_blocked ?? 0) === 1;
+          return (
+            <div
+              key={id}
+              className="rounded-xl border border-hairline bg-surface-muted px-3 py-2.5 text-[11px]"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-medium text-ink">
+                  {textValue(row.profile_name)}
+                </span>
+                <span className="text-ink-muted">
+                  {textValue(row.organization_name, 'workspace removed')}
+                </span>
+                <Status value={blocked ? 'blocked' : state} />
+                <span className="ml-auto text-ink-muted">
+                  {textValue(row.created_at)}
+                </span>
+              </div>
+              <p className="mt-1.5 text-ink-body">
+                <strong>{textValue(row.speaker_name)}</strong> ·{' '}
+                {textValue(row.relationship)}
+              </p>
+              <p className="mt-1 whitespace-pre-wrap text-ink-body">
+                {textValue(row.statement)}
+              </p>
+              <p className="mt-1 font-mono text-ink-muted">
+                evidence: {textValue(row.evidence_key)}
+              </p>
+              {row.review_note ? (
+                <p className="mt-1 text-danger-text">
+                  {textValue(row.review_note)}
+                </p>
+              ) : null}
+              {row.platform_block_reason ? (
+                <p className="mt-1 text-danger-text">
+                  blocked: {textValue(row.platform_block_reason)}
+                </p>
+              ) : null}
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {state === 'pending' ? (
+                  <>
+                    <Button
+                      size="sm"
+                      disabled={busy === id}
+                      onClick={() =>
+                        void act(
+                          {
+                            action: 'voice_consent_review',
+                            id,
+                            status: 'verified',
+                          },
+                          id,
+                        )
+                      }
+                      className="bg-emerald-300 text-[#07120d] hover:bg-emerald-200"
+                    >
+                      Verify
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busy === id}
+                      onClick={() => {
+                        // Asked for, because a rejection the workspace cannot
+                        // read leaves them resubmitting the same thing.
+                        const reason =
+                          window.prompt(
+                            'Why is this consent not acceptable?',
+                          ) ?? '';
+                        if (!reason.trim()) return;
+                        void act(
+                          {
+                            action: 'voice_consent_review',
+                            id,
+                            status: 'rejected',
+                            rejectionReason: reason,
+                          },
+                          id,
+                        );
+                      }}
+                      className="border-hairline bg-transparent"
+                    >
+                      Reject
+                    </Button>
+                  </>
+                ) : null}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy === id}
+                  onClick={() => {
+                    if (blocked) {
+                      void act(
+                        { action: 'voice_block', id, status: 'unblock' },
+                        id,
+                      );
+                      return;
+                    }
+                    const reason =
+                      window.prompt(
+                        'Why is this voice being blocked platform-wide? It will be unbound from every agent using it.',
+                      ) ?? '';
+                    if (!reason.trim()) return;
+                    void act(
+                      { action: 'voice_block', id, rejectionReason: reason },
+                      id,
+                    );
+                  }}
+                  className="border-hairline bg-transparent text-danger-text"
+                >
+                  {blocked ? 'Unblock voice' : 'Block voice'}
+                </Button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Panel>
   );
 }
 

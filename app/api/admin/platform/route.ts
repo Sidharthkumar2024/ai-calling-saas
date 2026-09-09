@@ -103,33 +103,56 @@ export async function GET(request: Request) {
   if (auth.response) return auth.response;
   await ensureSchema();
   const db = getRawDb();
-  const [authProviders, platformProviders, providerKeys, tickets, messages] =
-    await Promise.all([
-      db
-        .prepare(
-          'SELECT provider, display_name, button_visible, enabled, status, public_config_json, updated_at FROM auth_provider_settings ORDER BY display_name',
-        )
-        .all(),
-      db
-        .prepare(
-          'SELECT id, public_name, category, required_credentials_json, status, health, usage_note, customer_visible, updated_at FROM platform_providers ORDER BY category, public_name',
-        )
-        .all(),
-      db
-        .prepare(
-          `SELECT provider, CASE WHEN encrypted_secret IS NULL THEN 0 ELSE 1 END AS has_secret,
+  const [
+    authProviders,
+    platformProviders,
+    providerKeys,
+    tickets,
+    messages,
+    voiceConsents,
+  ] = await Promise.all([
+    db
+      .prepare(
+        'SELECT provider, display_name, button_visible, enabled, status, public_config_json, updated_at FROM auth_provider_settings ORDER BY display_name',
+      )
+      .all(),
+    db
+      .prepare(
+        'SELECT id, public_name, category, required_credentials_json, status, health, usage_note, customer_visible, updated_at FROM platform_providers ORDER BY category, public_name',
+      )
+      .all(),
+    db
+      .prepare(
+        `SELECT provider, CASE WHEN encrypted_secret IS NULL THEN 0 ELSE 1 END AS has_secret,
              public_config_json, updated_at FROM platform_provider_secrets`,
-        )
-        .all(),
-      db
-        .prepare(`SELECT t.*, o.name AS organization_name, u.email AS creator_email FROM support_tickets t
+      )
+      .all(),
+    db
+      .prepare(`SELECT t.*, o.name AS organization_name, u.email AS creator_email FROM support_tickets t
       INNER JOIN organizations o ON o.id = t.organization_id LEFT JOIN app_users u ON u.id = t.created_by_user_id
       ORDER BY t.updated_at DESC`)
-        .all(),
-      db
-        .prepare('SELECT * FROM support_ticket_messages ORDER BY created_at')
-        .all(),
-    ]);
+      .all(),
+    db
+      .prepare('SELECT * FROM support_ticket_messages ORDER BY created_at')
+      .all(),
+    // Voice consent waiting on a reviewer. A workspace can submit one and
+    // the review action has always existed; until this query nobody could
+    // see the queue, so a submission went nowhere and the voice stayed
+    // unusable with no explanation.
+    db
+      .prepare(`SELECT c.voice_profile_id, c.speaker_name, c.relationship,
+            c.statement, c.evidence_key, c.state, c.review_note, c.created_at,
+            p.name AS profile_name, p.provider,
+            coalesce(p.platform_blocked, 0) AS platform_blocked,
+            p.platform_block_reason,
+            o.name AS organization_name, o.id AS organization_id
+          FROM voice_consents c
+          INNER JOIN voice_profiles p ON p.id = c.voice_profile_id
+          LEFT JOIN organizations o ON o.id = c.organization_id
+          WHERE c.state IN ('pending', 'rejected') OR p.platform_blocked = 1
+          ORDER BY c.state = 'pending' DESC, c.created_at`)
+      .all(),
+  ]);
   const readiness = await providerReadiness();
   // Persist the measured result. `status` stays operator-controlled (they may
   // deliberately disable a provider); only `health` is synced, so the portal
@@ -168,11 +191,23 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     authProviders: authProviders.results,
+    voiceConsents: voiceConsents.results,
     platformProviders: platformProviderRows,
-    providerKeys: providerKeys.results.map(row => {
+    providerKeys: providerKeys.results.map((row) => {
       let value: unknown = {};
-      try { value = JSON.parse(typeof row.public_config_json === 'string' ? row.public_config_json : '{}'); } catch { /* A malformed legacy row must not break the admin screen. */ }
-      return { ...row, public_config_json: JSON.stringify(splitProviderConfig(value).config) };
+      try {
+        value = JSON.parse(
+          typeof row.public_config_json === 'string'
+            ? row.public_config_json
+            : '{}',
+        );
+      } catch {
+        /* A malformed legacy row must not break the admin screen. */
+      }
+      return {
+        ...row,
+        public_config_json: JSON.stringify(splitProviderConfig(value).config),
+      };
     }),
     providerReadiness: readiness,
     tickets: tickets.results,
@@ -235,8 +270,21 @@ export async function PATCH(request: Request) {
   const db = getRawDb();
 
   if (body.action === 'provider_key_save') {
-    if ((typeof body.apiKey === 'string' && body.apiKey.length > 4000) || (body.config && typeof body.config === 'object' && Object.values(body.config).some(value => typeof value === 'string' && value.length > 4000)))
-      return NextResponse.json({ error: 'Each credential or configuration value must be at most 4000 characters.' }, { status: 400 });
+    if (
+      (typeof body.apiKey === 'string' && body.apiKey.length > 4000) ||
+      (body.config &&
+        typeof body.config === 'object' &&
+        Object.values(body.config).some(
+          (value) => typeof value === 'string' && value.length > 4000,
+        ))
+    )
+      return NextResponse.json(
+        {
+          error:
+            'Each credential or configuration value must be at most 4000 characters.',
+        },
+        { status: 400 },
+      );
     const provider = String(body.provider || '');
     if (!MANAGED_PROVIDERS.has(provider))
       return NextResponse.json(
@@ -247,8 +295,18 @@ export async function PATCH(request: Request) {
     const previous = await platformProviderSecret(provider);
     const config = JSON.stringify(split.config);
     const apiKey = typeof body.apiKey === 'string' ? body.apiKey.trim() : '';
-    if (apiKey || Object.keys(split.secrets).length || Object.keys(previous.secrets).length) {
-      const encrypted = await encryptSecret(JSON.stringify({ ...previous.secrets, ...split.secrets, ...(apiKey ? { apiKey } : {}) }));
+    if (
+      apiKey ||
+      Object.keys(split.secrets).length ||
+      Object.keys(previous.secrets).length
+    ) {
+      const encrypted = await encryptSecret(
+        JSON.stringify({
+          ...previous.secrets,
+          ...split.secrets,
+          ...(apiKey ? { apiKey } : {}),
+        }),
+      );
       await db
         .prepare(
           `INSERT INTO platform_provider_secrets (provider, encrypted_secret, public_config_json, updated_by, updated_at)
@@ -276,7 +334,11 @@ export async function PATCH(request: Request) {
       'provider_key.saved',
       'platform_provider',
       provider,
-      { hasKey: Boolean(apiKey), config: split.config, secretFieldsUpdated: Object.keys(split.secrets) },
+      {
+        hasKey: Boolean(apiKey),
+        config: split.config,
+        secretFieldsUpdated: Object.keys(split.secrets),
+      },
     );
     return NextResponse.json({ saved: true });
   }
@@ -555,9 +617,16 @@ export async function PATCH(request: Request) {
         hasStored = false;
       }
     }
-    const configured = provider === 'google' ? Boolean(await googleAuthConfig()) : hasStored;
+    const configured =
+      provider === 'google' ? Boolean(await googleAuthConfig()) : hasStored;
     if (body.enabled && provider !== 'google')
-      return NextResponse.json({ error: 'This sign-in provider’s callback is not implemented yet. Keep it disabled.' }, { status: 409 });
+      return NextResponse.json(
+        {
+          error:
+            'This sign-in provider’s callback is not implemented yet. Keep it disabled.',
+        },
+        { status: 409 },
+      );
     if (body.enabled && !configured) {
       return NextResponse.json(
         {

@@ -59,6 +59,7 @@ type Profile = {
     relationship: string | null;
     verifiedAt: string | null;
     withdrawnAt: string | null;
+    note: string | null;
   } | null;
 };
 
@@ -414,21 +415,30 @@ export function CustomerVoiceProfiles() {
                 person changing their mind. */}
             <div className="mt-3 rounded-lg border border-hairline bg-surface-muted px-2.5 py-2 text-[11px]">
               {profile.consent ? (
-                <p className="text-ink-body">
-                  <strong>
-                    {CONSENT_LABEL[profile.consent.state] ??
-                      profile.consent.state}
-                  </strong>
-                  {profile.consent.speakerName
-                    ? ` · ${profile.consent.speakerName}`
-                    : ''}
-                  {profile.consent.relationship
-                    ? ` (${profile.consent.relationship})`
-                    : ''}
-                  {profile.consent.withdrawnAt
-                    ? ` · withdrawn ${profile.consent.withdrawnAt}`
-                    : ''}
-                </p>
+                <>
+                  <p className="text-ink-body">
+                    <strong>
+                      {CONSENT_LABEL[profile.consent.state] ??
+                        profile.consent.state}
+                    </strong>
+                    {profile.consent.speakerName
+                      ? ` · ${profile.consent.speakerName}`
+                      : ''}
+                    {profile.consent.relationship
+                      ? ` (${profile.consent.relationship})`
+                      : ''}
+                    {profile.consent.withdrawnAt
+                      ? ` · withdrawn ${profile.consent.withdrawnAt}`
+                      : ''}
+                  </p>
+                  {/* The reviewer's own words. Without them a rejection says
+                      only "no", and the same evidence comes back. */}
+                  {profile.consent.note ? (
+                    <p className="mt-1 text-warning-text">
+                      Reviewer: {profile.consent.note}
+                    </p>
+                  ) : null}
+                </>
               ) : (
                 <p className="text-ink-muted">
                   No consent on record. A cloned voice needs one before it can

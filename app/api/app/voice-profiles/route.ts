@@ -235,6 +235,10 @@ export async function PATCH(request: Request) {
            /* Resubmitting restarts the review. A workspace must not be able to
               edit an already-verified consent into something else. */
            state = 'pending', verified_by = NULL, verified_at = NULL,
+           /* And the last reviewer's complaint. Leaving it attached to a fresh
+              submission shows somebody who fixed exactly what was asked the
+              old objection sitting under "waiting for review". */
+           review_note = NULL,
            withdrawn_at = NULL, submitted_by = excluded.submitted_by`,
       )
       .bind(

@@ -134,7 +134,7 @@ export async function listVoiceProfiles(organizationId: string) {
     .prepare(
       `SELECT p.*, c.state AS consent_state, c.speaker_name AS consent_speaker,
          c.relationship AS consent_relationship, c.verified_at AS consent_verified_at,
-         c.withdrawn_at AS consent_withdrawn_at
+         c.withdrawn_at AS consent_withdrawn_at, c.review_note AS consent_note
        FROM voice_profiles p
        LEFT JOIN voice_consents c ON c.voice_profile_id = p.id
        WHERE p.organization_id = ? ORDER BY p.presentation, p.name`,
@@ -147,6 +147,7 @@ export async function listVoiceProfiles(organizationId: string) {
         consent_relationship: string | null;
         consent_verified_at: string | null;
         consent_withdrawn_at: string | null;
+        consent_note: string | null;
       }
     >();
   return (rows.results ?? []).map((row) => ({
@@ -178,6 +179,9 @@ export async function listVoiceProfiles(organizationId: string) {
           relationship: row.consent_relationship,
           verifiedAt: row.consent_verified_at,
           withdrawnAt: row.consent_withdrawn_at,
+          // The reviewer's reason. Without it a rejection says only "no", and
+          // the workspace resubmits the same evidence.
+          note: row.consent_note,
         }
       : null,
   }));

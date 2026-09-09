@@ -307,6 +307,17 @@ export async function PATCH(request: Request) {
     });
   }
 
+  // Named, rather than reached by falling off the end of the dispatch. The
+  // union above has always advertised `update` and nothing ever compared
+  // against it, so this path was whatever was left over — which meant a
+  // mistyped `withdraw_consent` did not withdraw anything and did not say so
+  // either: it landed here and was answered as an edit.
+  if (body.action && body.action !== 'update')
+    return NextResponse.json(
+      { error: 'Unknown voice profile action.' },
+      { status: 400 },
+    );
+
   if (!body.profileId)
     return NextResponse.json(
       { error: 'profileId is required.' },

@@ -587,7 +587,11 @@ export function CustomerVoiceProfiles() {
                 onClick={async () => {
                   const ok = await call(
                     'PATCH',
-                    { profileId: profile.id, voiceLock: !profile.voiceLock },
+                    {
+                      action: 'update',
+                      profileId: profile.id,
+                      voiceLock: !profile.voiceLock,
+                    },
                     profile.id,
                   );
                   if (ok)

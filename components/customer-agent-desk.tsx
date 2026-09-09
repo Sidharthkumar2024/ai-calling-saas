@@ -17,6 +17,7 @@ import { useT } from '@/components/locale-provider';
 type Row = Record<string, unknown>;
 type QueueData = {
   queues: Row[];
+  queueMembers?: Row[];
   agents: Row[];
   rules: Row[];
   waiting: Row[];
@@ -486,6 +487,14 @@ function WallboardView({
         </div>
       </section>
 
+      <QueueMembers
+        queues={data.queues}
+        members={data.queueMembers ?? []}
+        agents={data.agents}
+        run={run}
+        busy={busy}
+      />
+
       <QueueEditor
         queues={data.queues}
         strategies={data.strategies}
@@ -793,6 +802,153 @@ function CopilotCard({ handoffId }: { handoffId: string }) {
  * numbers or members behind it is archived, and the reason comes back in words
  * rather than as a silent difference.
  */
+/**
+ * Who is in a queue.
+ *
+ * Routing to a queue looks only at its members: an empty queue reaches
+ * nobody, every time, whatever its skills and strategy say. The queue table
+ * has always had a "Members" column and there was no way to put anybody in
+ * one, so that column could only ever read zero and every skill-routed
+ * transfer fell through to "no agent available".
+ *
+ * Priority is per membership rather than per agent, because the same person
+ * can be first choice for billing and last resort for sales.
+ */
+function QueueMembers({
+  queues,
+  members,
+  agents,
+  run,
+  busy,
+}: {
+  queues: Row[];
+  members: Row[];
+  agents: Row[];
+  run: (label: string, payload: Record<string, unknown>) => Promise<void>;
+  busy: string | null;
+}) {
+  const [queueId, setQueueId] = useState(str(queues[0]?.id));
+  const [agentId, setAgentId] = useState('');
+  const [priority, setPriority] = useState('100');
+
+  const chosen = queues.find((queue) => str(queue.id) === queueId) ?? queues[0];
+  const inQueue = members.filter(
+    (member) => str(member.queue_id) === str(chosen?.id),
+  );
+  const inQueueIds = new Set(
+    inQueue.map((member) => str(member.support_agent_id)),
+  );
+  const available = agents.filter((agent) => !inQueueIds.has(str(agent.id)));
+
+  if (!queues.length) return null;
+
+  return (
+    <section className="rounded-2xl border border-hairline bg-surface-muted p-5">
+      <h2 className="text-[11px] font-semibold text-ink">Who is in a queue</h2>
+      <p className="mt-1 text-[11px] text-ink-muted">
+        A transfer routed to a queue only reaches the people in it. An empty
+        queue reaches nobody, whatever its skill and strategy say.
+      </p>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <select
+          value={queueId}
+          aria-label="Queue"
+          onChange={(event) => setQueueId(event.target.value)}
+          className="rounded-lg border border-hairline bg-surface px-2 py-1.5 text-[11px]"
+        >
+          {queues.map((queue) => (
+            <option key={str(queue.id)} value={str(queue.id)}>
+              {str(queue.name)}
+            </option>
+          ))}
+        </select>
+        <select
+          value={agentId}
+          aria-label="Person to add"
+          onChange={(event) => setAgentId(event.target.value)}
+          className="min-w-[160px] rounded-lg border border-hairline bg-surface px-2 py-1.5 text-[11px]"
+        >
+          <option value="">Add somebody…</option>
+          {available.map((agent) => (
+            <option key={str(agent.id)} value={str(agent.id)}>
+              {str(agent.name)} · {str(agent.availability, 'offline')}
+            </option>
+          ))}
+        </select>
+        <input
+          value={priority}
+          onChange={(event) => setPriority(event.target.value)}
+          aria-label="Priority in this queue"
+          title="Lower is tried first"
+          className="w-20 rounded-lg border border-hairline bg-surface px-2 py-1.5 text-[11px]"
+        />
+        <button
+          type="button"
+          disabled={!agentId || busy === 'add_member'}
+          onClick={async () => {
+            await run('add_member', {
+              action: 'add_member',
+              queueId: str(chosen?.id),
+              supportAgentId: agentId,
+              priority: Number(priority) || 100,
+            });
+            setAgentId('');
+          }}
+          className="portal-primary rounded-lg px-3 py-1.5 text-[11px] disabled:opacity-40"
+        >
+          Add to queue
+        </button>
+      </div>
+
+      <div className="mt-3 space-y-1.5">
+        {inQueue.length === 0 ? (
+          <p className="text-[11px] text-warning-text">
+            Nobody is in this queue, so anything routed to it will find no
+            agent.
+          </p>
+        ) : null}
+        {inQueue.map((member) => {
+          const agent = agents.find(
+            (row) => str(row.id) === str(member.support_agent_id),
+          );
+          return (
+            <div
+              key={str(member.support_agent_id)}
+              className="flex flex-wrap items-center gap-2 rounded-lg border border-hairline bg-surface px-3 py-2 text-[11px]"
+            >
+              <span className="font-medium">
+                {str(agent?.name, str(member.support_agent_id))}
+              </span>
+              <span className="text-ink-muted">
+                {str(agent?.availability, 'offline')}
+              </span>
+              {/* Lower is tried first, which is not obvious from a number. */}
+              <span className="text-ink-muted">
+                priority {str(member.priority, '100')}
+              </span>
+              <button
+                type="button"
+                disabled={busy === `remove_${str(member.support_agent_id)}`}
+                onClick={() =>
+                  void run(`remove_${str(member.support_agent_id)}`, {
+                    action: 'remove_member',
+                    queueId: str(chosen?.id),
+                    supportAgentId: str(member.support_agent_id),
+                  })
+                }
+                className="ml-auto rounded-lg border border-hairline px-2.5 py-1 text-[11px] text-danger-text disabled:opacity-40"
+              >
+                Remove
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function QueueEditor({
   queues,
   strategies,

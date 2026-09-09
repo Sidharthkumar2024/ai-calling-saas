@@ -41,15 +41,29 @@ export async function GET(request: Request) {
   const organizationId = auth.session.organizationId;
   if (new URL(request.url).searchParams.get('view') === 'events') {
     const [calls, handoffs] = await Promise.all([
-      db.prepare("SELECT id, status, channel FROM call_records WHERE organization_id = ? AND channel = 'phone' AND status IN ('queued','ringing','in_progress','connected') ORDER BY started_at DESC LIMIT 50").bind(organizationId).all(),
-      db.prepare("SELECT id, status FROM handoffs WHERE organization_id = ? AND status IN ('queued','assigned','accepted') ORDER BY created_at DESC LIMIT 50").bind(organizationId).all(),
+      db
+        .prepare(
+          "SELECT id, status, channel FROM call_records WHERE organization_id = ? AND channel = 'phone' AND status IN ('queued','ringing','in_progress','connected') ORDER BY started_at DESC LIMIT 50",
+        )
+        .bind(organizationId)
+        .all(),
+      db
+        .prepare(
+          "SELECT id, status FROM handoffs WHERE organization_id = ? AND status IN ('queued','assigned','accepted') ORDER BY created_at DESC LIMIT 50",
+        )
+        .bind(organizationId)
+        .all(),
     ]);
-    return NextResponse.json({ calls: calls.results, handoffs: handoffs.results }, { headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json(
+      { calls: calls.results, handoffs: handoffs.results },
+      { headers: { 'Cache-Control': 'no-store' } },
+    );
   }
 
-  const [queues, agents, rules, waiting, active, recent] = await Promise.all([
-    db
-      .prepare(`SELECT q.id, q.name, q.slug, q.description, q.strategy, q.priority,
+  const [queues, agents, rules, waiting, active, recent, members] =
+    await Promise.all([
+      db
+        .prepare(`SELECT q.id, q.name, q.slug, q.description, q.strategy, q.priority,
         q.required_skill, q.language, q.min_role, q.sla_seconds, q.overflow_action,
         q.overflow_queue_id, q.status,
         (SELECT count(*) FROM queue_members m WHERE m.queue_id = q.id) AS member_count,
@@ -59,34 +73,34 @@ export async function GET(request: Request) {
         (SELECT count(*) FROM handoffs h
            WHERE h.queue_id = q.id AND h.status = 'queued') AS waiting_count
       FROM queues q WHERE q.organization_id = ? ORDER BY q.priority, q.name`)
-      .bind(organizationId)
-      .all(),
-    db
-      .prepare(`SELECT id, user_id, name, role, skills_json, languages_json,
+        .bind(organizationId)
+        .all(),
+      db
+        .prepare(`SELECT id, user_id, name, role, skills_json, languages_json,
         availability, active_calls, coalesce(max_concurrent_calls, 1) AS max_concurrent_calls,
         priority_tier, last_assigned_at, presence_changed_at
       FROM support_agents WHERE organization_id = ? ORDER BY name`)
-      .bind(organizationId)
-      .all(),
-    db
-      .prepare(`SELECT r.id, r.name, r.match_type, r.match_value, r.queue_id,
+        .bind(organizationId)
+        .all(),
+      db
+        .prepare(`SELECT r.id, r.name, r.match_type, r.match_value, r.queue_id,
         r.priority, r.status, q.slug AS queue_slug
       FROM routing_rules r LEFT JOIN queues q ON q.id = r.queue_id
       WHERE r.organization_id = ? ORDER BY r.priority`)
-      .bind(organizationId)
-      .all(),
-    db
-      .prepare(`SELECT h.id, h.reason, h.summary, h.ai_summary, h.skill, h.language,
+        .bind(organizationId)
+        .all(),
+      db
+        .prepare(`SELECT h.id, h.reason, h.summary, h.ai_summary, h.skill, h.language,
         h.status, h.queue_id, h.enqueued_at, h.session_id, q.slug AS queue_slug,
         q.sla_seconds,
         cast((strftime('%s','now') - strftime('%s', coalesce(h.enqueued_at, h.created_at))) AS INTEGER) AS waiting_seconds
       FROM handoffs h LEFT JOIN queues q ON q.id = h.queue_id
       WHERE h.organization_id = ? AND h.status = 'queued'
       ORDER BY coalesce(h.enqueued_at, h.created_at) LIMIT 50`)
-      .bind(organizationId)
-      .all(),
-    db
-      .prepare(`SELECT h.id, h.reason, h.ai_summary, h.status, h.assigned_agent_id,
+        .bind(organizationId)
+        .all(),
+      db
+        .prepare(`SELECT h.id, h.reason, h.ai_summary, h.status, h.assigned_agent_id,
         h.accepted_at, h.queue_id, h.call_id, h.session_id,
         a.name AS agent_name, q.slug AS queue_slug
       FROM handoffs h
@@ -94,19 +108,24 @@ export async function GET(request: Request) {
       LEFT JOIN queues q ON q.id = h.queue_id
       WHERE h.organization_id = ? AND h.status IN ('assigned','accepted')
       ORDER BY h.created_at DESC LIMIT 50`)
-      .bind(organizationId)
-      .all(),
-    db
-      .prepare(`SELECT h.id, h.reason, h.status, h.disposition, h.disposition_notes,
+        .bind(organizationId)
+        .all(),
+      db
+        .prepare(`SELECT h.id, h.reason, h.status, h.disposition, h.disposition_notes,
         h.created_at, a.name AS agent_name, q.slug AS queue_slug
       FROM handoffs h
       LEFT JOIN support_agents a ON a.id = h.assigned_agent_id
       LEFT JOIN queues q ON q.id = h.queue_id
       WHERE h.organization_id = ? AND h.status IN ('completed','abandoned')
       ORDER BY h.created_at DESC LIMIT 25`)
-      .bind(organizationId)
-      .all(),
-  ]);
+        .bind(organizationId)
+        .all(),
+      db
+        .prepare(`SELECT queue_id, support_agent_id, priority FROM queue_members
+        WHERE organization_id = ? ORDER BY priority`)
+        .bind(organizationId)
+        .all(),
+    ]);
 
   // The support agent record belonging to the signed-in user, if any — this is
   // what makes the Agent Desk personal rather than a shared list.
@@ -122,6 +141,11 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     queues: queues.results ?? [],
+    // Who is in each queue. The list carried a member count and nothing else,
+    // so a screen could say "0 members" and offer no way to change it — and
+    // routing to a queue looks only at its members, which meant a queue with
+    // none reached nobody, every time.
+    queueMembers: members.results ?? [],
     agents: agentRows,
     rules: rules.results ?? [],
     waiting: waitingRows,

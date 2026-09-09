@@ -27,6 +27,9 @@ export function CustomerTickets({
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [replying, setReplying] = useState('');
+  const [replyError, setReplyError] = useState<Record<string, string>>({});
   async function create() {
     if (!subject.trim() || !message.trim()) return;
     setLoading(true);
@@ -55,6 +58,39 @@ export function CustomerTickets({
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  /**
+   * Answering. Admin replies were already rendered here and the screen already
+   * promised "follow the conversation" — but the only thing a customer could
+   * send was a new ticket. An admin reply even sets the ticket to
+   * `waiting_on_customer`, which is the product saying it is waiting for
+   * somebody who had nowhere to type.
+   */
+  async function reply(ticketId: string) {
+    const draft = (drafts[ticketId] ?? '').trim();
+    if (!draft) return;
+    setReplying(ticketId);
+    setReplyError((current) => ({ ...current, [ticketId]: '' }));
+    try {
+      const response = await fetch('/api/app/tickets', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'reply', ticketId, message: draft }),
+      });
+      const body = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(body.error ?? 'Unable to send reply.');
+      setDrafts((current) => ({ ...current, [ticketId]: '' }));
+      await onChanged();
+    } catch (caught) {
+      setReplyError((current) => ({
+        ...current,
+        [ticketId]:
+          caught instanceof Error ? caught.message : 'Unable to send reply.',
+      }));
+    } finally {
+      setReplying('');
     }
   }
   return (
@@ -121,6 +157,9 @@ export function CustomerTickets({
             const messages = data.messages.filter(
               (item) => item.ticket_id === ticket.id,
             );
+            const settled = ['resolved', 'closed'].includes(
+              String(ticket.status),
+            );
             return (
               <section
                 key={String(ticket.id)}
@@ -155,6 +194,46 @@ export function CustomerTickets({
                       {String(item.message)}
                     </div>
                   ))}
+                </div>
+                <div className="mt-3 space-y-2">
+                  <textarea
+                    value={drafts[String(ticket.id)] ?? ''}
+                    onChange={(event) =>
+                      setDrafts((current) => ({
+                        ...current,
+                        [String(ticket.id)]: event.target.value,
+                      }))
+                    }
+                    placeholder="Reply to support"
+                    aria-label={`Reply to ${String(ticket.subject)}`}
+                    className="min-h-20 w-full rounded-xl border border-hairline bg-surface-muted p-3 text-xs outline-none placeholder:text-ink-muted"
+                  />
+                  {settled ? (
+                    <p className="text-[11px] text-ink-muted">
+                      This ticket is {String(ticket.status)}. Replying opens it
+                      again.
+                    </p>
+                  ) : null}
+                  {replyError[String(ticket.id)] ? (
+                    <p className="text-xs text-danger-text">
+                      {replyError[String(ticket.id)]}
+                    </p>
+                  ) : null}
+                  <Button
+                    onClick={() => void reply(String(ticket.id))}
+                    disabled={
+                      replying === String(ticket.id) ||
+                      !(drafts[String(ticket.id)] ?? '').trim()
+                    }
+                    className="bg-primary text-[#07101e] hover:bg-cyan-200"
+                  >
+                    {replying === String(ticket.id) ? (
+                      <Loader2 className="animate-spin" />
+                    ) : (
+                      <MessageSquareText />
+                    )}
+                    Send reply
+                  </Button>
                 </div>
               </section>
             );

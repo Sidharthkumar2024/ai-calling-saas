@@ -18,9 +18,28 @@ type SecurityData = {
   sessions: Array<{ id: string; expires_at: string; created_at: string }>;
 };
 
+/**
+ * The shared secret, in fours.
+ *
+ * Only for reading: the copy button still copies the unbroken string, because
+ * the spaces are for the eye and some authenticators take them literally.
+ */
+function groupsOfFour(secret: string): string {
+  return (secret.match(/.{1,4}/g) ?? [secret]).join(' ');
+}
+
 export function CustomerSecurity() {
   const [data, setData] = useState<SecurityData | null>(null);
   const [secret, setSecret] = useState('');
+  /**
+   * The enrolment URI, which the server has always sent and this screen has
+   * always thrown away. It is the string a QR code encodes, and on a phone it
+   * is a link that opens the authenticator with the account already filled in
+   * — which matters, because the copy button below copies to the clipboard of
+   * the machine you are reading this on, and the authenticator is on the other
+   * device.
+   */
+  const [setupUri, setSetupUri] = useState('');
   const [code, setCode] = useState('');
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
   const [loading, setLoading] = useState('');
@@ -56,14 +75,17 @@ export function CustomerSecurity() {
       const body = (await response.json()) as {
         error?: string;
         secret?: string;
+        otpauthUri?: string;
         recoveryCodes?: string[];
       };
       if (!response.ok)
         throw new Error(body.error ?? 'Security request failed.');
       if (body.secret) setSecret(body.secret);
+      if (body.otpauthUri) setSetupUri(body.otpauthUri);
       if (body.recoveryCodes) {
         setRecoveryCodes(body.recoveryCodes);
         setSecret('');
+        setSetupUri('');
         setCode('');
       }
       await load();
@@ -126,8 +148,35 @@ export function CustomerSecurity() {
             ) : null}
             {secret ? (
               <div className="mt-4 space-y-3">
+                <p className="text-[11px] text-ink-muted">
+                  On the phone holding your authenticator, open this page and
+                  tap the link. Anywhere else, add the account by hand with the
+                  key below.
+                </p>
+                {setupUri ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <a
+                      href={setupUri}
+                      className="rounded-lg border border-hairline px-3 py-1.5 text-[11px] text-ink"
+                    >
+                      Open in my authenticator
+                    </a>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => navigator.clipboard.writeText(setupUri)}
+                    >
+                      <Copy className="size-3" /> Copy setup link
+                    </Button>
+                  </div>
+                ) : null}
                 <div className="flex items-center gap-2 rounded-lg bg-surface-muted p-3 font-mono text-[11px] text-ink-body">
-                  <span className="min-w-0 flex-1 break-all">{secret}</span>
+                  {/* In fours. This is read off one screen and typed into
+                      another device, and a 32-character run of base32 is where
+                      that goes wrong. */}
+                  <span className="min-w-0 flex-1 break-all">
+                    {groupsOfFour(secret)}
+                  </span>
                   <Button
                     size="sm"
                     variant="ghost"

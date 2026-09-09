@@ -25,6 +25,7 @@ import {
   type SendPolicy,
 } from '@/lib/whatsapp-media';
 import { createRazorpayPaymentLink, whatsAppConnected } from '@/lib/commerce';
+import { enqueueJob } from '@/lib/job-enqueue';
 import { queueConfirmation } from '@/lib/appointment-service';
 import { DEFAULT_TIMEZONE, describeSlot, todayIn } from '@/lib/appointments';
 import { createDocumentRequest } from '@/lib/document-request-service';
@@ -732,6 +733,7 @@ async function runTool(
         say: 'Do not tell the caller anything was sent. This workspace has no WhatsApp connection, so offer to read it out or have a colleague follow up.',
       };
     const messageId = id('msg');
+    const scheduledFor = str(input, 'scheduled_for') || null;
     await db
       .prepare(`INSERT INTO outbound_messages
         (id, organization_id, channel, destination, message_body, status, scheduled_for)
@@ -741,9 +743,27 @@ async function runTool(
         ctx.organizationId,
         phone,
         messageBody.slice(0, 900),
-        str(input, 'scheduled_for') || null,
+        scheduledFor,
       )
       .run();
+    // Ask for delivery now rather than waiting for the hourly sweep. That
+    // cadence suits a reminder; it does not suit a chatbot, where the question
+    // is part of a conversation somebody is having this minute and an hour's
+    // wait is the same as no answer.
+    //
+    // Keyed to a ten-second bucket rather than to this message: the worker
+    // drains a batch, so a campaign sending three hundred messages should
+    // raise a handful of delivery jobs rather than three hundred that mostly
+    // find nothing left to do.
+    if (!scheduledFor)
+      await enqueueJob({
+        organizationId: ctx.organizationId,
+        queue: 'messaging',
+        type: 'messages.deliver',
+        idempotencyKey: `messages:now:${ctx.organizationId}:${Math.floor(Date.now() / 10_000)}`,
+        payload: {},
+        priority: 90,
+      });
     return {
       ok: true,
       message_id: messageId,

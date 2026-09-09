@@ -35,6 +35,15 @@ type ObjectField = {
   label: string;
   type: string;
   required?: boolean;
+  /**
+   * The designer has no box for these three, and the API stores and returns
+   * them, so they are carried rather than described: dropping them on the way
+   * through is how a select loses its choices.
+   */
+  filterable?: boolean;
+  options?: string[];
+  relatedObject?: string | null;
+  currency?: string | null;
 };
 type CustomObject = {
   id: string;
@@ -306,7 +315,11 @@ function ObjectDesigner({
   const [fields, setFields] = useState<ObjectField[]>([
     { key: 'name', label: 'Name', type: 'text', required: true },
   ]);
-  const editing = Boolean(form.objectKey);
+  // Editing means the workspace already has this object, not merely that a key
+  // is filled in: a proposal arrives with a key of its own and has to be
+  // created, and sending it as an update would 404 on a thing that does not
+  // exist yet.
+  const editing = objects.some((object) => object.key === form.objectKey);
 
   function loadObject(object: CustomObject) {
     setForm({
@@ -328,181 +341,379 @@ function ObjectDesigner({
     setFields([{ key: 'name', label: 'Name', type: 'text', required: true }]);
   }
 
+  function loadProposal(object: ProposedObject) {
+    setForm({
+      objectKey: object.key,
+      name: object.name,
+      pluralName: str(object.pluralName),
+      description: str(object.description),
+      titleField: str(object.titleField),
+    });
+    // Whole fields, the way loadObject passes an existing object's through.
+    // Mapping out four properties here dropped a select's options, a currency's
+    // currency and a relation's target — the parts of a proposal the designer
+    // has no box for and the API stores all the same, so a mapped copy would
+    // create a select that constrains nothing and read as though the model had
+    // never suggested the choices it did.
+    setFields(object.fields);
+  }
+
   return (
-    <section className="portal-panel p-5">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold">
-          {editing ? `Edit ${form.name}` : 'New object'}
-        </h2>
-        <div className="flex items-center gap-3">
-          {objects.map((object) => (
-            <button
-              key={object.id}
-              type="button"
-              onClick={() => loadObject(object)}
-              className="text-[11px] text-ink-muted underline-offset-2 hover:text-ink hover:underline"
-            >
-              {object.name}
-            </button>
-          ))}
-          {editing ? (
-            <button
-              type="button"
-              onClick={reset}
-              className="text-[11px] text-ink-muted hover:text-ink"
-            >
-              Cancel
-            </button>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-        <label className="text-[11px] text-ink-muted">
-          Name
-          <input
-            value={form.name}
-            onChange={(event) => setForm({ ...form, name: event.target.value })}
-            placeholder="Property"
-            className="mt-1 w-full rounded-lg border border-hairline bg-surface px-2.5 py-2 text-[11px] text-ink"
-          />
-        </label>
-        <label className="text-[11px] text-ink-muted">
-          Plural
-          <input
-            value={form.pluralName}
-            onChange={(event) =>
-              setForm({ ...form, pluralName: event.target.value })
-            }
-            placeholder="Properties"
-            className="mt-1 w-full rounded-lg border border-hairline bg-surface px-2.5 py-2 text-[11px] text-ink"
-          />
-        </label>
-        <label className="text-[11px] text-ink-muted">
-          Headline field
-          <select
-            value={form.titleField}
-            onChange={(event) =>
-              setForm({ ...form, titleField: event.target.value })
-            }
-            className="mt-1 w-full rounded-lg border border-hairline bg-surface px-2.5 py-2 text-[11px] text-ink"
-          >
-            <option value="">first text field</option>
-            {fields.map((field) => (
-              <option key={field.key} value={field.key}>
-                {field.label || field.key}
-              </option>
+    <>
+      <SchemaProposer onUse={loadProposal} />
+      <section className="portal-panel p-5">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-sm font-semibold">
+            {editing ? `Edit ${form.name}` : 'New object'}
+          </h2>
+          <div className="flex items-center gap-3">
+            {objects.map((object) => (
+              <button
+                key={object.id}
+                type="button"
+                onClick={() => loadObject(object)}
+                className="text-[11px] text-ink-muted underline-offset-2 hover:text-ink hover:underline"
+              >
+                {object.name}
+              </button>
             ))}
-          </select>
-        </label>
-      </div>
+            {editing ? (
+              <button
+                type="button"
+                onClick={reset}
+                className="text-[11px] text-ink-muted hover:text-ink"
+              >
+                Cancel
+              </button>
+            ) : null}
+          </div>
+        </div>
 
-      <div className="mt-4 space-y-2">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
-          Fields
-        </p>
-        {fields.map((field, index) => (
-          <div
-            key={index}
-            className="flex flex-wrap items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2"
-          >
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          <label className="text-[11px] text-ink-muted">
+            Name
             <input
-              value={field.label}
-              onChange={(event) => {
-                const next = [...fields];
-                // The key follows the label until someone has saved the
-                // object; changing a key afterwards would orphan the values
-                // already stored under the old one.
-                next[index] = {
-                  ...field,
-                  label: event.target.value,
-                  key: editing
-                    ? field.key
-                    : event.target.value
-                        .toLowerCase()
-                        .replaceAll(/[^a-z0-9]+/g, '_')
-                        .replace(/^_+|_+$/g, '') || field.key,
-                };
-                setFields(next);
-              }}
-              placeholder="Field name"
-              className="min-w-40 flex-1 rounded-lg border border-hairline bg-surface px-2.5 py-1.5 text-[11px] text-ink"
+              value={form.name}
+              onChange={(event) =>
+                setForm({ ...form, name: event.target.value })
+              }
+              placeholder="Property"
+              className="mt-1 w-full rounded-lg border border-hairline bg-surface px-2.5 py-2 text-[11px] text-ink"
             />
+          </label>
+          <label className="text-[11px] text-ink-muted">
+            Plural
+            <input
+              value={form.pluralName}
+              onChange={(event) =>
+                setForm({ ...form, pluralName: event.target.value })
+              }
+              placeholder="Properties"
+              className="mt-1 w-full rounded-lg border border-hairline bg-surface px-2.5 py-2 text-[11px] text-ink"
+            />
+          </label>
+          <label className="text-[11px] text-ink-muted">
+            Headline field
             <select
-              value={field.type}
-              onChange={(event) => {
-                const next = [...fields];
-                next[index] = { ...field, type: event.target.value };
-                setFields(next);
-              }}
-              className="rounded-lg border border-hairline bg-surface px-2 py-1.5 text-[11px] text-ink"
+              value={form.titleField}
+              onChange={(event) =>
+                setForm({ ...form, titleField: event.target.value })
+              }
+              className="mt-1 w-full rounded-lg border border-hairline bg-surface px-2.5 py-2 text-[11px] text-ink"
             >
-              {fieldTypes.map((type) => (
-                <option key={type.type} value={type.type}>
-                  {type.label}
+              <option value="">first text field</option>
+              {fields.map((field) => (
+                <option key={field.key} value={field.key}>
+                  {field.label || field.key}
                 </option>
               ))}
             </select>
-            <label className="flex items-center gap-1.5 text-[11px] text-ink-muted">
+          </label>
+        </div>
+
+        <div className="mt-4 space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
+            Fields
+          </p>
+          {fields.map((field, index) => (
+            <div
+              key={index}
+              className="flex flex-wrap items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2"
+            >
               <input
-                type="checkbox"
-                checked={Boolean(field.required)}
+                value={field.label}
                 onChange={(event) => {
                   const next = [...fields];
-                  next[index] = { ...field, required: event.target.checked };
+                  // The key follows the label until someone has saved the
+                  // object; changing a key afterwards would orphan the values
+                  // already stored under the old one.
+                  next[index] = {
+                    ...field,
+                    label: event.target.value,
+                    key: editing
+                      ? field.key
+                      : event.target.value
+                          .toLowerCase()
+                          .replaceAll(/[^a-z0-9]+/g, '_')
+                          .replace(/^_+|_+$/g, '') || field.key,
+                  };
                   setFields(next);
                 }}
+                placeholder="Field name"
+                className="min-w-40 flex-1 rounded-lg border border-hairline bg-surface px-2.5 py-1.5 text-[11px] text-ink"
               />
-              required
-            </label>
-            <button
-              type="button"
-              disabled={fields.length === 1}
-              onClick={() => setFields(fields.filter((_, at) => at !== index))}
-              className="text-[11px] text-ink-muted hover:text-ink disabled:opacity-40"
-            >
-              Remove
-            </button>
-          </div>
-        ))}
+              <select
+                value={field.type}
+                onChange={(event) => {
+                  const next = [...fields];
+                  next[index] = { ...field, type: event.target.value };
+                  setFields(next);
+                }}
+                className="rounded-lg border border-hairline bg-surface px-2 py-1.5 text-[11px] text-ink"
+              >
+                {fieldTypes.map((type) => (
+                  <option key={type.type} value={type.type}>
+                    {type.label}
+                  </option>
+                ))}
+              </select>
+              <label className="flex items-center gap-1.5 text-[11px] text-ink-muted">
+                <input
+                  type="checkbox"
+                  checked={Boolean(field.required)}
+                  onChange={(event) => {
+                    const next = [...fields];
+                    next[index] = { ...field, required: event.target.checked };
+                    setFields(next);
+                  }}
+                />
+                required
+              </label>
+              <button
+                type="button"
+                disabled={fields.length === 1}
+                onClick={() =>
+                  setFields(fields.filter((_, at) => at !== index))
+                }
+                className="text-[11px] text-ink-muted hover:text-ink disabled:opacity-40"
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() =>
+              setFields([
+                ...fields,
+                { key: `field_${fields.length + 1}`, label: '', type: 'text' },
+              ])
+            }
+            className="rounded-lg border border-hairline px-2.5 py-1.5 text-[11px] text-ink-body hover:bg-surface-strong"
+          >
+            Add field
+          </button>
+        </div>
+
         <button
           type="button"
-          onClick={() =>
-            setFields([
-              ...fields,
-              { key: `field_${fields.length + 1}`, label: '', type: 'text' },
-            ])
+          disabled={
+            !form.name.trim() ||
+            fields.some((field) => !field.label.trim()) ||
+            busy.startsWith('create_') ||
+            busy.startsWith('update_')
           }
-          className="rounded-lg border border-hairline px-2.5 py-1.5 text-[11px] text-ink-body hover:bg-surface-strong"
+          onClick={() =>
+            void run(
+              {
+                action: editing ? 'update_object' : 'create_object',
+                ...form,
+                fields,
+              },
+              editing ? `${form.name} saved.` : `${form.name} created.`,
+            ).then((ok) => {
+              if (ok && !editing) reset();
+            })
+          }
+          className="portal-primary mt-4 rounded-lg px-4 py-2 text-[11px] disabled:opacity-50"
         >
-          Add field
+          {editing ? 'Save object' : 'Create object'}
         </button>
-      </div>
+      </section>
+    </>
+  );
+}
 
+type ProposedObject = {
+  key: string;
+  name: string;
+  pluralName: string;
+  description: string;
+  titleField: string | null;
+  fields: ObjectField[];
+};
+
+/**
+ * Describe the business, read back the objects it implies.
+ *
+ * The proposal is the whole of what this does: nothing is created here. §7 puts
+ * the person in front of the schema before it exists, and the reason is not
+ * ceremony — a model that mishears "we rent equipment" builds the wrong object,
+ * and an object with records in it is not something you undo by unticking a
+ * box. So every proposal goes into the designer below, under the same Create
+ * button as one typed by hand.
+ */
+function SchemaProposer({
+  onUse,
+}: {
+  onUse: (object: ProposedObject) => void;
+}) {
+  const [description, setDescription] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [proposal, setProposal] = useState<{
+    objects: ProposedObject[];
+    dropped: string[];
+    model: string;
+  } | null>(null);
+
+  async function propose() {
+    setBusy(true);
+    setError('');
+    setProposal(null);
+    try {
+      const response = await fetch('/api/app/objects', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: 'propose_schema',
+          businessDescription: description,
+        }),
+      });
+      const body = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+        objects?: ProposedObject[];
+        dropped?: string[];
+        model?: string;
+      };
+      // A proposal that could not be made comes back as 502 with its own
+      // sentence — usually that no reasoning provider is connected. Saying
+      // "something went wrong" over the top of that would hide the one thing
+      // the reader can act on.
+      if (!response.ok || body.ok === false) {
+        setError(
+          typeof body.error === 'string' && body.error.trim()
+            ? body.error
+            : 'No schema came back.',
+        );
+        return;
+      }
+      setProposal({
+        objects: body.objects ?? [],
+        dropped: body.dropped ?? [],
+        model: str(body.model, 'unknown'),
+      });
+    } catch {
+      setError('No schema came back.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="portal-panel p-5">
+      <h2 className="text-sm font-semibold">Start from a description</h2>
+      <p className="mt-1 text-[11px] text-ink-muted">
+        Say what the business sells or manages and this proposes the objects and
+        fields an agent would need. Nothing is created — each proposal opens in
+        the designer below for you to change and create yourself.
+      </p>
+      <textarea
+        value={description}
+        onChange={(event) => setDescription(event.target.value)}
+        aria-label="Business description"
+        placeholder="We sell modular kitchens across Pune, mostly to builders."
+        className="mt-3 min-h-20 w-full rounded-lg border border-hairline bg-surface px-2.5 py-2 text-[11px] text-ink"
+      />
       <button
         type="button"
-        disabled={
-          !form.name.trim() ||
-          fields.some((field) => !field.label.trim()) ||
-          busy.startsWith('create_') ||
-          busy.startsWith('update_')
+        disabled={busy || description.trim().length < 20}
+        title={
+          description.trim().length < 20
+            ? 'A sentence or two, so there is something to work from.'
+            : 'Propose a schema'
         }
-        onClick={() =>
-          void run(
-            {
-              action: editing ? 'update_object' : 'create_object',
-              ...form,
-              fields,
-            },
-            editing ? `${form.name} saved.` : `${form.name} created.`,
-          ).then((ok) => {
-            if (ok && !editing) reset();
-          })
-        }
-        className="portal-primary mt-4 rounded-lg px-4 py-2 text-[11px] disabled:opacity-50"
+        onClick={() => void propose()}
+        className="mt-2 rounded-lg border border-hairline px-3 py-1.5 text-[11px] disabled:opacity-60"
       >
-        {editing ? 'Save object' : 'Create object'}
+        {busy ? 'Proposing…' : 'Propose a schema'}
       </button>
+      {error ? (
+        <p role="alert" className="mt-2 text-[11px] text-danger-text">
+          {error}
+        </p>
+      ) : null}
+
+      {proposal ? (
+        <div className="mt-4 space-y-2">
+          <p className="text-[11px] text-ink-muted">
+            Proposed by {proposal.model}. Read it before you create it.
+          </p>
+          {proposal.objects.map((object) => (
+            <div
+              key={object.key}
+              className="rounded-xl border border-hairline bg-surface-muted px-3 py-2.5"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-medium">{object.name}</span>
+                <span className="text-[11px] text-ink-muted">
+                  {object.fields.length} field
+                  {object.fields.length === 1 ? '' : 's'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onUse(object)}
+                  className="ml-auto rounded-lg border border-hairline px-2.5 py-1 text-[11px]"
+                >
+                  Open in the designer
+                </button>
+              </div>
+              {object.description ? (
+                <p className="mt-1 text-[11px] text-ink-muted">
+                  {object.description}
+                </p>
+              ) : null}
+              <p className="mt-1 text-[11px] text-ink-muted">
+                {object.fields
+                  .map((field) =>
+                    field.options?.length
+                      ? `${field.label} (${field.type}: ${field.options.join(', ')})`
+                      : `${field.label} (${field.type})`,
+                  )
+                  .join(', ')}
+              </p>
+            </div>
+          ))}
+          {proposal.dropped.length ? (
+            // What the model said that this could not use. Dropping it quietly
+            // would leave somebody looking for a field that was never going to
+            // be there.
+            <div className="rounded-xl border border-hairline px-3 py-2.5">
+              <p className="text-[11px] font-medium">
+                Left out of the proposal
+              </p>
+              <ul className="mt-1 space-y-0.5">
+                {proposal.dropped.map((line) => (
+                  <li key={line} className="text-[11px] text-ink-muted">
+                    {line}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }

@@ -15,6 +15,7 @@ import {
   type WorkflowGraph,
   type WorkflowNode,
 } from '@/lib/workflow-nodes';
+import { inputsNeeded, manualRunNote } from '@/lib/workflow-inputs';
 
 /**
  * The visual workflow builder (§7).
@@ -701,6 +702,14 @@ export function CustomerWorkflowBuilder() {
             </section>
           )}
           {callPlan && !silent ? <CallPlanPanel plan={callPlan} /> : null}
+          {live && openId ? (
+            <ManualRun
+              graph={current}
+              workflowId={openId}
+              post={post}
+              onQueued={loadCatalogue}
+            />
+          ) : null}
           {run ? <RunPanel run={run} /> : null}
         </div>
       </div>
@@ -796,6 +805,128 @@ function CallPlanPanel({ plan }: { plan: CallPlan }) {
           {note}
         </p>
       ))}
+    </section>
+  );
+}
+
+/**
+ * Starting a published workflow by hand.
+ *
+ * Test run answers "does this graph hold together". It cannot answer "what
+ * happens with these values", because it takes none — so every `{{fee}}` in a
+ * real workflow came out as the word `{{fee}}` and every branch that turned on
+ * a collected value went the same way every time. `enqueue` has always taken
+ * variables and nothing ever sent it any.
+ *
+ * It says what it cannot do before it does it. A queued run has nobody on the
+ * line, so spoken steps are skipped — and everything else is not a rehearsal:
+ * a booking books, a payment link is a real link.
+ */
+function ManualRun({
+  graph,
+  workflowId,
+  post,
+  onQueued,
+}: {
+  graph: WorkflowGraph;
+  workflowId: string;
+  post: (
+    body: Record<string, unknown>,
+  ) => Promise<{ ok: boolean; payload: Record<string, unknown> }>;
+  onQueued: () => void;
+}) {
+  const needed = useMemo(() => inputsNeeded(graph), [graph]);
+  const notes = useMemo(() => manualRunNote(graph), [graph]);
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  return (
+    <section className="portal-panel p-4">
+      <h3 className="text-[11px] font-semibold">Run it now</h3>
+      <p className="mt-1 text-[11px] text-ink-muted">
+        Starts the published version through the queue, with the values you give
+        it. It shows up in this workflow&apos;s runs like any other.
+      </p>
+
+      {notes.map((line) => (
+        <p key={line} className="mt-2 text-[11px] text-warning-text">
+          {line}
+        </p>
+      ))}
+
+      {needed.length === 0 ? (
+        <p className="mt-2 text-[11px] text-ink-muted">
+          This workflow collects everything it reads, so there is nothing to
+          fill in.
+        </p>
+      ) : (
+        <div className="mt-3 space-y-2">
+          {needed.map((name) => (
+            <label key={name} className="block">
+              <span className="text-[11px] text-ink-muted">{name}</span>
+              <input
+                value={values[name] ?? ''}
+                aria-label={`Value for ${name}`}
+                onChange={(event) =>
+                  setValues((current) => ({
+                    ...current,
+                    [name]: event.target.value,
+                  }))
+                }
+                className="mt-0.5 w-full rounded-lg border border-hairline bg-surface px-2 py-1.5 text-[11px]"
+              />
+            </label>
+          ))}
+        </div>
+      )}
+
+      <button
+        type="button"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          setNotice(null);
+          // Only what was actually typed. An empty box is a value nobody
+          // supplied, and sending it as "" would make a missing value look
+          // collected — the step would read a blank instead of skipping and
+          // saying it had nothing.
+          const variables = Object.fromEntries(
+            needed
+              .map((name) => [name, (values[name] ?? '').trim()] as const)
+              .filter(([, value]) => value !== ''),
+          );
+          const { ok, payload } = await post({
+            action: 'enqueue',
+            workflowId,
+            variables,
+          });
+          setBusy(false);
+          if (!ok) {
+            setNotice(
+              messageFrom(payload.error, 'This workflow could not be queued.'),
+            );
+            return;
+          }
+          const missing = needed.length - Object.keys(variables).length;
+          setNotice(
+            `Queued. It starts when the job worker next runs.${
+              missing > 0
+                ? ` ${missing} value${missing === 1 ? '' : 's'} left blank, so ${
+                    missing === 1 ? 'that step' : 'those steps'
+                  } will read nothing.`
+                : ''
+            }`,
+          );
+          onQueued();
+        }}
+        className="mt-3 rounded-lg border border-hairline px-3 py-1.5 text-[11px] disabled:opacity-60"
+      >
+        {busy ? 'Queueing…' : 'Run now'}
+      </button>
+      {notice ? (
+        <p className="mt-2 text-[11px] text-ink-muted">{notice}</p>
+      ) : null}
     </section>
   );
 }

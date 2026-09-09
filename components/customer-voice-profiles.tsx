@@ -1,6 +1,24 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { CONSENT_RELATIONSHIPS } from '@/lib/voice-consent';
+
+/** Meta's states in the words somebody acts on. */
+const CONSENT_LABEL: Record<string, string> = {
+  not_required: 'Stock voice — no consent needed',
+  pending: 'Consent recorded, waiting for review',
+  verified: 'Consent verified',
+  rejected: 'Consent rejected by the reviewer',
+  withdrawn: 'Consent withdrawn',
+};
+
+const RELATIONSHIP_LABEL: Record<string, string> = {
+  self: 'My own voice',
+  employee: 'Someone who works here',
+  licensed: 'Licensed from the speaker',
+  synthetic: 'Fully synthetic, no real speaker',
+};
+
 import { Loader2, Lock, LockOpen, Mic2, Plus } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +45,21 @@ type Profile = {
   voiceLock: boolean;
   fallbackProfileId: string | null;
   status: string;
+  kind: string;
+  /**
+   * Who agreed to this voice being used, and whether that still stands.
+   *
+   * The API could record and withdraw this from the day it was written and no
+   * screen sent either action, so a workspace could clone a voice and had no
+   * way to say whose it was — or to honour that person taking it back.
+   */
+  consent: {
+    state: string;
+    speakerName: string | null;
+    relationship: string | null;
+    verifiedAt: string | null;
+    withdrawnAt: string | null;
+  } | null;
 };
 
 type AgentRow = { id: string; name: string; voice_profile_id: string | null };
@@ -66,6 +99,12 @@ export function CustomerVoiceProfiles() {
     'en-IN',
     'hinglish',
   ]);
+
+  const [consentFor, setConsentFor] = useState<string | null>(null);
+  const [speakerName, setSpeakerName] = useState('');
+  const [relationship, setRelationship] = useState('employee');
+  const [statement, setStatement] = useState('');
+  const [evidenceKey, setEvidenceKey] = useState('');
 
   function flash(message: string) {
     setNotice(message);
@@ -111,13 +150,25 @@ export function CustomerVoiceProfiles() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(body),
       });
-      const payload = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(payload.error ?? 'Request failed.');
+      const payload = (await response.json()) as {
+        error?: string;
+        problems?: string[];
+        agentsUnbound?: number;
+        note?: string;
+      };
+      if (!response.ok)
+        throw new Error(
+          // The validator names every missing piece at once; collapsing that
+          // to "not complete" would send somebody back four times.
+          payload.problems?.length
+            ? payload.problems.join(' ')
+            : (payload.error ?? 'Request failed.'),
+        );
       await load();
-      return true;
+      return payload;
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Request failed.');
-      return false;
+      return null;
     } finally {
       setBusy('');
     }
@@ -355,6 +406,152 @@ export function CustomerVoiceProfiles() {
                 {profile.removalReason ? ` (${profile.removalReason})` : ''}
               </p>
             ) : null}
+
+            {/* Whose voice this is, and whether they still agree. Recording it
+                and taking it back were both handled by the API from the day it
+                was written, and no screen sent either — so a workspace could
+                clone a voice with no way to say whose, or to honour that
+                person changing their mind. */}
+            <div className="mt-3 rounded-lg border border-hairline bg-surface-muted px-2.5 py-2 text-[11px]">
+              {profile.consent ? (
+                <p className="text-ink-body">
+                  <strong>
+                    {CONSENT_LABEL[profile.consent.state] ??
+                      profile.consent.state}
+                  </strong>
+                  {profile.consent.speakerName
+                    ? ` · ${profile.consent.speakerName}`
+                    : ''}
+                  {profile.consent.relationship
+                    ? ` (${profile.consent.relationship})`
+                    : ''}
+                  {profile.consent.withdrawnAt
+                    ? ` · withdrawn ${profile.consent.withdrawnAt}`
+                    : ''}
+                </p>
+              ) : (
+                <p className="text-ink-muted">
+                  No consent on record. A cloned voice needs one before it can
+                  be used; a stock voice does not.
+                </p>
+              )}
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConsentFor(
+                      consentFor === profile.id ? null : profile.id,
+                    );
+                    setSpeakerName(profile.consent?.speakerName ?? '');
+                    setRelationship(
+                      profile.consent?.relationship || 'employee',
+                    );
+                    setStatement('');
+                    setEvidenceKey('');
+                  }}
+                  className="rounded-lg border border-hairline px-2.5 py-1 text-[11px]"
+                >
+                  {profile.consent ? 'Record it again' : 'Record consent'}
+                </button>
+                {profile.consent &&
+                profile.consent.state !== 'withdrawn' &&
+                profile.consent.state !== 'not_required' ? (
+                  <button
+                    type="button"
+                    disabled={busy === `withdraw:${profile.id}`}
+                    onClick={async () => {
+                      const result = await call(
+                        'PATCH',
+                        { action: 'withdraw_consent', profileId: profile.id },
+                        `withdraw:${profile.id}`,
+                      );
+                      if (result)
+                        // The count matters: withdrawing consent takes the
+                        // voice off live agents, and how many is the part
+                        // somebody needs to act on.
+                        flash(
+                          Number(result.agentsUnbound ?? 0) > 0
+                            ? `Consent withdrawn. ${result.agentsUnbound} agent${
+                                Number(result.agentsUnbound) === 1 ? '' : 's'
+                              } stopped using this voice.`
+                            : 'Consent withdrawn. No agent was using this voice.',
+                        );
+                    }}
+                    className="rounded-lg border border-hairline px-2.5 py-1 text-[11px] text-danger-text disabled:opacity-40"
+                  >
+                    Withdraw consent
+                  </button>
+                ) : null}
+              </div>
+              {consentFor === profile.id ? (
+                <div className="mt-2 space-y-2">
+                  <input
+                    value={speakerName}
+                    onChange={(event) => setSpeakerName(event.target.value)}
+                    placeholder="Whose voice is this?"
+                    aria-label="Speaker name"
+                    className="w-full rounded-lg border border-hairline bg-surface px-2 py-1.5 text-[11px]"
+                  />
+                  <select
+                    value={relationship}
+                    onChange={(event) => setRelationship(event.target.value)}
+                    aria-label="How you came by this voice"
+                    className="w-full rounded-lg border border-hairline bg-surface px-2 py-1.5 text-[11px]"
+                  >
+                    {CONSENT_RELATIONSHIPS.map((option) => (
+                      <option key={option} value={option}>
+                        {RELATIONSHIP_LABEL[option]}
+                      </option>
+                    ))}
+                  </select>
+                  <textarea
+                    value={statement}
+                    rows={3}
+                    onChange={(event) => setStatement(event.target.value)}
+                    placeholder="What did they agree to? In their words, or the wording of the signed statement."
+                    aria-label="Consent statement"
+                    className="w-full resize-y rounded-lg border border-hairline bg-surface px-2 py-1.5 text-[11px]"
+                  />
+                  <input
+                    value={evidenceKey}
+                    onChange={(event) => setEvidenceKey(event.target.value)}
+                    placeholder="Where the recording or signed document is stored"
+                    aria-label="Evidence reference"
+                    className="w-full rounded-lg border border-hairline bg-surface px-2 py-1.5 text-[11px]"
+                  />
+                  <button
+                    type="button"
+                    disabled={busy === `consent:${profile.id}`}
+                    onClick={async () => {
+                      const result = await call(
+                        'PATCH',
+                        {
+                          action: 'submit_consent',
+                          profileId: profile.id,
+                          speakerName,
+                          relationship,
+                          statement,
+                          evidenceKey,
+                        },
+                        `consent:${profile.id}`,
+                      );
+                      if (result) {
+                        setConsentFor(null);
+                        flash(
+                          String(
+                            result.note ??
+                              'Consent recorded and sent for review.',
+                          ),
+                        );
+                      }
+                    }}
+                    className="portal-primary rounded-lg px-3 py-1.5 text-[11px] disabled:opacity-40"
+                  >
+                    Submit for review
+                  </button>
+                </div>
+              ) : null}
+            </div>
 
             <div className="mt-3 flex flex-wrap gap-1">
               {profile.allowedLanguages.map((code) => (

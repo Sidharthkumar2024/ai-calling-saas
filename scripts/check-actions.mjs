@@ -182,17 +182,26 @@ for (const finding of findings)
     `UNHANDLED  '${finding.action}' sent from ${finding.file} — not named in ${finding.routes}. Clicking it does nothing, or falls into whatever that route's default branch does.`,
   );
 
-// Informational: capability with no way to reach it.
-const unreachable = [...namedAnywhere].filter(
-  (action) =>
-    !sent.has(action) &&
-    /^(create|update|delete|set|archive|restore|release|cancel|approve|reject)_/.test(
-      action,
-    ),
-);
+/**
+ * Informational: a capability with no way to reach it.
+ *
+ * This used to consider only names starting create/update/delete/set/archive/
+ * restore/release/cancel/approve/reject, which was meant to cut noise and
+ * instead hid the interesting half. `submit_consent` and `withdraw_consent`
+ * — the record of somebody agreeing to have their voice cloned, and their
+ * right to take that back — were handled by the API, reachable from no screen,
+ * and named by nothing here for as long as this check has existed.
+ *
+ * Every dispatched name is considered now. The list is longer and worth
+ * reading.
+ */
+const unreachable = [...namedAnywhere]
+  .filter((action) => !sent.has(action))
+  // `action?: string` in a request type is a type, not an action name.
+  .filter((action) => action !== 'string');
 if (unreachable.length > 0)
   console.log(
-    `note: ${unreachable.length} action-shaped names no screen sends (${unreachable.slice(0, 6).join(', ')}${unreachable.length > 6 ? ', …' : ''}) — some are the public API, some are screens nobody built.`,
+    `note: ${unreachable.length} actions the API handles and no screen sends (${unreachable.join(', ')}) — some are the public API, some are capabilities nobody can reach.`,
   );
 
 console.log(

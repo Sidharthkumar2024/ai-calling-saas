@@ -126,12 +126,29 @@ export async function resolveAgentVoice(input: {
 }
 
 export async function listVoiceProfiles(organizationId: string) {
+  // Consent comes back with the profile. Without it the screen could not say
+  // whether a cloned voice had anybody's permission, which is why submitting
+  // and withdrawing that permission were capabilities the API handled and no
+  // screen could reach.
   const rows = await getRawDb()
     .prepare(
-      `SELECT * FROM voice_profiles WHERE organization_id = ? ORDER BY presentation, name`,
+      `SELECT p.*, c.state AS consent_state, c.speaker_name AS consent_speaker,
+         c.relationship AS consent_relationship, c.verified_at AS consent_verified_at,
+         c.withdrawn_at AS consent_withdrawn_at
+       FROM voice_profiles p
+       LEFT JOIN voice_consents c ON c.voice_profile_id = p.id
+       WHERE p.organization_id = ? ORDER BY p.presentation, p.name`,
     )
     .bind(organizationId)
-    .all<VoiceProfileRow>();
+    .all<
+      VoiceProfileRow & {
+        consent_state: string | null;
+        consent_speaker: string | null;
+        consent_relationship: string | null;
+        consent_verified_at: string | null;
+        consent_withdrawn_at: string | null;
+      }
+    >();
   return (rows.results ?? []).map((row) => ({
     id: row.id,
     name: row.name,
@@ -153,5 +170,15 @@ export async function listVoiceProfiles(organizationId: string) {
     voiceLock: Boolean(row.voice_lock),
     fallbackProfileId: row.fallback_profile_id,
     status: row.status,
+    kind: (row as { kind?: string }).kind ?? 'prebuilt',
+    consent: row.consent_state
+      ? {
+          state: row.consent_state,
+          speakerName: row.consent_speaker,
+          relationship: row.consent_relationship,
+          verifiedAt: row.consent_verified_at,
+          withdrawnAt: row.consent_withdrawn_at,
+        }
+      : null,
   }));
 }

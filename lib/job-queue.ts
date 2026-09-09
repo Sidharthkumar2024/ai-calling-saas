@@ -853,6 +853,15 @@ async function sendScheduledPayment(
       WHERE id = ?`)
       .bind(delivery.status, delivery.providerReference, row.message_id),
   ]);
+  // A payment link is a message the customer received, so it belongs in the
+  // conversation rather than only in the payments list.
+  if (delivery.status === 'sent')
+    await recordOutboundWhatsApp(
+      job.organization_id,
+      row.customer_phone,
+      `Payment link for ₹${(row.amount / 100).toLocaleString('en-IN')}: ${row.short_url}`,
+      delivery.providerReference,
+    );
   return { delivered: true, providerReference: delivery.providerReference };
 }
 
@@ -929,9 +938,55 @@ async function deliverQueuedMessages(job: JobRow) {
         WHERE id = ?`)
       .bind(status, reference, error?.slice(0, 300) ?? null, status, row.id)
       .run();
+    if (row.channel !== 'email' && status === 'sent')
+      await recordOutboundWhatsApp(
+        job.organization_id,
+        row.destination,
+        row.message_body,
+        reference,
+      );
   }
 
   return { considered: rows.results?.length ?? 0, sent, sandbox, failed };
+}
+
+/**
+ * Puts a message the business sent into the conversation it belongs to.
+ *
+ * Nothing did this. The inbox stored what customers wrote and what a person
+ * typed back, but everything sent from a tool or a workflow — every question
+ * the WhatsApp chatbot asks — went out and was never recorded, so a supervisor
+ * opening that conversation read a column of answers with no questions. The
+ * AI decision step reads the same table to work out what has been said, and
+ * was reading only the customer's half of it.
+ *
+ * Only an accepted send is recorded. A transcript is what the customer saw; a
+ * refused message is in `outbound_messages` with its error, and a sandbox send
+ * never left the building. Writing either into the conversation would claim
+ * something that did not happen.
+ */
+async function recordOutboundWhatsApp(
+  organizationId: string,
+  destination: string,
+  body: string,
+  providerReference: string | null,
+) {
+  const db = getRawDb();
+  const phone = `+${destination.replace(/\D/g, '')}`;
+  if (phone.length < 8) return;
+  await db
+    .prepare(`INSERT OR IGNORE INTO whatsapp_messages
+      (id, organization_id, phone_number_id, wa_message_id, direction,
+       sender_phone, message_type, body, media_id)
+      VALUES (?, ?, 'outbound', ?, 'outbound', ?, 'text', ?, NULL)`)
+    .bind(
+      `wam_${crypto.randomUUID()}`,
+      organizationId,
+      providerReference ?? `sent_${crypto.randomUUID()}`,
+      phone,
+      body.slice(0, 4000),
+    )
+    .run();
 }
 
 async function finalizeKnowledgeSource(

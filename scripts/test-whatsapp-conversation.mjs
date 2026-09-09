@@ -328,9 +328,18 @@ function freshRun(id) {
   return { ...context, runId: id };
 }
 
+// Both halves. The business side is recorded when the delivery worker sends
+// it, and a decision usually turns on the pair: "for rent" only means renting
+// because the question before it asked which.
 db.prepare(
   `INSERT INTO whatsapp_messages (id, organization_id, direction, sender_phone, body) VALUES (?,?,?,?,?)`,
-).run('m1', ORG, 'inbound', PHONE, 'Looking for a 2BHK on rent for 11 months');
+).run('m1', ORG, 'inbound', PHONE, 'Do you have 2BHK in Andheri?');
+db.prepare(
+  `INSERT INTO whatsapp_messages (id, organization_id, direction, sender_phone, body) VALUES (?,?,?,?,?)`,
+).run('m2', ORG, 'outbound', PHONE, 'For purchase or on rent?');
+db.prepare(
+  `INSERT INTO whatsapp_messages (id, organization_id, direction, sender_phone, body) VALUES (?,?,?,?,?)`,
+).run('m3', ORG, 'inbound', PHONE, 'On rent, for 11 months');
 
 reasoning = { text: 'renting' };
 const decided = await engine.executeGraph({
@@ -339,8 +348,13 @@ const decided = await engine.executeGraph({
   variables: {},
 });
 equal(decided.status, 'completed');
-// The decision reached the model with the conversation, not just the question.
-ok(/2BHK on rent/.test(JSON.stringify(reasoningCalls.at(-1).messages)));
+// The decision reached the model with the conversation, not just the question
+// — and with both halves of it, which is the point of recording what the bot
+// said: "On rent" is only an answer because of the question above it.
+const seen = JSON.stringify(reasoningCalls.at(-1).messages);
+ok(/Customer: Do you have 2BHK in Andheri\?/.test(seen));
+ok(/Business: For purchase or on rent\?/.test(seen));
+ok(/Customer: On rent, for 11 months/.test(seen));
 equal(sent.at(-1).message, 'Our rentals team will call.');
 
 // The failure this replaces: taking the first exit and reporting success.

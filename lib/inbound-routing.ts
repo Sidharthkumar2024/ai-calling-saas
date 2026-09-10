@@ -33,7 +33,8 @@ export type InboundDecision = {
     | 'callback'
     | 'reject'
     | 'no_route'
-    | 'unknown_number';
+    | 'unknown_number'
+    | 'ambiguous_number';
   reason: string;
 };
 
@@ -96,18 +97,45 @@ export async function resolveInboundCall(input: {
   const at = input.at ?? new Date();
   // Match on the dialled number, tolerating a missing or extra country prefix.
   const digits = input.toNumber.replace(/\D/g, '');
-  const number = await db
+  // `active` is the only status that means a platform admin approved this
+  // workspace's ownership and KYC. Before that a row is a claim, not a
+  // holding: a workspace types a number, gets `pending_verification`, and
+  // used to start receiving that number's inbound calls immediately — its
+  // calls, or somebody else's.
+  const candidates = await db
     .prepare(`SELECT id, organization_id, phone_number, status
       FROM phone_numbers
-      WHERE replace(replace(replace(phone_number, '+', ''), ' ', ''), '-', '') IN (?, ?)
-      LIMIT 1`)
+      WHERE status = 'active'
+        AND replace(replace(replace(phone_number, '+', ''), ' ', ''), '-', '') IN (?, ?)`)
     .bind(digits, digits.slice(-10))
-    .first<{
+    .all<{
       id: string;
       organization_id: string;
       phone_number: string;
       status: string;
     }>();
+  const rows = candidates.results ?? [];
+  // The unique index on this table is over the raw text, and this match is
+  // looser than that index: `+919812345678` and `9812345678` are two different
+  // strings, both allowed, and both match the same call. So more than one row
+  // can answer, and `LIMIT 1` with no ORDER BY picked whichever the table
+  // happened to return — delivering one workspace's calls to another.
+  const exact = rows.filter(
+    (row) => row.phone_number.replace(/\D/g, '') === digits,
+  );
+  const matches = exact.length ? exact : rows;
+  if (matches.length > 1)
+    return {
+      matched: false,
+      target: null,
+      offHours: false,
+      action: 'ambiguous_number',
+      // Refused rather than guessed. Two workspaces hold numbers that cannot
+      // be told apart from what the carrier sent, and picking one would hand
+      // somebody else's caller to the wrong company.
+      reason: `${input.toNumber} matches more than one workspace, so the call was not routed.`,
+    };
+  const number = matches[0];
   if (!number)
     return {
       matched: false,

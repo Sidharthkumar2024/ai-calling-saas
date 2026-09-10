@@ -244,6 +244,42 @@ export async function pendingReconciliations(
  * session actually was.
  * ------------------------------------------------------------------ */
 
+/**
+ * The provider accepted the offer, so the session is now genuinely open.
+ *
+ * It stays `reserved`, and that is the whole point. Every mechanism that
+ * manages one of these rows keys on that status — the concurrency cap counts
+ * it ("outstanding reservations *are* the open calls"), the heartbeat only
+ * moves it, the sweeper only ends it, and settlement only trues it up. The
+ * route used to write `'active'` here, a status this module never agreed to
+ * and nothing anywhere reads, which took a session out of all four the moment
+ * it started running: the cap stopped counting it, its heartbeats matched no
+ * row so the browser stopped beating and the duration could never be
+ * measured, the sweeper never saw it, and the ten reserved credits were never
+ * reconciled against what it actually used.
+ *
+ * What changed is recorded where it belongs: the provider's own reference,
+ * and whether its usage still needs reconciling.
+ */
+export async function markRealtimeAccepted(
+  db: D1Database,
+  input: {
+    id: string;
+    providerReference: string | null;
+    errorCode: string | null;
+  },
+) {
+  const result = await db
+    .prepare(
+      `UPDATE realtime_reservations
+       SET provider_reference = ?, error_code = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ? AND status = 'reserved'`,
+    )
+    .bind(input.providerReference, input.errorCode, input.id)
+    .run();
+  return Number(result.meta?.changes ?? 0) > 0;
+}
+
 /** How often an open session should report itself, in seconds. */
 export const HEARTBEAT_SECONDS = 30;
 

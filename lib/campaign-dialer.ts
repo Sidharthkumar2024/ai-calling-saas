@@ -14,8 +14,12 @@ import { localClock, minuteOfDay } from '@/lib/shifts';
  * pass — consent, suppression, calling window, plan concurrency, wallet — and
  * records exactly why each contact was attempted or skipped.
  *
- * Telephony itself is gated on VOICE_STREAM_URL. When that is absent the
- * attempt is recorded as blocked rather than reported as dialled.
+ * What it does NOT do is place the call. `startOutboundCall` exists and is
+ * reached from POST /api/app/calls, one number at a time; no path from a
+ * campaign reaches it. Every eligible contact is therefore recorded as
+ * blocked, with the reason, rather than counted as attempted — which is what
+ * this used to do, so a configured workspace watched `attempted` climb through
+ * an audience nobody had called.
  */
 
 export type DialSummary = {
@@ -102,9 +106,6 @@ export async function dialCampaign(
     {},
   );
   const maxAttempts = Math.min(Math.max(Number(retry.attempts ?? 3), 1), 8);
-  const backoff = Array.isArray(retry.backoffMinutes)
-    ? retry.backoffMinutes.map((value) => Number(value)).filter(Number.isFinite)
-    : [120, 1440];
 
   const now = new Date();
   if (!withinCallingWindow(window, now))
@@ -198,7 +199,9 @@ export async function dialCampaign(
       attempt_count: number;
     }>();
   const contacts = due.results ?? [];
-  let attempted = 0;
+  // Stays zero until something here actually dials. It is reported, and a
+  // number that only ever counted rows it had written was the whole problem.
+  const attempted = 0;
   const streamUrl = process.env.VOICE_STREAM_URL || '';
   const telephonyReady = streamUrl.startsWith('wss://');
 
@@ -238,16 +241,28 @@ export async function dialCampaign(
       continue;
     }
 
-    const nextAttempt = Number(contact.attempt_count ?? 0) + 1;
-    const delay = backoff[Math.min(nextAttempt - 1, backoff.length - 1)] ?? 120;
+    // Nothing here places a call, and nothing else in the product places one
+    // for a campaign either: `startOutboundCall` exists and is reached only by
+    // POST /api/app/calls, one number at a time. This loop used to mark the
+    // contact `dialing`, consume an attempt, schedule a retry and count it in
+    // `campaigns.attempted` — so with a stream URL configured a campaign
+    // reported a growing attempt count, worked through its audience, retried
+    // everybody on a backoff, exhausted them and completed, with not one phone
+    // ringing.
+    //
+    // Recording the block is the honest half. Wiring the origination in is a
+    // change that makes this product telephone real people from a schedule,
+    // and that is not something to switch on inside a bug fix: it needs a link
+    // from a call back to the contact it belongs to and a webhook-driven end,
+    // or a contact who answers is dialled again on the next backoff until the
+    // attempt limit runs out.
     await db
-      .prepare(`UPDATE campaign_contacts
-        SET status = 'retry', attempt_count = ?, outcome = 'dialing',
-            next_attempt_at = datetime('now', ?)
-        WHERE id = ?`)
-      .bind(nextAttempt, `+${delay} minutes`, contact.id)
+      .prepare(
+        `UPDATE campaign_contacts SET status = 'blocked', outcome = 'origination_not_wired' WHERE id = ?`,
+      )
+      .bind(contact.id)
       .run();
-    attempted += 1;
+    bump(skipped, 'origination_not_wired');
   }
 
   await db

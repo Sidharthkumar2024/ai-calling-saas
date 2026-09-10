@@ -101,4 +101,20 @@ check(() => assert.equal(describeDialPass(null), 'Campaign started.'));
 check(() => assert.equal(describeDialPass(undefined), 'Campaign started.'));
 check(() => assert.equal(dialPassNeedsAttention(null), false));
 
+// A pass that reached nobody because this build cannot place campaign calls
+// says so. It used to report those same contacts as attempted.
+const notWired = describeDialPass(
+  pass({ considered: 12, skipped: { origination_not_wired: 12 }, requeued: true }),
+);
+check(() => assert.ok(!notWired.includes('12 dialled')));
+check(() => assert.ok(notWired.includes('cannot place calls')));
+check(() =>
+  assert.equal(
+    dialPassNeedsAttention(
+      pass({ considered: 12, skipped: { origination_not_wired: 12 } }),
+    ),
+    true,
+  ),
+);
+
 console.log(`dial summary: ${checks} assertions passed`);

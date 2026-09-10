@@ -30,6 +30,10 @@ const SKIP_LABEL: Record<string, string> = {
   no_consent: 'without recorded consent to be called',
   max_attempts: 'already tried the maximum number of times',
   telephony_unconfigured: 'blocked because no calling connection is live',
+  // Not a property of the contact. Naming it as one would be another way of
+  // implying the product tried and something about that person stopped it.
+  origination_not_wired:
+    'not called, because campaigns cannot place calls in this build',
 };
 
 /** A whole pass that could not start, and the reason it could not. */

@@ -1,4 +1,6 @@
 import { getRawDb } from '@/db/index';
+import { CONVERSION_SQL_LIST } from '@/lib/call-outcomes';
+import { datasetFor, unknownReportMessage } from '@/lib/report-datasets';
 import { sendDueReminders } from '@/lib/appointment-service';
 import { isCallOutcome } from '@/lib/call-outcomes';
 import {
@@ -378,6 +380,33 @@ export async function runReportNow(organizationId: string, reportId: string) {
     365,
   );
   const since = `-${windowDays} days`;
+  // A type nothing can be built from fails where somebody can see it failed.
+  // The alternative is what this replaced: a CSV of raw call records, sent on
+  // schedule under the report's own name, with a summary counting calls.
+  if (!datasetFor(definition.report_type)) {
+    const failedRunId = `report_run_${crypto.randomUUID()}`;
+    await db
+      .prepare(`INSERT INTO report_runs
+        (id, organization_id, report_id, status, report_type, window_days,
+         row_count, summary_json, content_csv, bytes)
+        VALUES (?, ?, ?, 'failed', ?, ?, 0, ?, '', 0)`)
+      .bind(
+        failedRunId,
+        organizationId,
+        reportId,
+        definition.report_type,
+        windowDays,
+        JSON.stringify({ error: unknownReportMessage(definition.report_type) }),
+      )
+      .run();
+    return {
+      reportId,
+      runId: failedRunId,
+      generated: false,
+      reason: 'unknown_report_type',
+      detail: unknownReportMessage(definition.report_type),
+    };
+  }
   const built = await buildReportRows(
     organizationId,
     definition.report_type,
@@ -536,7 +565,8 @@ async function buildReportRows(
   summary: Record<string, unknown>;
 }> {
   const db = getRawDb();
-  if (reportType === 'qa' || reportType === 'quality') {
+  const dataset = datasetFor(reportType);
+  if (dataset === 'quality') {
     const result = await db
       .prepare(`SELECT q.created_at, c.customer_name, c.outcome, q.overall_score,
           q.resolution_score, q.knowledge_score, q.naturalness_score,
@@ -573,7 +603,7 @@ async function buildReportRows(
     };
   }
 
-  if (reportType === 'leads' || reportType === 'conversion') {
+  if (dataset === 'leads') {
     const result = await db
       .prepare(`SELECT captured_at, name, phone, source_id, status, score, intent,
           product_interest, campaign_name
@@ -602,14 +632,21 @@ async function buildReportRows(
     };
   }
 
-  if (reportType === 'cost' || reportType === 'usage') {
+  if (dataset === 'usage') {
     const result = await db
-      .prepare(`SELECT date(created_at) AS day, provider, surface,
-          count(*) AS events, coalesce(sum(latency_ms), 0) AS latency_total,
-          coalesce(avg(latency_ms), 0) AS latency_avg
+      // `provider` and `surface` are not columns of this table and never
+      // were. Nothing could reach this branch — no report type resolved to it
+      // — so the query had never once run, and it threw the moment `spend`
+      // started arriving here.
+      .prepare(`SELECT date(created_at) AS day, provider_id AS provider,
+          category, operation, count(*) AS events,
+          coalesce(sum(billed_credits), 0) AS credits,
+          coalesce(sum(provider_cost_micros), 0) AS provider_cost_micros,
+          coalesce(round(avg(latency_ms)), 0) AS latency_avg,
+          sum(CASE WHEN unpriced = 1 THEN 1 ELSE 0 END) AS unpriced
         FROM provider_usage_events
         WHERE organization_id = ? AND created_at >= datetime('now', ?)
-        GROUP BY 1, 2, 3 ORDER BY day DESC, events DESC LIMIT 5000`)
+        GROUP BY 1, 2, 3, 4 ORDER BY day DESC, events DESC LIMIT 5000`)
       .bind(organizationId, since)
       .all<Record<string, unknown>>();
     const rows = result.results ?? [];
@@ -617,20 +654,100 @@ async function buildReportRows(
       columns: [
         'day',
         'provider',
-        'surface',
+        'category',
+        'operation',
         'events',
-        'latency_total',
+        'credits',
+        'provider_cost_micros',
         'latency_avg',
+        'unpriced',
       ],
       rows,
       summary: {
         events: rows.reduce((sum, row) => sum + Number(row.events ?? 0), 0),
+        credits: rows.reduce((sum, row) => sum + Number(row.credits ?? 0), 0),
         providers: new Set(rows.map((row) => String(row.provider))).size,
+        // Rows with no rate card. Counted rather than folded into the total as
+        // zero, which is the same rule the unit-economics screen follows.
+        unpriced: rows.reduce((sum, row) => sum + Number(row.unpriced ?? 0), 0),
       },
     };
   }
 
-  // Default: call outcomes, which is what most scheduled reports want.
+  if (dataset === 'agents') {
+    const result = await db
+      .prepare(`SELECT coalesce(a.name, 'Unassigned') AS agent, count(*) AS calls,
+          sum(CASE WHEN c.status = 'completed' THEN 1 ELSE 0 END) AS completed,
+          sum(CASE WHEN c.outcome IN (${CONVERSION_SQL_LIST}) THEN 1 ELSE 0 END) AS converted,
+          coalesce(sum(c.duration_seconds), 0) AS talk_seconds,
+          coalesce(round(avg(c.latency_ms)), 0) AS latency_avg,
+          coalesce(sum(c.cost_credits), 0) AS credits
+        FROM call_records c
+        LEFT JOIN voice_agents a ON a.id = c.agent_id AND a.organization_id = c.organization_id
+        WHERE c.organization_id = ? AND c.started_at >= datetime('now', ?)
+        GROUP BY c.agent_id ORDER BY calls DESC LIMIT 5000`)
+      .bind(organizationId, since)
+      .all<Record<string, unknown>>();
+    const rows = result.results ?? [];
+    return {
+      columns: [
+        'agent',
+        'calls',
+        'completed',
+        'converted',
+        'talk_seconds',
+        'latency_avg',
+        'credits',
+      ],
+      rows,
+      summary: {
+        agents: rows.length,
+        calls: rows.reduce((sum, row) => sum + Number(row.calls ?? 0), 0),
+        converted: rows.reduce(
+          (sum, row) => sum + Number(row.converted ?? 0),
+          0,
+        ),
+      },
+    };
+  }
+
+  if (dataset === 'campaigns') {
+    const result = await db
+      .prepare(`SELECT coalesce(m.name, 'No campaign') AS campaign, count(*) AS calls,
+          sum(CASE WHEN c.status = 'completed' THEN 1 ELSE 0 END) AS connected,
+          sum(CASE WHEN c.outcome IN (${CONVERSION_SQL_LIST}) THEN 1 ELSE 0 END) AS converted,
+          coalesce(sum(c.duration_seconds), 0) AS talk_seconds,
+          coalesce(sum(c.cost_credits), 0) AS credits
+        FROM call_records c
+        LEFT JOIN campaigns m ON m.id = c.campaign_id AND m.organization_id = c.organization_id
+        WHERE c.organization_id = ? AND c.started_at >= datetime('now', ?)
+        GROUP BY c.campaign_id ORDER BY calls DESC LIMIT 5000`)
+      .bind(organizationId, since)
+      .all<Record<string, unknown>>();
+    const rows = result.results ?? [];
+    return {
+      columns: [
+        'campaign',
+        'calls',
+        'connected',
+        'converted',
+        'talk_seconds',
+        'credits',
+      ],
+      rows,
+      summary: {
+        campaigns: rows.length,
+        calls: rows.reduce((sum, row) => sum + Number(row.calls ?? 0), 0),
+        converted: rows.reduce(
+          (sum, row) => sum + Number(row.converted ?? 0),
+          0,
+        ),
+      },
+    };
+  }
+
+  // Call records. Reached only by a type that asked for them — no longer the
+  // landing place for every name this function did not recognise.
   const result = await db
     .prepare(`SELECT c.started_at, c.channel, c.direction, c.customer_name,
         c.to_number, a.name AS agent, c.status, c.outcome, c.sentiment,

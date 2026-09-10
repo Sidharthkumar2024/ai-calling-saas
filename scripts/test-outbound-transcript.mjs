@@ -71,7 +71,11 @@ const modules = {
     }),
   },
   '@/lib/appointment-service': stub,
-  '@/lib/call-outcomes': { isCallOutcome: () => false },
+  '@/lib/call-outcomes': { isCallOutcome: () => false, CONVERSION_SQL_LIST: "''" },
+  '@/lib/report-datasets': {
+    datasetFor: () => 'calls',
+    unknownReportMessage: () => '',
+  },
   '@/lib/sales-intelligence-service': stub,
   '@/lib/job-enqueue': { enqueueJob: async () => ({}) },
   '@/lib/provider-adapters': stub,

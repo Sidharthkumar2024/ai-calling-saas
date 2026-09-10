@@ -25,6 +25,7 @@ import {
   REPORT_SCHEDULES,
 } from '@/lib/report-schedules';
 import { dialCampaign } from '@/lib/campaign-dialer';
+import { isReportType } from '@/lib/report-datasets';
 import {
   type CustomerPermission,
   requireAnyCustomerPermission,
@@ -518,6 +519,11 @@ export async function POST(request: Request) {
           .map((entry) => `${entry.value} (${entry.reason})`)
           .join('; ')}`,
       );
+    // Checked here rather than substituted at run time. The builder used to
+    // accept any string and quietly send call records for it.
+    const reportType = clean(body.reportType, 80) || 'call_performance';
+    if (!isReportType(reportType))
+      return invalid('Choose what the report should cover.');
     await db
       .prepare(`INSERT INTO report_definitions (id, organization_id, name, report_type, schedule, filters_json, recipients_json, status)
       VALUES (?, ?, ?, ?, ?, '{}', ?, 'active')`)
@@ -525,7 +531,7 @@ export async function POST(request: Request) {
         id,
         organizationId,
         name,
-        clean(body.reportType, 80) || 'call_performance',
+        reportType,
         schedule,
         JSON.stringify(recipients.valid),
       )
@@ -684,6 +690,15 @@ export async function POST(request: Request) {
         runId: run.runId,
         rows: run.rows,
       });
+      // What the run reported, not a fixed true. A report whose type cannot be
+      // built records a failed run and says why; answering `generated: true`
+      // over the top of that is the same lie the run row was added to stop
+      // telling.
+      if (run.generated === false)
+        return NextResponse.json(
+          { generated: false, runId: run.runId, error: run.detail },
+          { status: 422 },
+        );
       return NextResponse.json({
         generated: true,
         runId: run.runId,

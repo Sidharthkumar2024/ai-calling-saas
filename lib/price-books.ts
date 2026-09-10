@@ -79,16 +79,29 @@ export function resolvePrice(input: ResolvePriceInput): PriceResolution {
     return { ok: false, reason: 'invalid_base_amount' };
 
   const country = String(input.country ?? '').toUpperCase();
-  const entry = (input.entries ?? []).find(
+  const priced = (input.entries ?? []).filter(
     (candidate) =>
       candidate.active !== false &&
       candidate.productType === input.productType &&
       candidate.productId === input.productId &&
-      candidate.currency.toUpperCase() === target &&
-      // A country-specific entry is preferred; an entry with no country is a
-      // currency-wide default, which is still an explicit decision.
-      (!candidate.country || candidate.country.toUpperCase() === country),
+      candidate.currency.toUpperCase() === target,
   );
+  // A country-specific entry is preferred; an entry with no country is a
+  // currency-wide default, which is still an explicit decision.
+  //
+  // "Preferred" has to be two passes. One `find()` over both shapes took
+  // whichever row came back first, and the query behind it
+  // (lib/workspace-pricing.ts) has no ORDER BY and no index it could order by,
+  // so that was insertion order — while the admin screen's own instruction is
+  // to leave the country blank for anywhere, making "set the default, then add
+  // the override" the documented sequence and the losing one. A workspace in
+  // Britain was then charged the everywhere price.
+  const entry =
+    priced.find(
+      (candidate) =>
+        Boolean(candidate.country) &&
+        candidate.country!.toUpperCase() === country,
+    ) ?? priced.find((candidate) => !candidate.country);
   if (entry)
     return {
       ok: true,

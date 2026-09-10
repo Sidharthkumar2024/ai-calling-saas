@@ -330,6 +330,68 @@ ok(
     rate: 0.012,
   }).source === 'converted',
 );
+// A workspace in one country and a currency-wide default for everyone else.
+// The admin screen's own instruction is to leave the country blank for
+// anywhere, so "set a default, then add an override" is the documented order —
+// and it is the order that used to lose, because the lookup took whichever row
+// the database handed back first and the query has no ORDER BY.
+const defaultFirst = [
+  {
+    productType: 'plan',
+    productId: 'plan_pro',
+    country: '',
+    currency: 'USD',
+    amountMinor: 9900,
+  },
+  {
+    productType: 'plan',
+    productId: 'plan_pro',
+    country: 'GB',
+    currency: 'USD',
+    amountMinor: 14900,
+  },
+];
+const pro = {
+  productType: 'plan',
+  productId: 'plan_pro',
+  baseAmountMinor: 799900,
+  baseCurrency: 'INR',
+  targetCurrency: 'USD',
+};
+ok(
+  'a country entry beats the currency-wide default, whichever came back first',
+  resolvePrice({ ...pro, country: 'GB', entries: defaultFirst }).amountMinor ===
+    14900,
+);
+ok(
+  'and still beats it when the rows arrive the other way round',
+  resolvePrice({ ...pro, country: 'GB', entries: [...defaultFirst].reverse() })
+    .amountMinor === 14900,
+);
+ok(
+  'somewhere with no entry of its own falls back to the default',
+  resolvePrice({ ...pro, country: 'FR', entries: defaultFirst }).amountMinor ===
+    9900,
+);
+// Case is not a country. A row stored 'gb' is the same override as 'GB'.
+ok(
+  'the country match is not case-sensitive',
+  resolvePrice({
+    ...pro,
+    country: 'gb',
+    entries: [{ ...defaultFirst[1], country: 'gb' }, defaultFirst[0]],
+  }).amountMinor === 14900,
+);
+// An inactive override does not shadow the default it was meant to replace.
+ok(
+  'an inactive country entry falls through to the default rather than to arithmetic',
+  resolvePrice({
+    ...pro,
+    country: 'GB',
+    entries: [{ ...defaultFirst[1], active: false }, defaultFirst[0]],
+  }).amountMinor === 9900,
+);
+
 const same = resolvePrice({ ...base, targetCurrency: 'INR', entries });
 ok(
   'the base currency needs no conversion',

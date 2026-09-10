@@ -958,8 +958,27 @@ async function runTool(
         .bind(ctx.organizationId, orderReference, orderReference)
         .first<{ id: string; status: string; amount: number }>();
       if (!payment) failed.push('payment_record_not_found');
-      else if (Number(payment.amount) < Math.round(amount))
-        failed.push('amount_exceeds_payment');
+      else {
+        // Every reason, not the first one. This list is what a manager reads
+        // on the approval card before authorising somebody's money.
+        //
+        // Only a verified `payment_link.paid` webhook writes 'paid'. A link
+        // that was created, sent, cancelled, expired or is still processing is
+        // not money this workspace received, and refunding against one sends
+        // money out for money that never came in. `partially_paid` is not
+        // enough either: how much actually arrived is not in this column, so
+        // the honest answer is that a person has to look.
+        if (payment.status !== 'paid') failed.push('payment_not_paid');
+        // `payment_links.amount` is paise — every writer of that column stores
+        // paise, which is why create_payment_link multiplies by 100 before it
+        // inserts — and this tool's schema asks the model for rupees. Compared
+        // as they stood, a ₹200 payment (20000) was never "exceeded" by a ₹500
+        // request, so this check was a hundred times too generous: it could
+        // only fire above a hundred times what was paid. And ₹500 is exactly
+        // the ceiling the policy executes with nobody in the room.
+        if (Number(payment.amount) < Math.round(amount * 100))
+          failed.push('amount_exceeds_payment');
+      }
     } else {
       failed.push('order_reference_missing');
     }

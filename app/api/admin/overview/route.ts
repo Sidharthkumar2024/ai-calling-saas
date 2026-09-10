@@ -113,7 +113,8 @@ export async function GET(request: Request) {
              n.public_provider_name, n.provider_code, n.connection_mode,
              n.business_use_case, n.estimated_monthly_minutes, n.onboarding_status,
              o.name AS organization_name,
-             (SELECT count(*) FROM kyc_documents d WHERE d.phone_number_id = n.id) AS kyc_document_count
+             (SELECT count(*) FROM kyc_documents d WHERE d.phone_number_id = n.id
+                AND d.organization_id = n.organization_id) AS kyc_document_count
            FROM phone_numbers n INNER JOIN organizations o ON o.id = n.organization_id
            ORDER BY n.created_at DESC LIMIT 25`,
       )
@@ -365,18 +366,31 @@ export async function GET(request: Request) {
        ORDER BY effective_from DESC`,
     )
     .bind(new Date().toISOString(), new Date().toISOString())
-    .all<{ provider: string; model: string | null; category: string; unit: string; price_micros: number; currency: string }>();
+    .all<{
+      provider: string;
+      model: string | null;
+      category: string;
+      unit: string;
+      price_micros: number;
+      currency: string;
+    }>();
 
   // Explicit INR Sarvam scenario, NOT a blend of cheapest unrelated suppliers.
   // Never interpret USD micros as INR. Unknown carrier/fixed costs remain null.
   const cheapest = new Map<string, number>();
   for (const row of rateRows.results ?? []) {
     if (row.currency !== 'INR' || row.provider !== 'sarvam') continue;
-    if (!((row.category === 'llm' && row.model === 'sarvam-105b') || (row.category === 'tts' && row.model === 'bulbul:v3') || (row.category === 'stt' && row.model === null))) continue;
+    if (
+      !(
+        (row.category === 'llm' && row.model === 'sarvam-105b') ||
+        (row.category === 'tts' && row.model === 'bulbul:v3') ||
+        (row.category === 'stt' && row.model === null)
+      )
+    )
+      continue;
     const key = `${row.category}:${row.unit}`;
     const price = Number(row.price_micros);
-    if (!cheapest.has(key))
-      cheapest.set(key, price);
+    if (!cheapest.has(key)) cheapest.set(key, price);
   }
   const lookup = (category: string, unit: string) =>
     cheapest.has(`${category}:${unit}`)
@@ -422,7 +436,12 @@ export async function GET(request: Request) {
 
   const costModel = {
     targetMargin,
-    assumptions: { ...DEFAULT_ASSUMPTIONS, note: 'Illustrative INR-only Sarvam 105B + Bulbul v3 + Sarvam STT stack, not the actual routed provider mix. Carrier and fixed costs are unpriced. ' + DEFAULT_ASSUMPTIONS.note },
+    assumptions: {
+      ...DEFAULT_ASSUMPTIONS,
+      note:
+        'Illustrative INR-only Sarvam 105B + Bulbul v3 + Sarvam STT stack, not the actual routed provider mix. Carrier and fixed costs are unpriced. ' +
+        DEFAULT_ASSUMPTIONS.note,
+    },
     minute,
     call: costPerCall(minute, averageCallMinutes || 1),
     message: costPerMessage(lookup as never),

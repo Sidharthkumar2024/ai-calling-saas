@@ -23,7 +23,8 @@ export async function GET(request: Request) {
          public_provider_name, provider_code, connection_mode, provider_account_hint,
          business_use_case, estimated_monthly_minutes, onboarding_status,
          assigned_agent_name, direction, kyc_status, status, monthly_rental, created_at,
-         (SELECT count(*) FROM kyc_documents d WHERE d.phone_number_id = phone_numbers.id) AS kyc_document_count
+         (SELECT count(*) FROM kyc_documents d WHERE d.phone_number_id = phone_numbers.id
+            AND d.organization_id = phone_numbers.organization_id) AS kyc_document_count
        FROM phone_numbers WHERE organization_id = ? ORDER BY created_at DESC`,
     )
     .bind(auth.session.organizationId)

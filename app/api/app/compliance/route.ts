@@ -216,6 +216,26 @@ async function uploadKyc(
       { status: 400 },
     );
   const organizationId = session.organizationId!;
+  // The number id arrives in the form body and used to be written straight
+  // into the document row. `kyc_documents` is read elsewhere by
+  // `phone_number_id` alone — including the platform admin's approval gate,
+  // which counts the required documents for a number before letting it go
+  // live — so a workspace could attach its own paperwork to another
+  // workspace's number and satisfy, or block, a compliance check that is not
+  // its own.
+  if (phoneNumberId) {
+    const owned = await getRawDb()
+      .prepare(
+        `SELECT id FROM phone_numbers WHERE id = ? AND organization_id = ? LIMIT 1`,
+      )
+      .bind(phoneNumberId, organizationId)
+      .first<{ id: string }>();
+    if (!owned)
+      return NextResponse.json(
+        { error: 'That number is not in this workspace.' },
+        { status: 404 },
+      );
+  }
   const id = `kyc_${crypto.randomUUID()}`;
   const checksum = await fileChecksum(await file.arrayBuffer());
   const key = `secure/kyc/${organizationId}/${id}/${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;

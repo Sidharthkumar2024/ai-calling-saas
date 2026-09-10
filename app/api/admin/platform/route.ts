@@ -1132,11 +1132,12 @@ export async function PATCH(request: Request) {
       );
     const approved = body.status === 'approved';
     const review = await db
-      .prepare(`SELECT id, status, onboarding_status, connection_mode
+      .prepare(`SELECT id, organization_id, status, onboarding_status, connection_mode
       FROM phone_numbers WHERE id = ? LIMIT 1`)
       .bind(body.numberId)
       .first<{
         id: string;
+        organization_id: string;
         status: string;
         onboarding_status: string;
         connection_mode: string | null;
@@ -1154,10 +1155,13 @@ export async function PATCH(request: Request) {
       // a single uploaded file with four required ones missing.
       const uploaded = await db
         .prepare(
+          // Scoped to the number's own workspace as well as to the number.
+          // A row here carries whatever `phone_number_id` was posted with it,
+          // and this gate decides whether somebody's number goes live.
           `SELECT document_type, status FROM kyc_documents
-           WHERE phone_number_id = ? ORDER BY created_at DESC`,
+           WHERE phone_number_id = ? AND organization_id = ? ORDER BY created_at DESC`,
         )
-        .bind(body.numberId)
+        .bind(body.numberId, review.organization_id)
         .all<{ document_type: string; status: string }>();
       const progress = kycProgress(
         uploaded.results ?? [],
@@ -1217,7 +1221,8 @@ export async function PATCH(request: Request) {
     await db
       .prepare(
         `UPDATE kyc_documents SET status = ?, rejection_reason = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP
-         WHERE phone_number_id = ? AND status IN ('submitted', 'under_review')`,
+         WHERE phone_number_id = ? AND organization_id = ?
+           AND status IN ('submitted', 'under_review')`,
       )
       .bind(
         body.status,
@@ -1227,6 +1232,7 @@ export async function PATCH(request: Request) {
               'Please resubmit the requested business evidence.',
         auth.session.userId,
         body.numberId,
+        review.organization_id,
       )
       .run();
     await recordAudit(

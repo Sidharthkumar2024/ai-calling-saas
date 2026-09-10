@@ -12,7 +12,6 @@ import {
   reserveRealtime,
   refundRealtime,
   heartbeatRealtime,
-  markRealtimeAccepted,
   HEARTBEAT_SECONDS,
 } from '@/lib/realtime-reservations';
 
@@ -125,21 +124,6 @@ export async function POST(request: Request) {
       },
       { status: 409 },
     );
-  // The cap this workspace is already at. Nothing was debited for this row —
-  // the wallet update in the reservation batch only fires for a `reserved`
-  // one — so carrying on to the provider would have run a free session and
-  // put the workspace over its own limit at the same time.
-  if (reservation.status === 'at_capacity')
-    return Response.json(
-      {
-        error:
-          'This workspace already has the most voice sessions it can run at once. End one and try again.',
-        sessionId: id,
-        status: reservation.status,
-        fallback: false,
-      },
-      { status: 429 },
-    );
   let acceptedReference: string | null = null;
   let accepted = false;
   try {
@@ -151,22 +135,22 @@ export async function POST(request: Request) {
     });
     accepted = true;
     acceptedReference = realtime.location;
-    // The reservation stays `reserved` — see markRealtimeAccepted. The test
-    // session beside it is what the studio screen shows, and that one really
-    // is active now.
-    await markRealtimeAccepted(db, {
-      id,
-      providerReference: realtime.location,
-      errorCode: realtime.usageRecorded
-        ? null
-        : 'usage_reconciliation_required',
-    });
-    await db
-      .prepare(
-        `UPDATE agent_test_sessions SET status = 'active', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-      )
-      .bind(id)
-      .run();
+    await db.batch([
+      db
+        .prepare(
+          `UPDATE realtime_reservations SET status = 'active', provider_reference = ?, error_code = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        )
+        .bind(
+          realtime.location,
+          realtime.usageRecorded ? null : 'usage_reconciliation_required',
+          id,
+        ),
+      db
+        .prepare(
+          `UPDATE agent_test_sessions SET status = 'active', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        )
+        .bind(id),
+    ]);
     const wallet = await db
       .prepare(
         'SELECT balance FROM organization_wallets WHERE organization_id = ?',

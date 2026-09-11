@@ -490,7 +490,18 @@ export function CustomerCrm({
                 (item) => item.id === event.target.value,
               );
               if (!found) return;
-              setFilters(found.filters as LeadFilters);
+              // A saved view is saved as one object — `{...filters, query,
+              // sourceType}` — but this screen keeps those two in state of
+              // their own. Handing the whole object to setFilters put them
+              // somewhere nothing reads, so opening "Hot Delhi leads" restored
+              // the stage and the owner and silently dropped the search text
+              // and the source it was saved with. The list that came back was
+              // not the one that was saved, and nothing said so.
+              const saved = (found.filters ?? {}) as LeadFilters;
+              const { query: savedQuery, sourceType, ...rest } = saved;
+              setFilters(rest);
+              setQuery(savedQuery ?? '');
+              setSourceFilter(sourceType || 'all');
               setLayout(found.view === 'list' ? 'list' : 'kanban');
             }}
             className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[11px] text-ink"

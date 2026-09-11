@@ -64,14 +64,41 @@ export async function GET(request: Request) {
         .where(eq(salesOpportunities.organizationId, tenant.organizationId)),
     ]);
 
-  const segments = leadRows.reduce<Record<string, number>>((result, lead) => {
-    result[lead.sourceType] = (result[lead.sourceType] ?? 0) + 1;
+  // Counted over every lead, not over the page.
+  //
+  // `loadLeads` returns the hundred most recent, which is the right size for a
+  // list and the wrong size for a total. "Captured leads — all active sources"
+  // was the length of that page, so a workspace with four thousand leads read
+  // 100 for ever and every lead after the first hundred was invisible. The
+  // same page decided "AI-qualified" and the per-source breakdown underneath.
+  const [totals, bySource] = await Promise.all([
+    db
+      .select({
+        total: sql<number>`count(*)`,
+        qualified: sql<number>`sum(CASE WHEN ${leads.score} >= 75 THEN 1 ELSE 0 END)`,
+      })
+      .from(leads)
+      .where(eq(leads.organizationId, tenant.organizationId)),
+    db
+      .select({
+        sourceType: leadSources.type,
+        total: sql<number>`count(*)`,
+      })
+      .from(leads)
+      .innerJoin(leadSources, eq(leads.sourceId, leadSources.id))
+      .where(eq(leads.organizationId, tenant.organizationId))
+      .groupBy(leadSources.type),
+  ]);
+  const segments = bySource.reduce<Record<string, number>>((result, row) => {
+    result[row.sourceType] = Number(row.total ?? 0);
     return result;
   }, {});
 
   return NextResponse.json({
     tenant,
     leads: leadRows,
+    // The list is the most recent hundred. The totals beside it are not.
+    leadsAreAPage: Number(totals[0]?.total ?? 0) > leadRows.length,
     forms: forms.map((form) => ({
       id: form.id,
       name: form.name,
@@ -89,8 +116,8 @@ export async function GET(request: Request) {
             : null,
     })),
     stats: {
-      total: leadRows.length,
-      qualified: leadRows.filter((lead) => lead.score >= 75).length,
+      total: Number(totals[0]?.total ?? 0),
+      qualified: Number(totals[0]?.qualified ?? 0),
       queuedCalls: Number(callStats?.queued ?? 0),
       opportunities: Number(opportunityStats?.total ?? 0),
       pipelineValue: Number(opportunityStats?.pipelineValue ?? 0),

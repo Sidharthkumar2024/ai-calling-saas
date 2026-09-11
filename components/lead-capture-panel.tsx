@@ -75,6 +75,8 @@ type LeadResponse = {
     role: 'admin' | 'user';
   };
   leads: Lead[];
+  /** True when there are more leads than the hundred in `leads`. */
+  leadsAreAPage?: boolean;
   forms: LeadForm[];
   connections: LeadConnection[];
   stats: {
@@ -312,7 +314,12 @@ export function LeadCapturePanel({
           [
             'Captured leads',
             data.stats.total.toLocaleString('en-IN'),
-            'All active sources',
+            // The list below is the most recent hundred; this is every lead.
+            // Saying so where the two numbers disagree stops the list reading
+            // as the whole of it.
+            data.leadsAreAPage
+              ? 'All active sources · list shows the latest 100'
+              : 'All active sources',
           ],
           [
             'AI-qualified',

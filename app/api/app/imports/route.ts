@@ -371,10 +371,18 @@ export async function PATCH(request: Request) {
     .all<{ phone: string; name: string | null }>();
   const accepted = rows.results ?? [];
 
+  // What landed, not what was attempted.
+  //
+  // The insert carries ON CONFLICT DO NOTHING, because a phone already in this
+  // campaign is not a second contact. Counting the slice meant an import of
+  // 500 rows where 120 were already there reported 500 added, and the customer
+  // had no way to know the other 120 were duplicates rather than new people to
+  // call.
   let added = 0;
+  let attempted = 0;
   for (let start = 0; start < accepted.length; start += 100) {
     const slice = accepted.slice(start, start + 100);
-    await db.batch(
+    const results = await db.batch(
       slice.map((row) =>
         db
           .prepare(`INSERT INTO campaign_contacts
@@ -390,15 +398,25 @@ export async function PATCH(request: Request) {
           ),
       ),
     );
-    added += slice.length;
+    attempted += slice.length;
+    added += (results ?? []).reduce(
+      (total, result) => total + Number(result?.meta?.changes ?? 0),
+      0,
+    );
   }
+  const duplicates = Math.max(0, attempted - added);
 
+  // Counted over the audience as it now stands, not over the file. The file's
+  // rows include duplicates that did not land, so a consent figure taken from
+  // it describes a campaign that does not exist.
   const audience = await db
     .prepare(
-      `SELECT count(*) AS total FROM campaign_contacts WHERE campaign_id = ?`,
+      `SELECT count(*) AS total,
+         sum(CASE WHEN consent_status = 'granted' THEN 1 ELSE 0 END) AS granted
+       FROM campaign_contacts WHERE campaign_id = ?`,
     )
     .bind(campaignId)
-    .first<{ total: number }>();
+    .first<{ total: number; granted: number }>();
   await db
     .prepare(
       `UPDATE campaigns SET audience_size = ? WHERE id = ? AND organization_id = ?`,
@@ -411,23 +429,26 @@ export async function PATCH(request: Request) {
     .bind(campaignId, jobId)
     .run();
 
-  const withConsent = accepted.filter((row) =>
-    grantedPhones.has(row.phone),
-  ).length;
+  const audienceSize = Number(audience?.total ?? 0);
+  const withConsent = Number(audience?.granted ?? 0);
   await recordAudit(auth.session, 'import.committed', 'import', jobId, {
     campaignId,
     added,
+    duplicates,
   });
   return NextResponse.json({
     jobId,
     campaignId,
     added,
-    audienceSize: Number(audience?.total ?? 0),
+    // Named rather than folded into `added`, so a file that was imported twice
+    // reads as what it is instead of as a second audience.
+    duplicates,
+    audienceSize,
     withConsent,
     // Said plainly: a spreadsheet is not consent, and the dialer enforces that.
     note:
-      withConsent < added
-        ? `${added - withConsent} contact(s) have no consent record, so the dialer will skip them until consent is captured.`
+      withConsent < audienceSize
+        ? `${audienceSize - withConsent} contact(s) have no consent record, so the dialer will skip them until consent is captured.`
         : undefined,
   });
 }

@@ -154,6 +154,7 @@ export function CustomerImport({
       const body = (await response.json()) as {
         error?: string;
         added?: number;
+        duplicates?: number;
         note?: string;
         audienceSize?: number;
       };
@@ -161,8 +162,14 @@ export function CustomerImport({
         setNotice(body.error ?? 'The import could not be committed.');
         return;
       }
+      const duplicates = Number(body.duplicates ?? 0);
       setNotice(
         `Added ${body.added} contact(s); the campaign audience is now ${body.audienceSize}.` +
+          // Said, because a file imported twice used to report every row as
+          // added and left somebody expecting an audience that had not grown.
+          (duplicates > 0
+            ? ` ${duplicates} row(s) were already in this campaign and were not added again.`
+            : '') +
           (body.note ? ` ${body.note}` : ''),
       );
       setPreview(null);

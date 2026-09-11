@@ -609,9 +609,23 @@ export function CustomerLeadCapture({
                 onChange={(event) => setDomains(event.target.value)}
                 placeholder="https://example.com, https://shop.example.com"
               />
+              {/* What this list does, rather than what its name suggests. It
+                  is a CORS allowlist: it stops a page on somebody else's site
+                  submitting through a visitor's browser. It is not a lock on
+                  the endpoint — a request with no Origin header, which is
+                  every request that does not come from a browser, is accepted
+                  — so somebody who wants to post leads from a server should be
+                  sent to the keyed API instead of believing this stops them. */}
               <p className="mt-2 text-[11px] leading-4 text-ink-muted">
                 Comma-separated exact origins. Add at least one before
                 publishing; use http://localhost:3000 for local testing.
+              </p>
+              <p className="mt-1 text-[11px] leading-4 text-ink-muted">
+                This stops another website&apos;s page submitting the form
+                through a visitor&apos;s browser. It does not stop a script
+                posting straight to the URL, which sends no origin at all — for
+                sending leads from your own server, use an API key and{' '}
+                <span className="font-mono">/api/v1/leads</span> instead.
               </p>
             </Field>
           </div>

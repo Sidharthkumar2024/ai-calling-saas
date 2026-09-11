@@ -1092,10 +1092,28 @@ async function runTool(
           'I do not have the catalogue in front of me, so let me have a colleague send you the details.',
       };
     const requested = str(input, 'object');
+    const named = requested
+      ? objects.find(
+          (entry) => entry.key === requested || entry.id === requested,
+        )
+      : null;
+    // A name the workspace does not have is a miss, not an invitation to look
+    // somewhere else. The fallback below is for a model that named nothing at
+    // all; it used to catch this case too, so asking about "policies" in a
+    // workspace that sells flats searched the flats and read the answer out as
+    // though it were about policies. The model is told which names exist so it
+    // can ask again.
+    if (requested && !named)
+      return {
+        ok: false,
+        reason: 'unknown_object',
+        requested,
+        available: objects.map((o) => o.key),
+        say_to_customer:
+          'Let me check that with a colleague — I do not have those details in front of me.',
+      };
     const object =
-      objects.find(
-        (entry) => entry.key === requested || entry.id === requested,
-      ) ??
+      named ??
       // No object named: the one with the most records is the catalogue this
       // workspace actually sells from.
       (await busiestObject(ctx.organizationId, objects));

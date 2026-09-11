@@ -111,6 +111,16 @@ type TranscriptMessage = {
   content: string;
   latencyMs?: number;
   actions?: Array<{ type: string; label: string; status: string }>;
+  /**
+   * Why this turn cost nothing, when it cost nothing.
+   *
+   * The server answers `charged: false` with a reason — an empty wallet, a
+   * turn already settled — and said so deliberately: somebody testing an agent
+   * should hear it now rather than find a ledger that disagrees with the
+   * balance on their screen. This screen read neither field, so an unpaid turn
+   * looked exactly like a paid one.
+   */
+  chargeNote?: string;
 };
 
 const studioTabs = [
@@ -1155,6 +1165,8 @@ function TestConsole({
         creditsRemaining?: number;
         pipelineMode?: 'connected' | 'instant' | 'fallback';
         voiceConnected?: boolean;
+        charged?: boolean;
+        chargeNote?: string;
         error?: string;
       };
       if (!response.ok || !payload.message)
@@ -1167,6 +1179,10 @@ function TestConsole({
           content: payload.message!,
           actions: payload.actions,
           latencyMs: payload.latencyMs,
+          chargeNote:
+            payload.charged === false
+              ? (payload.chargeNote ?? 'This turn was not charged.')
+              : undefined,
         },
       ]);
       setCredits(Number(payload.creditsRemaining ?? credits - 10));
@@ -2043,6 +2059,14 @@ function TestConsole({
                           ) : null}
                         </div>
                         {message.content}
+                        {/* Beside the turn it belongs to, not in a toast that
+                            goes away: the wallet did not pay for this one, and
+                            the balance on screen will not match the ledger. */}
+                        {message.chargeNote ? (
+                          <p className="mt-2 border-t border-hairline pt-2 text-[11px] text-warning-text">
+                            Not charged — {message.chargeNote}
+                          </p>
+                        ) : null}
                       </div>
                     ) : (
                       <p className="text-xs leading-5">{message.content}</p>

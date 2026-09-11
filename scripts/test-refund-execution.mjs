@@ -72,7 +72,8 @@ globalThis.fetch = async (url, init) => {
   }
   if (method === 'POST' && target.includes('/refund')) {
     if (provider.createFails) throw new Error(provider.createFails);
-    const body = JSON.parse(String(init?.body ?? '{}'));
+    const sent = typeof init?.body === 'string' ? init.body : '{}';
+    const body = JSON.parse(sent);
     const made = {
       id: `rfnd_${provider.refunds.length + 1}`,
       status: 'processed',

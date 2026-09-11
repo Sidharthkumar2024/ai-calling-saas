@@ -148,6 +148,18 @@ export async function executeGraph(input: {
   let index = input.stepOffset ?? 0;
   let status: RunOutcome['status'] = 'completed';
   let error: string | undefined;
+  /**
+   * Steps already run since the last thing the outside world said.
+   *
+   * One call of this function IS one such stretch: suspending returns, and a
+   * resume — a WhatsApp reply, an approval — calls it again with a fresh set.
+   * Execution walks a single path, so arriving at a step twice inside one
+   * stretch can only mean the graph loops, and a loop with nothing new in it
+   * is a loop that will go round until the step budget kills it. Stopping here
+   * costs one lap instead of a hundred, and the difference to the person on
+   * the other end is a sentence they hear once rather than thirty times.
+   */
+  const runSinceInput = new Set<string>();
 
   while (current) {
     if (index - (input.stepOffset ?? 0) >= MAX_RUN_STEPS) {
@@ -161,6 +173,12 @@ export async function executeGraph(input: {
       error = `The run reached “${current}”, which is not a step in this workflow.`;
       break;
     }
+    if (runSinceInput.has(node.id)) {
+      status = 'stopped';
+      error = `“${node.name?.trim() || NODE_SPECS[node.kind]?.label || node.kind}” came round a second time with nothing new from the customer in between, so the run was going in circles and was stopped here.`;
+      break;
+    }
+    runSinceInput.add(node.id);
 
     const stepId = `wfstep_${crypto.randomUUID()}`;
     const config = resolveConfig(node.config ?? {}, variables);

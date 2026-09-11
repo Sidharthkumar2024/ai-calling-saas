@@ -772,5 +772,103 @@ ok(voice, 'a voice run resumes too');
 // Nothing was sent to WhatsApp for a call — the channel is not invented.
 equal(sent.length, beforeApproval + 2, 'a voice run does not message anybody');
 
+// --- a loop that never goes round -------------------------------------------------
+//
+// The validator now refuses to publish one of these, but workflows already
+// published still start, so the engine has to survive one. A run used to spin
+// until the hundred-step budget killed it, writing a step row each lap and
+// sending whatever sat inside the loop about thirty-three times. It stops on
+// the second arrival instead, and says which step it stopped at.
+const loopPhone = '+919700000003';
+const loopGraph = {
+  nodes: [
+    { id: 't', kind: 'trigger', config: { event: 'whatsapp_message' }, next: { next: 'q' } },
+    { id: 'q', kind: 'ask', config: { question: 'Which day?', variable: 'day' }, next: { next: 'c' } },
+    // Never satisfied, which is the whole point: the author meant "ask again".
+    { id: 'c', kind: 'condition', config: { expression: 'day = never' }, next: { true: 'e', false: 's' } },
+    { id: 's', kind: 'say', config: { text: 'Sorry, I did not catch that.' }, next: { next: 'q' } },
+    { id: 'e', kind: 'end', config: { disposition: 'done' }, next: {} },
+  ],
+};
+// The resume reads the graph from the workflow row, so the loop has to be the
+// stored graph and not only the one handed to executeGraph.
+db.prepare(
+  `INSERT INTO workflows (id, organization_id, name, trigger_type, status, graph_json) VALUES (?,?,?,?,?,?)`,
+).run('wf_loop', ORG, 'Looping', 'whatsapp_message', 'active', JSON.stringify(loopGraph));
+db.prepare(
+  `INSERT INTO workflow_runs (id, organization_id, workflow_id, trigger_type, status, input_json, output_json, variables_json, started_at)
+   VALUES (?,?,?,'whatsapp_message','running','{}','{}',?,CURRENT_TIMESTAMP)`,
+).run('run_loop', ORG, 'wf_loop', JSON.stringify({ phone: loopPhone }));
+
+const beforeLoop = sent.length;
+const firstLap = await engine.executeGraph({
+  graph: loopGraph,
+  context: { ...context, runId: 'run_loop', contactPhone: loopPhone },
+  variables: { phone: loopPhone },
+});
+// Lap one is an ordinary question, and the run parks on it.
+equal(firstLap.status, 'waiting');
+equal(sent.length, beforeLoop + 1, 'the question goes out once');
+
+// The customer answers something the condition will not accept.
+const afterReply = await engine.resumeAfterWhatsAppReply({
+  organizationId: ORG,
+  phone: loopPhone,
+  text: 'whenever',
+});
+ok(afterReply, 'the reply resumes the run');
+equal(afterReply.status, 'stopped', 'and the run stops rather than going round');
+ok(
+  String(afterReply.error ?? '').includes('came round a second time'),
+  'it says why it stopped',
+);
+ok(String(afterReply.error ?? '').includes('Ask'), 'and which step it stopped at');
+// THE ONE THAT MATTERS: the apology inside the loop is heard once, not thirty
+// times. Before this it was sent on every lap until the step budget ran out.
+equal(
+  sent.length,
+  beforeLoop + 2,
+  'the step inside the loop is sent once more and no more',
+);
+const loopSteps = db
+  .prepare(`SELECT COUNT(*) AS n FROM workflow_run_steps WHERE run_id = 'run_loop'`)
+  .get().n;
+ok(loopSteps <= 6, `a handful of step rows, not a hundred (got ${loopSteps})`);
+
+// Headless, where the ask cannot even park: the same guard, one lap.
+db.prepare(
+  `INSERT INTO workflow_runs (id, organization_id, workflow_id, trigger_type, status, input_json, output_json, variables_json, started_at)
+   VALUES (?,?,?,'webhook','running','{}','{}','{}',CURRENT_TIMESTAMP)`,
+).run('run_loop_loopHeadless', ORG, 'wf_1');
+const loopHeadless = await engine.executeGraph({
+  graph: loopGraph,
+  context: { organizationId: ORG, runId: 'run_loop_loopHeadless', sessionId: null, live: false },
+  variables: {},
+});
+equal(loopHeadless.status, 'stopped');
+ok(String(loopHeadless.error ?? '').includes('came round a second time'));
+
+// And a graph that merges two branches back together is not a loop: nothing
+// here refuses an honest forward-only join.
+const mergeGraph = {
+  nodes: [
+    { id: 't', kind: 'trigger', config: { event: 'whatsapp_message' }, next: { next: 'c' } },
+    { id: 'c', kind: 'condition', config: { expression: 'phone != nobody' }, next: { true: 's1', false: 's2' } },
+    { id: 's1', kind: 'say', config: { text: 'Hello there.' }, next: { next: 'e' } },
+    { id: 's2', kind: 'say', config: { text: 'Hello.' }, next: { next: 'e' } },
+    { id: 'e', kind: 'end', config: { disposition: 'done' }, next: {} },
+  ],
+};
+db.prepare(
+  `INSERT INTO workflow_runs (id, organization_id, workflow_id, trigger_type, status, input_json, output_json, variables_json, started_at)
+   VALUES (?,?,?,'whatsapp_message','running','{}','{}',?,CURRENT_TIMESTAMP)`,
+).run('run_merge', ORG, 'wf_1', JSON.stringify({ phone: loopPhone }));
+const merged = await engine.executeGraph({
+  graph: mergeGraph,
+  context: { ...context, runId: 'run_merge', contactPhone: loopPhone },
+  variables: { phone: loopPhone },
+});
+equal(merged.status, 'completed', 'a forward-only join still runs to the end');
+
 db.close();
 console.log(`whatsapp conversation: ${checks} assertions passed; no provider contacted.`);

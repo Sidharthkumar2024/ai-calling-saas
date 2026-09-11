@@ -225,6 +225,15 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
           },
           { next: 'done' },
         ),
+        // The second attempt, drawn out rather than looped back.
+        //
+        // This used to ask into `preferred_slot` — the variable the first Ask
+        // had already filled — and wire itself back to `slot`. A run never
+        // goes round twice: the Ask would have found that variable set and
+        // completed without asking anything, so the booking was retried with
+        // the same time that had just been refused, over and over, until the
+        // step budget stopped the run. A caller would have heard "that time is
+        // taken, would another work?" and never been given the chance to say.
         node(
           'alternative',
           'ask',
@@ -232,10 +241,42 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
           {
             question:
               'That time is taken. Would another day or time work for you?',
-            variable: 'preferred_slot',
+            variable: 'alternate_slot',
             expect: 'date',
           },
-          { next: 'slot' },
+          { next: 'retrySlot' },
+        ),
+        node(
+          'retrySlot',
+          'booking',
+          'Check the second time',
+          {
+            service: '{{service}}',
+            when: '{{alternate_slot}}',
+            mode: 'in_person',
+          },
+          // Two tries, then a person. Not a loop, and not a dead end.
+          { booked: 'confirmAlternate', unavailable: 'human' },
+        ),
+        node(
+          'confirmAlternate',
+          'say',
+          'Confirm the second time',
+          {
+            text: 'You are booked for {{service}} on {{alternate_slot}}. You will get a confirmation message shortly.',
+          },
+          { next: 'receiptAlternate' },
+        ),
+        node(
+          'receiptAlternate',
+          'message',
+          'Send the confirmation',
+          {
+            channel: 'whatsapp',
+            destination: '{{caller_phone}}',
+            body: 'Confirmed: {{service}} on {{alternate_slot}}.',
+          },
+          { next: 'done' },
         ),
         node(
           'lookup',

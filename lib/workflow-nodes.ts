@@ -584,7 +584,7 @@ export function reachableFrom(
  * allowed when it passes through something that waits for new input from
  * outside the run: an `ask`, or an `approval`.
  */
-export function unexitableCycles(graph: WorkflowGraph): string[][] {
+export function cyclesIn(graph: WorkflowGraph): string[][] {
   const byId = new Map(graph.nodes.map((node) => [node.id, node]));
   const cycles: string[][] = [];
   const colour = new Map<string, 'grey' | 'black'>();
@@ -612,13 +612,18 @@ export function unexitableCycles(graph: WorkflowGraph): string[][] {
 
   for (const node of graph.nodes) walk(node.id);
 
-  return cycles.filter((cycle) => {
-    const waits = cycle.some((id) => {
-      const kind = byId.get(id)?.kind;
-      return kind === 'ask' || kind === 'approval';
-    });
-    return !waits;
-  });
+  // Every cycle, with no exemption.
+  //
+  // This used to let through a cycle containing an `ask` or an `approval`, on
+  // the premise that those wait for something from outside the run so the loop
+  // can end. That is true of the first visit and false of the second. An `ask`
+  // revisited finds its variable already set and completes instantly with the
+  // answer it already has; on a call or a queued run it does not even suspend,
+  // it skips and takes its exit. An `approval` revisited returns the card it
+  // already decided. So the loop closes with nothing new in it, and the run
+  // spins until the step budget kills it — after sending the customer whatever
+  // is inside the loop, over and over.
+  return cycles;
 }
 
 /**
@@ -756,11 +761,14 @@ export function validateWorkflow(
         );
   }
 
-  for (const cycle of unexitableCycles(graph))
+  for (const cycle of cyclesIn(graph))
     add(
       'error',
       cycle[0],
-      `These steps loop into each other with nothing that waits for an answer, so a run would never leave: ${cycle.join(' → ')}.`,
+      // Says what to do instead, because "ask them again until it is right" is
+      // a real thing to want and an edge pointing backwards is not how this
+      // engine can give it.
+      `These steps loop back into each other, and a run never goes round twice: an Ask that comes round again already holds its answer and does not ask, and an Approval already holds its decision. Draw the retry as another Ask, or hand the conversation to a person. The loop: ${cycle.join(' → ')}.`,
     );
 
   return { ok: errors.length === 0, errors, warnings };

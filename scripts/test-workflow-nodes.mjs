@@ -11,7 +11,7 @@ import {
   layoutGraph,
   reachableFrom,
   triggerEventOf,
-  unexitableCycles,
+  cyclesIn,
   validateWorkflow,
 } from '../lib/workflow-nodes.ts';
 import { WORKFLOW_TEMPLATES, templateByKey } from '../lib/workflow-templates.ts';
@@ -196,12 +196,18 @@ check('a loop of conditions alone can never exit, and is refused', () => {
       node('e', 'end', { disposition: 'done' }, {}),
     ],
   };
-  assert.equal(unexitableCycles(graph).length, 1);
+  assert.equal(cyclesIn(graph).length, 1);
   const result = validateWorkflow(graph);
-  assert.ok(result.errors.some((issue) => /loop into each other/.test(issue.message)));
+  assert.ok(result.errors.some((issue) => /loop back into each other/.test(issue.message)));
 });
 
-check('a loop through an Ask is allowed — the caller supplies something new', () => {
+// These two used to assert the opposite: that a loop through an Ask or an
+// Approval is fine because the step waits for something new. It is true the
+// first time round and false the second — a revisited Ask already holds its
+// answer and completes without asking, a revisited Approval already holds its
+// decision — so the loop closes with nothing new in it and the run spins to
+// the step budget, sending whatever is inside the loop each lap.
+check('a loop back into an Ask is refused: it does not ask again', () => {
   const graph = {
     nodes: [
       node('t', 'trigger', { event: 'inbound_call' }, { next: 'q' }),
@@ -210,11 +216,14 @@ check('a loop through an Ask is allowed — the caller supplies something new', 
       node('e', 'end', { disposition: 'done' }, {}),
     ],
   };
-  assert.deepEqual(unexitableCycles(graph), []);
-  assert.equal(validateWorkflow(graph).ok, true);
+  assert.equal(cyclesIn(graph).length, 1);
+  const result = validateWorkflow(graph);
+  assert.equal(result.ok, false);
+  // The error says what to do instead of only what is wrong.
+  assert.ok(result.errors.some((issue) => /another Ask/.test(issue.message)));
 });
 
-check('a loop through an Approval is allowed too', () => {
+check('a loop back into an Approval is refused for the same reason', () => {
   const graph = {
     nodes: [
       node('t', 'trigger', { event: 'webhook' }, { next: 'a' }),
@@ -223,7 +232,24 @@ check('a loop through an Approval is allowed too', () => {
       node('e', 'end', { disposition: 'done' }, {}),
     ],
   };
-  assert.deepEqual(unexitableCycles(graph), []);
+  assert.equal(cyclesIn(graph).length, 1);
+  assert.equal(validateWorkflow(graph).ok, false);
+});
+
+// Forward-only graphs are untouched: this is about edges pointing backwards,
+// not about two branches meeting again further down.
+check('two branches that meet again further on are not a loop', () => {
+  const graph = {
+    nodes: [
+      node('t', 'trigger', { event: 'inbound_call' }, { next: 'c' }),
+      node('c', 'condition', { expression: 'score > 50' }, { true: 's1', false: 's2' }),
+      node('s1', 'say', { text: 'High' }, { next: 'e' }),
+      node('s2', 'say', { text: 'Low' }, { next: 'e' }),
+      node('e', 'end', { disposition: 'done' }, {}),
+    ],
+  };
+  assert.deepEqual(cyclesIn(graph), []);
+  assert.equal(validateWorkflow(graph).ok, true);
 });
 
 console.log('\nreachability and layout');

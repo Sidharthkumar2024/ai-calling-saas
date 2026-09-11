@@ -4,6 +4,7 @@ import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { storeRecording } from '@/lib/recording-storage';
 import { exotelCredits, settleExotel } from '@/lib/exotel-settlement';
+import { normaliseCallStatus, TERMINAL_SQL_LIST } from '@/lib/telephony-status';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
       { error: 'Call reference is missing.' },
       { status: 400 },
     );
-  const status = normalizeStatus(value(raw.Status) || value(raw.status));
+  const status = normaliseCallStatus(value(raw.Status) || value(raw.status));
   const duration = numberValue(raw.ConversationDuration ?? raw.duration);
   const recordingUrl = value(raw.RecordingUrl) || value(raw.recording_url);
   const db = getRawDb();
@@ -74,15 +75,35 @@ export async function POST(request: Request) {
     status === 'completed' && Number(call.cost_credits || 0) === 0
       ? exotelCredits(duration)
       : 0;
-  const settled = credits > 0 ? await settleExotel(db, call.organization_id, call.id, credits) : false;
+  const settled =
+    credits > 0
+      ? await settleExotel(db, call.organization_id, call.id, credits)
+      : false;
+  // Carriers deliver these more than once, and late. A second callback may
+  // fill in what the first one lacked — a duration, a recording, a provider
+  // reference — but it may not walk a finished call backwards:
+  //
+  //  - `status` used to be written unconditionally, so a stray `ringing` after
+  //    a `completed` put the call back on the air;
+  //  - `recording_status` too, so a recording already fetched and stored was
+  //    marked pending again. The file and its key survive — both are
+  //    coalesced — so what was lost was the product's knowledge that the
+  //    recording was there, which is the whole of what publishes it.
+  //
+  //  `ended_at` was already written this way; the rest now matches it.
   await db
-    .prepare(`UPDATE call_records SET status = ?, duration_seconds = CASE WHEN ? > 0 THEN ? ELSE duration_seconds END,
-      recording_status = ?, recording_storage_key = coalesce(?, recording_storage_key),
+    .prepare(`UPDATE call_records SET
+      status = CASE WHEN status IN (${TERMINAL_SQL_LIST}) AND ? NOT IN (${TERMINAL_SQL_LIST})
+        THEN status ELSE ? END,
+      duration_seconds = CASE WHEN ? > 0 THEN ? ELSE duration_seconds END,
+      recording_status = CASE WHEN recording_status = 'stored' THEN 'stored' ELSE ? END,
+      recording_storage_key = coalesce(?, recording_storage_key),
       recording_url = coalesce(?, recording_url),
       analysis_json = json_set(analysis_json, '$.providerReference', ?),
-      ended_at = CASE WHEN ? IN ('completed','failed','busy','no_answer') THEN CURRENT_TIMESTAMP ELSE ended_at END
+      ended_at = CASE WHEN ? IN (${TERMINAL_SQL_LIST}) THEN coalesce(ended_at, CURRENT_TIMESTAMP) ELSE ended_at END
       WHERE id = ?`)
     .bind(
+      status,
       status,
       duration,
       duration,
@@ -118,20 +139,4 @@ function value(input: unknown) {
 function numberValue(input: unknown) {
   const number = Number(input);
   return Number.isFinite(number) ? Math.max(0, Math.round(number)) : 0;
-}
-function normalizeStatus(input: string | null) {
-  const value = (input || '').toLowerCase().replaceAll(' ', '_');
-  if (
-    [
-      'completed',
-      'failed',
-      'busy',
-      'no_answer',
-      'in_progress',
-      'queued',
-      'ringing',
-    ].includes(value)
-  )
-    return value;
-  return 'processing';
 }

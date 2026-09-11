@@ -490,14 +490,47 @@ export function CustomerWorkflowBuilder() {
               }
               onClick={async () => {
                 setBusy('publish');
+                // Publish what is on the canvas, not what was last saved.
+                //
+                // This button is enabled by validating the graph in front of
+                // you, and it used to send nothing but the workflow id — so
+                // the server validated and published the *stored* graph. Edit
+                // until the validation panel goes green, press Publish without
+                // saving, and the previous version went live while the screen
+                // said the one you were looking at had. The other way round
+                // too: a saved, publishable workflow could not be published
+                // while the canvas was mid-edit.
+                const saved = await post({
+                  action: 'save',
+                  workflowId: openId,
+                  name,
+                  description,
+                  graph: current,
+                });
+                if (!saved.ok) {
+                  setBusy('');
+                  setNotice(
+                    messageFrom(
+                      saved.payload.error,
+                      'This workflow could not be saved, so it was not published.',
+                    ),
+                  );
+                  return;
+                }
+                const id =
+                  typeof saved.payload.workflowId === 'string'
+                    ? saved.payload.workflowId
+                    : openId;
+                if (typeof saved.payload.workflowId === 'string')
+                  setOpenId(saved.payload.workflowId);
                 const { ok, payload } = await post({
                   action: 'publish',
-                  workflowId: openId,
+                  workflowId: id,
                 });
                 setBusy('');
                 setNotice(
                   ok
-                    ? 'Live. New calls on this trigger follow it.'
+                    ? 'Saved and live. New calls on this trigger follow it.'
                     : messageFrom(
                         payload.error,
                         'This workflow is not ready to go live.',

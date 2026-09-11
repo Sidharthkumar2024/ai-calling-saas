@@ -385,15 +385,25 @@ async function runNode(
     }
 
     case 'condition': {
-      const verdict = evaluateCondition(
-        textValue(config.expression),
-        variables,
-      );
+      // The expression as the author wrote it, not the interpolated copy.
+      //
+      // Every other step wants `{{name}}` replaced before it runs; a condition
+      // is the one that does not, because `evaluateCondition` resolves the
+      // reference itself — and it has to, since only it knows that the left
+      // side is a name and the right side is usually a literal. Handed the
+      // substituted text instead, `{{answer}} contains yes` arrived as
+      // `yes please contains yes`, and the left side was looked up as a
+      // variable called "yes please". It came back undefined, so the branch
+      // went false and the run recorded "yes please has no value in this run"
+      // about an answer that was sitting right there. Numbers survived it by
+      // luck: `80 >= 60` compares the same either way.
+      const authored = textValue(node.config.expression);
+      const verdict = evaluateCondition(authored, variables);
       return {
         status: 'completed',
         branch: verdict.value ? 'true' : 'false',
         output: {
-          expression: textValue(config.expression),
+          expression: authored,
           result: verdict.value,
           explain: verdict.explain,
           // Carried separately: "we never collected it" is not "it was low".

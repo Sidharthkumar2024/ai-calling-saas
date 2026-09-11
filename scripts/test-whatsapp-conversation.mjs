@@ -870,5 +870,63 @@ const merged = await engine.executeGraph({
 });
 equal(merged.status, 'completed', 'a forward-only join still runs to the end');
 
+// --- a condition about what somebody said -----------------------------------------
+//
+// Every other step wants `{{name}}` substituted before it runs. A condition is
+// the one that does not: evaluateCondition resolves the reference itself,
+// because only it knows the left side is a name and the right side is usually
+// a literal. It used to be handed the substituted copy, so
+// `{{answer}} contains yes` arrived as `yes please contains yes` and the left
+// side was looked up as a variable called "yes please". Undefined, so the
+// branch went false — and the trace said the answer had no value while it sat
+// in the run's own variables. Numbers survived by luck: `80 >= 60` compares
+// the same either way.
+const branchOn = (expression, vars) => ({
+  nodes: [
+    { id: 't', kind: 'trigger', config: { event: 'whatsapp_message' }, next: { next: 'c' } },
+    { id: 'c', kind: 'condition', config: { expression }, next: { true: 'yes', false: 'no' } },
+    { id: 'yes', kind: 'end', config: { disposition: 'matched' }, next: {} },
+    { id: 'no', kind: 'end', config: { disposition: 'missed' }, next: {} },
+  ],
+  vars,
+});
+
+let branchRun = 0;
+const whichWay = async (expression, vars) => {
+  branchRun += 1;
+  const id = `run_branch_${branchRun}`;
+  db.prepare(
+    `INSERT INTO workflow_runs (id, organization_id, workflow_id, trigger_type, status, input_json, output_json, variables_json, started_at)
+     VALUES (?,?,?,'webhook','running','{}','{}','{}',CURRENT_TIMESTAMP)`,
+  ).run(id, ORG, 'wf_1');
+  const graph = branchOn(expression, vars);
+  const outcome = await engine.executeGraph({
+    graph,
+    context: { organizationId: ORG, runId: id, sessionId: null, live: false },
+    variables: vars,
+  });
+  const end = outcome.trace.find((step) => step.kind === 'end');
+  return { outcome, end };
+};
+
+// THE ONE THAT WAS BROKEN.
+const spoken = await whichWay('{{answer}} contains yes', { answer: 'yes please' });
+equal(spoken.end.nodeId, 'yes', 'a braced text variable is resolved, not substituted');
+// And when it genuinely does not match, it still says no.
+const notMatched = await whichWay('{{answer}} contains yes', { answer: 'no thanks' });
+equal(notMatched.end.nodeId, 'no');
+// A variable the run never collected is absent, and absent is false — the
+// message that used to be printed about an answer that was present.
+const absent = await whichWay('{{answer}} contains yes', {});
+equal(absent.end.nodeId, 'no');
+
+// The forms that already worked keep working, both ways round.
+equal((await whichWay('{{score}} >= 60', { score: 80 })).end.nodeId, 'yes');
+equal((await whichWay('score >= 60', { score: 80 })).end.nodeId, 'yes');
+equal((await whichWay('answer contains yes', { answer: 'yes please' })).end.nodeId, 'yes');
+equal((await whichWay('{{score}} >= 60', { score: 10 })).end.nodeId, 'no');
+// A literal on the right that happens to be a word is still a word.
+equal((await whichWay('{{stage}} = qualified', { stage: 'qualified' })).end.nodeId, 'yes');
+
 db.close();
 console.log(`whatsapp conversation: ${checks} assertions passed; no provider contacted.`);

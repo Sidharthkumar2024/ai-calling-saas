@@ -124,6 +124,40 @@ export async function executeRefund(input: {
     status?: string;
     error?: { description?: string };
   };
+
+  // Look before submitting.
+  //
+  // The row guard above stops a resubmission whenever we know the provider
+  // reference. The case it cannot stop is the one the catch block below
+  // describes in its own words: the provider accepted the refund and we never
+  // learned of it, because the connection died first. The row stays
+  // `requested` with no reference, and the next retry creates a *second*
+  // refund — real money, twice.
+  //
+  // The header underneath used to carry a comment saying Razorpay
+  // de-duplicates on it. The header it sent was not one of Razorpay's, so
+  // nothing de-duplicated anything. The name is corrected below, but nothing
+  // here relies on it: this asks the provider what it already has.
+  //
+  // Every refund this product creates carries `notes.refund_id`, so its own
+  // work is recognisable among any others against the same payment.
+  const known = await findSubmittedRefund(payment.external_id, refund.id, {
+    keyId: credentials.keyId,
+    keySecret: credentials.keySecret,
+  });
+  if (known) {
+    await settleRefundRow(db, input.organizationId, refund, known);
+    return {
+      ok: true,
+      status: known.status === 'processed' ? 'succeeded' : 'processing',
+      refundId: refund.id,
+      providerReference: known.id,
+      confirmed: known.status === 'processed',
+      reason:
+        'This refund had already reached the provider; it was matched rather than sent again.',
+    };
+  }
+
   try {
     const response = await fetch(
       `https://api.razorpay.com/v1/payments/${encodeURIComponent(payment.external_id)}/refund`,
@@ -132,9 +166,12 @@ export async function executeRefund(input: {
         headers: {
           authorization: `Basic ${btoa(`${credentials.keyId}:${credentials.keySecret}`)}`,
           'content-type': 'application/json',
-          // Razorpay de-duplicates on this, so a retry after a timeout cannot
-          // refund twice even if our own row was not yet updated.
-          'x-payment-idempotency-key': refund.id,
+          // Razorpay's own idempotency header. Belt and braces behind the
+          // lookup above, not the thing being relied on: the previous name,
+          // `x-payment-idempotency-key`, is not a header Razorpay reads, so
+          // the comment that used to sit here — that a retry could not refund
+          // twice — described something that was not happening.
+          'x-razorpay-idempotency-key': refund.id,
         },
         body: JSON.stringify({
           amount: refund.amount,
@@ -168,6 +205,75 @@ export async function executeRefund(input: {
   // 'processed' is Razorpay saying the money moved. Anything else is in flight.
   const confirmed = payload.status === 'processed';
   const status = confirmed ? 'succeeded' : 'processing';
+  await settleRefundRow(db, input.organizationId, refund, {
+    id: String(payload.id),
+    status: payload.status,
+  });
+
+  return {
+    ok: true,
+    status,
+    refundId: refund.id,
+    providerReference: payload.id,
+    confirmed,
+  };
+}
+
+/**
+ * A refund this product already created against that payment, if there is one.
+ *
+ * Matched on `notes.refund_id`, which every refund submitted from here
+ * carries, so somebody else's refund against the same payment — one raised in
+ * the Razorpay dashboard, say — is not adopted as ours.
+ *
+ * A provider that cannot be reached returns null rather than throwing: the
+ * caller then submits, which is the behaviour that was there before this
+ * lookup existed. That is the honest trade — this narrows the double-refund
+ * window, and a lookup that itself fails leaves the old window open rather
+ * than blocking a refund somebody approved.
+ */
+async function findSubmittedRefund(
+  paymentExternalId: string,
+  refundId: string,
+  credentials: { keyId: string; keySecret: string },
+): Promise<{ id: string; status?: string } | null> {
+  try {
+    const response = await fetch(
+      `https://api.razorpay.com/v1/payments/${encodeURIComponent(paymentExternalId)}/refunds?count=100`,
+      {
+        headers: {
+          authorization: `Basic ${btoa(`${credentials.keyId}:${credentials.keySecret}`)}`,
+        },
+        signal: AbortSignal.timeout(15_000),
+      },
+    );
+    if (!response.ok) return null;
+    const body = (await response.json()) as {
+      items?: Array<{
+        id?: string;
+        status?: string;
+        notes?: Record<string, unknown>;
+      }>;
+    };
+    const mine = (body.items ?? []).find((item) => {
+      const tag = item?.notes?.refund_id;
+      return typeof tag === 'string' && tag === refundId && Boolean(item?.id);
+    });
+    return mine ? { id: String(mine.id), status: mine.status } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** One place that writes what the provider said, however we came to know it. */
+async function settleRefundRow(
+  db: ReturnType<typeof getRawDb>,
+  organizationId: string,
+  refund: RefundRow,
+  provider: { id: string; status?: string },
+) {
+  const confirmed = provider.status === 'processed';
+  const status = confirmed ? 'succeeded' : 'processing';
   await db
     .prepare(
       `UPDATE refunds SET status = ?, provider = 'razorpay', provider_reference = ?,
@@ -175,7 +281,7 @@ export async function executeRefund(input: {
          confirmed_at = CASE WHEN ? = 'succeeded' THEN CURRENT_TIMESTAMP ELSE NULL END
        WHERE id = ?`,
     )
-    .bind(status, payload.id, status, refund.id)
+    .bind(status, provider.id, status, refund.id)
     .run();
   await db
     .prepare(
@@ -187,22 +293,14 @@ export async function executeRefund(input: {
     )
     .bind(
       `reconciliation_${crypto.randomUUID()}`,
-      input.organizationId,
-      payload.id,
+      organizationId,
+      provider.id,
       refund.id,
       -refund.amount,
       refund.currency || 'INR',
       confirmed ? 'matched' : 'pending',
     )
     .run();
-
-  return {
-    ok: true,
-    status,
-    refundId: refund.id,
-    providerReference: payload.id,
-    confirmed,
-  };
 }
 
 async function fail(

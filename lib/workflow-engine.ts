@@ -1121,7 +1121,7 @@ export async function resumeAfterApproval(input: {
   const db = getRawDb();
   const run = await db
     .prepare(`SELECT r.id, r.workflow_id, r.resume_node, r.variables_json, r.call_id,
-      w.graph_json FROM workflow_runs r JOIN workflows w ON w.id = r.workflow_id
+      r.trigger_type, w.graph_json FROM workflow_runs r JOIN workflows w ON w.id = r.workflow_id
       WHERE r.organization_id = ? AND r.status = 'waiting' AND r.waiting_on = ? LIMIT 1`)
     .bind(input.organizationId, `approval:${input.approvalId}`)
     .first<{
@@ -1130,6 +1130,7 @@ export async function resumeAfterApproval(input: {
       resume_node: string | null;
       variables_json: string;
       call_id: string | null;
+      trigger_type: string | null;
       graph_json: string | null;
     }>();
   if (!run || !run.resume_node) return null;
@@ -1162,15 +1163,41 @@ export async function resumeAfterApproval(input: {
     .bind(run.id)
     .run();
 
+  const variables = safeVariables(run.variables_json);
+  // The run has not changed channel just because a person had to approve
+  // something in the middle of it. This used to rebuild the context from
+  // nothing — no session id even though `call_id` was already selected, and no
+  // channel or phone — so an approved WhatsApp run carried on headless:
+  //
+  //  - `say` and `ask` skipped as no_live_call, so the customer waiting on the
+  //    other end was told nothing;
+  //  - `message`, `payment`, `document_request` and `booking` fell back to a
+  //    contact phone that was no longer there, and skipped as no_destination
+  //    whenever their own destination field was blank;
+  //  - `human_transfer` never claimed the conversation, because claiming is
+  //    gated on the channel;
+  //  - and worst of it: because the ask skipped instead of suspending, no run
+  //    was left parked on that number. When the customer did write back, the
+  //    bot found nothing waiting and started a brand new run from the trigger,
+  //    so the conversation restarted instead of continuing.
+  //
+  // The number is recoverable: a WhatsApp run is seeded with it.
+  const chatPhone =
+    run.trigger_type === 'whatsapp_message'
+      ? normalisePhone(textValue(variables.phone ?? variables.customer_phone))
+      : '';
   return executeGraph({
     graph,
     context: {
       organizationId: input.organizationId,
       runId: run.id,
-      sessionId: null,
+      sessionId: run.call_id,
       live: false,
+      ...(chatPhone
+        ? { channel: 'whatsapp' as const, contactPhone: chatPhone }
+        : {}),
     },
-    variables: safeVariables(run.variables_json),
+    variables,
     startNode: next,
     stepOffset: stepCount?.n ?? 0,
   });

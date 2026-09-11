@@ -696,5 +696,81 @@ equal(missing.trace.find((step) => step.kind === 'crm_lookup').status, 'complete
 equal(boundAfterUnresolved('run_lookup_4'), false);
 equal(boundAfterUnresolved('run_lookup_2'), false);
 
+// --- a conversation that went through an approval ---------------------------------
+//
+// A person had to approve something in the middle. That does not move the
+// conversation off WhatsApp, but the resume used to rebuild the context from
+// nothing — no channel, no phone, no session id — so the run carried on
+// headless and the customer waiting on the other end was told nothing. Worse
+// than silence: because the ask skipped instead of suspending, no run was left
+// parked on that number, so the customer's next message started a brand new
+// run from the trigger instead of continuing this one.
+const approvalPhone = '+919700000002';
+const approvalGraph = {
+  nodes: [
+    { id: 't', kind: 'trigger', config: { event: 'whatsapp_message' }, next: { next: 'a' } },
+    {
+      id: 'a',
+      kind: 'approval',
+      config: { action: 'discount', amount: '500', reason: 'Asked for a discount' },
+      next: { approved: 's', rejected: 'e' },
+    },
+    { id: 's', kind: 'say', config: { text: 'Approved — 500 off.' }, next: { next: 'q' } },
+    { id: 'q', kind: 'ask', config: { question: 'Shall I send the link?', variable: 'confirm' }, next: { next: 'e' } },
+    { id: 'e', kind: 'end', config: { disposition: 'done' }, next: {} },
+  ],
+};
+db.prepare(
+  `INSERT INTO workflows (id, organization_id, name, trigger_type, status, graph_json) VALUES (?,?,?,?,?,?)`,
+).run('wf_appr', ORG, 'Discount', 'whatsapp_message', 'active', JSON.stringify(approvalGraph));
+db.prepare(
+  `INSERT INTO workflow_runs (id, organization_id, workflow_id, trigger_type, status, input_json, output_json, variables_json, waiting_on, resume_node, started_at)
+   VALUES (?,?,?,'whatsapp_message','waiting','{}','{}',?,?,?,CURRENT_TIMESTAMP)`,
+).run(
+  'run_appr',
+  ORG,
+  'wf_appr',
+  JSON.stringify({ phone: approvalPhone, customer_phone: approvalPhone }),
+  'approval:ap_discount',
+  'a',
+);
+
+const beforeApproval = sent.length;
+const resumed = await engine.resumeAfterApproval({
+  organizationId: ORG,
+  approvalId: 'ap_discount',
+  approved: true,
+});
+ok(resumed, 'the approval resumes the run it was raised from');
+// The customer hears the outcome.
+equal(sent.length, beforeApproval + 2, 'both the answer and the next question go out');
+equal(sent[beforeApproval].message, 'Approved — 500 off.');
+equal(sent[beforeApproval + 1].message, 'Shall I send the link?');
+equal(sent[beforeApproval].phone, approvalPhone, 'and they go to the person who was waiting');
+
+// And the run parks on that number again, so their reply continues this
+// conversation instead of starting another one.
+const parkedAfterApproval = db
+  .prepare(`SELECT status, waiting_on, resume_node FROM workflow_runs WHERE id = 'run_appr'`)
+  .get();
+equal(parkedAfterApproval.status, 'waiting');
+equal(parkedAfterApproval.waiting_on, `whatsapp:${approvalPhone}`);
+equal(parkedAfterApproval.resume_node, 'q');
+equal(resumed.status, 'waiting', 'the run is not reported finished while somebody is being asked');
+
+// A voice run keeps its session id rather than losing it to the resume.
+db.prepare(
+  `INSERT INTO workflow_runs (id, organization_id, workflow_id, trigger_type, status, input_json, output_json, variables_json, waiting_on, resume_node, call_id, started_at)
+   VALUES (?,?,?,'inbound_call','waiting','{}','{}','{}',?,?,?,CURRENT_TIMESTAMP)`,
+).run('run_voice', ORG, 'wf_appr', 'approval:ap_voice', 'a', 'call_9');
+const voice = await engine.resumeAfterApproval({
+  organizationId: ORG,
+  approvalId: 'ap_voice',
+  approved: true,
+});
+ok(voice, 'a voice run resumes too');
+// Nothing was sent to WhatsApp for a call — the channel is not invented.
+equal(sent.length, beforeApproval + 2, 'a voice run does not message anybody');
+
 db.close();
 console.log(`whatsapp conversation: ${checks} assertions passed; no provider contacted.`);

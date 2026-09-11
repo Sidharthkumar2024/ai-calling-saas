@@ -950,6 +950,23 @@ async function sendScheduledPayment(
       message_id: string | null;
     }>();
   if (!row) throw new Error('Payment link was not found.');
+  // Claim the action before sending it, not after.
+  //
+  // The send used to come first and the row was marked completed afterwards,
+  // so nothing stopped a second drainer — two overlapping cron requests, or a
+  // lease that expired while the provider was slow — from sending the same
+  // payment link again. The customer gets two links for one debt and cannot
+  // tell which to pay.
+  //
+  // `attempt_count` moves here too: an attempt is a thing that happened at the
+  // moment it was made, not a thing counted only when it worked.
+  const claim = await db
+    .prepare(`UPDATE scheduled_actions SET status = 'sending', attempt_count = attempt_count + 1
+      WHERE id = ? AND organization_id = ? AND status != 'completed'`)
+    .bind(actionId, job.organization_id)
+    .run();
+  if (!Number(claim.meta?.changes ?? 0))
+    return { delivered: false, reason: 'already_sent' };
   const delivery = await sendWhatsAppPaymentLink({
     organizationId: job.organization_id,
     destination: row.customer_phone,
@@ -959,7 +976,7 @@ async function sendScheduledPayment(
   });
   await db.batch([
     db
-      .prepare(`UPDATE scheduled_actions SET status = 'completed', attempt_count = attempt_count + 1,
+      .prepare(`UPDATE scheduled_actions SET status = 'completed',
       completed_at = CURRENT_TIMESTAMP, last_error = NULL WHERE id = ? AND organization_id = ?`)
       .bind(actionId, job.organization_id),
     db

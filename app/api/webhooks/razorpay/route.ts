@@ -40,12 +40,30 @@ export async function POST(request: Request) {
         .bind(refundEntity.id)
         .first<{ id: string; organization_id: string }>()
     : null;
-  const organizationId =
-    payment?.organization_id ?? refundOwner?.organization_id;
+  // Whose event this is, and it has to be one workspace.
+  //
+  // A refund event is settled against the refund, so the refund's owner is who
+  // it belongs to — the payment link used to win this, which meant an event
+  // could name one workspace's payment link and another's refund, be signed
+  // with the first workspace's own secret, and settle the second's refund.
+  // A body naming two workspaces is refused rather than assigned to one.
+  const isRefundEvent = Boolean(payload.event?.startsWith('refund.'));
+  const organizationId = isRefundEvent
+    ? (refundOwner?.organization_id ?? payment?.organization_id)
+    : (payment?.organization_id ?? refundOwner?.organization_id);
   if (!organizationId)
     return NextResponse.json(
       { error: 'The event does not match a known payment link or refund.' },
       { status: 404 },
+    );
+  if (
+    payment &&
+    refundOwner &&
+    payment.organization_id !== refundOwner.organization_id
+  )
+    return NextResponse.json(
+      { error: 'The event names two workspaces.' },
+      { status: 409 },
     );
   const secret = await getRazorpayWebhookSecret(organizationId);
   if (
@@ -77,6 +95,7 @@ export async function POST(request: Request) {
       payload.event === 'refund.failed'
     ) {
       const settled = await settleRefundFromProvider({
+        organizationId,
         providerReference: refundEntity!.id!,
         outcome,
         failureReason: refundEntity?.error_description ?? null,

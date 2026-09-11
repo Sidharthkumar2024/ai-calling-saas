@@ -329,15 +329,21 @@ async function fail(
  * it.
  */
 export async function settleRefundFromProvider(input: {
+  organizationId: string;
   providerReference: string;
   outcome: 'succeeded' | 'failed';
   failureReason?: string | null;
 }) {
   const result = await getRawDb()
     .prepare(
+      // Scoped to a workspace as well as to the provider's reference. A
+      // provider reference is a string that arrives in a webhook body, and
+      // this moves somebody's refund to succeeded or failed; matching on it
+      // alone meant an event signed by one workspace could settle another
+      // workspace's refund.
       `UPDATE refunds SET status = ?, failure_reason = ?,
          confirmed_at = CASE WHEN ? = 'succeeded' THEN CURRENT_TIMESTAMP ELSE confirmed_at END
-       WHERE provider_reference = ? AND status != ?`,
+       WHERE provider_reference = ? AND organization_id = ? AND status != ?`,
     )
     .bind(
       input.outcome,
@@ -346,6 +352,7 @@ export async function settleRefundFromProvider(input: {
         : null,
       input.outcome,
       input.providerReference,
+      input.organizationId,
       input.outcome,
     )
     .run();

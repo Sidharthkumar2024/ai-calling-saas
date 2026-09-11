@@ -193,5 +193,47 @@ const blind = await run();
 equal(blind.ok, true, 'an unreachable lookup does not stop the refund');
 equal(created(), 1);
 
+// --- settling from a provider webhook ---------------------------------------------
+//
+// `settleRefundFromProvider` moves somebody's refund to succeeded or failed on
+// the strength of a reference that arrived in a webhook body. It used to match
+// on that reference alone, so an event signed by one workspace could settle
+// another workspace's refund — and the Razorpay route let a payment link from
+// one workspace decide whose secret verified an event about the other's
+// refund.
+setup();
+db.prepare(`INSERT INTO refunds (id, organization_id, order_reference, amount, currency, reason, status, provider_reference)
+  VALUES ('refund_theirs','org_other','pay_xyz',9900,'INR','Theirs','processing','rfnd_theirs')`).run();
+db.prepare(`UPDATE refunds SET status = 'processing', provider_reference = 'rfnd_mine' WHERE id = ?`).run(REFUND);
+
+const foreign = await execution.settleRefundFromProvider({
+  organizationId: ORG,
+  providerReference: 'rfnd_theirs',
+  outcome: 'succeeded',
+});
+equal(foreign.changed, false, "one workspace cannot settle another's refund");
+equal(
+  db.prepare("SELECT status FROM refunds WHERE id = 'refund_theirs'").get().status,
+  'processing',
+  'and the row does not move',
+);
+
+const own = await execution.settleRefundFromProvider({
+  organizationId: ORG,
+  providerReference: 'rfnd_mine',
+  outcome: 'succeeded',
+});
+equal(own.changed, true, 'its own refund settles');
+equal(row().status, 'succeeded');
+// Settling twice is not an error, but it is not a second movement either.
+equal(
+  (await execution.settleRefundFromProvider({
+    organizationId: ORG,
+    providerReference: 'rfnd_mine',
+    outcome: 'succeeded',
+  })).changed,
+  false,
+);
+
 globalThis.fetch = originalFetch;
 console.log(`refund execution: ${checks} assertions passed; no provider contacted.`);

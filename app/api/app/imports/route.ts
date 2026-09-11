@@ -153,7 +153,7 @@ export async function POST(request: Request) {
   const suppressed = await db
     .prepare(`SELECT phone_hash FROM suppression_entries
       WHERE (organization_id = ? OR scope = 'global')
-        AND (expires_at IS NULL OR expires_at > datetime('now'))`)
+        AND (expires_at IS NULL OR datetime(expires_at) > datetime('now'))`)
     .bind(organizationId)
     .all<{ phone_hash: string }>();
   const suppressedHashes = new Set(
@@ -357,7 +357,7 @@ export async function PATCH(request: Request) {
   const granted = await db
     .prepare(`SELECT phone FROM consent_records
       WHERE organization_id = ? AND status = 'granted'
-        AND (expires_at IS NULL OR expires_at > datetime('now')) LIMIT 20000`)
+        AND (expires_at IS NULL OR datetime(expires_at) > datetime('now')) LIMIT 20000`)
     .bind(organizationId)
     .all<{ phone: string }>();
   const grantedPhones = new Set(

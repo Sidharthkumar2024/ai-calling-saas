@@ -19,7 +19,17 @@ export async function POST(request: Request) {
       portal?: 'admin' | 'customer';
       otp?: string;
     };
-    if (!body || typeof body !== 'object' || Array.isArray(body) || typeof body.email !== 'string' || !body.email.trim() || typeof body.password !== 'string' || !body.password || !['admin', 'customer'].includes(body.portal ?? '') || (body.otp !== undefined && typeof body.otp !== 'string')) {
+    if (
+      !body ||
+      typeof body !== 'object' ||
+      Array.isArray(body) ||
+      typeof body.email !== 'string' ||
+      !body.email.trim() ||
+      typeof body.password !== 'string' ||
+      !body.password ||
+      !['admin', 'customer'].includes(body.portal ?? '') ||
+      (body.otp !== undefined && typeof body.otp !== 'string')
+    ) {
       return NextResponse.json(
         { error: 'Email, password and portal are required.' },
         { status: 400 },
@@ -100,7 +110,10 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json(
       {
-        error: error instanceof SyntaxError ? 'Invalid request.' : 'Unable to sign in. Please try again.',
+        error:
+          error instanceof SyntaxError
+            ? 'Invalid request.'
+            : 'Unable to sign in. Please try again.',
       },
       { status: error instanceof SyntaxError ? 400 : 500 },
     );

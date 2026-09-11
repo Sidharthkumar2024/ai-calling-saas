@@ -40,7 +40,7 @@ export async function GET(request: Request) {
             sum(CASE WHEN outcome = 'transferred_to_human' THEN 1 ELSE 0 END) AS transferred,
             sum(CASE WHEN status IN ('failed','provider_error','no_answer') THEN 1 ELSE 0 END) AS failed
           FROM call_records
-          WHERE organization_id = ? AND started_at >= datetime('now', ?)`)
+          WHERE organization_id = ? AND datetime(started_at) >= datetime('now', ?)`)
         .bind(organizationId, since)
         .first(),
       db
@@ -49,21 +49,21 @@ export async function GET(request: Request) {
             sum(CASE WHEN outcome IN (${CONVERSION_SQL_LIST}) THEN 1 ELSE 0 END) AS conversions,
             coalesce(avg(nullif(latency_ms, 0)), 0) AS avg_latency
           FROM call_records
-          WHERE organization_id = ? AND started_at >= datetime('now', ?)
+          WHERE organization_id = ? AND datetime(started_at) >= datetime('now', ?)
           GROUP BY date(started_at) ORDER BY day`)
         .bind(organizationId, since)
         .all(),
       db
         .prepare(`SELECT coalesce(outcome, 'unknown') AS name, count(*) AS value
           FROM call_records
-          WHERE organization_id = ? AND started_at >= datetime('now', ?)
+          WHERE organization_id = ? AND datetime(started_at) >= datetime('now', ?)
           GROUP BY 1 ORDER BY value DESC`)
         .bind(organizationId, since)
         .all(),
       db
         .prepare(`SELECT coalesce(sentiment, 'unscored') AS name, count(*) AS value
           FROM call_records
-          WHERE organization_id = ? AND started_at >= datetime('now', ?)
+          WHERE organization_id = ? AND datetime(started_at) >= datetime('now', ?)
           GROUP BY 1 ORDER BY value DESC`)
         .bind(organizationId, since)
         .all(),
@@ -79,7 +79,7 @@ export async function GET(request: Request) {
           LEFT JOIN transcripts t ON t.call_id = c.id
           LEFT JOIN voice_agents a ON a.id = c.agent_id
           LEFT JOIN call_quality_reviews q ON q.call_id = c.id
-          WHERE c.organization_id = ? AND c.started_at >= datetime('now', ?)
+          WHERE c.organization_id = ? AND datetime(c.started_at) >= datetime('now', ?)
           GROUP BY 1 ORDER BY calls DESC`)
         .bind(organizationId, since)
         .all(),
@@ -89,7 +89,7 @@ export async function GET(request: Request) {
             coalesce(avg(nullif(c.latency_ms, 0)), 0) AS avg_latency,
             sum(CASE WHEN c.outcome IN ('resolved','information_provided','appointment_booked','payment_link_sent') THEN 1 ELSE 0 END) AS resolved
           FROM call_records c LEFT JOIN voice_agents a ON a.id = c.agent_id
-          WHERE c.organization_id = ? AND c.started_at >= datetime('now', ?)
+          WHERE c.organization_id = ? AND datetime(c.started_at) >= datetime('now', ?)
           GROUP BY 1 ORDER BY calls DESC LIMIT 10`)
         .bind(organizationId, since)
         .all(),

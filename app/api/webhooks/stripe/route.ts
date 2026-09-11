@@ -48,9 +48,16 @@ export async function POST(request: Request) {
     .first();
   if (processed) return NextResponse.json({ received: true, duplicate: true });
 
-  if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
+  if (
+    event.type === 'checkout.session.completed' ||
+    event.type === 'checkout.session.async_payment_succeeded'
+  ) {
     const checkout = event.data.object;
-    if (checkout.payment_status !== 'paid' && checkout.payment_status !== 'no_payment_required') return NextResponse.json({ received: true, pending: true });
+    if (
+      checkout.payment_status !== 'paid' &&
+      checkout.payment_status !== 'no_payment_required'
+    )
+      return NextResponse.json({ received: true, pending: true });
     const organizationId = checkout.metadata?.organizationId;
     const purchaseType = checkout.metadata?.purchaseType;
     if (!organizationId || !purchaseType) {

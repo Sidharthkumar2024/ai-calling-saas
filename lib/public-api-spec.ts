@@ -137,7 +137,13 @@ export const PUBLIC_API_SPEC = {
         properties: {
           sourceType: {
             type: 'string',
-            enum: ['meta_ads', 'google_ads', 'website_form', 'whatsapp', 'manual'],
+            enum: [
+              'meta_ads',
+              'google_ads',
+              'website_form',
+              'whatsapp',
+              'manual',
+            ],
           },
           name: { type: 'string', minLength: 2 },
           phone: {

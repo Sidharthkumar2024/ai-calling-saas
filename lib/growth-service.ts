@@ -307,9 +307,18 @@ export async function saveDiscovery(input: {
   const clean: DiscoveryAnswers = {};
   for (const [key, value] of Object.entries(input.answers ?? {}))
     if (typeof value === 'string') clean[key] = value.trim().slice(0, 2000);
-  const existing = await getRawDb().prepare('SELECT answers_json FROM business_profiles WHERE organization_id = ?').bind(input.organizationId).first<{ answers_json: string }>();
+  const existing = await getRawDb()
+    .prepare(
+      'SELECT answers_json FROM business_profiles WHERE organization_id = ?',
+    )
+    .bind(input.organizationId)
+    .first<{ answers_json: string }>();
   let previous: DiscoveryAnswers = {};
-  try { previous = JSON.parse(existing?.answers_json || '{}'); } catch { /* Preserve all valid submitted answers. */ }
+  try {
+    previous = JSON.parse(existing?.answers_json || '{}');
+  } catch {
+    /* Preserve all valid submitted answers. */
+  }
   const merged = { ...previous, ...clean };
   await getRawDb()
     .prepare(
@@ -733,7 +742,7 @@ export async function executionContext(
          AND trim(l.phone) != '' AND EXISTS (
            SELECT 1 FROM consent_records c WHERE c.organization_id = l.organization_id
              AND c.phone = l.phone AND c.status = 'granted'
-             AND (c.expires_at IS NULL OR c.expires_at > CURRENT_TIMESTAMP))`,
+             AND (c.expires_at IS NULL OR datetime(c.expires_at) > CURRENT_TIMESTAMP))`,
         )
         .bind(organizationId, HOT_LEAD_THRESHOLD)
         .first<{ n: number }>(),
@@ -881,7 +890,7 @@ export async function executeRecommendation(input: {
     const granted = await db
       .prepare(
         `SELECT phone FROM consent_records WHERE organization_id = ? AND status = 'granted'
-         AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP) LIMIT 10000`,
+         AND (expires_at IS NULL OR datetime(expires_at) > CURRENT_TIMESTAMP) LIMIT 10000`,
       )
       .bind(input.organizationId)
       .all<{ phone: string }>();

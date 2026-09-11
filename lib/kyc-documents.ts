@@ -147,7 +147,8 @@ export function kycProgress(
   const required = requiredFor(connectionMode);
   const latest = new Map<string, DocumentRow>();
   for (const document of documents)
-    if (!latest.has(document.document_type)) latest.set(document.document_type, document);
+    if (!latest.has(document.document_type))
+      latest.set(document.document_type, document);
 
   const missing: KycDocumentType[] = [];
   const rejected: KycDocumentType[] = [];
@@ -174,7 +175,14 @@ export function kycProgress(
     waiting,
     approved,
     complete,
-    message: progressMessage({ required, missing, rejected, waiting, approved, complete }),
+    message: progressMessage({
+      required,
+      missing,
+      rejected,
+      waiting,
+      approved,
+      complete,
+    }),
   };
 }
 

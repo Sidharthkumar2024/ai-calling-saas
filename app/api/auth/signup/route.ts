@@ -52,8 +52,26 @@ export async function POST(request: Request) {
       );
     }
     const raw: unknown = await request.json();
-    const fields = ['name', 'businessName', 'email', 'password', 'phone', 'useCase', 'language', 'inviteToken'] as const;
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw) || fields.some((field) => (raw as Record<string, unknown>)[field] !== undefined && typeof (raw as Record<string, unknown>)[field] !== 'string')) {
+    const fields = [
+      'name',
+      'businessName',
+      'email',
+      'password',
+      'phone',
+      'useCase',
+      'language',
+      'inviteToken',
+    ] as const;
+    if (
+      !raw ||
+      typeof raw !== 'object' ||
+      Array.isArray(raw) ||
+      fields.some(
+        (field) =>
+          (raw as Record<string, unknown>)[field] !== undefined &&
+          typeof (raw as Record<string, unknown>)[field] !== 'string',
+      )
+    ) {
       return NextResponse.json({ error: 'Invalid request.' }, { status: 400 });
     }
     const body = raw as Partial<Record<(typeof fields)[number], string>>;
@@ -329,7 +347,9 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          error instanceof SyntaxError ? 'Invalid request.' : 'Unable to create account. Please try again.',
+          error instanceof SyntaxError
+            ? 'Invalid request.'
+            : 'Unable to create account. Please try again.',
       },
       { status: error instanceof SyntaxError ? 400 : 500 },
     );

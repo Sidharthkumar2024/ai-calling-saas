@@ -205,7 +205,7 @@ export async function sendWhatsAppText(input: {
   const digitsPhone = normalizedPhone.slice(1);
   const suppressed = await db
     .prepare(
-      `SELECT id FROM suppression_entries WHERE phone_hash IN (?, ?, ?) AND (organization_id = ? OR scope = 'global') AND (expires_at IS NULL OR expires_at > datetime('now')) LIMIT 1`,
+      `SELECT id FROM suppression_entries WHERE phone_hash IN (?, ?, ?) AND (organization_id = ? OR scope = 'global') AND (expires_at IS NULL OR datetime(expires_at) > datetime('now')) LIMIT 1`,
     )
     .bind(
       await sha256(input.destination),
@@ -285,7 +285,7 @@ export async function sendWhatsAppTemplate(input: {
   const digitsPhone = normalizedPhone.slice(1);
   const suppressed = await db
     .prepare(
-      `SELECT id FROM suppression_entries WHERE phone_hash IN (?, ?, ?) AND (organization_id = ? OR scope = 'global') AND (expires_at IS NULL OR expires_at > datetime('now')) LIMIT 1`,
+      `SELECT id FROM suppression_entries WHERE phone_hash IN (?, ?, ?) AND (organization_id = ? OR scope = 'global') AND (expires_at IS NULL OR datetime(expires_at) > datetime('now')) LIMIT 1`,
     )
     .bind(
       await sha256(input.destination),
@@ -586,7 +586,7 @@ export async function sendWhatsAppFlow(input: {
   const digitsPhone = normalizedPhone.slice(1);
   const suppressed = await db
     .prepare(
-      `SELECT id FROM suppression_entries WHERE phone_hash IN (?, ?, ?) AND (organization_id = ? OR scope = 'global') AND (expires_at IS NULL OR expires_at > datetime('now')) LIMIT 1`,
+      `SELECT id FROM suppression_entries WHERE phone_hash IN (?, ?, ?) AND (organization_id = ? OR scope = 'global') AND (expires_at IS NULL OR datetime(expires_at) > datetime('now')) LIMIT 1`,
     )
     .bind(
       await sha256(input.destination),

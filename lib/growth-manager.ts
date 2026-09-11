@@ -44,8 +44,11 @@ export type DiscoveryQuestion = {
  */
 export const DISCOVERY_QUESTIONS: DiscoveryQuestion[] = [
   {
-    id: 'company', chip: 'Company', question: 'What is your company called?',
-    purpose: 'Gives your business brief a clear identity.', required: false,
+    id: 'company',
+    chip: 'Company',
+    question: 'What is your company called?',
+    purpose: 'Gives your business brief a clear identity.',
+    required: false,
   },
   {
     id: 'business',
@@ -58,7 +61,8 @@ export const DISCOVERY_QUESTIONS: DiscoveryQuestion[] = [
     id: 'website',
     chip: 'Website',
     question: 'What is your website?',
-    purpose: 'The website you can choose to scan for offers, pricing and pages.',
+    purpose:
+      'The website you can choose to scan for offers, pricing and pages.',
     required: false,
   },
   {

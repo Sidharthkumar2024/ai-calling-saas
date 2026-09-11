@@ -57,7 +57,10 @@ export async function GET(request: Request) {
     prompt: 'select_account',
   }).toString();
   const response = NextResponse.redirect(url);
-  response.headers.append('Set-Cookie', `vani_oauth_state=${await sha256(state)}; Path=/api/auth/google; HttpOnly; SameSite=Lax; Max-Age=600${new URL(request.url).protocol === 'https:' ? '; Secure' : ''}`);
+  response.headers.append(
+    'Set-Cookie',
+    `vani_oauth_state=${await sha256(state)}; Path=/api/auth/google; HttpOnly; SameSite=Lax; Max-Age=600${new URL(request.url).protocol === 'https:' ? '; Secure' : ''}`,
+  );
   return response;
 }
 

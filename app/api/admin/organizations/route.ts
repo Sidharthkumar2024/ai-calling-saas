@@ -38,7 +38,7 @@ export async function GET(request: Request) {
         (SELECT count(*) FROM voice_agents a WHERE a.organization_id = o.id) AS agents,
         (SELECT count(*) FROM phone_numbers n WHERE n.organization_id = o.id) AS numbers,
         (SELECT count(*) FROM call_records c WHERE c.organization_id = o.id
-           AND c.started_at >= datetime('now','-30 days')) AS calls_30d
+           AND datetime(c.started_at) >= datetime('now','-30 days')) AS calls_30d
       FROM organizations o
       LEFT JOIN subscriptions s ON s.organization_id = o.id
       LEFT JOIN plans p ON p.id = s.plan_id

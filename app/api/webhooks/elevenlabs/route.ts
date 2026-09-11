@@ -24,7 +24,11 @@ export const dynamic = 'force-dynamic';
 
 async function webhookSecret() {
   const stored = await platformProviderSecret('elevenlabs');
-  return stored.secrets.webhookSecret || process.env.ELEVENLABS_WEBHOOK_SECRET || null;
+  return (
+    stored.secrets.webhookSecret ||
+    process.env.ELEVENLABS_WEBHOOK_SECRET ||
+    null
+  );
 }
 
 export async function POST(request: Request) {

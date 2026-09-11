@@ -16,7 +16,9 @@
   --ink-muted: #56695d;
   overflow-wrap: anywhere;
 }
-.cv-api-docs pre { overflow-wrap: normal; }
+.cv-api-docs pre {
+  overflow-wrap: normal;
+}
 
 .portal-shell {
   --portal-accent: #17613f;
@@ -68,102 +70,464 @@
 
 /* VANI workspace refresh: crisp white, forest ink, quiet green accents. */
 .vani-auth {
-  --primary: #17613f; --primary-foreground: #fff; --ring: #17613f;
-  --surface: #fff; --surface-muted: #f4f8f3; --surface-strong: #edf4eb;
-  --ink: #172a20; --ink-body: #3a5043; --ink-muted: #56695d;
-  --hairline: #dce6dc; background: #f7faf5;
+  --primary: #17613f;
+  --primary-foreground: #fff;
+  --ring: #17613f;
+  --surface: #fff;
+  --surface-muted: #f4f8f3;
+  --surface-strong: #edf4eb;
+  --ink: #172a20;
+  --ink-body: #3a5043;
+  --ink-muted: #56695d;
+  --hairline: #dce6dc;
+  background: #f7faf5;
 }
-.vani-auth-backdrop { background: radial-gradient(ellipse at 10% 0%, #e1f4ca 0%, transparent 45%); }
-.vani-auth-card { box-shadow: 0 24px 80px -40px #294d3e40; }
-.vani-auth label, .vani-auth input, .vani-auth select, .vani-auth button { font-size: 14px; }
-.vani-auth .text-warning-text { color: #17613f; }
-.vani-auth [class*='text-[11px]'] { font-size: 12px; }
-.vani-auth input { background: #fff; min-height: 46px; }
-.vani-auth a { text-underline-offset: 4px; }
-@media(max-width:1023px) {
- .vani-signup-aside h1 { font-size: 24px; }
- .vani-signup-aside > p { display: none; }
- .vani-signup-steps { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; margin-top: 20px; }
- .vani-signup-steps > div { margin: 0; padding: 10px 6px; gap: 6px; flex-direction: column; align-items: center; text-align: center; }
- .vani-signup-steps > div p:last-child { display: none; }
- .vani-signup-steps > div > span { width: 26px; height: 26px; }
+.vani-auth-backdrop {
+  background: radial-gradient(ellipse at 10% 0%, #e1f4ca 0%, transparent 45%);
 }
-.portal-shell button[class*='hover:bg-[#1d4ed8]']:hover { background: #104c30; }
-.portal-shell .text-warning-text:not([role='alert']) { color: #7b5a15; }
-.portal-shell [data-slot='sidebar-menu-button'][data-active='true'] { background: #e5f3e7; color: #17613f; }
-.vani-growth { max-width: 1240px; margin-inline: auto; }
-.vani-growth-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-block: 6px 10px; }
-.vani-growth-kicker { display: flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: .12em; color: #17613f; font-weight: 600; }
-.vani-growth-heading h1 { margin-top: 12px; font-size: clamp(26px,3vw,36px); font-weight: 600; letter-spacing: -.035em; }
-.vani-growth-heading p { margin-top: 8px; font-size: 16px; color: var(--ink-muted); }
-.vani-growth-permission { display: flex; align-items: center; gap: 8px; font-size: 12px; background: #edf5ed; border: 1px solid #dbe9db; border-radius: 30px; padding: 10px 14px; }
-.vani-growth-summary { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; }
-.vani-growth-summary > div { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; padding: 20px; background: white; border: 1px solid var(--hairline); border-radius: 16px; }
-.vani-growth-summary svg { grid-column: 2; grid-row: 1 / 3; width: 22px; color: #33825a; }
-.vani-growth-summary span { font-size: 13px; color: var(--ink-muted); }
-.vani-growth-summary strong { font-size: 28px; letter-spacing: -.03em; }
-.vani-growth-chat { border-radius: 20px; box-shadow: 0 12px 40px -30px #174b3340; }
-.vani-growth [class*='text-[11px]'], .vani-growth [class*='text-[12px]'] { font-size: 14px; line-height: 1.65; }
-.vani-growth textarea { min-width: 0; font-size: 16px; }
-.vani-growth-messages { background: linear-gradient(155deg,#f2f8ef,#fff 75%); }
-.vani-growth details[open] summary svg { transform: rotate(180deg); }
-.vani-studio-layout > * { min-width: 0; }
+.vani-auth-card {
+  box-shadow: 0 24px 80px -40px #294d3e40;
+}
+.vani-auth label,
+.vani-auth input,
+.vani-auth select,
+.vani-auth button {
+  font-size: 14px;
+}
+.vani-auth .text-warning-text {
+  color: #17613f;
+}
+.vani-auth [class*='text-[11px]'] {
+  font-size: 12px;
+}
+.vani-auth input {
+  background: #fff;
+  min-height: 46px;
+}
+.vani-auth a {
+  text-underline-offset: 4px;
+}
+@media (max-width: 1023px) {
+  .vani-signup-aside h1 {
+    font-size: 24px;
+  }
+  .vani-signup-aside > p {
+    display: none;
+  }
+  .vani-signup-steps {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 20px;
+  }
+  .vani-signup-steps > div {
+    margin: 0;
+    padding: 10px 6px;
+    gap: 6px;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .vani-signup-steps > div p:last-child {
+    display: none;
+  }
+  .vani-signup-steps > div > span {
+    width: 26px;
+    height: 26px;
+  }
+}
+.portal-shell button[class*='hover:bg-[#1d4ed8]']:hover {
+  background: #104c30;
+}
+.portal-shell .text-warning-text:not([role='alert']) {
+  color: #7b5a15;
+}
+.portal-shell [data-slot='sidebar-menu-button'][data-active='true'] {
+  background: #e5f3e7;
+  color: #17613f;
+}
+.vani-growth {
+  max-width: 1240px;
+  margin-inline: auto;
+}
+.vani-growth-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding-block: 6px 10px;
+}
+.vani-growth-kicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: #17613f;
+  font-weight: 600;
+}
+.vani-growth-heading h1 {
+  margin-top: 12px;
+  font-size: clamp(26px, 3vw, 36px);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+.vani-growth-heading p {
+  margin-top: 8px;
+  font-size: 16px;
+  color: var(--ink-muted);
+}
+.vani-growth-permission {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  background: #edf5ed;
+  border: 1px solid #dbe9db;
+  border-radius: 30px;
+  padding: 10px 14px;
+}
+.vani-growth-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.vani-growth-summary > div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 20px;
+  background: white;
+  border: 1px solid var(--hairline);
+  border-radius: 16px;
+}
+.vani-growth-summary svg {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  width: 22px;
+  color: #33825a;
+}
+.vani-growth-summary span {
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+.vani-growth-summary strong {
+  font-size: 28px;
+  letter-spacing: -0.03em;
+}
+.vani-growth-chat {
+  border-radius: 20px;
+  box-shadow: 0 12px 40px -30px #174b3340;
+}
+.vani-growth [class*='text-[11px]'],
+.vani-growth [class*='text-[12px]'] {
+  font-size: 14px;
+  line-height: 1.65;
+}
+.vani-growth textarea {
+  min-width: 0;
+  font-size: 16px;
+}
+.vani-growth-messages {
+  background: linear-gradient(155deg, #f2f8ef, #fff 75%);
+}
+.vani-growth details[open] summary svg {
+  transform: rotate(180deg);
+}
+.vani-studio-layout > * {
+  min-width: 0;
+}
 @media (min-width: 1200px) and (max-width: 1535px) {
- .vani-studio-layout { grid-template-columns: minmax(0,1fr) 400px; align-items: start; }
- .vani-agent-list { grid-column: 1 / -1; display: grid; grid-template-columns: 130px minmax(0,1fr) 220px; align-items: center; gap: 16px; }
- .vani-agent-list > .mt-2 { display: flex; gap: 10px; margin-top: 0; overflow-x: auto; }
- .vani-agent-list > .mt-2 > button { width: 210px; flex-shrink: 0; margin-top: 0; }
- .vani-agent-list > .mt-4 { margin-top: 0; }
+  .vani-studio-layout {
+    grid-template-columns: minmax(0, 1fr) 400px;
+    align-items: start;
+  }
+  .vani-agent-list {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 130px minmax(0, 1fr) 220px;
+    align-items: center;
+    gap: 16px;
+  }
+  .vani-agent-list > .mt-2 {
+    display: flex;
+    gap: 10px;
+    margin-top: 0;
+    overflow-x: auto;
+  }
+  .vani-agent-list > .mt-2 > button {
+    width: 210px;
+    flex-shrink: 0;
+    margin-top: 0;
+  }
+  .vani-agent-list > .mt-4 {
+    margin-top: 0;
+  }
 }
 @media (min-width: 1536px) {
- .vani-studio-layout { grid-template-columns: 230px minmax(0,1fr) 430px; align-items: start; }
+  .vani-studio-layout {
+    grid-template-columns: 230px minmax(0, 1fr) 430px;
+    align-items: start;
+  }
 }
-.vani-playground { box-shadow: 0 14px 44px -34px #17613f60; }
-.vani-playground [class*='text-[11px]'] { font-size: 12px; line-height: 1.5; }
-.vani-playground .text-xs { font-size: 14px; line-height: 1.6; }
-.vani-playground button[aria-pressed='true'] { background: #e1f1e3; color: #175333; box-shadow: none; }
-.vani-voice-stage { border-radius: 22px; background: radial-gradient(ellipse at 50% 38%,#e4f3df,transparent 66%),#fbfdf9; }
-.vani-playground .vaani-orb { background: radial-gradient(circle at 32% 22%, #e2ffc0, transparent 48%),linear-gradient(150deg,#95d991,#2c8c60 58%,#144d35); box-shadow: inset 0 1px 2px #ffffffb3, inset 0 -18px 44px #16432e55,0 22px 44px -28px #17613f80; }
-.vani-playground .vaani-orb__blob--b { background: radial-gradient(circle at 70% 34%,#cbff9277,transparent 44%); }
-.vani-playground .vaani-orb__blob--c { background: radial-gradient(circle at 52% 74%,#135a3677,transparent 46%); }
-.vani-billing .text-xs { font-size: 14px; }
-.vani-billing [class*='text-[11px]'] { font-size: 12px; }
-.vani-credit-celebration { position: fixed; inset: 0; pointer-events: none; z-index: 90; overflow: hidden; }
-.vani-coin-rain { position: absolute; inset: 0; overflow: hidden; }
-.vani-coin-rain > span { position: absolute; top: -56px; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; border: 2px solid #cb8a09; background: linear-gradient(135deg,#fff1a5,#f6c64a 48%,#d99514); box-shadow: inset 0 0 0 3px #f9db7c,0 5px 14px #8f5b1630; color: #80520b; animation: vani-coin-fall 2.4s cubic-bezier(.2,.5,.7,1) both; }
-.vani-credit-receipt { position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; width: min(470px,calc(100% - 32px)); padding: 20px; border: 1px solid #dacda7; border-radius: 20px; background: #fffdf5; color: #172a20; box-shadow: 0 15px 60px #263b2730; pointer-events: auto; }
-.vani-credit-icon { display: grid; place-items: center; flex-shrink: 0; width: 48px; height: 48px; border-radius: 50%; background: #f9e6a5; color: #98690b; }
-.vani-credit-receipt p { font-size: 22px; font-weight: 600; }
-.vani-credit-receipt span:not(.vani-credit-icon) { font-size: 13px; color: #596446; }
-.vani-credit-receipt button { margin-left: auto; padding: 8px; }
-.vani-call-pulse { animation: vani-call-pulse 1.4s ease-in-out 3; }
-@keyframes vani-coin-fall { from { transform: translateY(-10px) rotateY(0) rotate(-15deg); opacity: 0; } 10% { opacity: 1; } to { transform: translateY(110vh) rotateY(720deg) rotate(70deg); opacity: 0; } }
-@keyframes vani-call-pulse { 50% { transform: scale(1.15) rotate(-8deg); } }
-.vani-public-footer { background: white; color: #172a20; padding: 50px max(24px,calc((100vw - 1240px)/2)) 0; overflow: hidden; }
-.vani-footer-top { display: grid; grid-template-columns: 1.8fr 1fr 1fr; gap: 50px; }
-.vani-footer-brand { display: flex; align-items: flex-start; gap: 12px; }
-.vani-footer-brand > span { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: #172a20; color: #b0ff6e; }
-.vani-footer-brand strong { font-size: 24px; }
-.vani-footer-brand p { margin-top: 10px; font-size: 14px; color: #556659; max-width: 230px; line-height: 1.6; }
-.vani-public-footer nav h2 { font-size: 15px; font-weight: 600; margin-bottom: 18px; }
-.vani-public-footer nav a { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-top: 12px; font-size: 14px; color: #536258; }
-.vani-public-footer nav a svg { width: 14px; height: 14px; }
-.vani-public-footer nav a:hover { color: #17613f; text-decoration: underline; }
-.vani-footer-bottom { display: flex; justify-content: space-between; gap: 20px; margin-top: 60px; padding-top: 24px; border-top: 1px solid #e0e7df; font-size: 12px; color: #637065; }
-.vani-footer-wordmark { font-size: clamp(140px,28vw,410px); line-height: .95; letter-spacing: -.09em; font-weight: 500; padding: 20px 0 0; text-align: center; }
-.vani-footer-wordmark span { color: #91e768; }
-.landing-equal-theme .vani-footer-cta { --ink:#f5fff3; --ink-muted:#c3d4c4; --warning-text:#b0ff6e; --primary:#b0ff6e; --primary-foreground:#172a20; color:#f5fff3; background: radial-gradient(ellipse at 90% 0%,#35533b,transparent 55%),#172a20; }
-@media(max-width:700px) {
- .vani-growth-heading { align-items: flex-start; flex-direction: column; }
- .vani-growth-summary { gap: 8px; }
- .vani-growth-summary > div { padding: 12px; display: flex; flex-direction: column; align-items: flex-start; }
- .vani-growth-summary svg { display: none; }
- .vani-growth-summary span { font-size: 12px; }
- .vani-footer-top { grid-template-columns: 1fr 1fr; gap: 36px 24px; }
- .vani-footer-brand { grid-column: 1 / -1; }
- .vani-footer-bottom { flex-direction: column; }
+.vani-playground {
+  box-shadow: 0 14px 44px -34px #17613f60;
 }
-@media(prefers-reduced-motion:reduce) { .vani-coin-rain { display: none; } .vani-call-pulse { animation: none; } }
+.vani-playground [class*='text-[11px]'] {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.vani-playground .text-xs {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.vani-playground button[aria-pressed='true'] {
+  background: #e1f1e3;
+  color: #175333;
+  box-shadow: none;
+}
+.vani-voice-stage {
+  border-radius: 22px;
+  background:
+    radial-gradient(ellipse at 50% 38%, #e4f3df, transparent 66%), #fbfdf9;
+}
+.vani-playground .vaani-orb {
+  background:
+    radial-gradient(circle at 32% 22%, #e2ffc0, transparent 48%),
+    linear-gradient(150deg, #95d991, #2c8c60 58%, #144d35);
+  box-shadow:
+    inset 0 1px 2px #ffffffb3,
+    inset 0 -18px 44px #16432e55,
+    0 22px 44px -28px #17613f80;
+}
+.vani-playground .vaani-orb__blob--b {
+  background: radial-gradient(circle at 70% 34%, #cbff9277, transparent 44%);
+}
+.vani-playground .vaani-orb__blob--c {
+  background: radial-gradient(circle at 52% 74%, #135a3677, transparent 46%);
+}
+.vani-billing .text-xs {
+  font-size: 14px;
+}
+.vani-billing [class*='text-[11px]'] {
+  font-size: 12px;
+}
+.vani-credit-celebration {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 90;
+  overflow: hidden;
+}
+.vani-coin-rain {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.vani-coin-rain > span {
+  position: absolute;
+  top: -56px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid #cb8a09;
+  background: linear-gradient(135deg, #fff1a5, #f6c64a 48%, #d99514);
+  box-shadow:
+    inset 0 0 0 3px #f9db7c,
+    0 5px 14px #8f5b1630;
+  color: #80520b;
+  animation: vani-coin-fall 2.4s cubic-bezier(0.2, 0.5, 0.7, 1) both;
+}
+.vani-credit-receipt {
+  position: absolute;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: min(470px, calc(100% - 32px));
+  padding: 20px;
+  border: 1px solid #dacda7;
+  border-radius: 20px;
+  background: #fffdf5;
+  color: #172a20;
+  box-shadow: 0 15px 60px #263b2730;
+  pointer-events: auto;
+}
+.vani-credit-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #f9e6a5;
+  color: #98690b;
+}
+.vani-credit-receipt p {
+  font-size: 22px;
+  font-weight: 600;
+}
+.vani-credit-receipt span:not(.vani-credit-icon) {
+  font-size: 13px;
+  color: #596446;
+}
+.vani-credit-receipt button {
+  margin-left: auto;
+  padding: 8px;
+}
+.vani-call-pulse {
+  animation: vani-call-pulse 1.4s ease-in-out 3;
+}
+@keyframes vani-coin-fall {
+  from {
+    transform: translateY(-10px) rotateY(0) rotate(-15deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  to {
+    transform: translateY(110vh) rotateY(720deg) rotate(70deg);
+    opacity: 0;
+  }
+}
+@keyframes vani-call-pulse {
+  50% {
+    transform: scale(1.15) rotate(-8deg);
+  }
+}
+.vani-public-footer {
+  background: white;
+  color: #172a20;
+  padding: 50px max(24px, calc((100vw - 1240px) /2)) 0;
+  overflow: hidden;
+}
+.vani-footer-top {
+  display: grid;
+  grid-template-columns: 1.8fr 1fr 1fr;
+  gap: 50px;
+}
+.vani-footer-brand {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.vani-footer-brand > span {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: #172a20;
+  color: #b0ff6e;
+}
+.vani-footer-brand strong {
+  font-size: 24px;
+}
+.vani-footer-brand p {
+  margin-top: 10px;
+  font-size: 14px;
+  color: #556659;
+  max-width: 230px;
+  line-height: 1.6;
+}
+.vani-public-footer nav h2 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 18px;
+}
+.vani-public-footer nav a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-top: 12px;
+  font-size: 14px;
+  color: #536258;
+}
+.vani-public-footer nav a svg {
+  width: 14px;
+  height: 14px;
+}
+.vani-public-footer nav a:hover {
+  color: #17613f;
+  text-decoration: underline;
+}
+.vani-footer-bottom {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 60px;
+  padding-top: 24px;
+  border-top: 1px solid #e0e7df;
+  font-size: 12px;
+  color: #637065;
+}
+.vani-footer-wordmark {
+  font-size: clamp(140px, 28vw, 410px);
+  line-height: 0.95;
+  letter-spacing: -0.09em;
+  font-weight: 500;
+  padding: 20px 0 0;
+  text-align: center;
+}
+.vani-footer-wordmark span {
+  color: #91e768;
+}
+.landing-equal-theme .vani-footer-cta {
+  --ink: #f5fff3;
+  --ink-muted: #c3d4c4;
+  --warning-text: #b0ff6e;
+  --primary: #b0ff6e;
+  --primary-foreground: #172a20;
+  color: #f5fff3;
+  background:
+    radial-gradient(ellipse at 90% 0%, #35533b, transparent 55%), #172a20;
+}
+@media (max-width: 700px) {
+  .vani-growth-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .vani-growth-summary {
+    gap: 8px;
+  }
+  .vani-growth-summary > div {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .vani-growth-summary svg {
+    display: none;
+  }
+  .vani-growth-summary span {
+    font-size: 12px;
+  }
+  .vani-footer-top {
+    grid-template-columns: 1fr 1fr;
+    gap: 36px 24px;
+  }
+  .vani-footer-brand {
+    grid-column: 1 / -1;
+  }
+  .vani-footer-bottom {
+    flex-direction: column;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vani-coin-rain {
+    display: none;
+  }
+  .vani-call-pulse {
+    animation: none;
+  }
+}
 
 @theme inline {
   --color-surface: var(--surface);

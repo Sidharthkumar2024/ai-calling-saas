@@ -148,7 +148,7 @@ export async function POST(request: Request) {
     const hit = await db
       .prepare(`SELECT reason, source, created_at, expires_at FROM suppression_entries
         WHERE phone_hash = ? AND (organization_id = ? OR scope = 'global')
-          AND (expires_at IS NULL OR expires_at > datetime('now'))
+          AND (expires_at IS NULL OR datetime(expires_at) > datetime('now'))
         LIMIT 1`)
       .bind(await sha256(phone), organizationId)
       .first<{

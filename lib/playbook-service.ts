@@ -93,7 +93,7 @@ export async function minePlaybook(input: {
          SELECT 1 FROM consent_records c
          WHERE c.organization_id = t.organization_id
            AND c.status = 'granted'
-           AND (c.expires_at IS NULL OR c.expires_at > CURRENT_TIMESTAMP)
+           AND (c.expires_at IS NULL OR datetime(c.expires_at) > CURRENT_TIMESTAMP)
            AND replace(replace(replace(c.phone, ' ', ''), '-', ''), '+', '')
                LIKE '%' || substr(replace(replace(replace(
                  -- Which end of the call is the customer depends on who dialled.

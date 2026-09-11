@@ -271,10 +271,12 @@ export default function DocsPage() {
                 'curl "$CALL_VANI_ORIGIN/api/v1/credits" -H "Authorization: Bearer $CALL_VANI_API_KEY"'
               }
             </DocCode>
-            <p>
-              Example response:
-            </p>
-            <DocCode>{'{"data":{"balance":100,"low_balance_threshold":20,"updated_at":"2026-09-08 10:00:00"}}'}</DocCode>
+            <p>Example response:</p>
+            <DocCode>
+              {
+                '{"data":{"balance":100,"low_balance_threshold":20,"updated_at":"2026-09-08 10:00:00"}}'
+              }
+            </DocCode>
             <p>
               When no wallet exists, balance and threshold are zero and{' '}
               <code>updated_at</code> is omitted. A credit is a usage unit, not

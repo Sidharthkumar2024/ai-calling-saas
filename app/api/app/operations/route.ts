@@ -225,7 +225,7 @@ export async function POST(request: Request) {
       );
     const granted = await db
       .prepare(`SELECT phone FROM consent_records WHERE organization_id = ? AND status = 'granted'
-      AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP) LIMIT 10000`)
+      AND (expires_at IS NULL OR datetime(expires_at) > CURRENT_TIMESTAMP) LIMIT 10000`)
       .bind(organizationId)
       .all<{ phone: string }>();
     const grantedPhones = new Set(granted.results.map((item) => item.phone));

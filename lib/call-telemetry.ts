@@ -235,12 +235,13 @@ export async function closeIdlePlaygroundCalls(
         AND c.status = 'in_progress'
         AND (
           (
-            SELECT coalesce(max(t.created_at), c.started_at) FROM call_turns t WHERE t.call_id = c.id
+            SELECT coalesce(max(datetime(t.created_at)), datetime(c.started_at))
+            FROM call_turns t WHERE t.call_id = c.id
           ) <= datetime('now', ?)
           -- The ceiling, regardless of activity. A call with a turn every
           -- minute never goes idle, so without this it runs until someone
           -- closes the tab — and bills a supplier for every minute of it.
-          OR c.started_at <= datetime('now', ?)
+          OR datetime(c.started_at) <= datetime('now', ?)
         )
       LIMIT 50`)
     .bind(

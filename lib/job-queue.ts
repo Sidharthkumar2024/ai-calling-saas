@@ -328,7 +328,7 @@ async function enforceRetention(job: JobRow) {
   );
   const rows = await db
     .prepare(`SELECT id, recording_storage_key FROM call_records
-    WHERE organization_id = ? AND recording_storage_key IS NOT NULL AND started_at < datetime('now', ?)
+    WHERE organization_id = ? AND recording_storage_key IS NOT NULL AND datetime(started_at) < datetime('now', ?)
     LIMIT 100`)
     .bind(job.organization_id, `-${days} days`)
     .all<{ id: string; recording_storage_key: string }>();
@@ -684,7 +684,7 @@ async function buildReportRows(
           coalesce(sum(c.cost_credits), 0) AS credits
         FROM call_records c
         LEFT JOIN voice_agents a ON a.id = c.agent_id AND a.organization_id = c.organization_id
-        WHERE c.organization_id = ? AND c.started_at >= datetime('now', ?)
+        WHERE c.organization_id = ? AND datetime(c.started_at) >= datetime('now', ?)
         GROUP BY c.agent_id ORDER BY calls DESC LIMIT 5000`)
       .bind(organizationId, since)
       .all<Record<string, unknown>>();
@@ -720,7 +720,7 @@ async function buildReportRows(
           coalesce(sum(c.cost_credits), 0) AS credits
         FROM call_records c
         LEFT JOIN campaigns m ON m.id = c.campaign_id AND m.organization_id = c.organization_id
-        WHERE c.organization_id = ? AND c.started_at >= datetime('now', ?)
+        WHERE c.organization_id = ? AND datetime(c.started_at) >= datetime('now', ?)
         GROUP BY c.campaign_id ORDER BY calls DESC LIMIT 5000`)
       .bind(organizationId, since)
       .all<Record<string, unknown>>();
@@ -753,7 +753,7 @@ async function buildReportRows(
         c.to_number, a.name AS agent, c.status, c.outcome, c.sentiment,
         c.duration_seconds, c.latency_ms, c.cost_credits
       FROM call_records c LEFT JOIN voice_agents a ON a.id = c.agent_id
-      WHERE c.organization_id = ? AND c.started_at >= datetime('now', ?)
+      WHERE c.organization_id = ? AND datetime(c.started_at) >= datetime('now', ?)
       ORDER BY c.started_at DESC LIMIT 5000`)
     .bind(organizationId, since)
     .all<Record<string, unknown>>();
@@ -1019,7 +1019,7 @@ async function deliverQueuedMessages(job: JobRow) {
   const rows = await db
     .prepare(`SELECT id, channel, destination, message_body FROM outbound_messages
       WHERE organization_id = ? AND status = 'queued' AND payment_link_id IS NULL
-        AND (scheduled_for IS NULL OR scheduled_for <= CURRENT_TIMESTAMP)
+        AND (scheduled_for IS NULL OR datetime(scheduled_for) <= CURRENT_TIMESTAMP)
       ORDER BY created_at LIMIT 25`)
     .bind(job.organization_id)
     .all<{
@@ -1676,7 +1676,7 @@ async function measureAlertMetric(
           count(*) AS total,
           sum(CASE WHEN status IN ('failed','provider_error','no_answer') THEN 1 ELSE 0 END) AS failures
         FROM call_records
-        WHERE organization_id = ? AND started_at >= datetime('now', ?)`)
+        WHERE organization_id = ? AND datetime(started_at) >= datetime('now', ?)`)
       .bind(organizationId, since)
       .first<{ total: number; failures: number }>();
     const total = Number(row?.total ?? 0);

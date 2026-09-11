@@ -210,7 +210,7 @@ export async function dialCampaign(
     const suppressed = await db
       .prepare(`SELECT id FROM suppression_entries
         WHERE phone_hash = ? AND (organization_id = ? OR scope = 'global')
-          AND (expires_at IS NULL OR expires_at > datetime('now'))
+          AND (expires_at IS NULL OR datetime(expires_at) > datetime('now'))
         LIMIT 1`)
       .bind(await sha256(contact.phone), organizationId)
       .first<{ id: string }>();

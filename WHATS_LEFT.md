@@ -1,9 +1,12 @@
 # Vaani — What's left
 
-Status (2026-09-07). Tracks 0-3 of the AI-Calling-OS plan plus the master
+Status (2026-09-12). Tracks 0-3 of the AI-Calling-OS plan plus the master
 blueprint's customer-side gaps have landed. This file records what genuinely
 remains and **why** — including work that is blocked on something outside this
 repository, and work deliberately deferred.
+
+The numbers in the audit sections below were true when each was written; §16
+carries the current ones and what has changed since 2026-09-07.
 
 Legend: **[CODE]** engineering here · **[KEY]** an account or key you supply ·
 **[BLOCKED]** cannot be built in this runtime · **[DECIDED]** deferred on purpose.
@@ -141,6 +144,8 @@ three operations wearing one keyword, and statement text living in a pure module
 is still SQL.
 
 ### 7. Action-dispatch audit — 3 unhandled closed, then 26 unreachable triaged
+
+*(Current count: 5. See §16.)*
 
 `npm run audit:actions` (`scripts/check-actions.mjs`) checks that every action a
 screen sends is named by the route it is posted to. Written after the same
@@ -417,6 +422,63 @@ Nothing to fix. The one thing that looked alarming — a `customer_member` row
 locked out of the whole product — was a role I had invented for the test.
 Nothing in the codebase writes it; signup and invitation both write
 `customer_agent`.
+
+### 16. Where it stands on 2026-09-12
+
+Sixty-four commits since this file was last written. Most of them close a
+defect found by a ten-lens audit of the whole codebase and then verified
+adversarially; each one is its own commit with the measurement in the message,
+so they are not re-narrated here.
+
+**Still engineering here.**
+
+- **[CODE] A campaign cannot place a call.** `startOutboundCall` exists and
+  reaches Exotel's calls/connect; the only path to it is POST /api/app/calls,
+  one number at a time. The dial loop walks every gate a real call must pass
+  and then records each eligible contact as blocked with the reason, because it
+  has nowhere to send it. Wiring it needs two things this code does not have: a
+  link from a call back to the contact it belongs to, and an end driven by the
+  telephony webhook — without the second, a contact who answers is dialled
+  again on the next backoff until the attempt limit runs out. It is also [KEY]:
+  there is no outbound leg without a carrier.
+- **[CODE] An Ask cannot check its own answer.** The `expect` field
+  ('number', 'date', 'yes_no', …) is authored on every Ask and read by nothing
+  in the engine. Until it is, "keep asking until they give me a date" has no
+  home: an edge pointing back to the Ask is now refused at publish, because a
+  run never goes round twice. The honest shape is validation inside the node
+  with its own retry exit and an attempt cap — a new branch on a node kind, and
+  its own review.
+- **[CODE] 2FA has no QR code.** The enrolment URI is now a link that opens the
+  authenticator on a phone, and the key is shown in fours for typing. Drawing
+  the QR needs either a dependency in this product or a hand-written encoder,
+  and a hand-written one cannot be checked here — there is no decoder to read
+  it back, and a QR that scans to the wrong secret locks somebody out of their
+  own account. **Your call.**
+- **[CODE] The lead form accepts a request with no Origin.** That is what the
+  check can do and what it cannot: `Origin` is a header browsers attach, and
+  anything that is not a browser omits it. The field now says so and points at
+  the keyed API for server-side posting. A strict per-form setting, off by
+  default, is buildable on request — not switched on unasked, because live
+  forms would start dropping submissions. **Your call.**
+
+**The standing audits, today.**
+
+- Actions the API handles and no screen sends: **5** — `validate` and
+  `create_workflow` duplicate what the client already computes or writes,
+  `test_route`, `elevenlabs_tts_test` and `auth_provider_save` are admin test
+  affordances. None is a hidden capability.
+- Answers no screen reads: **23**, down from 27. Several of what remains are
+  false positives of the check's own shape: `requiresDeviceTest`,
+  `alreadyRequested` and `matchTier` each sit beside a sentence the screen does
+  read. Worth a pass, not urgent.
+- Queries filtering a tenant-owned foreign key: **23**, all of `kyc_documents`
+  scoped; 11 others noted, safe because their caller checked the owner first.
+- Comparisons against SQLite's clock on an ISO column: **28**, all normalised.
+
+**Still yours, unchanged.** The list in §5 below, plus the scheduler in §13.
+Migrations 0009-0014 have never been applied to a deployed database — the
+runtime bootstrap covers a fresh one, and `drizzle/*.sql` reaches only a
+database that already exists.
 
 ### 5. [KEY] Things only you can supply
 

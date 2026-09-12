@@ -928,5 +928,135 @@ equal((await whichWay('{{score}} >= 60', { score: 10 })).end.nodeId, 'no');
 // A literal on the right that happens to be a word is still a word.
 equal((await whichWay('{{stage}} = qualified', { stage: 'qualified' })).end.nodeId, 'yes');
 
+// --- an answer of the wrong kind --------------------------------------------------
+//
+// `expect` was authored on every Ask and read by nothing, so "What day suits
+// you?" accepted "yes" and carried it into a booking. The re-ask has to live
+// in the node: a run never goes round twice, so an edge pointing back at the
+// Ask is refused at publish, and asking again is this node's job or nobody's.
+const datePhone = '+919700000004';
+const dateGraph = {
+  nodes: [
+    { id: 't', kind: 'trigger', config: { event: 'whatsapp_message' }, next: { next: 'q' } },
+    {
+      id: 'q',
+      kind: 'ask',
+      config: { question: 'What day suits you?', variable: 'day', expect: 'date' },
+      next: { next: 'e' },
+    },
+    { id: 'e', kind: 'end', config: { disposition: 'booked' }, next: {} },
+  ],
+};
+db.prepare(
+  `INSERT INTO workflows (id, organization_id, name, trigger_type, status, graph_json) VALUES (?,?,?,?,?,?)`,
+).run('wf_expect', ORG, 'Expecting a date', 'whatsapp_message', 'active', JSON.stringify(dateGraph));
+db.prepare(
+  `INSERT INTO workflow_runs (id, organization_id, workflow_id, trigger_type, status, input_json, output_json, variables_json, started_at)
+   VALUES (?,?,?,'whatsapp_message','running','{}','{}',?,CURRENT_TIMESTAMP)`,
+).run('run_expect', ORG, 'wf_expect', JSON.stringify({ phone: datePhone }));
+
+const beforeExpect = sent.length;
+const firstAsk = await engine.executeGraph({
+  graph: dateGraph,
+  context: { ...context, runId: 'run_expect', contactPhone: datePhone },
+  variables: { phone: datePhone },
+});
+equal(firstAsk.status, 'waiting');
+equal(sent.length, beforeExpect + 1, 'the question is asked once');
+
+// They answer something that is not a day at all.
+const wrongKind = await engine.resumeAfterWhatsAppReply({
+  organizationId: ORG,
+  phone: datePhone,
+  text: 'yes',
+});
+ok(wrongKind, 'the reply resumes the run');
+equal(wrongKind.status, 'waiting', 'and the run parks again rather than carrying on');
+equal(sent.length, beforeExpect + 2, 'it asks again');
+ok(
+  sent.at(-1).message.includes('which day'),
+  'saying what was wrong with the answer, not just repeating itself',
+);
+ok(sent.at(-1).message.includes('What day suits you?'), 'and asking the question again');
+
+// Now they give a real day.
+const usable = await engine.resumeAfterWhatsAppReply({
+  organizationId: ORG,
+  phone: datePhone,
+  text: '14 March',
+});
+equal(usable.status, 'completed', 'a usable answer finishes the run');
+equal(sent.length, beforeExpect + 2, 'and nothing further is sent');
+equal(
+  JSON.parse(
+    db.prepare(`SELECT variables_json AS v FROM workflow_runs WHERE id = 'run_expect'`).get().v,
+  ).day,
+  '14 March',
+  'the answer kept is the usable one, not the first',
+);
+
+// Somebody who never gives a usable answer is not asked for ever: the Ask
+// carries on with what it has, and the trace says it did not match.
+const stubbornPhone = '+919700000005';
+db.prepare(
+  `INSERT INTO workflow_runs (id, organization_id, workflow_id, trigger_type, status, input_json, output_json, variables_json, started_at)
+   VALUES (?,?,?,'whatsapp_message','running','{}','{}',?,CURRENT_TIMESTAMP)`,
+).run('run_stubborn', ORG, 'wf_expect', JSON.stringify({ phone: stubbornPhone }));
+const beforeStubborn = sent.length;
+await engine.executeGraph({
+  graph: dateGraph,
+  context: { ...context, runId: 'run_stubborn', contactPhone: stubbornPhone },
+  variables: { phone: stubbornPhone },
+});
+let lastStubborn = null;
+for (let attempt = 0; attempt < 4; attempt += 1) {
+  const resumed = await engine.resumeAfterWhatsAppReply({
+    organizationId: ORG,
+    phone: stubbornPhone,
+    text: 'yes',
+  });
+  // Once it stops parking there is nothing left to reply to, and a reply that
+  // wakes nothing is the ordinary case rather than a failure.
+  if (!resumed) break;
+  lastStubborn = resumed;
+  if (resumed.status !== 'waiting') break;
+}
+equal(lastStubborn.status, 'completed', 'the run ends rather than asking for ever');
+const totalAsks = sent.length - beforeStubborn;
+ok(totalAsks <= 3, `asked at most three times (was ${totalAsks})`);
+const stubbornStep = lastStubborn.trace.find((step) => step.kind === 'ask');
+ok(
+  String(stubbornStep.note ?? '').includes('not a date'),
+  'and the trace says the answer was not what was asked for',
+);
+
+// An Ask with no expectation authored takes whatever it is given, as before.
+const anyPhone = '+919700000006';
+const anyGraph = {
+  nodes: [
+    { id: 't', kind: 'trigger', config: { event: 'whatsapp_message' }, next: { next: 'q' } },
+    { id: 'q', kind: 'ask', config: { question: 'Anything else?', variable: 'note' }, next: { next: 'e' } },
+    { id: 'e', kind: 'end', config: { disposition: 'done' }, next: {} },
+  ],
+};
+db.prepare(
+  `INSERT INTO workflows (id, organization_id, name, trigger_type, status, graph_json) VALUES (?,?,?,?,?,?)`,
+).run('wf_any', ORG, 'No expectation', 'whatsapp_message', 'active', JSON.stringify(anyGraph));
+db.prepare(
+  `INSERT INTO workflow_runs (id, organization_id, workflow_id, trigger_type, status, input_json, output_json, variables_json, started_at)
+   VALUES (?,?,?,'whatsapp_message','running','{}','{}',?,CURRENT_TIMESTAMP)`,
+).run('run_any', ORG, 'wf_any', JSON.stringify({ phone: anyPhone }));
+await engine.executeGraph({
+  graph: anyGraph,
+  context: { ...context, runId: 'run_any', contactPhone: anyPhone },
+  variables: { phone: anyPhone },
+});
+const tookIt = await engine.resumeAfterWhatsAppReply({
+  organizationId: ORG,
+  phone: anyPhone,
+  text: 'not really',
+});
+equal(tookIt.status, 'completed', 'an Ask that asked for nothing in particular still accepts anything');
+
 db.close();
 console.log(`whatsapp conversation: ${checks} assertions passed; no provider contacted.`);

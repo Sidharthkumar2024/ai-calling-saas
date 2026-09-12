@@ -39,6 +39,8 @@ import { createApprovalRequest } from '@/lib/handoff-service';
 import type { Filter } from '@/lib/object-engine';
 import { getObject, searchRecords } from '@/lib/object-store';
 import {
+  answerMatches,
+  EXPECTATION_HINT,
   branchesOf,
   evaluateCondition,
   interpolate,
@@ -336,12 +338,65 @@ async function runNode(
     case 'ask': {
       const variable = textValue(node.config.variable);
       const answer = variables[variable];
-      if (answer !== undefined)
+      if (answer !== undefined) {
+        // Is it the kind of thing that was asked for?
+        //
+        // `expect` has been authored on every Ask since the node existed and
+        // read by nothing, so "What day suits you?" accepted "yes" and carried
+        // it into a booking. The retry has to live here: a run never goes
+        // round twice, so an edge pointing back at this node is refused at
+        // publish, and re-asking is this node's own job or nobody's.
+        const check = answerMatches(node.config.expect, answer);
+        if (!check.ok) {
+          const asked = await timesVisited(context, node.id);
+          if (onChat && asked < MAX_ASK_ATTEMPTS) {
+            // Say what was wrong with it, then ask again and park. The reply
+            // overwrites the variable, so the next visit judges the new answer
+            // rather than this one.
+            const again = await sendChat(
+              `${EXPECTATION_HINT[check.expectation]} ${textValue(config.question)}`,
+              context,
+            );
+            if (again.status !== 'completed') return again;
+            return {
+              status: 'completed',
+              branch: 'next',
+              output: {
+                ...again.output,
+                question: textValue(config.question),
+                rejected: answer,
+                expected: check.expectation,
+                attempt: asked + 1,
+                waitingFor: variable,
+              },
+              suspend: {
+                waitingOn: `whatsapp:${normalisePhone(context.contactPhone ?? '')}`,
+                resumeNode: node.id,
+              },
+            };
+          }
+          // Out of attempts, or nobody to ask again. The answer is carried on
+          // rather than thrown away — a later step can still branch on it —
+          // and the trace says it was not what was asked for, so a booking
+          // made from it is explainable.
+          return {
+            status: 'completed',
+            branch: 'next',
+            output: {
+              question: textValue(config.question),
+              answer,
+              expected: check.expectation,
+              matchedExpectation: false,
+              detail: `The answer was not ${check.expectation === 'any' ? 'usable' : `a ${check.expectation.replace('_', '/')}`}, and there was no way to ask again.`,
+            },
+          };
+        }
         return {
           status: 'completed',
           branch: 'next',
           output: { question: textValue(config.question), answer },
         };
+      }
       if (onChat) {
         // A conversation a person has taken over is theirs. Parking here would
         // wait for an answer that is going to somebody else, forever.
@@ -643,6 +698,28 @@ async function chatTranscript(
         : ('business' as const),
     text: row.body,
   }));
+}
+
+/** How many attempts an Ask gets before it carries on with what it has. */
+const MAX_ASK_ATTEMPTS = 3;
+
+/**
+ * How many times this run has already run this step.
+ *
+ * Counted from the step rows the engine writes anyway, rather than a counter
+ * kept in the run's variables: those are the author's namespace and they are
+ * persisted as JSON with a size ceiling, so bookkeeping does not belong there.
+ * The row for the visit in progress is written after the step returns, so this
+ * is the count of visits before this one.
+ */
+async function timesVisited(context: ExecutionContext, nodeId: string) {
+  const row = await getRawDb()
+    .prepare(
+      `SELECT COUNT(*) AS n FROM workflow_run_steps WHERE run_id = ? AND node_id = ?`,
+    )
+    .bind(context.runId, nodeId)
+    .first<{ n: number }>();
+  return Number(row?.n ?? 0);
 }
 
 async function crmLookup(

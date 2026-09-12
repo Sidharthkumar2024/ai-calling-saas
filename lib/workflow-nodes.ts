@@ -888,6 +888,96 @@ export function interpolate(
   });
 }
 
+/**
+ * Whether an answer is the kind of thing the Ask asked for.
+ *
+ * `expect` has been authored on every Ask since the node existed and read by
+ * nothing, so "What day suits you?" accepted "yes" and carried it into a
+ * booking. It is deliberately forgiving about form and strict about kind: a
+ * person says "14 March", "14/03", "tomorrow at 4" and "yeah ok", and none of
+ * those should be refused for punctuation. What it refuses is an answer of the
+ * wrong sort altogether.
+ *
+ * `any` accepts anything with a character in it, because an Ask that has not
+ * said what it wants has no grounds to argue.
+ */
+export type AnswerExpectation =
+  | 'any'
+  | 'number'
+  | 'yes_no'
+  | 'date'
+  | 'phone'
+  | 'email';
+
+export const ANSWER_EXPECTATIONS: AnswerExpectation[] = [
+  'any',
+  'number',
+  'yes_no',
+  'date',
+  'phone',
+  'email',
+];
+
+/** What to say when the answer was not the kind asked for. */
+export const EXPECTATION_HINT: Record<AnswerExpectation, string> = {
+  any: 'Could you say that again?',
+  number: 'Sorry — I need a number for that.',
+  yes_no: 'Sorry — is that a yes or a no?',
+  date: 'Sorry — which day? Something like 14 March, or tomorrow.',
+  phone: 'Sorry — could you give me the full phone number?',
+  email: 'Sorry — could you give me the email address?',
+};
+
+const YES_NO =
+  /^(y|n|yes|no|yeah|yep|yup|nope|sure|ok|okay|haan|han|ha|nahi|nahin|ji|ji haan|ji nahi|theek hai|correct|right|wrong)\b/i;
+const MONTHS =
+  /(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|सोम|मंगल|बुध|गुरु|शुक्र|शनि|रवि)/i;
+const RELATIVE_DAY =
+  /\b(today|tomorrow|tonight|day after|next|this)\b|\b(mon|tue|wed|thu|fri|sat|sun)/i;
+
+export function isAnswerExpectation(
+  value: unknown,
+): value is AnswerExpectation {
+  return (ANSWER_EXPECTATIONS as readonly string[]).includes(String(value));
+}
+
+export function answerMatches(
+  expect: unknown,
+  answer: unknown,
+): { ok: boolean; expectation: AnswerExpectation } {
+  const expectation: AnswerExpectation = isAnswerExpectation(expect)
+    ? expect
+    : 'any';
+  const text = textValue(answer).trim();
+  if (!text) return { ok: false, expectation };
+  const digits = text.replace(/\D/g, '');
+  switch (expectation) {
+    case 'number':
+      // A number somewhere in the sentence: "about 4 people" is an answer.
+      return { ok: /\d/.test(text), expectation };
+    case 'yes_no':
+      return { ok: YES_NO.test(text), expectation };
+    case 'date':
+      // A day is a date, a month name is a date, and so is "tomorrow". Two
+      // digits with a separator is a date; a bare number is not, because
+      // "4" is as likely to be an answer to something else.
+      return {
+        ok:
+          /\d{1,2}\s*[/.-]\s*\d{1,2}/.test(text) ||
+          (MONTHS.test(text) && /\d/.test(text)) ||
+          RELATIVE_DAY.test(text),
+        expectation,
+      };
+    case 'phone':
+      // Ten digits is an Indian number; more is one with a country code.
+      return { ok: digits.length >= 10 && digits.length <= 15, expectation };
+    case 'email':
+      return { ok: /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(text), expectation };
+    default:
+      return { ok: true, expectation };
+  }
+}
+
 export const CONDITION_OPERATORS = [
   '>=',
   '<=',

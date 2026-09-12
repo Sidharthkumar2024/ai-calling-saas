@@ -441,13 +441,11 @@ so they are not re-narrated here.
   telephony webhook — without the second, a contact who answers is dialled
   again on the next backoff until the attempt limit runs out. It is also [KEY]:
   there is no outbound leg without a carrier.
-- **[CODE] An Ask cannot check its own answer.** The `expect` field
-  ('number', 'date', 'yes_no', …) is authored on every Ask and read by nothing
-  in the engine. Until it is, "keep asking until they give me a date" has no
-  home: an edge pointing back to the Ask is now refused at publish, because a
-  run never goes round twice. The honest shape is validation inside the node
-  with its own retry exit and an attempt cap — a new branch on a node kind, and
-  its own review.
+- ~~**[CODE] An Ask cannot check its own answer.**~~ Done. The `expect` field
+  is read now: an answer of the wrong kind is refused, the Ask says what was
+  wrong and asks again, up to three times, and then carries on with what it has
+  and records that it did not match. No new exit, so graphs already published
+  keep validating.
 - **[CODE] 2FA has no QR code.** The enrolment URI is now a link that opens the
   authenticator on a phone, and the key is shown in fours for typing. Drawing
   the QR needs either a dependency in this product or a hand-written encoder,

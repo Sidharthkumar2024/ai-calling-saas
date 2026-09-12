@@ -267,8 +267,36 @@ export async function POST(request: Request) {
         organizationId,
         { reason: 'no_match' },
       );
+      // How many tries are left, in the sentence rather than in a field
+      // beside it.
+      //
+      // The increment above lands on whatever live PIN the workspace has, on
+      // purpose: guessing burns the real one's budget rather than being free.
+      // The person typing was told only "That PIN is not valid", so a support
+      // engineer who mistyped twice had spent two of the customer's five
+      // without knowing, and the fifth locks the PIN and sends them back to
+      // the customer for a new one. The response used to carry
+      // `attemptsAllowed`, a constant nobody read.
+      const live = await db
+        .prepare(
+          `SELECT attempts FROM support_pins
+           WHERE organization_id = ? AND used_at IS NULL AND revoked_at IS NULL
+           ORDER BY created_at DESC LIMIT 1`,
+        )
+        .bind(organizationId)
+        .first<{ attempts: number }>();
+      const remaining = live
+        ? Math.max(0, MAX_PIN_ATTEMPTS - Number(live.attempts ?? 0))
+        : null;
       return NextResponse.json(
-        { error: 'That PIN is not valid.', attemptsAllowed: MAX_PIN_ATTEMPTS },
+        {
+          error:
+            remaining === null
+              ? 'That PIN is not valid, and this workspace has no PIN waiting to be used. Ask them to issue one.'
+              : remaining === 0
+                ? `That PIN is not valid, and this workspace's PIN is now locked after ${MAX_PIN_ATTEMPTS} wrong tries. Ask them to issue a new one.`
+                : `That PIN is not valid. ${remaining} ${remaining === 1 ? 'try' : 'tries'} left before this workspace's PIN locks and they have to issue a new one.`,
+        },
         { status: 403 },
       );
     }

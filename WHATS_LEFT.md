@@ -432,9 +432,9 @@ so they are not re-narrated here.
 
 **Still engineering here.**
 
-- **[CODE] A campaign cannot place a call.** `startOutboundCall` exists and
-  reaches Exotel's calls/connect; the only path to it is POST /api/app/calls,
-  one number at a time. The dial loop walks every gate a real call must pass
+- **[CODE] A campaign cannot place a call.** `startOutboundCall` and
+  `startVobizCall` both exist and both are reachable; the only path to either is
+  POST /api/app/calls, one number at a time. The dial loop walks every gate a real call must pass
   and then records each eligible contact as blocked with the reason, because it
   has nowhere to send it. Wiring it needs two things this code does not have: a
   link from a call back to the contact it belongs to, and an end driven by the
@@ -459,6 +459,43 @@ so they are not re-narrated here.
   default, is buildable on request — not switched on unasked, because live
   forms would start dropping submissions. **Your call.**
 
+**Vobiz, the carrier Vaani resells.**
+
+A workspace here is a sub-account there — its own auth id, balance,
+concurrency, numbers and KYC — so the credentials a call is placed with are the
+workspace's own and never the partner's. What is built and tested, with no
+provider contacted at any point:
+
+- `lib/vobiz.ts` — their call and hangup URLs, the `X-Auth-ID`/`X-Auth-Token`
+  headers, the request body (their destination separator is `<`, not a comma),
+  the `<Stream>` answer document (the socket URL is the element's *text*, not an
+  attribute), base64 HMAC signature verification for both V2 and V3, their
+  error envelope, and their callbacks — including talk time derived from
+  `AnswerTime`→`EndTime` rather than from the start, so a customer is not billed
+  for the seconds their phone rang.
+- `startVobizCall` beside `startOutboundCall`, and a carrier router that picks
+  Vobiz when the workspace has an active Vobiz number that may dial out, and
+  Exotel otherwise. POST /api/app/calls goes through it.
+- Two webhook routes. The call id is in the **path**, not the query, because
+  their signature covers the callback URL with every query parameter stripped —
+  a call id in the query would be the one part of the request nothing vouches
+  for. An unsigned POST gets 401, another workspace's token gets 401, a
+  workspace with no credentials verifies nothing and therefore accepts nothing,
+  a retried hangup does not bill twice, and a late `ringing` does not put a
+  finished call back on the air. Each of those guards was removed on purpose and
+  the test failed; they are load-bearing.
+
+Their signature covers the URL and a nonce, never the body — so a verified
+callback still only proves who addressed the URL, and every field in the body is
+treated as a claim about a call looked up by its path id.
+
+What is **not** built: sub-account provisioning (`POST /partner/accounts`,
+balance and concurrency transfer, `/numbers`, `/kyc-sessions`), and the campaign
+dial loop, which is now possible but still needs a call↔contact link. Also
+unresolved: their partner-API page documents `POST /login` returning a JWT, and
+no login, token, refresh or SSO endpoint appears anywhere in their OpenAPI
+spec. Nothing here depends on it; it is flagged rather than coded against.
+
 **The standing audits, today.**
 
 - Actions the API handles and no screen sends: **5** — `validate` and
@@ -482,7 +519,12 @@ database that already exists.
 
 - **A male ElevenLabs voice id** (still outstanding) and a Punjabi voice id.
 - Sarvam (Indian-language STT/TTS), OpenAI (for the Realtime path).
-- A carrier: Exotel/Twilio/Plivo number + KYC + inbound webhook or SIP.
+- A carrier. Vobiz is the one Vaani resells and the code is written for it: a
+  partner account, then a sub-account per workspace, each completing KYC **in
+  its own name** — a reseller cannot KYC on a customer's behalf, and a
+  sub-account starts with calls blocked until it does. Numbers carry a 15-day
+  cool-off before reassignment. Exotel/Twilio/Plivo remain supported for a
+  customer bringing their own.
 - Razorpay/Stripe live keys — connect them **per workspace** in the marketplace,
   not as platform env vars (see the ledger note below).
 - Meta WhatsApp business + approved templates; Meta/Google Lead Ads OAuth.

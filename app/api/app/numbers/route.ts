@@ -110,6 +110,10 @@ export async function POST(request: Request) {
   const supportedProviders = new Set([
     'auto',
     'exotel',
+    // The carrier Vaani itself resells. It was missing here, so a workspace on
+    // a Vaani-supplied number could not say so and the number fell back to
+    // 'auto' — which no adapter reads.
+    'vobiz',
     'twilio',
     'sip',
     'plivo',

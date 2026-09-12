@@ -12,6 +12,13 @@ import type { UsageUnit } from '@/lib/rate-cards';
 import { reasoningBudget } from '@/lib/reasoning-budget';
 import { decryptSecret } from '@/lib/security';
 import { readPlatformSecret } from '@/lib/platform-secrets';
+import {
+  readVobizCallAccepted,
+  readVobizError,
+  vobizCallBody,
+  vobizCallUrl,
+  vobizHeaders,
+} from '@/lib/vobiz';
 import { deepgramTranscript } from '@/lib/deepgram-stt';
 import { sttProviderOrder, type SttProvider } from '@/lib/stt-router';
 import { routeSynthesis } from '@/lib/tts-router';
@@ -1090,6 +1097,146 @@ export async function startOutboundCall(input: {
   return {
     providerReference: payload.call.sid,
     status: payload.call.status || 'queued',
+    latencyMs,
+  };
+}
+
+/**
+ * A carrier that refused a call, in terms a caller can act on.
+ *
+ * `retryable` is the whole point of the class: an empty balance and a rate
+ * limit both come back as failures, and only one of them is worth trying
+ * again. Without it the dialer either hammers a wallet that is empty or gives
+ * up on a queue that would have drained a minute later.
+ */
+export class CarrierRejectedError extends Error {
+  constructor(
+    message: string,
+    readonly code: string,
+    readonly retryable: boolean,
+  ) {
+    super(message);
+  }
+}
+
+/**
+ * Place a call through Vobiz, the carrier this product resells.
+ *
+ * Where Exotel is a carrier a customer brings, Vobiz is the one Vaani supplies:
+ * the workspace is a sub-account under the partner account, with its own Auth
+ * ID, its own balance and its own numbers. So the credentials read here are the
+ * workspace's own — a call placed with the partner's would bill the partner and
+ * land in the wrong account's CDRs.
+ *
+ * A 200 from this API means **queued**, not answered. Nothing about the call is
+ * known until their callbacks arrive, which is why the returned status is
+ * `queued` and why the answer and status URLs are built before the request.
+ */
+/**
+ * The Vobiz sub-account credentials belonging to one workspace.
+ *
+ * Exported because the callbacks need them too: their signature is an HMAC
+ * keyed by the very same auth token, so a webhook cannot tell a real callback
+ * from a forged one without reading the workspace's own credentials first.
+ */
+export async function vobizWorkspaceCredentials(organizationId: string) {
+  const credentials = await connectionCredentials(
+    organizationId,
+    'telephony_vobiz',
+  );
+  return {
+    // The panel stores the auth id as public configuration and the token as
+    // the encrypted secret, which is the right split: the id names the
+    // sub-account and appears in their CDRs, the token is a password.
+    authId: configString(credentials.publicConfig, 'accountId'),
+    authToken: credentials.secrets.apiKey || '',
+    baseUrl: configString(credentials.publicConfig, 'baseUrl') || undefined,
+  };
+}
+
+export async function startVobizCall(input: {
+  organizationId: string;
+  callId: string;
+  /** The workspace's own Vobiz number. Their API will not send any other. */
+  fromNumber: string;
+  destination: string;
+  timeLimitSeconds?: number;
+  /** Hang up on an answering machine rather than talking to voicemail. */
+  hangUpOnMachine?: boolean;
+}) {
+  if ((await platformProviderSecret('vobiz')).disabled)
+    throw new ProviderConfigurationError(
+      'Telephony is disabled by the platform admin.',
+    );
+  const { authId, authToken, baseUrl } = await vobizWorkspaceCredentials(
+    input.organizationId,
+  );
+  const publicBaseUrl = (process.env.PUBLIC_BASE_URL || '').replace(/\/$/, '');
+  if (!authId || !authToken)
+    throw new ProviderConfigurationError(
+      'This workspace has no Vobiz credentials. Add them in Integrations.',
+    );
+  // Their platform fetches these URLs; a localhost or http base means a call
+  // that connects to silence, so it is refused here rather than discovered on
+  // a customer's first call.
+  if (!publicBaseUrl.startsWith('https://'))
+    throw new ProviderConfigurationError(
+      'A public https:// base URL is required before live calls can be placed.',
+    );
+  // The call id lives in the **path**, not the query. Their signature covers
+  // the callback URL with every query parameter stripped, so a call id in the
+  // query would be the one part of the URL the signature does not bind.
+  const callbackBase = `${publicBaseUrl}/api/webhooks/telephony/vobiz`;
+  const body = vobizCallBody({
+    from: input.fromNumber,
+    to: input.destination,
+    answerUrl: `${callbackBase}/answer/${encodeURIComponent(input.callId)}`,
+    ringUrl: `${callbackBase}/status/${encodeURIComponent(input.callId)}`,
+    hangupUrl: `${callbackBase}/status/${encodeURIComponent(input.callId)}`,
+    timeLimitSeconds: input.timeLimitSeconds,
+    machineDetection: input.hangUpOnMachine ? 'hangup' : undefined,
+  });
+  const started = Date.now();
+  const response = await fetch(vobizCallUrl(authId, baseUrl), {
+    method: 'POST',
+    headers: vobizHeaders({ authId, authToken }),
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(20_000),
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const failure = readVobizError(response.status, payload);
+    if (failure.code === 'INVALID_CREDENTIALS')
+      throw new ProviderConfigurationError(failure.message);
+    throw new CarrierRejectedError(
+      failure.message,
+      failure.code,
+      failure.retryable,
+    );
+  }
+  const accepted = readVobizCallAccepted(payload);
+  // A 2xx with no call uuid in it leaves a call this product could never
+  // settle: no callback would match it and it would sit live forever.
+  if (!accepted)
+    throw new CarrierRejectedError(
+      'The carrier accepted the request without returning a call reference.',
+      'NO_CALL_REFERENCE',
+      false,
+    );
+  const latencyMs = Date.now() - started;
+  await recordUsage(
+    input.organizationId,
+    'provider_telephony',
+    'telephony',
+    'call_start',
+    latencyMs,
+    accepted.callUuid,
+  );
+  return {
+    providerReference: accepted.callUuid,
+    // Queued. Their own word, kept rather than upgraded to `in_progress`:
+    // nothing here has heard the phone ring yet.
+    status: 'queued',
     latencyMs,
   };
 }

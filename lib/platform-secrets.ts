@@ -7,8 +7,13 @@ import {
 
 export async function readPlatformSecret(provider: string) {
   const db = getRawDb();
+  // Both carriers share the one `provider_telephony` row, which is what the
+  // admin panel's telephony kill-switch flips. Without `vobiz` here the switch
+  // read as "no such provider, so not disabled" and Vobiz kept dialling.
   const rowId =
-    provider === 'exotel' ? 'provider_telephony' : `provider_${provider}`;
+    provider === 'exotel' || provider === 'vobiz'
+      ? 'provider_telephony'
+      : `provider_${provider}`;
   const [row, control] = await Promise.all([
     db
       .prepare(

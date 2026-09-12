@@ -4,7 +4,8 @@ import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { assertCanPlaceRealCall } from '@/lib/onboarding-service';
 import { requireCustomerPermission } from '@/lib/customer-rbac';
-import { startOutboundCall } from '@/lib/provider-adapters';
+import { startOutboundCall, startVobizCall } from '@/lib/provider-adapters';
+import { chooseCarrier } from '@/lib/carrier-router';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { sha256 } from '@/lib/security';
 
@@ -114,18 +115,26 @@ export async function POST(request: Request) {
       },
       { status: 503 },
     );
+  // Exotel is handed the stream URL when the call is dialled; Vobiz asks for it
+  // when the call is answered, and is told here which number to call from
+  // because it will only send one the sub-account owns.
+  const carrier = await chooseCarrier(db, organizationId);
   const callId = `call_${crypto.randomUUID()}`;
   await db
     .prepare(`INSERT INTO call_records
     (id, organization_id, agent_id, lead_id, campaign_id, direction, from_number, to_number,
      status, outcome, recording_status, started_at, analysis_json)
-    VALUES (?, ?, ?, ?, ?, 'outbound', 'pending_assignment', ?, 'queued', 'unknown', ?, ?, ?)`)
+    VALUES (?, ?, ?, ?, ?, 'outbound', ?, ?, 'queued', 'unknown', ?, ?, ?)`)
     .bind(
       callId,
       organizationId,
       agent.id,
       body.leadId || null,
       body.campaignId || null,
+      // Known in advance on Vobiz, because the number is one Vaani assigned. On
+      // Exotel the caller id lives in the customer's own integration and is
+      // only learned from the callback.
+      carrier.fromNumber ?? 'pending_assignment',
       phone,
       recordCall ? 'pending' : 'not_available',
       new Date().toISOString(),
@@ -137,13 +146,21 @@ export async function POST(request: Request) {
     )
     .run();
   try {
-    const result = await startOutboundCall({
-      organizationId,
-      callId,
-      destination: phone,
-      streamUrl,
-      recordCall,
-    });
+    const result =
+      carrier.carrier === 'vobiz'
+        ? await startVobizCall({
+            organizationId,
+            callId,
+            fromNumber: carrier.fromNumber,
+            destination: phone,
+          })
+        : await startOutboundCall({
+            organizationId,
+            callId,
+            destination: phone,
+            streamUrl,
+            recordCall,
+          });
     await db
       .prepare(`UPDATE call_records SET status = ?, analysis_json = json_set(analysis_json, '$.providerReference', ?)
       WHERE id = ?`)

@@ -13,6 +13,7 @@ import { compileFunction } from 'node:vm';
 import ts from 'typescript';
 
 import * as languages from '../lib/languages.ts';
+import * as vobiz from '../lib/vobiz.ts';
 import * as reasoningBudget from '../lib/reasoning-budget.ts';
 
 let checks = 0;
@@ -42,8 +43,21 @@ globalThis.fetch = async (url, init) => {
 
 const noop = () => undefined;
 const modules = {
-  '@/db/index': { getRawDb: () => ({ prepare: () => ({ bind: () => ({ first: async () => null, all: async () => ({ results: [] }), run: async () => ({ meta: { changes: 0 } }) }) }) }) },
-  '@/lib/agent-tools': { executeAgentTool: async () => ({}), toolsForAgent: () => [] },
+  '@/db/index': {
+    getRawDb: () => ({
+      prepare: () => ({
+        bind: () => ({
+          first: async () => null,
+          all: async () => ({ results: [] }),
+          run: async () => ({ meta: { changes: 0 } }),
+        }),
+      }),
+    }),
+  },
+  '@/lib/agent-tools': {
+    executeAgentTool: async () => ({}),
+    toolsForAgent: () => [],
+  },
   '@/lib/knowledge-retrieval': { retrieveKnowledge: async () => [] },
   '@/lib/sales-intelligence-service': { objectionPlaybook: async () => '' },
   '@/lib/playbook-service': { approvedPlaybookBlock: async () => '' },
@@ -52,19 +66,35 @@ const modules = {
   '@/lib/reasoning-budget': reasoningBudget,
   '@/lib/security': { decryptSecret: async (value) => value },
   '@/lib/platform-secrets': {
-    readPlatformSecret: async () => ({ apiKey: undefined, config: {}, disabled: false }),
+    readPlatformSecret: async () => ({
+      apiKey: undefined,
+      config: {},
+      disabled: false,
+    }),
   },
   '@/lib/deepgram-stt': { deepgramTranscript: async () => null },
   '@/lib/stt-router': { sttProviderOrder: () => [] },
   '@/lib/tts-router': { routeSynthesis: async () => null },
   '@/lib/languages': languages,
+  // Pure and dependency-free, so the real module is registered rather than a
+  // stub: a stubbed URL builder would let this harness pass over a Vobiz call
+  // addressed to nowhere.
+  '@/lib/vobiz': vobiz,
 };
 
 const adapters = {};
 compileFunction(
   ts.transpileModule(
-    readFileSync(new URL('../lib/provider-adapters.ts', import.meta.url), 'utf8'),
-    { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
+    readFileSync(
+      new URL('../lib/provider-adapters.ts', import.meta.url),
+      'utf8',
+    ),
+    {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2022,
+      },
+    },
   ).outputText,
   ['require', 'exports', 'process'],
 )(
@@ -90,8 +120,16 @@ const ask = async (maxTokens) => {
 };
 
 // The two budgets the old inline clamp overruled, measured on the wire.
-equal((await ask(2000)).body.max_tokens, 2000, 'the schema builder gets the room it asks for');
-equal((await ask(900)).body.max_tokens, 900, 'a tool-calling turn keeps its raised floor');
+equal(
+  (await ask(2000)).body.max_tokens,
+  2000,
+  'the schema builder gets the room it asks for',
+);
+equal(
+  (await ask(900)).body.max_tokens,
+  900,
+  'a tool-calling turn keeps its raised floor',
+);
 // The default and the ceiling still hold at the boundary.
 equal((await ask(undefined)).body.max_tokens, 700);
 equal((await ask(50_000)).body.max_tokens, 2000);
@@ -100,4 +138,6 @@ equal((await ask(0)).body.max_tokens, 40);
 equal((await ask(900)).url, 'https://api.anthropic.com/v1/messages');
 
 globalThis.fetch = originalFetch;
-console.log(`reasoning request: ${checks} assertions passed; no provider contacted.`);
+console.log(
+  `reasoning request: ${checks} assertions passed; no provider contacted.`,
+);

@@ -135,10 +135,43 @@ export const INTEGRATION_CATALOG: IntegrationDefinition[] = [
     id: 'telephony_vobiz',
     label: 'Vobiz',
     category: 'telephony',
-    blurb: 'Indian voice provider.',
+    blurb:
+      'Indian voice, resold through Vaani. Each workspace is its own sub-account.',
     monogram: 'Vo',
     verifiable: false,
-    fields: [KEY(), { key: 'baseUrl', label: 'API base URL', required: false }],
+    // Their own two credentials, rather than the generic `apiKey` this entry
+    // used to ask for. Vobiz authenticates with a pair — an auth id that looks
+    // like `MA_XXXXXXXX` and a token that behaves like a password — and the
+    // pair belongs to the *sub-account*, not to the reseller: a call placed
+    // with the master credentials is billed to us and recorded against the
+    // wrong account.
+    fields: [
+      {
+        // Their `X-Auth-ID`. Stored under the same key Exotel's account id
+        // uses, because this list is a closed vocabulary and a carrier's
+        // account identifier is the thing it already names.
+        key: 'accountId',
+        label: 'Auth ID',
+        required: true,
+        placeholder: 'MA_XXXXXXXX',
+        hint: "This workspace's own sub-account id, not the partner account's.",
+      },
+      {
+        // Their `X-Auth-Token`. A password, so it is stored encrypted and
+        // never returned.
+        key: 'apiKey',
+        label: 'Auth token',
+        required: true,
+        secret: true,
+      },
+      {
+        key: 'baseUrl',
+        label: 'API base URL',
+        required: false,
+        placeholder: 'https://api.vobiz.ai',
+        hint: 'Leave blank unless Vobiz has given you a different host.',
+      },
+    ],
   },
   {
     id: 'telephony_telnyx',

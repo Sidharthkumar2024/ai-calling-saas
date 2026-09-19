@@ -181,7 +181,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
       setResetToken(payload.developmentToken ?? "");
       setResetNotice(
         payload.developmentToken
-          ? "Local reset token is ready below."
+          ? "Local reset link is ready. Choose a new password below."
           : (payload.message ?? "Check your email for the secure reset link."),
       );
     } catch (caught) {
@@ -303,51 +303,11 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                 <div
                   className={`${portal === "customer" ? "mt-2" : "mt-7"} space-y-4`}
                 >
-                  <label
-                    htmlFor={`${portal}-reset-email`}
-                    className="block text-xs font-medium text-ink-body"
-                  >
-                    {t("login.accountEmail")}
-                    <Input
-                      id={`${portal}-reset-email`}
-                      value={email}
-                      onChange={(event) => setEmail(event.target.value)}
-                      type="email"
-                      autoComplete="email"
-                      className="mt-2 h-11 border-hairline bg-surface-strong"
-                    />
-                  </label>
-                  <Button
-                    type="button"
-                    onClick={() => void requestReset()}
-                    disabled={loading || !email}
-                    variant="outline"
-                    className="h-11 w-full border-hairline bg-surface-muted"
-                  >
-                    {loading ? (
-                      <Loader2 className="animate-spin" />
-                    ) : (
-                      <KeyRound />
-                    )}{" "}
-                    {t("login.sendResetLink")}
-                  </Button>
                   {resetToken ? (
                     <>
-                      <label
-                        htmlFor={`${portal}-reset-token`}
-                        className="block text-xs font-medium text-ink-body"
-                      >
-                        {t("login.resetToken")}
-                        <Input
-                          id={`${portal}-reset-token`}
-                          value={resetToken}
-                          onChange={(event) =>
-                            setResetToken(event.target.value)
-                          }
-                          autoComplete="one-time-code"
-                          className="mt-2 h-11 border-hairline bg-surface-strong font-mono text-[11px]"
-                        />
-                      </label>
+                      <p className="rounded-xl border border-emerald-400/15 bg-emerald-400/6 p-3 text-xs text-success-text">
+                        Secure reset link verified. Enter your new password.
+                      </p>
                       <label
                         htmlFor={`${portal}-new-password`}
                         className="block text-xs font-medium text-ink-body"
@@ -376,7 +336,38 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                         <LockKeyhole /> Update password
                       </Button>
                     </>
-                  ) : null}
+                  ) : (
+                    <>
+                      <label
+                        htmlFor={`${portal}-reset-email`}
+                        className="block text-xs font-medium text-ink-body"
+                      >
+                        {t("login.accountEmail")}
+                        <Input
+                          id={`${portal}-reset-email`}
+                          value={email}
+                          onChange={(event) => setEmail(event.target.value)}
+                          type="email"
+                          autoComplete="email"
+                          className="mt-2 h-11 border-hairline bg-surface-strong"
+                        />
+                      </label>
+                      <Button
+                        type="button"
+                        onClick={() => void requestReset()}
+                        disabled={loading || !email}
+                        variant="outline"
+                        className="h-11 w-full border-hairline bg-surface-muted"
+                      >
+                        {loading ? (
+                          <Loader2 className="animate-spin" />
+                        ) : (
+                          <KeyRound />
+                        )}{" "}
+                        {t("login.sendResetLink")}
+                      </Button>
+                    </>
+                  )}
                   {resetNotice ? (
                     <p className="rounded-xl border border-emerald-400/15 bg-emerald-400/6 p-3 text-xs text-success-text">
                       {resetNotice}

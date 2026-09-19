@@ -28,7 +28,7 @@ export async function POST(request: Request) {
       namespace: 'password-reset',
       identifier: requestFingerprint(request, email),
       limit: 4,
-      windowSeconds: 3600,
+      windowSeconds: 300,
     });
     if (!limit.allowed)
       return NextResponse.json(

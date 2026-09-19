@@ -37,7 +37,7 @@ const modules={
   '@/lib/service-health':health,
   '@/lib/health-center':{healthReport:async()=>({components:measurements,measuredAt:new Date().toISOString(),windowMinutes:60})},
 };
-function load(file){const exports={};compileFunction(ts.transpileModule(readFileSync(new URL(file,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,['require','exports','fetch'])(id=>{if(!modules[id])throw Error(id);return modules[id];},exports,async(url,options)=>{providerCalls++;eq(new URL(url).hostname,'api.twilio.com');eq(options.redirect,'error');eq(options.headers.authorization,`Basic ${btoa('AC12345:test-token')}`);return Response.json(providerPayload,{status:providerHttp});});return exports;}
+function load(file){const exports={};compileFunction(ts.transpileModule(readFileSync(new URL(file,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,['require','exports','fetch'])(id=>{if(!modules[id])throw Error(id);return modules[id];},exports,async(url,options)=>{providerCalls++;eq(new URL(url).hostname,'api.twilio.com');eq(options.redirect,'manual');eq(options.headers.authorization,`Basic ${btoa('AC12345:test-token')}`);return Response.json(providerPayload,{status:providerHttp});});return exports;}
 const numberApi=load('../app/api/app/numbers/route.ts');
 const verifyApi=load('../app/api/app/numbers/verify/route.ts');
 const adminStatus=load('../app/api/admin/status/route.ts');
@@ -72,6 +72,7 @@ sqlite.prepare("UPDATE phone_numbers SET status='active' WHERE id=?").run(id);
 eq((await verifyApi.POST(req({numberId:id}))).status,200);
 eq(sqlite.prepare('SELECT status FROM phone_numbers WHERE id=?').get(id).status,'active');
 providerHttp=401;eq((await verifyApi.POST(req({numberId:id}))).status,502);
+providerHttp=302;eq((await verifyApi.POST(req({numberId:id}))).status,502);
 eq(numbers.numberOwnershipProbe('twilio','../injected',input.phoneNumber),null);
 eq(numbers.numberOwnershipProbe('vobiz','MA_12345',input.phoneNumber),'https://api.vobiz.ai/api/v1/Account/MA_12345/numbers?search=%2B12025550123');
 const ownedVobiz={id:'num_one',e164:input.phoneNumber,status:'active',voice_enabled:true,is_blocked:false};

@@ -79,7 +79,9 @@ export async function POST(request: Request) {
         authorization: `Basic ${btoa(`${config.accountId}:${secret.apiKey}`)}`,
       },
       signal: AbortSignal.timeout(10000),
-      redirect: 'error',
+      // workerd supports manual/follow, not the browser-only error mode.
+      // Reject 3xx below rather than forwarding carrier secrets to a redirect.
+      redirect: 'manual',
     });
     if (!response.ok)
       return NextResponse.json(

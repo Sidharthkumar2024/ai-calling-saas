@@ -5,10 +5,20 @@ import process from 'node:process';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync, rmSync, statSync } from 'node:fs';
 
-const databasePath = process.env.CALLVANI_SQLITE_PATH?.trim();
+const productionMode = process.argv[2] === '--production';
+const databasePath = (
+  process.env.CALLVANI_SQLITE_PATH?.trim() ||
+  (productionMode
+    ? '/var/lib/callvani/runtime/v3/d1/miniflare-D1DatabaseObject/faaf2b0445ab934c3aac48ddf0cdfade8f9bac050be98993748742cdd2cb05fb.sqlite'
+    : '')
+);
 const encryptionKey = process.env.VAANI_ENCRYPTION_KEY?.trim();
-const clientId = String(process.argv[2] ?? '').trim();
-const redirectUri = String(process.argv[3] ?? '').trim();
+const clientId = productionMode
+  ? '63102744296-dvqb77h6gq48lq14vnf7pcl3kftk6f8r.apps.googleusercontent.com'
+  : String(process.argv[2] ?? '').trim();
+const redirectUri = productionMode
+  ? 'https://callvani.com/api/auth/google/callback'
+  : String(process.argv[3] ?? '').trim();
 
 if (
   !databasePath ||

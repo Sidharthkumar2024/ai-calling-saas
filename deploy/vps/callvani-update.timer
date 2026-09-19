@@ -1,0 +1,12 @@
+[Unit]
+Description=Check GitHub for Call Vani updates
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+RandomizedDelaySec=30s
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+

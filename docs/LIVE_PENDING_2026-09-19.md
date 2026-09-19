@@ -6,7 +6,7 @@ of local completion do not establish production activation.
 
 ## Verified this session
 
-- VPS app and media systemd services: active; build/deployment of `35e0530` succeeded.
+- VPS app and media systemd services: active; the current Vobiz media adapter deployment (`ba29757`) is live.
 - App service passes `/etc/callvani/app.env` to Wrangler explicitly.
 - Direct VPS customer password login: HTTP 200.
 - Direct VPS database health: healthy.
@@ -19,7 +19,7 @@ of local completion do not establish production activation.
 - Let’s Encrypt TLS is live for both `callvani.com` and `www.callvani.com`. The certificate is installed in Nginx, redirects HTTP to HTTPS, expires 18 December 2026, and Certbot renewal is scheduled. Direct `--resolve` requests to the VPS returned the live healthy status response for both hostnames.
 - The public secure media endpoint is configured as `wss://callvani.com/media-stream/`. Both the app and media-gateway services are active, and an authenticated WebSocket handshake reached the gateway successfully.
 - Vobiz ownership verification now returns HTTP 200 on VPS after deployment e416f20. Root cause of 502: workerd rejects Request redirect mode `error`; changed to `manual`, rejecting 3xx without forwarding credentials. 106 assertions and TypeScript pass. Number is ownership-verified, routing_required, not active.
-- Signed Vobiz inbound adapter deployed in 52d6234. It resolves only a uniquely active customer-owned Vobiz number, verifies the customer token signature before creating an idempotent call record, resolves an active route, then returns Vobiz stream XML. The Vobiz account now has a **Call Vani AI Inbound** application with this adapter as its POST answer URL; the purchased number still needs to be linked to that application after the Vobiz stream protocol is confirmed.
+- Signed Vobiz inbound adapter deployed in 52d6234. It resolves only a uniquely active customer-owned Vobiz number, verifies the customer token signature before creating an idempotent call record, resolves an active route, then returns Vobiz stream XML. The Vobiz account now has a **Call Vani AI Inbound** application with this adapter as its POST answer URL. The production media health endpoint now advertises `vobiz`, and the Vobiz mu-law, audio-playback and barge-in protocol tests pass (45 gateway tests and 66 Vobiz adapter assertions). The purchased number still needs to be attached to that application in Vobiz, then routed to the tested Call Vani agent.
 - Siddharth's customer agent is now **Aarohi · Sidharth Kumar Services**, in `testing` state with Hindi/Hinglish/English/Punjabi sales discovery, safety guardrails, lead/follow-up/appointment/human-handoff tools, and structured qualification fields. It is deliberately not Live until voice provider and media tests succeed.
 
 ## Pending, in execution order

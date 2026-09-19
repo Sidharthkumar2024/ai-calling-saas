@@ -79,7 +79,10 @@ function matchingDatabase() {
     }
   }
   if (matches.length !== 1) {
-    const detail = matches.length === 0 ? 'No matching account was found.' : 'More than one matching database was found.';
+    const detail =
+      matches.length === 0
+        ? 'No matching account was found.'
+        : `More than one matching database was found: ${matches.map((match) => match.path).join(', ')}`;
     throw new Error(`${detail} Set CALLVANI_SQLITE_PATH to the exact application database and retry.`);
   }
   return matches[0];

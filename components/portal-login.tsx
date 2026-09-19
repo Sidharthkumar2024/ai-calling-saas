@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   ArrowLeft,
   ArrowRight,
@@ -12,37 +12,54 @@ import {
   LockKeyhole,
   ShieldCheck,
   Sparkles,
-} from 'lucide-react';
+} from "lucide-react";
 
-import { Button } from '@/components/ui/button';
-import { CallVaniLogo } from '@/components/call-vani-logo';
-import { Input } from '@/components/ui/input';
-import { SocialAuthButtons } from '@/components/social-auth-buttons';
-import { useT } from '@/components/locale-provider';
-import type { TranslationKey } from '@/lib/i18n';
+import { Button } from "@/components/ui/button";
+import { CallVaniLogo } from "@/components/call-vani-logo";
+import { Input } from "@/components/ui/input";
+import { SocialAuthButtons } from "@/components/social-auth-buttons";
+import { useT } from "@/components/locale-provider";
+import type { TranslationKey } from "@/lib/i18n";
 
 type PortalLoginProps = {
-  portal: 'admin' | 'customer';
+  portal: "admin" | "customer";
 };
 
 const portalCopy = {
   admin: {
-    eyebrow: 'Platform control',
-    title: 'Call Vani admin console',
+    eyebrow: "Platform control",
+    title: "Call Vani admin console",
     description:
-      'Manage customers, provider connections, calling operations, plans, credits, integrations and platform health.',
+      "Manage customers, provider connections, calling operations, plans, credits, integrations and platform health.",
     icon: ShieldCheck,
-    accent: 'from-emerald-100 via-white to-white',
+    accent: "from-emerald-100 via-white to-white",
   },
   customer: {
-    eyebrow: 'Customer workspace',
-    title: 'Run your revenue voice OS',
+    eyebrow: "Customer workspace",
+    title: "Run your revenue voice OS",
     description:
-      'Capture leads, qualify intent, automate calling, manage CRM and measure every revenue outcome.',
+      "Capture leads, qualify intent, automate calling, manage CRM and measure every revenue outcome.",
     icon: Building2,
-    accent: 'from-emerald-100 via-white to-white',
+    accent: "from-emerald-100 via-white to-white",
   },
 };
+
+async function readJsonResponse<T>(response: Response): Promise<T> {
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.toLowerCase().includes("application/json"))
+    throw new Error(
+      response.ok
+        ? "The service returned an invalid response. Please try again."
+        : "The service is temporarily unavailable. Please try again.",
+    );
+  try {
+    return (await response.json()) as T;
+  } catch {
+    throw new Error(
+      "The service returned an invalid response. Please try again.",
+    );
+  }
+}
 
 export function PortalLogin({ portal }: PortalLoginProps) {
   const t = useT();
@@ -53,25 +70,32 @@ export function PortalLogin({ portal }: PortalLoginProps) {
     description: t(`login.${portal}.description` as TranslationKey),
   };
   const Icon = config.icon;
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [otp, setOtp] = useState('');
+  const [error, setError] = useState("");
+  const [otp, setOtp] = useState("");
   const [mfaRequired, setMfaRequired] = useState(false);
   const [resetMode, setResetMode] = useState(false);
-  const [resetToken, setResetToken] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [resetNotice, setResetNotice] = useState('');
+  const [resetToken, setResetToken] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [resetNotice, setResetNotice] = useState("");
   useEffect(() => {
     const timer = window.setTimeout(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('reset_token');
-    if (token) { setResetToken(token); setResetMode(true); }
-    if (params.has('error')) setError(params.get('error') === 'google_verification_required'
-      ? 'This workspace account must be verified before Google sign-in can be linked. Use your email and password for now.'
-      : 'Google sign-in could not be completed. Use your email and password, or contact support.');
-    if (token) window.history.replaceState(null, '', window.location.pathname);
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get("reset_token");
+      if (token) {
+        setResetToken(token);
+        setResetMode(true);
+      }
+      if (params.has("error"))
+        setError(
+          params.get("error") === "google_verification_required"
+            ? "This workspace account must be verified before Google sign-in can be linked. Use your email and password for now."
+            : "Google sign-in could not be completed. Use your email and password, or contact support.",
+        );
+      if (token)
+        window.history.replaceState(null, "", window.location.pathname);
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
@@ -79,11 +103,11 @@ export function PortalLogin({ portal }: PortalLoginProps) {
   async function submit(event: { preventDefault: () => void }) {
     event.preventDefault();
     setLoading(true);
-    setError('');
+    setError("");
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({
           email,
           password,
@@ -91,50 +115,53 @@ export function PortalLogin({ portal }: PortalLoginProps) {
           ...(mfaRequired ? { otp } : {}),
         }),
       });
-      const payload = (await response.json()) as {
+      const payload = await readJsonResponse<{
         error?: string;
         redirectTo?: string;
         code?: string;
-      };
+      }>(response);
       if (!response.ok || !payload.redirectTo) {
-        if (payload.code === 'MFA_REQUIRED') setMfaRequired(true);
-        throw new Error(payload.error || 'Unable to sign in.');
+        if (payload.code === "MFA_REQUIRED") setMfaRequired(true);
+        throw new Error(payload.error || "Unable to sign in.");
       }
       window.location.assign(payload.redirectTo);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Unable to sign in.');
+      setError(caught instanceof Error ? caught.message : "Unable to sign in.");
       setLoading(false);
     }
   }
 
   async function requestReset() {
     setLoading(true);
-    setError('');
-    setResetNotice('');
+    setError("");
+    setResetNotice("");
     try {
-      const response = await fetch(`/api/auth/password-reset?portal=${portal}`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ action: 'request', email }),
-      });
-      const payload = (await response.json()) as {
+      const response = await fetch(
+        `/api/auth/password-reset?portal=${portal}`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action: "request", email }),
+        },
+      );
+      const payload = await readJsonResponse<{
         error?: string;
         message?: string;
         developmentToken?: string;
-      };
+      }>(response);
       if (!response.ok)
-        throw new Error(payload.error ?? 'Unable to start password reset.');
-      setResetToken(payload.developmentToken ?? '');
+        throw new Error(payload.error ?? "Unable to start password reset.");
+      setResetToken(payload.developmentToken ?? "");
       setResetNotice(
         payload.developmentToken
-          ? 'Local reset token is ready below.'
-          : (payload.message ?? 'Check your email for the secure reset link.'),
+          ? "Local reset token is ready below."
+          : (payload.message ?? "Check your email for the secure reset link."),
       );
     } catch (caught) {
       setError(
         caught instanceof Error
           ? caught.message
-          : 'Unable to start password reset.',
+          : "Unable to start password reset.",
       );
     } finally {
       setLoading(false);
@@ -143,31 +170,31 @@ export function PortalLogin({ portal }: PortalLoginProps) {
 
   async function confirmReset() {
     setLoading(true);
-    setError('');
+    setError("");
     try {
-      const response = await fetch('/api/auth/password-reset', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
+      const response = await fetch("/api/auth/password-reset", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          action: 'confirm',
+          action: "confirm",
           token: resetToken,
           password: newPassword,
         }),
       });
-      const payload = (await response.json()) as {
+      const payload = await readJsonResponse<{
         error?: string;
         reset?: boolean;
-      };
+      }>(response);
       if (!response.ok || !payload.reset)
-        throw new Error(payload.error ?? 'Unable to reset password.');
+        throw new Error(payload.error ?? "Unable to reset password.");
       setResetMode(false);
       setPassword(newPassword);
-      setNewPassword('');
-      setResetToken('');
-      setResetNotice('Password updated. Sign in with the new password.');
+      setNewPassword("");
+      setResetToken("");
+      setResetNotice("Password updated. Sign in with the new password.");
     } catch (caught) {
       setError(
-        caught instanceof Error ? caught.message : 'Unable to reset password.',
+        caught instanceof Error ? caught.message : "Unable to reset password.",
       );
     } finally {
       setLoading(false);
@@ -176,9 +203,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
 
   return (
     <main className="vani-auth relative min-h-screen overflow-hidden bg-surface-muted text-ink">
-      <div
-        className="vani-auth-backdrop pointer-events-none absolute inset-0"
-      />
+      <div className="vani-auth-backdrop pointer-events-none absolute inset-0" />
       <div className="relative mx-auto flex min-h-screen max-w-[1180px] items-center px-4 py-10 sm:px-6">
         <div className="vani-auth-card grid w-full overflow-hidden rounded-[30px] border border-hairline bg-surface/94 lg:grid-cols-[0.92fr_1.08fr]">
           <section
@@ -187,13 +212,13 @@ export function PortalLogin({ portal }: PortalLoginProps) {
             <Link
               href="/"
               className="flex items-center gap-3 text-ink"
-              aria-label={t('aria.vaaniHome')}
+              aria-label={t("aria.vaaniHome")}
             >
               <CallVaniLogo className="size-10" />
               <span>
                 <span className="block text-base font-semibold">Call Vani</span>
                 <span className="block text-[11px] uppercase tracking-[0.2em] text-ink-muted">
-                  {t('login.tagline')}
+                  {t("login.tagline")}
                 </span>
               </span>
             </Link>
@@ -209,9 +234,9 @@ export function PortalLogin({ portal }: PortalLoginProps) {
               </p>
               <div className="mt-8 space-y-3 text-sm text-ink-body">
                 {[
-                  'One workspace for calls, leads and follow-ups',
-                  'Your team, with the right access for each role',
-                  'Try your agent before going live',
+                  "One workspace for calls, leads and follow-ups",
+                  "Your team, with the right access for each role",
+                  "Try your agent before going live",
                 ].map((item) => (
                   <div key={item} className="flex items-center gap-3">
                     <CheckCircle2 className="size-4 text-success-text" /> {item}
@@ -230,7 +255,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                 href="/"
                 className="mb-10 inline-flex items-center gap-2 text-xs text-ink-muted transition-colors hover:text-ink lg:hidden"
               >
-                <ArrowLeft className="size-3.5" /> {t('login.backToVaani')}
+                <ArrowLeft className="size-3.5" /> {t("login.backToVaani")}
               </Link>
               <span className="grid size-12 place-items-center rounded-2xl border border-hairline bg-surface-strong">
                 <Icon className="size-5 text-warning-text" />
@@ -239,23 +264,23 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                 {copy.eyebrow}
               </p>
               <h2 className="mt-2 text-3xl font-semibold tracking-tight">
-                {t('login.signIn')}
+                {t("login.signIn")}
               </h2>
               <p className="mt-2 text-sm leading-6 text-ink-muted">
                 {t(`login.${portal}.useAccount` as TranslationKey)}
               </p>
 
-              {portal === 'customer' ? <SocialAuthButtons /> : null}
+              {portal === "customer" ? <SocialAuthButtons /> : null}
 
               {resetMode ? (
                 <div
-                  className={`${portal === 'customer' ? 'mt-2' : 'mt-7'} space-y-4`}
+                  className={`${portal === "customer" ? "mt-2" : "mt-7"} space-y-4`}
                 >
                   <label
                     htmlFor={`${portal}-reset-email`}
                     className="block text-xs font-medium text-ink-body"
                   >
-                    {t('login.accountEmail')}
+                    {t("login.accountEmail")}
                     <Input
                       id={`${portal}-reset-email`}
                       value={email}
@@ -276,8 +301,8 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                       <Loader2 className="animate-spin" />
                     ) : (
                       <KeyRound />
-                    )}{' '}
-                    {t('login.sendResetLink')}
+                    )}{" "}
+                    {t("login.sendResetLink")}
                   </Button>
                   {resetToken ? (
                     <>
@@ -285,7 +310,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                         htmlFor={`${portal}-reset-token`}
                         className="block text-xs font-medium text-ink-body"
                       >
-                        {t('login.resetToken')}
+                        {t("login.resetToken")}
                         <Input
                           id={`${portal}-reset-token`}
                           value={resetToken}
@@ -300,7 +325,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                         htmlFor={`${portal}-new-password`}
                         className="block text-xs font-medium text-ink-body"
                       >
-                        {t('login.newPassword')}
+                        {t("login.newPassword")}
                         <Input
                           id={`${portal}-new-password`}
                           value={newPassword}
@@ -309,7 +334,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                           }
                           type="password"
                           autoComplete="new-password"
-                          placeholder={t('login.passwordHint')}
+                          placeholder={t("login.passwordHint")}
                           className="mt-2 h-11 border-hairline bg-surface-strong"
                         />
                       </label>
@@ -339,23 +364,23 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                     type="button"
                     onClick={() => {
                       setResetMode(false);
-                      setError('');
+                      setError("");
                     }}
                     className="text-xs text-ink-muted hover:text-ink"
                   >
-                    {t('login.backToSignIn')}
+                    {t("login.backToSignIn")}
                   </button>
                 </div>
               ) : (
                 <form
-                  className={`${portal === 'customer' ? 'mt-2' : 'mt-7'} space-y-4`}
+                  className={`${portal === "customer" ? "mt-2" : "mt-7"} space-y-4`}
                   onSubmit={submit}
                 >
                   <label
                     htmlFor={`${portal}-email`}
                     className="block text-xs font-medium text-ink-body"
                   >
-                    {t('login.email')}
+                    {t("login.email")}
                     <Input
                       id={`${portal}-email`}
                       value={email}
@@ -363,8 +388,8 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                       onChange={(event) => {
                         setEmail(event.target.value);
                         setMfaRequired(false);
-                        setOtp('');
-                        setError('');
+                        setOtp("");
+                        setError("");
                       }}
                       type="email"
                       autoComplete="username"
@@ -377,18 +402,18 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                       htmlFor={`${portal}-otp`}
                       className="block text-xs font-medium text-ink-body"
                     >
-                      {t('login.authenticatorCode')}
+                      {t("login.authenticatorCode")}
                       <Input
                         id={`${portal}-otp`}
                         value={otp}
                         onChange={(event) =>
                           setOtp(
-                            event.target.value.replace(/\D/g, '').slice(0, 6),
+                            event.target.value.replace(/\D/g, "").slice(0, 6),
                           )
                         }
                         inputMode="numeric"
                         autoComplete="one-time-code"
-                        placeholder={t('login.codePlaceholder')}
+                        placeholder={t("login.codePlaceholder")}
                         className="mt-2 h-11 border-hairline bg-surface-strong font-mono tracking-[0.3em] text-ink"
                         required
                       />
@@ -398,7 +423,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                     htmlFor={`${portal}-password`}
                     className="block text-xs font-medium text-ink-body"
                   >
-                    {t('login.password')}
+                    {t("login.password")}
                     <Input
                       id={`${portal}-password`}
                       value={password}
@@ -413,12 +438,12 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                     type="button"
                     onClick={() => {
                       setResetMode(true);
-                      setError('');
-                      setResetNotice('');
+                      setError("");
+                      setResetNotice("");
                     }}
                     className="text-xs text-ink-muted hover:text-ink"
                   >
-                    {t('login.forgotPassword')}
+                    {t("login.forgotPassword")}
                   </button>
                   {error ? (
                     <div className="rounded-xl border border-red-400/20 bg-red-400/8 px-3 py-2.5 text-xs text-danger-text">
@@ -435,7 +460,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                     ) : (
                       <LockKeyhole />
                     )}
-                    {loading ? 'Signing in…' : 'Sign in'}
+                    {loading ? "Signing in…" : "Sign in"}
                     {!loading && <ArrowRight className="ml-auto" />}
                   </Button>
                 </form>
@@ -450,12 +475,12 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                   API documentation
                 </Link>
                 <Link
-                  href={portal === 'admin' ? '/login' : '/signup'}
+                  href={portal === "admin" ? "/login" : "/signup"}
                   className="hover:text-ink"
                 >
-                  {portal === 'admin'
-                    ? 'Customer login'
-                    : 'Create free account'}
+                  {portal === "admin"
+                    ? "Customer login"
+                    : "Create free account"}
                 </Link>
               </div>
             </div>

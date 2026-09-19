@@ -38,6 +38,26 @@ const nextConfig: NextConfig = {
       { source: '/(.*)', headers: securityHeaders },
       { source: '/api/widget/:path*', headers: publicEmbedHeaders },
       { source: '/api/forms/:path*', headers: publicEmbedHeaders },
+      // Landing media is relatively large. Let a visitor reuse it across
+      // navigations while allowing the CDN to revalidate it after a deploy.
+      {
+        source: '/media/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400',
+          },
+        ],
+      },
+      {
+        source: '/call-vani-logo.png',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400',
+          },
+        ],
+      },
     ];
   },
 };

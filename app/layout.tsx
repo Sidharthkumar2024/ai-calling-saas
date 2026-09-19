@@ -15,6 +15,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  // Nginx proxies the VPS service through 127.0.0.1. Without an explicit
+  // public base, Next resolves social/image metadata against that internal
+  // host and visitors receive unusable localhost URLs.
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_BASE_URL || 'https://callvani.com',
+  ),
   title: 'Call Vani — AI Calling & Revenue Automation',
   description:
     'Capture leads, understand intent, call in the right language and turn every conversation into a revenue action.',

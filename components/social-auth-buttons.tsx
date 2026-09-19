@@ -13,7 +13,13 @@ type Provider = {
   status: string;
 };
 
-export function SocialAuthButtons({ signup = false }: { signup?: boolean }) {
+export function SocialAuthButtons({
+  signup = false,
+  portal = 'customer',
+}: {
+  signup?: boolean;
+  portal?: 'admin' | 'customer';
+}) {
   const t = useT();
   const [providers, setProviders] = useState<Provider[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,7 +66,9 @@ export function SocialAuthButtons({ signup = false }: { signup?: boolean }) {
             disabled={!ready}
             onClick={() => {
               if (ready && provider.provider === 'google')
-                window.location.assign('/api/auth/google/start');
+                window.location.assign(
+                  `/api/auth/google/start?returnTo=${portal === 'admin' ? '%2Fadmin' : '%2Fapp'}`,
+                );
             }}
             title={
               ready

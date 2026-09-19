@@ -31,7 +31,18 @@ export async function POST(request: Request) {
       windowSeconds: 3600,
     });
     if (!limit.allowed)
-      return NextResponse.json({ error: 'Try again later.' }, { status: 429 });
+      return NextResponse.json(
+        {
+          error:
+            'Too many reset requests. Check your inbox or wait before requesting another link.',
+        },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.max(1, limit.retryAfterSeconds)),
+          },
+        },
+      );
     const user = await getRawDb()
       .prepare('SELECT id, organization_id FROM app_users WHERE lower(email) = ? AND status = ?')
       .bind(email, 'active')

@@ -88,12 +88,33 @@ export function PortalLogin({ portal }: PortalLoginProps) {
         setResetToken(token);
         setResetMode(true);
       }
-      if (params.has("error"))
+      if (params.has("error")) {
+        const googleError = params.get("error") || "";
+        const messages: Record<string, string> = {
+          google_verification_required:
+            "This account needs a one-time Google link from the platform team before its first Google sign-in.",
+          google_account_required:
+            "No active Call Vani account matches that Google email. Create or activate the customer account first.",
+          wrong_portal:
+            portal === "admin"
+              ? "That Google account belongs to the customer portal. Use the customer login instead."
+              : "That Google account belongs to the admin portal. Use the admin login instead.",
+          google_exchange:
+            "Google could not complete the secure sign-in exchange. Please start again.",
+          google_config:
+            "Google sign-in is not fully configured. Contact the platform administrator.",
+          google_state:
+            "This Google sign-in request expired or was opened in another browser. Please start again here.",
+          google_disabled:
+            "Google sign-in is currently disabled by the platform administrator.",
+          google_mfa_use_password:
+            "This account uses an authenticator. Sign in with email, password and your authenticator code.",
+        };
         setError(
-          params.get("error") === "google_verification_required"
-            ? "This workspace account must be verified before Google sign-in can be linked. Use your email and password for now."
-            : "Google sign-in could not be completed. Use your email and password, or contact support.",
+          messages[googleError] ??
+            "Google sign-in could not be completed. Please start again or use email and password.",
         );
+      }
       if (token)
         window.history.replaceState(null, "", window.location.pathname);
     }, 0);
@@ -149,8 +170,14 @@ export function PortalLogin({ portal }: PortalLoginProps) {
         message?: string;
         developmentToken?: string;
       }>(response);
-      if (!response.ok)
-        throw new Error(payload.error ?? "Unable to start password reset.");
+      if (!response.ok) {
+        const retryAfter = Number(response.headers.get("retry-after") || 0);
+        throw new Error(
+          response.status === 429
+            ? `Too many reset requests. Check your inbox or try again in ${Math.max(1, Math.ceil(retryAfter / 60))} minutes.`
+            : (payload.error ?? "Unable to start password reset."),
+        );
+      }
       setResetToken(payload.developmentToken ?? "");
       setResetNotice(
         payload.developmentToken
@@ -204,10 +231,10 @@ export function PortalLogin({ portal }: PortalLoginProps) {
   return (
     <main className="vani-auth relative min-h-screen overflow-hidden bg-surface-muted text-ink">
       <div className="vani-auth-backdrop pointer-events-none absolute inset-0" />
-      <div className="relative mx-auto flex min-h-screen max-w-[1180px] items-center px-4 py-10 sm:px-6">
-        <div className="vani-auth-card grid w-full overflow-hidden rounded-[30px] border border-hairline bg-surface/94 lg:grid-cols-[0.92fr_1.08fr]">
+      <div className="relative mx-auto flex min-h-screen max-w-[1040px] items-center px-4 py-6 sm:px-6 sm:py-8">
+        <div className="vani-auth-card grid w-full overflow-hidden rounded-[26px] border border-hairline bg-surface/94 md:grid-cols-[0.88fr_1.12fr]">
           <section
-            className={`relative hidden min-h-[690px] overflow-hidden border-r border-hairline bg-gradient-to-br ${config.accent} p-10 lg:flex lg:flex-col`}
+            className={`relative hidden min-h-[600px] overflow-hidden border-r border-hairline bg-gradient-to-br ${config.accent} p-8 md:flex md:flex-col`}
           >
             <Link
               href="/"
@@ -226,7 +253,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
               <span className="inline-flex items-center gap-2 rounded-full border border-hairline bg-surface-strong px-3 py-1.5 text-[11px] text-ink-body">
                 <Sparkles className="size-3 text-warning-text" /> {copy.eyebrow}
               </span>
-              <h1 className="mt-6 text-5xl font-semibold leading-[1.02] tracking-[-0.05em]">
+              <h1 className="mt-5 text-4xl font-semibold leading-[1.04] tracking-[-0.045em]">
                 {copy.title}
               </h1>
               <p className="mt-5 text-base leading-7 text-ink-body">
@@ -249,11 +276,11 @@ export function PortalLogin({ portal }: PortalLoginProps) {
             </p>
           </section>
 
-          <section className="flex min-h-[690px] items-center justify-center p-6 sm:p-10 lg:p-14">
-            <div className="w-full max-w-md">
+          <section className="flex min-h-[600px] items-center justify-center p-5 sm:p-8 lg:p-10">
+            <div className="w-full max-w-sm">
               <Link
                 href="/"
-                className="mb-10 inline-flex items-center gap-2 text-xs text-ink-muted transition-colors hover:text-ink lg:hidden"
+                className="mb-7 inline-flex items-center gap-2 text-xs text-ink-muted transition-colors hover:text-ink md:hidden"
               >
                 <ArrowLeft className="size-3.5" /> {t("login.backToVaani")}
               </Link>
@@ -270,7 +297,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
                 {t(`login.${portal}.useAccount` as TranslationKey)}
               </p>
 
-              {portal === "customer" ? <SocialAuthButtons /> : null}
+              <SocialAuthButtons portal={portal} />
 
               {resetMode ? (
                 <div

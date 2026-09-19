@@ -6,7 +6,7 @@ of local completion do not establish production activation.
 
 ## Verified this session
 
-- VPS app and media systemd services: active; checkout `10068a6`.
+- VPS app and media systemd services: active; build/deployment of `35e0530` succeeded.
 - App service passes `/etc/callvani/app.env` to Wrangler explicitly.
 - Direct VPS customer password login: HTTP 200.
 - Direct VPS database health: healthy.
@@ -15,13 +15,15 @@ of local completion do not establish production activation.
 - Owner test workspace has a Launch trial through 26 September; no payment was taken.
 - Workspace agent Tara: draft, inbound/outbound false, no voice profile.
 - Vobiz console independently shows one active number +918071582881 and INR 25 balance; provider call routing remains unverified.
-- Domain DNS still returns VPS 129.121.139.191 and old host 172.66.3.26.
+- Removed old root A 172.66.3.26 in Hostinger. Authoritative DNS now returns only VPS 129.121.139.191; www aliases root. Resolver caches may lag.
+- VPS port 443 is not serving yet; certbot installed but no live certificate. Certificate-service terms approval requested before issuance.
+- Vobiz ownership support added and locally tested (101 assertions plus TypeScript). First production ownership attempt returned 502; credentials/request/response/save phase diagnostics added without exposing secrets. Do not mark the number active.
 
 ## Pending, in execution order
 
 | Priority | Area | Remaining work / acceptance evidence |
 |---|---|---|
-| P0 | Domain and TLS | Remove obsolete root A destination, verify authoritative DNS, install/verify VPS TLS for root and www, confirm HTTPS reaches VPS. |
+| P0 | Domain and TLS | DNS cutover completed; install/verify VPS TLS for root and www, confirm HTTPS reaches VPS. |
 | P0 | Google sign-in | Save existing OAuth client credentials encrypted, enable provider, confirm consent/test-user availability, test callback and session on live domain. |
 | P0 | Account access | Verify customer and admin login through final HTTPS domain, role separation, logout and reset-password email delivery. |
 | P0 | Vobiz | Connect purchased account to Siddharth workspace; verify owned outbound number, balance and permissions; bind number to agent. Do not treat purchase as app connection. |

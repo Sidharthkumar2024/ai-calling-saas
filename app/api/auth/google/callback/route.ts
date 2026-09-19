@@ -141,16 +141,40 @@ export async function GET(request: Request) {
     return NextResponse.redirect(
       new URL('/login?error=google_mfa_use_password', request.url),
     );
-  // A verified Google identity does not prove who created this password account.
-  // Never silently merge it with an unverified signup and retain that signup's
-  // password/sessions. Account ownership must already have been verified.
-  if (!security?.email_verified_at)
+  const existingIdentity = await getRawDb()
+    .prepare(
+      `SELECT user_id FROM oauth_identities
+       WHERE provider = 'google' AND subject = ? LIMIT 1`,
+    )
+    .bind(identity.sub)
+    .first<{ user_id: string }>();
+  if (existingIdentity && existingIdentity.user_id !== user.id)
+    return NextResponse.redirect(
+      new URL('/login?error=google_identity_conflict', request.url),
+    );
+
+  const pendingLink = !security?.email_verified_at
+    ? await getRawDb()
+        .prepare(
+          `SELECT id FROM oauth_account_links
+           WHERE provider = 'google' AND user_id = ?
+             AND lower(email) = lower(?) AND consumed_at IS NULL
+             AND datetime(expires_at) > datetime(?)
+           ORDER BY created_at DESC LIMIT 1`,
+        )
+        .bind(user.id, identity.email, new Date().toISOString())
+        .first<{ id: string }>()
+    : null;
+  // An unverified password account can only be claimed through an explicit,
+  // short-lived operator-created Google link. This prevents silent account
+  // merging while still supporting Google-first customer provisioning.
+  if (!security?.email_verified_at && !pendingLink)
     return NextResponse.redirect(
       new URL('/login?error=google_verification_required', request.url),
     );
   const sessionToken = createOpaqueToken('vs_');
   const sessionId = `session_${crypto.randomUUID()}`;
-  await getRawDb().batch([
+  const writes = [
     getRawDb()
       .prepare(
         'UPDATE oauth_states SET consumed_at = CURRENT_TIMESTAMP WHERE id = ?',
@@ -166,7 +190,42 @@ export async function GET(request: Request) {
         await sha256(sessionToken),
         new Date(Date.now() + 7 * 24 * 60 * 60_000).toISOString(),
       ),
-  ]);
+  ];
+  if (!existingIdentity)
+    writes.push(
+      getRawDb()
+        .prepare(
+          `INSERT INTO oauth_identities
+           (id, provider, subject, user_id, email)
+           VALUES (?, 'google', ?, ?, ?)`,
+        )
+        .bind(
+          `oauth_identity_${crypto.randomUUID()}`,
+          identity.sub,
+          user.id,
+          identity.email,
+        ),
+    );
+  if (pendingLink)
+    writes.push(
+      getRawDb()
+        .prepare(
+          `INSERT INTO user_security_settings
+           (user_id, email_verified_at, mfa_enabled, updated_at)
+           VALUES (?, CURRENT_TIMESTAMP, 0, CURRENT_TIMESTAMP)
+           ON CONFLICT(user_id) DO UPDATE SET
+             email_verified_at = CURRENT_TIMESTAMP,
+             updated_at = CURRENT_TIMESTAMP`,
+        )
+        .bind(user.id),
+      getRawDb()
+        .prepare(
+          `UPDATE oauth_account_links SET consumed_at = CURRENT_TIMESTAMP
+           WHERE id = ? AND consumed_at IS NULL`,
+        )
+        .bind(pendingLink.id),
+    );
+  await getRawDb().batch(writes);
   const response = NextResponse.redirect(new URL(oauth.return_to, request.url));
   response.headers.set(
     'Set-Cookie',

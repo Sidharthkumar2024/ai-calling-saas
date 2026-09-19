@@ -1872,6 +1872,30 @@ async function bootstrap() {
     db.prepare(
       `CREATE UNIQUE INDEX IF NOT EXISTS idx_oauth_states_hash ON oauth_states (state_hash)`,
     ),
+    db.prepare(`CREATE TABLE IF NOT EXISTS oauth_identities (
+      id TEXT PRIMARY KEY NOT NULL, provider TEXT NOT NULL, subject TEXT NOT NULL,
+      user_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+      email TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_oauth_identities_provider_subject
+       ON oauth_identities (provider, subject)`,
+    ),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_oauth_identities_provider_user
+       ON oauth_identities (provider, user_id)`,
+    ),
+    db.prepare(`CREATE TABLE IF NOT EXISTS oauth_account_links (
+      id TEXT PRIMARY KEY NOT NULL, provider TEXT NOT NULL,
+      user_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+      email TEXT NOT NULL, expires_at TEXT NOT NULL, consumed_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_oauth_account_links_pending
+       ON oauth_account_links (provider, user_id, email, expires_at, consumed_at)`,
+    ),
     db.prepare(`CREATE TABLE IF NOT EXISTS security_challenges (
       id TEXT PRIMARY KEY NOT NULL, user_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
       type TEXT NOT NULL, token_hash TEXT NOT NULL, metadata_json TEXT DEFAULT '{}' NOT NULL,

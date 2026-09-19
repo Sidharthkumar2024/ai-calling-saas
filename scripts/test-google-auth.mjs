@@ -10,10 +10,14 @@ import { createOpaqueToken, sha256 } from '../lib/security.ts';
 const sqlite = new DatabaseSync(':memory:');
 sqlite.exec(`
   CREATE TABLE app_users(id TEXT PRIMARY KEY, email TEXT, role TEXT, status TEXT);
-  CREATE TABLE user_security_settings(user_id TEXT PRIMARY KEY, mfa_enabled INTEGER DEFAULT 0, email_verified_at TEXT);
+  CREATE TABLE user_security_settings(user_id TEXT PRIMARY KEY, mfa_enabled INTEGER DEFAULT 0, email_verified_at TEXT, updated_at TEXT);
   CREATE TABLE auth_provider_settings(provider TEXT PRIMARY KEY, enabled INTEGER, status TEXT, public_config_json TEXT DEFAULT '{}', encrypted_secret TEXT);
   CREATE TABLE oauth_states(id TEXT PRIMARY KEY, provider TEXT, state_hash TEXT, code_verifier_encrypted TEXT, return_to TEXT, expires_at TEXT, consumed_at TEXT);
   CREATE TABLE auth_sessions(id TEXT PRIMARY KEY, user_id TEXT, token_hash TEXT, expires_at TEXT);
+  CREATE TABLE oauth_identities(id TEXT PRIMARY KEY, provider TEXT, subject TEXT, user_id TEXT, email TEXT);
+  CREATE UNIQUE INDEX oauth_identity_subject ON oauth_identities(provider,subject);
+  CREATE UNIQUE INDEX oauth_identity_user ON oauth_identities(provider,user_id);
+  CREATE TABLE oauth_account_links(id TEXT PRIMARY KEY, provider TEXT, user_id TEXT, email TEXT, expires_at TEXT, consumed_at TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP);
 `);
 function statement(sql, args = []) {
   return {
@@ -66,9 +70,9 @@ compileFunction(ts.transpileModule(source, { compilerOptions: { module: ts.Modul
 const stateHash = await sha256('test-state');
 const verifiedAt = '2026-01-01T00:00:00.000Z';
 async function reset({ verified = verifiedAt, securityRow = true, mfa = 0, role = 'owner', portal = '/app', status = 'active', enabled = 1 } = {}) {
-  sqlite.exec('DELETE FROM app_users; DELETE FROM user_security_settings; DELETE FROM auth_sessions; DELETE FROM oauth_states; DELETE FROM auth_provider_settings;');
+  sqlite.exec('DELETE FROM app_users; DELETE FROM user_security_settings; DELETE FROM auth_sessions; DELETE FROM oauth_states; DELETE FROM auth_provider_settings; DELETE FROM oauth_identities; DELETE FROM oauth_account_links;');
   sqlite.prepare('INSERT INTO app_users VALUES (?,?,?,?)').run('user_test', 'owner@example.test', role, status);
-  if (securityRow) sqlite.prepare('INSERT INTO user_security_settings VALUES (?,?,?)').run('user_test', mfa, verified);
+  if (securityRow) sqlite.prepare('INSERT INTO user_security_settings(user_id,mfa_enabled,email_verified_at) VALUES (?,?,?)').run('user_test', mfa, verified);
   sqlite.prepare('INSERT INTO auth_provider_settings(provider,enabled,status) VALUES (?,?,?)').run('google', enabled, 'active');
   sqlite.prepare('INSERT INTO oauth_states VALUES (?,?,?,?,?,?,NULL)').run('oauth_test', 'google', stateHash, 'synthetic-encrypted-value', portal, new Date(Date.now() + 60_000).toISOString());
   identity = { aud: 'isolated-client', iss: 'https://accounts.google.com', exp: String(Math.floor(Date.now() / 1000) + 3600), email: 'owner@example.test', email_verified: 'true', sub: 'synthetic-google-subject' };
@@ -89,6 +93,15 @@ for (const options of [{ securityRow: false }, { verified: null }, { verified: '
   redirectError(await callback(), 'google_verification_required');
   equal(sqlite.prepare('SELECT email_verified_at FROM user_security_settings').get()?.email_verified_at, options.securityRow === false ? undefined : options.verified);
 }
+await reset({ verified: null });
+sqlite.prepare(`INSERT INTO oauth_account_links(id,provider,user_id,email,expires_at)
+  VALUES ('link','google','user_test','owner@example.test',datetime('now','+1 hour'))`).run();
+const firstGoogleLogin = await callback();
+equal(new URL(firstGoogleLogin.headers.get('Location')).pathname, '/app');
+equal(sessionCount(), 1);
+equal(sqlite.prepare('SELECT COUNT(*) AS n FROM oauth_identities').get().n, 1);
+equal(Boolean(sqlite.prepare('SELECT email_verified_at FROM user_security_settings').get().email_verified_at), true);
+equal(Boolean(sqlite.prepare('SELECT consumed_at FROM oauth_account_links').get().consumed_at), true);
 await reset();
 const success = await callback();
 equal(new URL(success.headers.get('Location')).pathname, '/app');

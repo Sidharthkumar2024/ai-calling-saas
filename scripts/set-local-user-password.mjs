@@ -102,10 +102,15 @@ function applicationDatabases() {
       database = new DatabaseSync(path, { readOnly: true });
       const table = database
         .prepare(
-          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'app_users'",
+          `SELECT count(*) AS found FROM sqlite_master
+           WHERE type = 'table'
+             AND name IN ('app_users', 'organizations', 'voice_agents', 'schema_bootstrap_state')`,
         )
         .get();
-      if (table) matches.push(path);
+      // Miniflare keeps metadata and observability databases beside the D1
+      // database. Require a Call Vani schema fingerprint so an empty fresh
+      // application database is still found without ever touching metadata.
+      if (Number(table?.found) === 4) matches.push(path);
     } catch {
       // Wrangler keeps unrelated SQLite files in the same persistence tree.
     } finally {

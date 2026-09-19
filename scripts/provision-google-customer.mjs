@@ -64,6 +64,20 @@ try {
     throw new Error(`Expected exactly one Aarohi agent, found ${agent.length}.`);
 
   const organizationId = agent[0].organization_id;
+  const malformed = database
+    .prepare(`SELECT u.id, u.email
+      FROM app_users u
+      LEFT JOIN user_security_settings s ON s.user_id = u.id
+      LEFT JOIN auth_sessions session ON session.user_id = u.id
+      WHERE u.organization_id = ? AND u.role = 'customer_owner'
+        AND lower(u.email) LIKE lower(?) AND lower(u.email) != lower(?)
+        AND s.email_verified_at IS NULL AND session.id IS NULL
+      GROUP BY u.id, u.email`)
+    .all(organizationId, `${email}%`, email);
+  for (const row of malformed) {
+    if (String(row.email).toLowerCase().startsWith(email))
+      database.prepare('DELETE FROM app_users WHERE id = ?').run(row.id);
+  }
   const existing = database
     .prepare('SELECT id, organization_id, role, status FROM app_users WHERE lower(email) = lower(?)')
     .get(email);
@@ -120,6 +134,7 @@ try {
     agent: { id: agent[0].id, name: agent[0].name },
     googleFirstLoginExpiresInHours: 24,
     passwordLogin: 'disabled-by-unknown-random-secret',
+    malformedPlaceholdersRemoved: malformed.length,
   }, null, 2));
 } finally {
   database.close();

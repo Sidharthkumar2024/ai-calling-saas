@@ -4,7 +4,12 @@ import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { resolveInboundCall } from '@/lib/inbound-routing';
 import { vobizWorkspaceCredentials } from '@/lib/provider-adapters';
-import { readVobizCallback, verifyVobizSignature, vobizStreamXml } from '@/lib/vobiz';
+import {
+  readVobizCallback,
+  verifyVobizSignature,
+  vobizPublicCallbackUrl,
+  vobizStreamXml,
+} from '@/lib/vobiz';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +45,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'The called Vobiz number is not uniquely active.' }, { status: 404 });
   const number = numbers[0];
   const credentials = await vobizWorkspaceCredentials(number.organization_id);
-  const signature = await verifyVobizSignature({ url: request.url, headers: request.headers, authToken: credentials.authToken });
+  const publicCallbackUrl = vobizPublicCallbackUrl(
+    request.url,
+    process.env.PUBLIC_BASE_URL,
+  );
+  const signature = await verifyVobizSignature({
+    url: request.url,
+    alternateUrls: publicCallbackUrl ? [publicCallbackUrl] : [],
+    headers: request.headers,
+    authToken: credentials.authToken,
+  });
   if (!signature.ok) return NextResponse.json({ error: 'Webhook authentication failed.' }, { status: 401 });
 
   const decision = await resolveInboundCall({ toNumber: to, fromNumber: from });

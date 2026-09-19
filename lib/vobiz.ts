@@ -359,51 +359,78 @@ function sameSignature(left: string, right: string) {
  */
 export async function verifyVobizSignature(input: {
   url: string;
+  alternateUrls?: readonly string[];
   headers: { get(name: string): string | null };
   authToken: string;
 }): Promise<{ ok: boolean; version: 'v3' | 'v2' | null }> {
-  const base = (() => {
-    try {
-      const parsed = new URL(input.url);
-      parsed.search = '';
-      parsed.hash = '';
-      return parsed.toString();
-    } catch {
-      return '';
-    }
-  })();
-  if (!base || !input.authToken) return { ok: false, version: null };
+  const bases = [input.url, ...(input.alternateUrls ?? [])]
+    .map((url) => {
+      try {
+        const parsed = new URL(url);
+        parsed.search = '';
+        parsed.hash = '';
+        return parsed.toString();
+      } catch {
+        return '';
+      }
+    })
+    .filter((url, index, all) => Boolean(url) && all.indexOf(url) === index);
+  if (bases.length === 0 || !input.authToken)
+    return { ok: false, version: null };
 
   const attempts: Array<{
     version: 'v3' | 'v2';
     signature: string | null;
     nonce: string | null;
-    message: (nonce: string) => string;
+    message: (base: string, nonce: string) => string;
   }> = [
     {
       version: 'v3',
       signature: input.headers.get('X-Vobiz-Signature-V3'),
       nonce: input.headers.get('X-Vobiz-Signature-V3-Nonce'),
-      message: (nonce) => `${base}.${nonce}`,
+      message: (base, nonce) => `${base}.${nonce}`,
     },
     {
       version: 'v2',
       signature: input.headers.get('X-Vobiz-Signature-V2'),
       nonce: input.headers.get('X-Vobiz-Signature-V2-Nonce'),
-      message: (nonce) => `${base}${nonce}`,
+      message: (base, nonce) => `${base}${nonce}`,
     },
   ];
 
-  for (const attempt of attempts) {
-    if (!attempt.signature || !attempt.nonce) continue;
-    const expected = await hmacSha256Base64(
-      attempt.message(attempt.nonce),
-      input.authToken,
-    );
-    if (sameSignature(expected, attempt.signature))
-      return { ok: true, version: attempt.version };
+  for (const base of bases) {
+    for (const attempt of attempts) {
+      if (!attempt.signature || !attempt.nonce) continue;
+      const expected = await hmacSha256Base64(
+        attempt.message(base, attempt.nonce),
+        input.authToken,
+      );
+      if (sameSignature(expected, attempt.signature))
+        return { ok: true, version: attempt.version };
+    }
   }
   return { ok: false, version: null };
+}
+
+/**
+ * Rebuild the externally visible callback URL from a trusted deployment
+ * setting. Reverse proxies commonly expose an internal request origin to the
+ * application, while Vobiz signs the public HTTPS URL it was given. We never
+ * use Host/X-Forwarded-* here: only the operator-controlled PUBLIC_BASE_URL is
+ * allowed to add a signature candidate.
+ */
+export function vobizPublicCallbackUrl(
+  requestUrl: string,
+  publicBaseUrl: string | undefined,
+) {
+  if (!publicBaseUrl) return null;
+  try {
+    const incoming = new URL(requestUrl);
+    const publicUrl = new URL(incoming.pathname, `${publicBaseUrl.replace(/\/$/, '')}/`);
+    return publicUrl.toString();
+  } catch {
+    return null;
+  }
 }
 
 /* ------------------------------------------------------------------------- *

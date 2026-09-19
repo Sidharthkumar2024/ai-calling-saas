@@ -181,6 +181,19 @@ const accepted = await post(answer, ANSWER_URL, 'call_1', {
   form: { CallUUID: 'vobiz-uuid-1', From: '911244982201', To: '919812345678' },
 });
 equal(accepted.status, 200);
+
+// The live app sits behind a reverse proxy. Even when Request.url has the
+// internal origin, the public URL Vobiz signed must authenticate.
+const proxiedAccepted = await post(
+  answer,
+  'http://127.0.0.1:3000/api/webhooks/telephony/vobiz/answer/call_1',
+  'call_1',
+  {
+    headers: signed(ANSWER_URL, 'n2-proxy'),
+    form: { CallUUID: 'vobiz-uuid-1' },
+  },
+);
+equal(proxiedAccepted.status, 200);
 equal(accepted.headers.get('content-type'), 'text/xml; charset=utf-8');
 const xml = await accepted.text();
 ok(xml.includes('<Stream '), 'the answer document streams the call');

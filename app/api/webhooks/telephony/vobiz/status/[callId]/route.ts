@@ -10,7 +10,11 @@ import {
   TERMINAL_SQL_LIST,
 } from '@/lib/telephony-status';
 import { vobizWorkspaceCredentials } from '@/lib/provider-adapters';
-import { readVobizCallback, verifyVobizSignature } from '@/lib/vobiz';
+import {
+  readVobizCallback,
+  verifyVobizSignature,
+  vobizPublicCallbackUrl,
+} from '@/lib/vobiz';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,8 +50,13 @@ export async function POST(
     return NextResponse.json({ error: 'Call is unknown.' }, { status: 404 });
 
   const { authToken } = await vobizWorkspaceCredentials(call.organization_id);
+  const publicCallbackUrl = vobizPublicCallbackUrl(
+    request.url,
+    process.env.PUBLIC_BASE_URL,
+  );
   const signature = await verifyVobizSignature({
     url: request.url,
+    alternateUrls: publicCallbackUrl ? [publicCallbackUrl] : [],
     headers: request.headers,
     authToken,
   });

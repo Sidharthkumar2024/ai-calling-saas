@@ -18,6 +18,7 @@ import {
   readVobizCallback,
   readVobizError,
   verifyVobizSignature,
+  vobizPublicCallbackUrl,
   vobizCallBody,
   vobizCallUrl,
   vobizDestinations,
@@ -283,6 +284,28 @@ const v3 = await verifyVobizSignature({
   }),
 });
 equal(v3, { ok: true, version: 'v3' });
+
+// Behind a reverse proxy Next may expose its internal origin, while Vobiz
+// signs the public HTTPS callback it was configured with. Only a caller-supplied
+// signature that matches the trusted public URL is accepted.
+const internalCallbackUrl =
+  'http://127.0.0.1:3000/api/webhooks/telephony/vobiz';
+equal(
+  vobizPublicCallbackUrl(internalCallbackUrl, 'https://vaani.example'),
+  CALLBACK_URL,
+);
+equal(
+  await verifyVobizSignature({
+    url: internalCallbackUrl,
+    alternateUrls: [CALLBACK_URL],
+    authToken: TOKEN,
+    headers: headersFrom({
+      'X-Vobiz-Signature-V3': sign(`${CALLBACK_URL}.proxy-nonce`),
+      'X-Vobiz-Signature-V3-Nonce': 'proxy-nonce',
+    }),
+  }),
+  { ok: true, version: 'v3' },
+);
 
 // V2 concatenates the URL and the nonce with nothing between them. Both
 // versions are documented as current, so both are accepted.

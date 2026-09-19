@@ -65,7 +65,26 @@ export async function POST(request: Request) {
           });
           if (delivery.status !== 'sent')
             throw new Error('No production email provider is connected.');
-        } catch {
+        } catch (error) {
+          const smtpError = error as {
+            name?: unknown;
+            code?: unknown;
+            command?: unknown;
+          };
+          console.error('password_reset.delivery_failed', {
+            name:
+              typeof smtpError?.name === 'string'
+                ? smtpError.name
+                : 'Error',
+            code:
+              typeof smtpError?.code === 'string'
+                ? smtpError.code
+                : 'unknown',
+            command:
+              typeof smtpError?.command === 'string'
+                ? smtpError.command
+                : 'unknown',
+          });
           await getRawDb()
             .prepare('DELETE FROM security_challenges WHERE id = ?')
             .bind(challengeId)

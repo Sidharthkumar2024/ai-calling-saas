@@ -21,7 +21,11 @@ export function ensureSchema(): Promise<void> {
 async function bootstrapOnce() {
   const db = getRawDb();
   try {
-    await db.prepare('SELECT id FROM public_status_updates LIMIT 1').first();
+    // Use a table created at the end of the bootstrap as the completion
+    // sentinel. An early table can exist after an interrupted first request,
+    // which previously made every later isolate treat a partial schema as
+    // complete and left health/auth routes permanently unavailable.
+    await db.prepare('SELECT organization_id FROM invoice_sequences LIMIT 1').first();
     return;
   } catch {
     await bootstrap();

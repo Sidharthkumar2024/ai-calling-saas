@@ -29,7 +29,10 @@ async function bootstrapOnce() {
         "SELECT version FROM schema_bootstrap_state WHERE id = 'primary' LIMIT 1",
       )
       .first<{ version: number }>();
-    if (Number(marker?.version) < 1) throw new Error('Bootstrap incomplete');
+    if (!marker || Number(marker.version) < 1) throw new Error('Bootstrap incomplete');
+    // Existing installations also need newly introduced provider rows. Keep
+    // this idempotent catalog refresh outside the full schema replay.
+    await seedPlatformReferenceCatalog(db);
     return;
   } catch {
     await bootstrap();

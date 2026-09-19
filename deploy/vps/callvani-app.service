@@ -10,7 +10,7 @@ Group=callvani
 WorkingDirectory=/opt/callvani
 Environment=NODE_ENV=production
 EnvironmentFile=/etc/callvani/app.env
-ExecStart=/usr/bin/npm run start:vps
+ExecStart=/usr/bin/npm run start:vps -- --env-file /etc/callvani/app.env
 Restart=always
 RestartSec=4
 NoNewPrivileges=true

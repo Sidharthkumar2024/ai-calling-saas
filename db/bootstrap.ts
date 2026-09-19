@@ -21,11 +21,15 @@ export function ensureSchema(): Promise<void> {
 async function bootstrapOnce() {
   const db = getRawDb();
   try {
-    // Use a table created at the end of the bootstrap as the completion
-    // sentinel. An early table can exist after an interrupted first request,
-    // which previously made every later isolate treat a partial schema as
-    // complete and left health/auth routes permanently unavailable.
-    await db.prepare('SELECT organization_id FROM invoice_sequences LIMIT 1').first();
+    // A concrete completion marker is safer than probing any business table:
+    // an interrupted bootstrap may have created that table but not the later
+    // columns, indexes or catalog rows.
+    const marker = await db
+      .prepare(
+        "SELECT version FROM schema_bootstrap_state WHERE id = 'primary' LIMIT 1",
+      )
+      .first<{ version: number }>();
+    if (Number(marker?.version) < 1) throw new Error('Bootstrap incomplete');
     return;
   } catch {
     await bootstrap();
@@ -2840,6 +2844,19 @@ async function bootstrap() {
 
   await db.prepare('PRAGMA optimize').run();
   await publishCommercialCatalog(db);
+  await db
+    .prepare(`CREATE TABLE IF NOT EXISTS schema_bootstrap_state (
+      id TEXT PRIMARY KEY NOT NULL,
+      version INTEGER NOT NULL,
+      completed_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`)
+    .run();
+  await db
+    .prepare(`INSERT INTO schema_bootstrap_state (id, version, completed_at)
+      VALUES ('primary', 1, CURRENT_TIMESTAMP)
+      ON CONFLICT(id) DO UPDATE SET version = excluded.version,
+        completed_at = CURRENT_TIMESTAMP`)
+    .run();
 }
 
 async function seedLocalDemo(db: D1Database) {

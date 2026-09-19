@@ -2794,14 +2794,41 @@ async function bootstrap() {
   // Update only unchanged seeded descriptions for the BYO-carrier model.
   // Never reset an admin's prices, status, or customized text on startup.
   const oldUsageCopy = [
-    ['call_inbound_minute', 'Carrier inbound minute + media gateway', 'Charged per started minute after the call connects.', 'Keep above carrier minute + STT/TTS pass-through exposure.'],
-    ['call_outbound_minute', 'Carrier outbound minute + dialing control', 'Charged per started minute after answer.', 'Higher than inbound because outbound carrier rates vary more.'],
-    ['ai_voice_minute', 'Deepgram/Sarvam STT + LLM + Cartesia/ElevenLabs TTS', 'Charged while the AI is actively listening or speaking.', 'Main margin line; tune after real provider invoices.'],
+    [
+      'call_inbound_minute',
+      'Carrier inbound minute + media gateway',
+      'Charged per started minute after the call connects.',
+      'Keep above carrier minute + STT/TTS pass-through exposure.',
+    ],
+    [
+      'call_outbound_minute',
+      'Carrier outbound minute + dialing control',
+      'Charged per started minute after answer.',
+      'Higher than inbound because outbound carrier rates vary more.',
+    ],
+    [
+      'ai_voice_minute',
+      'Deepgram/Sarvam STT + LLM + Cartesia/ElevenLabs TTS',
+      'Charged while the AI is actively listening or speaking.',
+      'Main margin line; tune after real provider invoices.',
+    ],
   ];
   for (const [id, oldCost, oldNote, oldMargin] of oldUsageCopy) {
-    const current = CUSTOMER_USAGE_RATES.find(rate => rate.id === id)!;
-    await db.prepare(`UPDATE customer_usage_rates SET cost_basis = ?, customer_note = ?, margin_note = ? WHERE id = ? AND cost_basis = ? AND customer_note = ? AND margin_note = ?`)
-      .bind(current.costBasis, current.customerNote, current.marginNote, id, oldCost, oldNote, oldMargin).run();
+    const current = CUSTOMER_USAGE_RATES.find((rate) => rate.id === id)!;
+    await db
+      .prepare(
+        `UPDATE customer_usage_rates SET cost_basis = ?, customer_note = ?, margin_note = ? WHERE id = ? AND cost_basis = ? AND customer_note = ? AND margin_note = ?`,
+      )
+      .bind(
+        current.costBasis,
+        current.customerNote,
+        current.marginNote,
+        id,
+        oldCost,
+        oldNote,
+        oldMargin,
+      )
+      .run();
   }
   // §15: nothing on the platform is 'platform_provided' any more — the rented
   // number path is gone, so a row still claiming it would describe a number
@@ -2857,6 +2884,11 @@ async function bootstrap() {
     await seedLocalDemo(db);
   }
 
+  // Platform reference rows are required in every environment. They are not
+  // demo/customer data: the admin provider screens and OAuth configuration
+  // update these stable records in production as well.
+  await seedPlatformReferenceCatalog(db);
+
   await db.prepare('PRAGMA optimize').run();
   await publishCommercialCatalog(db);
   await db
@@ -2872,6 +2904,56 @@ async function bootstrap() {
       ON CONFLICT(id) DO UPDATE SET version = excluded.version,
         completed_at = CURRENT_TIMESTAMP`)
     .run();
+}
+
+async function seedPlatformReferenceCatalog(db: D1Database) {
+  await db.batch([
+    db.prepare(`INSERT OR IGNORE INTO auth_provider_settings
+      (provider, display_name, button_visible, enabled, status, public_config_json)
+      VALUES ('google', 'Google', 1, 0, 'admin_disabled', '{"required":["GOOGLE_CLIENT_ID","GOOGLE_CLIENT_SECRET","GOOGLE_REDIRECT_URI"]}')`),
+    db.prepare(`INSERT OR IGNORE INTO auth_provider_settings
+      (provider, display_name, button_visible, enabled, status)
+      VALUES ('microsoft', 'Microsoft', 0, 0, 'not_configured')`),
+    db.prepare(`INSERT OR IGNORE INTO auth_provider_settings
+      (provider, display_name, button_visible, enabled, status, public_config_json)
+      VALUES ('github', 'GitHub', 0, 0, 'hidden', '{"required":["GITHUB_CLIENT_ID","GITHUB_CLIENT_SECRET"]}')`),
+    db.prepare(`INSERT OR IGNORE INTO platform_providers
+      (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
+      VALUES ('provider_sarvam', 'Sarvam AI', 'Call Vani Voice India', 'speech',
+       '["SARVAM_API_KEY"]', 'required_for_live', 'not_connected', 'Indic STT, TTS and realtime voice', 0)`),
+    db.prepare(`INSERT OR IGNORE INTO platform_providers
+      (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
+      VALUES ('provider_deepgram', 'Deepgram', 'Call Vani Speech Intelligence', 'speech',
+       '["DEEPGRAM_API_KEY"]', 'optional', 'not_connected', 'Realtime speech recognition and voice-agent audio', 0)`),
+    db.prepare(`INSERT OR IGNORE INTO platform_providers
+      (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
+      VALUES ('provider_elevenlabs', 'ElevenLabs API', 'Call Vani Voice Global', 'speech',
+       '["ELEVENLABS_API_KEY","ELEVENLABS_VOICE_ID"]', 'optional', 'not_connected', 'Multilingual low-latency speech and streaming output', 0)`),
+    db.prepare(`INSERT OR IGNORE INTO platform_providers
+      (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
+      VALUES ('provider_cartesia', 'Cartesia AI', 'Call Vani Sonic Voice', 'speech',
+       '["CARTESIA_API_KEY","CARTESIA_VOICE_ID","CARTESIA_MODEL"]', 'optional', 'not_connected', 'Low-latency premium realtime voices', 0)`),
+    db.prepare(`INSERT OR IGNORE INTO platform_providers
+      (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
+      VALUES ('provider_email', 'Resend / SMTP', 'Call Vani Mail', 'email',
+       '["EMAIL_PROVIDER","RESEND_API_KEY","SMTP_HOST","SMTP_PORT","SMTP_USERNAME","SMTP_PASSWORD","EMAIL_FROM"]', 'optional', 'not_connected', 'Transactional email and account notifications', 0)`),
+    db.prepare(`INSERT OR IGNORE INTO platform_providers
+      (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
+      VALUES ('provider_google_oauth', 'Google OAuth', 'Google sign-in', 'identity',
+       '["GOOGLE_CLIENT_ID","GOOGLE_CLIENT_SECRET","GOOGLE_REDIRECT_URI"]', 'planned', 'admin_disabled', 'Customer account sign-in', 1)`),
+    db.prepare(`INSERT OR IGNORE INTO platform_providers
+      (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
+      VALUES ('provider_vobiz', 'Vobiz', 'Call Vani Numbers · Vobiz', 'telephony',
+       '["VOBIZ_AUTH_ID","VOBIZ_AUTH_TOKEN","VOBIZ_BASE_URL"]', 'optional', 'not_connected', 'Customer-owned numbers, calls and status webhooks', 0)`),
+    db.prepare(`INSERT OR IGNORE INTO platform_providers
+      (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
+      VALUES ('provider_razorpay', 'Razorpay', 'Call Vani Payments · Razorpay', 'payments',
+       '["RAZORPAY_KEY_ID","RAZORPAY_KEY_SECRET","RAZORPAY_WEBHOOK_SECRET"]', 'optional', 'not_connected', 'India checkout, subscriptions and signed webhooks', 0)`),
+    db.prepare(`INSERT OR IGNORE INTO platform_providers
+      (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
+      VALUES ('provider_stripe', 'Stripe', 'Call Vani Payments · Stripe', 'payments',
+       '["STRIPE_SECRET_KEY","STRIPE_WEBHOOK_SECRET"]', 'optional', 'not_connected', 'International checkout, subscriptions and signed webhooks', 0)`),
+  ]);
 }
 
 async function seedLocalDemo(db: D1Database) {

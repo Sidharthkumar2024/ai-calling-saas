@@ -13,6 +13,7 @@ of local completion do not establish production activation.
 - Google provider row now exists, visible but disabled.
 - Siddharth workspace: no numbers and no integration connections.
 - Workspace agent Tara: draft, inbound/outbound false, no voice profile.
+- Vobiz console independently shows one active number +918071582881 and INR 25 balance; this number is absent from the fresh VPS workspace.
 - Domain DNS still returns VPS 129.121.139.191 and old host 172.66.3.26.
 
 ## Pending, in execution order
@@ -49,5 +50,5 @@ of local completion do not establish production activation.
 The fresh VPS workspace contains neither a carrier connection nor an assigned
 number. Its starter agent is draft with calls disabled. These are confirmed
 application blockers before a Vobiz dial request can be expected to work.
-The external Vobiz account itself still needs inspection; no claim is made
-that its balance, number permissions or API credentials are invalid.
+The Vobiz dashboard confirms the number exists and displays INR 25 balance.
+API credential validity, outbound permissions and audio remain unverified.

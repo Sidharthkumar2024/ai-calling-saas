@@ -3,6 +3,7 @@
 import { resolve } from 'node:path';
 import process from 'node:process';
 import { DatabaseSync } from 'node:sqlite';
+import { readFileSync, rmSync, statSync } from 'node:fs';
 
 const databasePath = process.env.CALLVANI_SQLITE_PATH?.trim();
 const encryptionKey = process.env.VAANI_ENCRYPTION_KEY?.trim();
@@ -86,7 +87,24 @@ async function readHidden(prompt) {
   return value;
 }
 
-const clientSecret = (await readHidden('Google client secret (hidden): ')).trim();
+function readSecretFile(path) {
+  const resolvedPath = resolve(path);
+  const mode = statSync(resolvedPath).mode & 0o777;
+  if ((mode & 0o077) !== 0)
+    throw new Error('Google client secret file must be readable only by its owner (chmod 600).');
+  try {
+    return readFileSync(resolvedPath, 'utf8').trim();
+  } finally {
+    rmSync(resolvedPath, { force: true });
+  }
+}
+
+const secretFile = process.env.CALLVANI_GOOGLE_CLIENT_SECRET_FILE?.trim();
+const clientSecret = (
+  secretFile
+    ? readSecretFile(secretFile)
+    : await readHidden('Google client secret (hidden): ')
+).trim();
 if (!/^GOCSPX-[A-Za-z0-9_-]{20,}$/.test(clientSecret))
   throw new Error('Google client secret format is invalid.');
 

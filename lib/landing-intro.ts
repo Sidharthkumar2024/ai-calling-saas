@@ -1,5 +1,7 @@
-// Stop before the supplied video's white tail and reveal a durable scene.
-export const INTRO_OPENING_SECONDS = 1.2;
+// Play enough of the supplied film for the first visit to feel intentional,
+// then stop before its white tail and reveal the durable product scene. The
+// old 1.2 second cut made the video appear to be missing on slower devices.
+export const INTRO_OPENING_SECONDS = 5.8;
 export const INTRO_LAST_FRAME_SECONDS = 6.36;
 export function introFrame(progress: number, duration: number) {
   const p = Math.max(0, Math.min(1, Number.isFinite(progress) ? progress : 0));

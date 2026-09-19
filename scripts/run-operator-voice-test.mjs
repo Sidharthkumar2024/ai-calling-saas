@@ -85,8 +85,12 @@ try {
       AND provider IN ('deepgram','cartesia','elevenlabs','sarvam')`)
     .all()
     .map((row) => row.provider);
-  if (!providers.includes('deepgram'))
-    throw new Error('Deepgram STT is not configured.');
+  if (
+    !providers.some((provider) =>
+      ['deepgram', 'elevenlabs', 'sarvam'].includes(provider),
+    )
+  )
+    throw new Error('No production STT provider is configured.');
   if (
     !providers.some((provider) =>
       ['cartesia', 'elevenlabs', 'sarvam'].includes(provider),

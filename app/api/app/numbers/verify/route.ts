@@ -72,12 +72,15 @@ export async function POST(request: Request) {
       );
     phase = 'provider_request';
     const response = await fetch(url, {
-      headers: row.provider_code === 'vobiz' ? {
-        'X-Auth-ID': String(config.accountId),
-        'X-Auth-Token': String(secret.apiKey),
-      } : {
-        authorization: `Basic ${btoa(`${config.accountId}:${secret.apiKey}`)}`,
-      },
+      headers:
+        row.provider_code === 'vobiz'
+          ? {
+              'X-Auth-ID': String(config.accountId),
+              'X-Auth-Token': String(secret.apiKey),
+            }
+          : {
+              authorization: `Basic ${btoa(`${config.accountId}:${secret.apiKey}`)}`,
+            },
       signal: AbortSignal.timeout(10000),
       // workerd supports manual/follow, not the browser-only error mode.
       // Reject 3xx below rather than forwarding carrier secrets to a redirect.
@@ -113,6 +116,16 @@ export async function POST(request: Request) {
       )
       .bind(numberId, auth.session.organizationId)
       .run();
+    // This authenticated read proves both the credential pair and ownership of
+    // the exact voice-enabled number. Leaving the connection itself labelled
+    // `stored_unverified` after that proof made the integration screen disagree
+    // with the number screen and blocked readiness checks indefinitely.
+    await db
+      .prepare(`UPDATE integration_connections SET status = 'connected',
+        last_checked_at = CURRENT_TIMESTAMP
+        WHERE organization_id = ? AND type = ?`)
+      .bind(auth.session.organizationId, provider!.integration)
+      .run();
     await recordAudit(
       auth.session,
       'number.provider_ownership_verified',
@@ -127,10 +140,22 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     // Never log credentials, URLs, response bodies or raw exception messages.
-    const reason = error instanceof Error &&
-      ['TimeoutError', 'AbortError', 'SyntaxError', 'OperationError', 'TypeError'].includes(error.name)
-      ? error.name : 'Error';
-    console.error('number.ownership_check_failed', { provider: row.provider_code, phase, reason });
+    const reason =
+      error instanceof Error &&
+      [
+        'TimeoutError',
+        'AbortError',
+        'SyntaxError',
+        'OperationError',
+        'TypeError',
+      ].includes(error.name)
+        ? error.name
+        : 'Error';
+    console.error('number.ownership_check_failed', {
+      provider: row.provider_code,
+      phase,
+      reason,
+    });
     return NextResponse.json(
       {
         code: 'ownership_check_failed',

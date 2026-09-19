@@ -30,6 +30,7 @@ const modules = {
   '@/db/bootstrap':{ensureSchema:async()=>{}}, '@/db/index':{getRawDb:()=>db},
   '@/lib/rate-limit':{enforceRateLimit:async()=>({allowed:true}),requestFingerprint:()=> 'isolated-test'},
   '@/lib/security':security,
+  '@/lib/commerce':{sendTransactionalEmail:async()=>({status:'sent'})},
 };
 const exports = {};
 compileFunction(ts.transpileModule(readFileSync(new URL('../app/api/auth/password-reset/route.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,['require','exports'])((id)=>modules[id],exports);

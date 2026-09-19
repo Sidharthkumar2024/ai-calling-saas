@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
-  Activity,
   ArrowLeft,
   ArrowRight,
   Building2,
@@ -16,6 +15,7 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { CallVaniLogo } from '@/components/call-vani-logo';
 import { Input } from '@/components/ui/input';
 import { SocialAuthButtons } from '@/components/social-auth-buttons';
 
@@ -137,9 +137,7 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
       <div className="relative mx-auto max-w-[1180px]">
         <div className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
-            <span className="grid size-10 place-items-center rounded-xl bg-primary text-primary-foreground">
-              <Activity className="size-5" />
-            </span>
+            <CallVaniLogo className="size-10" />
             <span>
               <span className="block text-sm font-semibold">Call Vani</span>
               <span className="block text-[11px] uppercase tracking-[0.18em] text-ink-muted">

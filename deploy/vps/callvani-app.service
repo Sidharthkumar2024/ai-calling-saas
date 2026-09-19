@@ -1,0 +1,22 @@
+[Unit]
+Description=Call Vani application worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=callvani
+Group=callvani
+WorkingDirectory=/opt/callvani
+Environment=NODE_ENV=production
+EnvironmentFile=/etc/callvani/app.env
+ExecStart=/usr/bin/npm run start:vps
+Restart=always
+RestartSec=4
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/callvani /opt/callvani/.wrangler
+
+[Install]
+WantedBy=multi-user.target

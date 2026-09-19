@@ -9,6 +9,7 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "wrangler dev --config dist/server/wrangler.json",
+    "start:vps": "wrangler dev --config dist/server/wrangler.json --ip 127.0.0.1 --port 3000 --persist-to /var/lib/callvani/runtime",
     "lint": "oxlint",
     "format": "oxfmt",
     "db:generate": "drizzle-kit generate",

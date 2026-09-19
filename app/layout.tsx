@@ -18,6 +18,11 @@ export const metadata: Metadata = {
   title: 'Call Vani — AI Calling & Revenue Automation',
   description:
     'Capture leads, understand intent, call in the right language and turn every conversation into a revenue action.',
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/call-vani-logo.png',
+  },
   openGraph: {
     title: 'Call Vani — AI Calling & Revenue Automation',
     description:

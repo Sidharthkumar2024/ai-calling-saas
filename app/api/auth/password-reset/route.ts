@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
+import { sendTransactionalEmail } from '@/lib/commerce';
 import { enforceRateLimit, requestFingerprint } from '@/lib/rate-limit';
 import { createOpaqueToken, hashPassword, sha256 } from '@/lib/security';
 
@@ -22,15 +23,6 @@ export async function POST(request: Request) {
   )
     return NextResponse.json({ error: 'Invalid request.' }, { status: 400 });
   if (body.action === 'request') {
-    // Do not claim to have sent a recovery email when no delivery is wired.
-    if (process.env.NODE_ENV === 'production')
-      return NextResponse.json(
-        {
-          error:
-            'Email password recovery is not configured yet. Contact your workspace administrator.',
-        },
-        { status: 503 },
-      );
     const email = body.email?.trim().toLowerCase() || '';
     const limit = await enforceRateLimit({
       namespace: 'password-reset',
@@ -41,23 +33,47 @@ export async function POST(request: Request) {
     if (!limit.allowed)
       return NextResponse.json({ error: 'Try again later.' }, { status: 429 });
     const user = await getRawDb()
-      .prepare('SELECT id FROM app_users WHERE lower(email) = ? AND status = ?')
+      .prepare('SELECT id, organization_id FROM app_users WHERE lower(email) = ? AND status = ?')
       .bind(email, 'active')
-      .first<{ id: string }>();
+      .first<{ id: string; organization_id: string | null }>();
     let developmentToken: string | undefined;
     if (user) {
       const token = createOpaqueToken('reset_');
-      developmentToken = token;
+      const challengeId = `challenge_${crypto.randomUUID()}`;
       await getRawDb()
         .prepare(`INSERT INTO security_challenges
         (id, user_id, type, token_hash, expires_at) VALUES (?, ?, 'password_reset', ?, ?)`)
         .bind(
-          `challenge_${crypto.randomUUID()}`,
+          challengeId,
           user.id,
           await sha256(token),
           new Date(Date.now() + 30 * 60_000).toISOString(),
         )
         .run();
+      if (process.env.NODE_ENV === 'production') {
+        const resetUrl = new URL(
+          portalPathFor(request),
+          process.env.PUBLIC_BASE_URL || request.url,
+        );
+        resetUrl.searchParams.set('reset_token', token);
+        try {
+          const delivery = await sendTransactionalEmail({
+            organizationId: user.organization_id ?? '',
+            to: email,
+            subject: 'Reset your Call Vani password',
+            html: `<p>A password reset was requested for your Call Vani account.</p><p><a href="${escapeAttribute(resetUrl.toString())}">Reset password</a></p><p>This secure link expires in 30 minutes. If you did not request it, you can ignore this email.</p>`,
+          });
+          if (delivery.status !== 'sent')
+            throw new Error('No production email provider is connected.');
+        } catch {
+          await getRawDb()
+            .prepare('DELETE FROM security_challenges WHERE id = ?')
+            .bind(challengeId)
+            .run();
+        }
+      } else {
+        developmentToken = token;
+      }
     }
     return NextResponse.json({
       accepted: true,
@@ -115,4 +131,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ reset: true });
   }
   return NextResponse.json({ error: 'Unsupported action.' }, { status: 400 });
+}
+
+function portalPathFor(request: Request) {
+  return new URL(request.url).searchParams.get('portal') === 'admin'
+    ? '/admin/login'
+    : '/login';
+}
+
+function escapeAttribute(value: string) {
+  return value.replace(/[&<>"']/g, (character) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[
+      character
+    ] || character,
+  );
 }

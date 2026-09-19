@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Activity, ArrowRight, Menu } from 'lucide-react';
+import { ArrowRight, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { CallVaniLogo } from '@/components/call-vani-logo';
 import {
   Sheet,
   SheetContent,
@@ -57,9 +58,7 @@ export function LandingHeader({
           className="vani-wordmark"
           aria-label={t('landing.home.aria')}
         >
-          <span className="vani-brand-icon">
-            <Activity size={23} strokeWidth={2} />
-          </span>
+          <CallVaniLogo className="size-10" />
           <span>Call Vani</span>
         </a>
         <nav className="vani-desktop-nav" aria-label={t('landing.nav.aria')}>

@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
-  Activity,
   ArrowLeft,
   ArrowRight,
   Building2,
@@ -16,6 +15,7 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { CallVaniLogo } from '@/components/call-vani-logo';
 import { Input } from '@/components/ui/input';
 import { SocialAuthButtons } from '@/components/social-auth-buttons';
 import { useT } from '@/components/locale-provider';
@@ -112,7 +112,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
     setError('');
     setResetNotice('');
     try {
-      const response = await fetch('/api/auth/password-reset', {
+      const response = await fetch(`/api/auth/password-reset?portal=${portal}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ action: 'request', email }),
@@ -189,9 +189,7 @@ export function PortalLogin({ portal }: PortalLoginProps) {
               className="flex items-center gap-3 text-ink"
               aria-label={t('aria.vaaniHome')}
             >
-              <span className="grid size-10 place-items-center rounded-xl bg-primary text-primary-foreground">
-                <Activity className="size-5" />
-              </span>
+              <CallVaniLogo className="size-10" />
               <span>
                 <span className="block text-base font-semibold">Call Vani</span>
                 <span className="block text-[11px] uppercase tracking-[0.2em] text-ink-muted">

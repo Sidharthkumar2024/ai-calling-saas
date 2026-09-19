@@ -24,6 +24,7 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import { NotificationBell } from '@/components/notification-center';
+import { CallVaniLogo } from '@/components/call-vani-logo';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -148,9 +149,7 @@ export function PortalShell({
           href="/"
           className="flex h-[74px] items-center gap-3 border-b border-hairline px-5"
         >
-          <span className="grid size-9 place-items-center rounded-xl border border-hairline bg-white text-black shadow-[0_12px_34px_-14px_rgba(255,255,255,.7)]">
-            <Activity className="size-5" />
-          </span>
+          <CallVaniLogo className="size-9" />
           <span>
             <span className="block text-sm font-semibold">Call Vani</span>
             <span className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-muted">

@@ -1,0 +1,21 @@
+[Unit]
+Description=Call Vani realtime media gateway
+After=network-online.target callvani-app.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=callvani
+Group=callvani
+WorkingDirectory=/opt/callvani/services/media-gateway
+Environment=NODE_ENV=production
+EnvironmentFile=/etc/callvani/app.env
+ExecStart=/usr/bin/npm start
+Restart=always
+RestartSec=4
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

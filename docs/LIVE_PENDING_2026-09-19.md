@@ -11,15 +11,15 @@ of local completion do not establish production activation.
 - Direct VPS customer password login: HTTP 200.
 - Direct VPS database health: healthy.
 - Google provider row now exists, visible but disabled.
-- Siddharth workspace: customer-owned +918071582881 connected as inbound/outbound, status pending_connection; customer-scoped Vobiz credentials saved encrypted, status stored_unverified.
+- Siddharth workspace: customer-owned number is attached to the **Call Vani AI Inbound** Vobiz application. Customer-scoped Vobiz credentials remain encrypted; carrier routing and agent binding are still unverified.
 - Owner test workspace has a Launch trial through 26 September; no payment was taken.
 - The prior starter agent is superseded for the customer test workspace by **Aarohi · Sidharth Kumar Services** (currently `testing`, not Live).
-- Vobiz console independently shows one active number +918071582881 and INR 25 balance; provider call routing remains unverified.
+- Vobiz console independently shows one attached number and INR 25 balance; provider call routing remains unverified.
 - Removed old root A 172.66.3.26 in Hostinger. Authoritative DNS now returns only VPS 129.121.139.191; www aliases root. Resolver caches may lag.
 - Let’s Encrypt TLS is live for both `callvani.com` and `www.callvani.com`. The certificate is installed in Nginx, redirects HTTP to HTTPS, expires 18 December 2026, and Certbot renewal is scheduled. Direct `--resolve` requests to the VPS returned the live healthy status response for both hostnames.
 - The public secure media endpoint is configured as `wss://callvani.com/media-stream/`. Both the app and media-gateway services are active, and an authenticated WebSocket handshake reached the gateway successfully.
 - Vobiz ownership verification now returns HTTP 200 on VPS after deployment e416f20. Root cause of 502: workerd rejects Request redirect mode `error`; changed to `manual`, rejecting 3xx without forwarding credentials. 106 assertions and TypeScript pass. Number is ownership-verified, routing_required, not active.
-- Signed Vobiz inbound adapter deployed in 52d6234. It resolves only a uniquely active customer-owned Vobiz number, verifies the customer token signature before creating an idempotent call record, resolves an active route, then returns Vobiz stream XML. The Vobiz account now has a **Call Vani AI Inbound** application with this adapter as its POST answer URL. The production media health endpoint now advertises `vobiz`, and the Vobiz mu-law, audio-playback and barge-in protocol tests pass (45 gateway tests and 66 Vobiz adapter assertions). The purchased number still needs to be attached to that application in Vobiz, then routed to the tested Call Vani agent.
+- Signed Vobiz inbound adapter deployed in 52d6234. It resolves only a uniquely active customer-owned Vobiz number, verifies the customer token signature before creating an idempotent call record, resolves an active route, then returns Vobiz stream XML. The Vobiz account now has a **Call Vani AI Inbound** application with this adapter as its POST answer URL, and the purchased number is attached to it. The production media health endpoint advertises `vobiz`, and the Vobiz mu-law, audio-playback and barge-in protocol tests pass. The next requirement is routing the number to the tested Call Vani agent and validating an actual call.
 - Siddharth's customer agent is now **Aarohi · Sidharth Kumar Services**, in `testing` state with Hindi/Hinglish/English/Punjabi sales discovery, safety guardrails, lead/follow-up/appointment/human-handoff tools, and structured qualification fields. It is deliberately not Live until voice provider and media tests succeed.
 
 ## Pending, in execution order
@@ -30,9 +30,9 @@ of local completion do not establish production activation.
 | P0 | Google sign-in | Save existing OAuth client credentials encrypted, enable provider, confirm consent/test-user availability, test callback and session on live domain. |
 | P0 | Account access | Verify customer and admin login through final HTTPS domain, role separation, logout and reset-password email delivery. |
 | P0 | Vobiz | Customer credentials and ownership verified. Bind number to a ready agent and verify outbound permissions with an actual call. |
-| P0 | Inbound adapter | Vobiz signed XML adapter and its Vobiz application are configured. Link the purchased number to that application, bind its active Call Vani number route to the tested agent, then place an inbound call and confirm audio/terminal callback evidence. |
+| P0 | Inbound adapter | Vobiz signed XML adapter and its Vobiz application are configured, and the purchased number is attached. Bind its active Call Vani number route to the tested agent, then place an inbound call and confirm audio/terminal callback evidence. |
 | P0 | Voice | Connect available STT, reasoning and TTS credentials; test Hindi/English male/female samples; select measured quality and latency. No provider currently has verified production health. |
-| P0 | Media/webhooks | HTTPS/WSS reachability and shared-secret handshake verified. Still verify a real Vobiz answer/status callback and bidirectional audio after the Vobiz application is attached. |
+| P0 | Media/webhooks | HTTPS/WSS reachability and shared-secret handshake verified. Still verify a real Vobiz answer/status callback and bidirectional audio through the attached number. |
 | P0 | Test call | Activate configured agent, dial user-authorized +917510020067 once ready, record provider UUID, ringing/answer/end status and two-way audio result. No live call completed yet. |
 | P1 | GitHub private repo | Add read-only VPS deploy key, switch origin to SSH, verify fetch after privatization. Current public-HTTPS updater is not sufficient for private repo. |
 | P1 | Email | Save SMTP encrypted, verify TLS/auth, deliver forgot-password message and consume reset link successfully. |

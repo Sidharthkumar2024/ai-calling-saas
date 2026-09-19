@@ -11,9 +11,10 @@ of local completion do not establish production activation.
 - Direct VPS customer password login: HTTP 200.
 - Direct VPS database health: healthy.
 - Google provider row now exists, visible but disabled.
-- Siddharth workspace: no numbers and no integration connections.
+- Siddharth workspace: customer-owned +918071582881 connected as inbound/outbound, status pending_connection; customer-scoped Vobiz credentials saved encrypted, status stored_unverified.
+- Owner test workspace has a Launch trial through 26 September; no payment was taken.
 - Workspace agent Tara: draft, inbound/outbound false, no voice profile.
-- Vobiz console independently shows one active number +918071582881 and INR 25 balance; this number is absent from the fresh VPS workspace.
+- Vobiz console independently shows one active number +918071582881 and INR 25 balance; provider call routing remains unverified.
 - Domain DNS still returns VPS 129.121.139.191 and old host 172.66.3.26.
 
 ## Pending, in execution order
@@ -47,8 +48,9 @@ of local completion do not establish production activation.
 
 ## Current call explanation
 
-The fresh VPS workspace contains neither a carrier connection nor an assigned
-number. Its starter agent is draft with calls disabled. These are confirmed
-application blockers before a Vobiz dial request can be expected to work.
+The fresh VPS workspace now contains the carrier connection and purchased
+number, but ownership/routing checks are still pending. Its starter agent is
+draft with calls disabled. These are confirmed application blockers before a
+Vobiz dial request can be expected to work.
 The Vobiz dashboard confirms the number exists and displays INR 25 balance.
 API credential validity, outbound permissions and audio remain unverified.

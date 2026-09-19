@@ -73,7 +73,12 @@ eq((await verifyApi.POST(req({numberId:id}))).status,200);
 eq(sqlite.prepare('SELECT status FROM phone_numbers WHERE id=?').get(id).status,'active');
 providerHttp=401;eq((await verifyApi.POST(req({numberId:id}))).status,502);
 eq(numbers.numberOwnershipProbe('twilio','../injected',input.phoneNumber),null);
-eq(numbers.numberOwnershipProbe('vobiz','AC12345',input.phoneNumber),null);
+eq(numbers.numberOwnershipProbe('vobiz','MA_12345',input.phoneNumber),'https://api.vobiz.ai/api/v1/Account/MA_12345/numbers?search=%2B12025550123');
+const ownedVobiz={id:'num_one',e164:input.phoneNumber,status:'active',voice_enabled:true,is_blocked:false};
+eq(numbers.ownsProviderNumber('vobiz',{items:[ownedVobiz]},input.phoneNumber),true);
+for(const override of [{e164:'+12025550999'},{status:'pending_release'},{voice_enabled:false},{is_blocked:true},{id:''}])
+  eq(numbers.ownsProviderNumber('vobiz',{items:[{...ownedVobiz,...override}]},input.phoneNumber),false);
+eq(numbers.ownsProviderNumber('vobiz',{items:[null,{}]},input.phoneNumber),false);
 eq(numbers.ownsProviderNumber('plivo',{number:'12025550123',voice_enabled:true,resource_uri:'/number/'},input.phoneNumber),true);
 eq(numbers.ownsProviderNumber('plivo',{number:'12025550123',voice_enabled:false,resource_uri:'/number/'},input.phoneNumber),false);
 eq(numbers.numberConnectionLabel('kyc_review'),'Provider setup required');

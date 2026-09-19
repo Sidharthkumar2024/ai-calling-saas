@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       },
       { status: 409 },
     );
-  if (!['twilio', 'plivo'].includes(row.provider_code))
+  if (!['twilio', 'plivo', 'vobiz'].includes(row.provider_code))
     return NextResponse.json(
       {
         error:
@@ -70,7 +70,10 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     const response = await fetch(url, {
-      headers: {
+      headers: row.provider_code === 'vobiz' ? {
+        'X-Auth-ID': String(config.accountId),
+        'X-Auth-Token': String(secret.apiKey),
+      } : {
         authorization: `Basic ${btoa(`${config.accountId}:${secret.apiKey}`)}`,
       },
       signal: AbortSignal.timeout(10000),

@@ -48,6 +48,8 @@ export function numberOwnershipProbe(
     return `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(account)}/IncomingPhoneNumbers.json?PhoneNumber=${encodeURIComponent(phone)}`;
   if (provider === 'plivo')
     return `https://api.plivo.com/v1/Account/${encodeURIComponent(account)}/Number/${phone.slice(1)}/`;
+  if (provider === 'vobiz')
+    return `https://api.vobiz.ai/api/v1/Account/${encodeURIComponent(account)}/numbers?search=${encodeURIComponent(phone)}`;
   return null;
 }
 
@@ -83,5 +85,16 @@ export function ownsProviderNumber(
       typeof p.resource_uri === 'string' &&
       p.voice_enabled === true
     );
+  // Official Vobiz SDK: account-scoped ListNumbersResponse.items. Search is
+  // only a filter; require an exact match and usable voice capability.
+  if (provider === 'vobiz')
+    return Array.isArray(p.items) && p.items.some((item: unknown) => {
+      if (!item || typeof item !== 'object') return false;
+      const n = item as Record<string, unknown>;
+      return normalize(n.e164) === normalize(phone) &&
+        typeof n.id === 'string' && n.id.length > 0 &&
+        n.status === 'active' && n.voice_enabled === true &&
+        n.is_blocked === false;
+    });
   return false;
 }

@@ -4,12 +4,15 @@ import Stripe from 'stripe';
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { applyCreditPurchase, applyPlanPurchase } from '@/lib/billing';
+import { readPlatformSecret } from '@/lib/platform-secrets';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
-  const stripeKey = process.env.STRIPE_SECRET_KEY;
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const stored = await readPlatformSecret('stripe');
+  const stripeKey = process.env.STRIPE_SECRET_KEY || stored.apiKey;
+  const webhookSecret =
+    process.env.STRIPE_WEBHOOK_SECRET || stored.secrets.webhookSecret;
   if (!stripeKey || !webhookSecret) {
     return NextResponse.json(
       { error: 'Stripe webhook is not configured.' },
@@ -92,6 +95,43 @@ export async function POST(request: Request) {
     }
   }
 
+  if (
+    event.type === 'customer.subscription.updated' ||
+    event.type === 'customer.subscription.deleted'
+  ) {
+    const subscription = event.data.object as Stripe.Subscription;
+    const periodEnd = subscription.items.data.reduce(
+      (latest, item) => Math.max(latest, item.current_period_end ?? 0),
+      0,
+    );
+    await db
+      .prepare(
+        `UPDATE subscriptions SET status = ?, current_period_end = coalesce(?, current_period_end)
+         WHERE external_subscription_id = ?`,
+      )
+      .bind(
+        event.type === 'customer.subscription.deleted'
+          ? 'discontinued'
+          : subscriptionState(subscription.status),
+        periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+        subscription.id,
+      )
+      .run();
+  }
+
+  if (event.type === 'invoice.payment_failed' || event.type === 'invoice.paid') {
+    const invoice = event.data.object as Stripe.Invoice;
+    const subscriptionId = invoiceSubscriptionId(invoice);
+    if (subscriptionId) {
+      await db
+        .prepare(
+          `UPDATE subscriptions SET status = ? WHERE external_subscription_id = ?`,
+        )
+        .bind(event.type === 'invoice.paid' ? 'active' : 'inactive', subscriptionId)
+        .run();
+    }
+  }
+
   await db
     .prepare(
       `INSERT OR IGNORE INTO billing_events (id, external_event_id, event_type, payload_json)
@@ -105,4 +145,23 @@ export async function POST(request: Request) {
     )
     .run();
   return NextResponse.json({ received: true });
+}
+
+function subscriptionState(status: Stripe.Subscription.Status) {
+  if (status === 'active' || status === 'trialing') return 'active';
+  if (status === 'paused') return 'suspended';
+  if (status === 'canceled') return 'discontinued';
+  return 'inactive';
+}
+
+function invoiceSubscriptionId(invoice: Stripe.Invoice) {
+  const raw = invoice as unknown as {
+    subscription?: string | { id?: string } | null;
+    parent?: {
+      subscription_details?: { subscription?: string | { id?: string } | null };
+    } | null;
+  };
+  const subscription =
+    raw.subscription ?? raw.parent?.subscription_details?.subscription;
+  return typeof subscription === 'string' ? subscription : subscription?.id;
 }

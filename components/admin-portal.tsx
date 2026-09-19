@@ -2675,16 +2675,6 @@ const KEY_PROVIDERS: KeyProvider[] = [
     ],
   },
   {
-    id: 'vobiz',
-    name: 'Vobiz — numbers, calls and SMS',
-    note: 'Partner/sub-account Auth ID + token used for workspace numbers and callbacks.',
-    fields: [
-      { k: 'authId', label: 'Auth ID', placeholder: 'MA_XXXXXXXX' },
-      { k: 'baseUrl', label: 'API base URL', placeholder: 'https://api.vobiz.ai' },
-      { k: 'webhookSecret', label: 'Webhook signing secret', secret: true },
-    ],
-  },
-  {
     id: 'twilio',
     name: 'Twilio — global telephony',
     note: 'Global numbers, programmable voice, SMS fallback and carrier failover.',

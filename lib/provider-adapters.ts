@@ -1242,39 +1242,29 @@ export class CarrierRejectedError extends Error {
  * `queued` and why the answer and status URLs are built before the request.
  */
 /**
- * Resolve the Vobiz credentials for one workspace. Prefer its sub-account and
- * fall back to the platform partner account for a managed Call Vani number.
+ * Resolve the Vobiz credentials for one workspace. Vobiz is customer-owned:
+ * the super-admin does not hold or silently lend one carrier account to every
+ * workspace.
  *
  * Exported because the callbacks need them too: their signature is an HMAC
  * keyed by the very same auth token, so a webhook cannot tell a real callback
  * from a forged one without reading the workspace's own credentials first.
  */
 export async function vobizWorkspaceCredentials(organizationId: string) {
-  const [credentials, managed] = await Promise.all([
-    connectionCredentials(organizationId, 'telephony_vobiz'),
-    platformProviderSecret('vobiz'),
-  ]);
+  const credentials = await connectionCredentials(
+    organizationId,
+    'telephony_vobiz',
+  );
   const workspaceAuthId = configString(credentials.publicConfig, 'accountId');
   const workspaceAuthToken = credentials.secrets.apiKey || '';
-  const managedConfig = managed.config as Record<string, unknown>;
   return {
     // The panel stores the auth id as public configuration and the token as
     // the encrypted secret, which is the right split: the id names the
     // sub-account and appears in their CDRs, the token is a password.
-    authId:
-      workspaceAuthId ||
-      (!managed.disabled ? configString(managedConfig, 'authId') : '') ||
-      process.env.VOBIZ_AUTH_ID ||
-      '',
-    authToken:
-      workspaceAuthToken ||
-      (!managed.disabled ? managed.apiKey || '' : '') ||
-      process.env.VOBIZ_AUTH_TOKEN ||
-      '',
+    authId: workspaceAuthId,
+    authToken: workspaceAuthToken,
     baseUrl:
       configString(credentials.publicConfig, 'baseUrl') ||
-      (!managed.disabled ? configString(managedConfig, 'baseUrl') : '') ||
-      process.env.VOBIZ_BASE_URL ||
       undefined,
   };
 }
@@ -1299,7 +1289,7 @@ export async function startVobizCall(input: {
   const publicBaseUrl = (process.env.PUBLIC_BASE_URL || '').replace(/\/$/, '');
   if (!authId || !authToken)
     throw new ProviderConfigurationError(
-      'No Vobiz credentials are available. Connect the workspace provider or configure the managed platform account.',
+      'No Vobiz credentials are available. Connect Vobiz from this workspace’s Integrations page.',
     );
   // Their platform fetches these URLs; a localhost or http base means a call
   // that connects to silence, so it is refused here rather than discovered on

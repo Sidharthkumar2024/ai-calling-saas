@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 
 import { getRawDb } from '@/db/index';
+import { applyCreditPurchase, applyPlanPurchase } from '@/lib/billing';
 import { getRazorpayWebhookSecret } from '@/lib/commerce';
+import { readPlatformSecret } from '@/lib/platform-secrets';
 import { releaseOrder } from '@/lib/order-service';
 import { settleRefundFromProvider } from '@/lib/refund-execution';
 import { sha256 } from '@/lib/security';
@@ -27,10 +29,17 @@ export async function POST(request: Request) {
   const payment = externalId
     ? await db
         .prepare(
-          'SELECT id, organization_id FROM payment_links WHERE external_payment_link_id = ? LIMIT 1',
+          `SELECT id, organization_id, provider, amount, provider_payload_json
+           FROM payment_links WHERE external_payment_link_id = ? LIMIT 1`,
         )
         .bind(externalId)
-        .first<{ id: string; organization_id: string }>()
+        .first<{
+          id: string;
+          organization_id: string;
+          provider: string;
+          amount: number;
+          provider_payload_json: string;
+        }>()
     : null;
   const refundOwner = refundEntity?.id
     ? await db
@@ -65,7 +74,11 @@ export async function POST(request: Request) {
       { error: 'The event names two workspaces.' },
       { status: 409 },
     );
-  const secret = await getRazorpayWebhookSecret(organizationId);
+  const secret =
+    payment?.provider === 'razorpay_platform_billing'
+      ? process.env.RAZORPAY_WEBHOOK_SECRET ||
+        (await readPlatformSecret('razorpay')).secrets.webhookSecret
+      : await getRazorpayWebhookSecret(organizationId);
   if (
     !secret ||
     !signature ||
@@ -170,6 +183,32 @@ export async function POST(request: Request) {
   // saying they paid — may release anything.
   let fulfilment: Record<string, unknown> | null = null;
   if (status === 'paid') {
+    if (payment.provider === 'razorpay_platform_billing') {
+      const stored = safeJson(payment.provider_payload_json) as {
+        billing?: Record<string, string>;
+      };
+      const billing = stored.billing ?? {};
+      if (billing.purchaseType === 'credits') {
+        await applyCreditPurchase({
+          organizationId,
+          credits: Number(billing.credits ?? 0),
+          amount: payment.amount,
+          description: 'Razorpay credit top-up',
+          externalId: payment.id,
+        });
+      } else if (billing.purchaseType === 'plan' && billing.planId) {
+        await applyPlanPurchase({
+          organizationId,
+          planId: billing.planId,
+          amount: payment.amount,
+          externalCheckoutId: payment.id,
+        });
+      }
+      fulfilment = {
+        billingPurchase: billing.purchaseType ?? 'unknown',
+        settled: true,
+      };
+    }
     const order = await db
       .prepare(
         `SELECT id FROM orders WHERE payment_link_id = ? AND organization_id = ? LIMIT 1`,
@@ -200,6 +239,14 @@ export async function POST(request: Request) {
     status,
     ...(fulfilment ? { fulfilment } : {}),
   });
+}
+
+function safeJson(value: string) {
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return {};
+  }
 }
 
 type RazorpayWebhook = {

@@ -38,7 +38,6 @@ const MANAGED_PROVIDERS = new Set([
   'cashfree',
   'whatsapp',
   'exotel',
-  'vobiz',
   'twilio',
   'sms',
   // The OAuth apps behind the growth manager's connectors (§6). Registered
@@ -67,7 +66,6 @@ const PROVIDER_ROW_IDS: Record<string, string> = {
   smtp: 'provider_email',
   whatsapp: 'provider_whatsapp',
   exotel: 'provider_telephony',
-  vobiz: 'provider_vobiz',
   bolna: 'provider_bolna',
   cartesia: 'provider_cartesia',
   sms: 'provider_sms',

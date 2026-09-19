@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 import { getRawDb } from '@/db/index';
 import { requireCustomer } from '@/lib/api-session';
 import { customerUsageRates } from '@/lib/customer-usage-pricing';
+import { PAYMENT_METHODS } from '@/lib/payment-methods';
+import { readPlatformSecret } from '@/lib/platform-secrets';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +13,10 @@ export async function GET(request: Request) {
   if (auth.response) return auth.response;
   const organizationId = auth.session.organizationId!;
   const db = getRawDb();
+  const [stripe, razorpay] = await Promise.all([
+    readPlatformSecret('stripe'),
+    readPlatformSecret('razorpay'),
+  ]);
   const [
     wallet,
     subscription,
@@ -76,6 +82,10 @@ export async function GET(request: Request) {
     },
     invoices: invoices.results,
     ledger: ledger.results,
-    paymentMode: process.env.STRIPE_SECRET_KEY ? 'stripe' : 'local_sandbox',
+    paymentMode:
+      process.env.STRIPE_SECRET_KEY || stripe.apiKey || razorpay.apiKey
+        ? 'live_gateway'
+        : 'local_sandbox',
+    paymentMethods: PAYMENT_METHODS,
   });
 }

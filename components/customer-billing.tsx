@@ -61,6 +61,12 @@ type UsageRate = {
   costBasis: string;
   customerNote: string;
 };
+type PaymentMethod = {
+  id: string;
+  label: string;
+  feeBps: number;
+  gateway: string;
+};
 
 export type BillingData = {
   wallet?: Wallet;
@@ -71,6 +77,7 @@ export type BillingData = {
   usageRateCard?: { currency: string; rates: UsageRate[] };
   invoices?: Invoice[];
   ledger?: LedgerEntry[];
+  paymentMethods?: PaymentMethod[];
 };
 
 export function CustomerBilling({
@@ -85,6 +92,7 @@ export function CustomerBilling({
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [receipt, setReceipt] = useState<CreditReceipt | null>(null);
+  const [selectedMethod, setSelectedMethod] = useState('upi');
   const dismissReceipt = useCallback(() => setReceipt(null), []);
   const refreshRef = useRef(onChanged);
   const notifyRef = useRef(notify);
@@ -138,7 +146,7 @@ export function CustomerBilling({
       const response = await fetch('/api/app/billing/checkout', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ ...body, paymentMethod: selectedMethod }),
       });
       const payload = (await response.json()) as {
         error?: string;
@@ -302,6 +310,37 @@ export function CustomerBilling({
           </div>
         </section>
       </div>
+
+      <section className="rounded-2xl border border-hairline bg-surface p-5">
+        <h2 className="text-sm font-semibold">Payment method</h2>
+        <p className="mt-1 text-[11px] text-ink-muted">
+          The convenience fee is disclosed before checkout and included in the final total.
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {(data.paymentMethods ?? []).map((method) => (
+            <button
+              key={method.id}
+              type="button"
+              onClick={() => setSelectedMethod(method.id)}
+              className={`rounded-xl border p-4 text-left transition ${
+                selectedMethod === method.id
+                  ? 'border-primary/40 bg-primary/5'
+                  : 'border-hairline bg-surface-muted hover:bg-surface-strong'
+              }`}
+            >
+              <p className="text-xs font-semibold">{method.label}</p>
+              <p className="mt-1 text-[11px] text-ink-muted">
+                {method.feeBps === 0
+                  ? 'No convenience fee'
+                  : `${(method.feeBps / 100).toFixed(1)}% convenience fee`}
+              </p>
+              <p className="mt-2 text-[10px] uppercase tracking-wider text-ink-muted">
+                {method.gateway}
+              </p>
+            </button>
+          ))}
+        </div>
+      </section>
 
       <div>
         <h2 className="text-sm font-semibold">Choose the right plan</h2>

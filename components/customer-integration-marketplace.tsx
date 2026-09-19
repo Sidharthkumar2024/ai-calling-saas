@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Plug, Search, Trash2 } from 'lucide-react';
+import { ExternalLink, Loader2, Plug, Search, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { ProviderLogo } from '@/components/provider-logo';
@@ -358,6 +358,15 @@ export function CustomerIntegrationMarketplace() {
                 </div>
               ) : (
                 <div className="mt-3.5 flex flex-wrap gap-2">
+                  {entry.setupUrl ? (
+                    <Button
+                      onClick={() =>
+                        window.open(entry.setupUrl, '_blank', 'noopener,noreferrer')
+                      }
+                    >
+                      <ExternalLink /> Provider setup
+                    </Button>
+                  ) : null}
                   <Button onClick={() => openForm(entry)}>
                     {entry.connection ? 'Replace key' : 'Connect'}
                   </Button>

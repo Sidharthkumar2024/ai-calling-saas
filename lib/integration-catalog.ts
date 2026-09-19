@@ -67,6 +67,8 @@ export type IntegrationDefinition = {
   verifiable: boolean;
   /** Short monogram for the grid tile. */
   monogram: string;
+  /** Provider setup/docs opened before the workspace returns to paste keys. */
+  setupUrl?: string;
 };
 
 const KEY = (label = 'API key', placeholder?: string): CredentialField => ({
@@ -140,6 +142,7 @@ export const INTEGRATION_CATALOG: IntegrationDefinition[] = [
       'Connect your own Vobiz account for voice routing. Number rental and verification stay with Vobiz.',
     monogram: 'Vo',
     verifiable: false,
+    setupUrl: 'https://www.vobiz.ai/docs/platform/login',
     // Their own two credentials, rather than the generic `apiKey` this entry
     // used to ask for. Vobiz authenticates with a pair — an auth id that looks
     // like `MA_XXXXXXXX` and a token that behaves like a password — and the

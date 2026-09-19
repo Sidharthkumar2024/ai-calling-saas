@@ -13,25 +13,26 @@ of local completion do not establish production activation.
 - Google provider row now exists, visible but disabled.
 - Siddharth workspace: customer-owned +918071582881 connected as inbound/outbound, status pending_connection; customer-scoped Vobiz credentials saved encrypted, status stored_unverified.
 - Owner test workspace has a Launch trial through 26 September; no payment was taken.
-- Workspace agent Tara: draft, inbound/outbound false, no voice profile.
+- The prior starter agent is superseded for the customer test workspace by **Aarohi · Sidharth Kumar Services** (currently `testing`, not Live).
 - Vobiz console independently shows one active number +918071582881 and INR 25 balance; provider call routing remains unverified.
 - Removed old root A 172.66.3.26 in Hostinger. Authoritative DNS now returns only VPS 129.121.139.191; www aliases root. Resolver caches may lag.
-- VPS port 443 is not serving yet; certbot installed but no live certificate. Certificate-service terms approval requested before issuance.
+- Let’s Encrypt TLS is live for both `callvani.com` and `www.callvani.com`. The certificate is installed in Nginx, redirects HTTP to HTTPS, expires 18 December 2026, and Certbot renewal is scheduled. Direct `--resolve` requests to the VPS returned the live healthy status response for both hostnames.
+- The public secure media endpoint is configured as `wss://callvani.com/media-stream/`. Both the app and media-gateway services are active, and an authenticated WebSocket handshake reached the gateway successfully.
 - Vobiz ownership verification now returns HTTP 200 on VPS after deployment e416f20. Root cause of 502: workerd rejects Request redirect mode `error`; changed to `manual`, rejecting 3xx without forwarding credentials. 106 assertions and TypeScript pass. Number is ownership-verified, routing_required, not active.
-- Signed Vobiz inbound adapter deployed in 52d6234. It resolves only a uniquely active customer-owned Vobiz number, verifies the customer token signature before creating an idempotent call record, resolves an active route, then returns Vobiz stream XML. It is not yet attached to a Vobiz application because public HTTPS/WSS is not live.
+- Signed Vobiz inbound adapter deployed in 52d6234. It resolves only a uniquely active customer-owned Vobiz number, verifies the customer token signature before creating an idempotent call record, resolves an active route, then returns Vobiz stream XML. The Vobiz account now has a **Call Vani AI Inbound** application with this adapter as its POST answer URL; the purchased number still needs to be linked to that application after the Vobiz stream protocol is confirmed.
 - Siddharth's customer agent is now **Aarohi · Sidharth Kumar Services**, in `testing` state with Hindi/Hinglish/English/Punjabi sales discovery, safety guardrails, lead/follow-up/appointment/human-handoff tools, and structured qualification fields. It is deliberately not Live until voice provider and media tests succeed.
 
 ## Pending, in execution order
 
 | Priority | Area | Remaining work / acceptance evidence |
 |---|---|---|
-| P0 | Domain and TLS | DNS cutover completed; install/verify VPS TLS for root and www, confirm HTTPS reaches VPS. |
+| P0 | Domain and TLS | **Complete:** DNS cutover and HTTPS/WSS verification for root and www. |
 | P0 | Google sign-in | Save existing OAuth client credentials encrypted, enable provider, confirm consent/test-user availability, test callback and session on live domain. |
 | P0 | Account access | Verify customer and admin login through final HTTPS domain, role separation, logout and reset-password email delivery. |
 | P0 | Vobiz | Customer credentials and ownership verified. Bind number to a ready agent and verify outbound permissions with an actual call. |
-| P0 | Inbound adapter | Vobiz signed XML adapter is deployed. Configure the Vobiz application only after HTTPS/WSS succeeds, bind its active number route to the tested agent, then place an inbound call and confirm audio/terminal callback evidence. |
+| P0 | Inbound adapter | Vobiz signed XML adapter and its Vobiz application are configured. Link the purchased number to that application, bind its active Call Vani number route to the tested agent, then place an inbound call and confirm audio/terminal callback evidence. |
 | P0 | Voice | Connect available STT, reasoning and TTS credentials; test Hindi/English male/female samples; select measured quality and latency. No provider currently has verified production health. |
-| P0 | Media/webhooks | Verify HTTPS answer/status callbacks, public WSS gateway, shared secret, signature validation and bidirectional audio. |
+| P0 | Media/webhooks | HTTPS/WSS reachability and shared-secret handshake verified. Still verify a real Vobiz answer/status callback and bidirectional audio after the Vobiz application is attached. |
 | P0 | Test call | Activate configured agent, dial user-authorized +917510020067 once ready, record provider UUID, ringing/answer/end status and two-way audio result. No live call completed yet. |
 | P1 | GitHub private repo | Add read-only VPS deploy key, switch origin to SSH, verify fetch after privatization. Current public-HTTPS updater is not sufficient for private repo. |
 | P1 | Email | Save SMTP encrypted, verify TLS/auth, deliver forgot-password message and consume reset link successfully. |
@@ -54,8 +55,11 @@ of local completion do not establish production activation.
 ## Current call explanation
 
 The fresh VPS workspace now contains the carrier connection and purchased
-number. Ownership is now verified; routing checks are still pending. Its starter agent is
-draft with calls disabled. These are confirmed application blockers before a
+number. Ownership is now verified; routing checks are still pending. Its
+customer agent is Aarohi, currently in `testing` rather than Live. The media
+gateway accepts only the confirmed Twilio, Exotel and browser protocols at this
+point; Vobiz's exact bidirectional stream event contract must be confirmed
+before claiming audio interoperability. These are confirmed blockers before a
 Vobiz dial request can be expected to work.
 The Vobiz dashboard confirms the number exists and displays INR 25 balance.
 API credential validity and voice-enabled number ownership are verified. Outbound permissions, TLS callbacks and audio remain unverified. No real test call completed.

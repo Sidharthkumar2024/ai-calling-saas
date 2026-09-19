@@ -2487,10 +2487,25 @@ async function bootstrap() {
     'INTEGER DEFAULT 1 NOT NULL',
   );
   await ensureColumn(db, 'handoffs', 'queue_id', 'TEXT');
-  // `realtime_reservations` arrives through migration 0009 and its heartbeat
-  // column through 0010, which reach a deployed database and not a bootstrapped
-  // one. Without this a dev or test database has the table and not the column,
-  // and every heartbeat fails on a database that looks otherwise healthy.
+  // VPS/local Worker databases can begin from the legacy bootstrap without
+  // Drizzle migrations having run. Create the reservation table here as well
+  // so rate limiting, admin mutations and realtime calls do not fail merely
+  // because migration 0009 was not applied by an external hosting platform.
+  await db
+    .prepare(`CREATE TABLE IF NOT EXISTS realtime_reservations (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      agent_id TEXT NOT NULL REFERENCES voice_agents(id) ON DELETE CASCADE,
+      request_hash TEXT NOT NULL,
+      unit TEXT DEFAULT 'realtime_session_v1' NOT NULL,
+      credits INTEGER DEFAULT 10 NOT NULL,
+      status TEXT NOT NULL,
+      provider_reference TEXT,
+      error_code TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`)
+    .run();
   await ensureColumn(db, 'realtime_reservations', 'last_heartbeat_at', 'TEXT');
   // Who is answering which WhatsApp conversation. Keyed by the customer's
   // number rather than by a message, because a conversation is the thing a

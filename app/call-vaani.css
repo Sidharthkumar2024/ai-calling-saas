@@ -299,8 +299,21 @@
   }
 }
 @media (max-width: 640px) {
+  /* A three-viewport intro is excessive on phones and hid the moving asset
+     behind a long blank scroll. Keep the video in the first two screens. */
+  .vani-video-intro {
+    height: 180svh;
+  }
+  .vani-video-stage {
+    min-height: 100svh;
+  }
+  .vani-intro-film {
+    object-position: 56% center;
+  }
   .cv-intro-heading {
-    padding-top: 115px;
+    max-width: 390px;
+    margin-inline: auto;
+    padding-top: max(104px, 15svh);
   }
   .cv-intro-heading h1 {
     font-size: 36px;
@@ -310,7 +323,10 @@
   }
   .cv-phone-scene {
     width: 90vw;
-    margin-top: 35px;
+    margin-top: 24px;
+  }
+  .cv-intro-product .cv-phone-scene {
+    width: min(360px, 86vw);
   }
   .cv-phone-note {
     padding: 12px;

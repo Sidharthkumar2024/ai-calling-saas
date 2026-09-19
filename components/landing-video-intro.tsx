@@ -188,6 +188,7 @@ export function LandingVideoIntro() {
         {/* oxlint-disable-next-line jsx-a11y/media-has-caption */}
         <video
           ref={video}
+          autoPlay
           muted
           playsInline
           disablePictureInPicture
@@ -195,7 +196,10 @@ export function LandingVideoIntro() {
           preload="auto"
           poster="/media/landing-demo-poster.jpg"
           className="vani-intro-film"
-          style={{ opacity: ready && !fallback ? 1 - reveal : 0 }}
+          // Keep the poster visible from the first paint. Previously this was
+          // transparent until `loadeddata`, which looked like a blank/missing
+          // video on mobile Safari and slower connections.
+          style={{ opacity: fallback ? 0 : 1 - reveal }}
           aria-hidden="true"
           tabIndex={-1}
         >

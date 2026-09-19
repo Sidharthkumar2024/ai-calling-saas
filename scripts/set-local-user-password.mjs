@@ -27,7 +27,9 @@ async function hashPassword(password) {
 
 const command = String(process.argv[2] ?? '').trim();
 const adminCommand =
-  command === '--create-admin' || command === '--promote-admin';
+  command === '--create-admin' ||
+  command === '--promote-admin' ||
+  command === '--promote-admin-existing';
 const accountArgument = adminCommand
   ? String(process.argv[3] ?? '').trim()
   : command;
@@ -38,7 +40,8 @@ if (command !== '--list' && (!email || !email.includes('@'))) {
       '  node scripts/set-local-user-password.mjs --list\n' +
       '  node scripts/set-local-user-password.mjs account@example.com\n' +
       '  node scripts/set-local-user-password.mjs --create-admin account@example.com\n' +
-      '  node scripts/set-local-user-password.mjs --promote-admin existing@example.com',
+      '  node scripts/set-local-user-password.mjs --promote-admin existing@example.com\n' +
+      '  node scripts/set-local-user-password.mjs --promote-admin-existing existing@example.com',
   );
   process.exit(2);
 }
@@ -229,10 +232,46 @@ try {
         'That email belongs to a customer account. Use --promote-admin only when converting that exact account was explicitly requested.',
       );
     }
-    if (command === '--promote-admin' && !existing) {
+    if (
+      (command === '--promote-admin' ||
+        command === '--promote-admin-existing') &&
+      !existing
+    ) {
       throw new Error(
         'No existing account was found to promote. Use --create-admin instead.',
       );
+    }
+
+    if (command === '--promote-admin-existing') {
+      const writable = new DatabaseSync(path);
+      try {
+        writable.exec('BEGIN IMMEDIATE');
+        const result = writable
+          .prepare(`UPDATE app_users
+            SET organization_id = NULL, role = 'platform_admin',
+                status = 'active', admin_role = 'super_admin'
+            WHERE id = ?`)
+          .run(existing.id);
+        if (Number(result.changes) !== 1)
+          throw new Error('The account changed before it could be promoted.');
+        writable
+          .prepare('DELETE FROM auth_sessions WHERE user_id = ?')
+          .run(existing.id);
+        writable.exec('COMMIT');
+      } catch (error) {
+        try {
+          writable.exec('ROLLBACK');
+        } catch {
+          // The failure may have happened before the transaction began.
+        }
+        throw error;
+      } finally {
+        writable.close();
+      }
+      console.log(
+        `Platform admin promoted for ${email}; existing password was preserved.`,
+      );
+      process.exit();
     }
 
     console.log(

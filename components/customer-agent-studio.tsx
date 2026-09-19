@@ -612,7 +612,7 @@ function SettingsPanel({
               ['elevenlabs', 'Speak', 'Sarvam and ElevenLabs power the current speech runtime. Choose a language-matched voice and test interruptions.'],
             ].map(([provider, title, description]) => <div key={title} className="rounded-xl border border-hairline bg-surface-muted p-4"><ProviderLogo provider={provider} /><p className="mt-3 text-sm font-medium">{title}</p><p className="mt-2 text-xs leading-5 text-ink-muted">{description}</p></div>)}
           </div>
-          <p className="mt-3 text-xs text-ink-muted">A saved API key is not a successful voice test. Cartesia configuration is available, but is not yet wired into this speech runtime. Use Playground to check your active engine before launch.</p>
+          <p className="mt-3 text-xs text-ink-muted">A saved API key is not a successful voice test. ElevenLabs, Sarvam and Cartesia speech are wired into the runtime; use Playground to verify the selected voice, language and latency before launch.</p>
         </SettingSection>
         <SettingSection
           title="Language and voice"

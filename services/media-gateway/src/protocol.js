@@ -11,7 +11,7 @@
  * from an agent's tab rather than a carrier. It authenticates with a
  * short-lived per-call token, never the gateway secret.
  */
-export const CARRIERS = ['twilio', 'exotel', 'browser'];
+export const CARRIERS = ['twilio', 'exotel', 'vobiz', 'browser'];
 
 /**
  * Normalises an inbound carrier frame.
@@ -105,6 +105,35 @@ export function parseInbound(carrier, raw) {
     return { kind: 'ignore', reason: event ?? 'unknown_event' };
   }
 
+  // Vobiz deliberately uses the same familiar event names as other media
+  // streams, but its ids and playback commands are different. Treating it as
+  // Twilio/Exotel means a call can connect while every reply is silently
+  // discarded, so its contract stays explicit here.
+  if (carrier === 'vobiz') {
+    const event = message.event;
+    if (event === 'start') {
+      const start = message.start ?? {};
+      return {
+        kind: 'start',
+        streamSid: message.streamId ?? start.streamId ?? null,
+        callSid: message.callId ?? start.callId ?? start.callUUID ?? null,
+        callId: message.callId ?? start.callId ?? start.callUUID ?? null,
+        encoding: start.mediaFormat?.encoding ?? 'audio/x-mulaw',
+        sampleRate: Number(start.mediaFormat?.sampleRate ?? 8000),
+      };
+    }
+    if (event === 'media')
+      return {
+        kind: 'media',
+        payload: message.media?.payload ?? '',
+        track: message.media?.track ?? 'inbound',
+      };
+    if (event === 'stop') return { kind: 'stop' };
+    // `playedStream` and `clearedAudio` are acknowledgements from Vobiz. The
+    // gateway paces its own output and needs no state transition for either.
+    return { kind: 'ignore', reason: event ?? 'unknown_event' };
+  }
+
   return { kind: 'ignore', reason: `unsupported_carrier:${carrier}` };
 }
 
@@ -117,6 +146,15 @@ export function buildMedia(carrier, { streamSid, payload }) {
       event: 'media',
       streamSid,
       media: { payload },
+    });
+  if (carrier === 'vobiz')
+    return JSON.stringify({
+      event: 'playAudio',
+      media: {
+        contentType: 'audio/x-mulaw',
+        sampleRate: 8000,
+        payload,
+      },
     });
   return JSON.stringify({
     event: 'media',
@@ -134,6 +172,8 @@ export function buildClear(carrier, { streamSid }) {
   if (carrier === 'browser') return JSON.stringify({ event: 'clear' });
   if (carrier === 'twilio')
     return JSON.stringify({ event: 'clear', streamSid });
+  if (carrier === 'vobiz')
+    return JSON.stringify({ event: 'clearAudio', streamId: streamSid });
   return JSON.stringify({ event: 'clear', stream_sid: streamSid });
 }
 

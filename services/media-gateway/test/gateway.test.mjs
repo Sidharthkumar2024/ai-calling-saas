@@ -265,6 +265,24 @@ ok(
   })(),
 );
 ok(
+  'vobiz start reads its stream id and carrier call id',
+  (() => {
+    const parsed = parseInbound(
+      'vobiz',
+      JSON.stringify({
+        event: 'start',
+        streamId: 'vobiz_stream_1',
+        start: {
+          callUUID: 'vobiz_call_1',
+          mediaFormat: { encoding: 'audio/x-mulaw', sampleRate: 8000 },
+        },
+      }),
+    );
+    return parsed.kind === 'start' && parsed.callId === 'vobiz_call_1' &&
+      parsed.streamSid === 'vobiz_stream_1';
+  })(),
+);
+ok(
   'media frames yield their payload',
   parseInbound('twilio', JSON.stringify({ event: 'media', media: { payload: 'AAA' } }))
     .payload === 'AAA',
@@ -291,9 +309,22 @@ ok(
       .stream_sid === 'S',
 );
 ok(
+  'vobiz playback uses the documented playAudio event',
+  (() => {
+    const frame = JSON.parse(buildMedia('vobiz', { streamSid: 'S', payload: 'P' }));
+    return frame.event === 'playAudio' && frame.media?.contentType === 'audio/x-mulaw' &&
+      frame.media?.sampleRate === 8000 && frame.media?.payload === 'P';
+  })(),
+);
+ok(
   'clear frames are built for both carriers',
   JSON.parse(buildClear('twilio', { streamSid: 'S' })).event === 'clear' &&
     JSON.parse(buildClear('exotel', { streamSid: 'S' })).event === 'clear',
+);
+ok(
+  'vobiz barge-in clears playback using its stream id',
+  JSON.parse(buildClear('vobiz', { streamSid: 'S' })).event === 'clearAudio' &&
+    JSON.parse(buildClear('vobiz', { streamSid: 'S' })).streamId === 'S',
 );
 ok(
   'a dialer ping is parsed with its own clock value',

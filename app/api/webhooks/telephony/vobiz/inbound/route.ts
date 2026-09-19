@@ -66,7 +66,13 @@ export async function POST(request: Request) {
   stream.searchParams.set('callId', callId);
   stream.searchParams.set('carrier', 'vobiz');
   const publicBase = (process.env.PUBLIC_BASE_URL || '').replace(/\/$/, '');
-  return new Response(vobizStreamXml({ streamUrl: stream.toString(), statusCallbackUrl: publicBase ? `${publicBase}/api/webhooks/telephony/vobiz/status/${encodeURIComponent(callId)}` : null }), {
+  return new Response(vobizStreamXml({
+    streamUrl: stream.toString(),
+    // Gateway playback is G.711 mu-law at 8 kHz. Request that exact inbound
+    // format instead of declaring L16 and then decoding it as mu-law.
+    contentType: 'audio/x-mulaw;rate=8000',
+    statusCallbackUrl: publicBase ? `${publicBase}/api/webhooks/telephony/vobiz/status/${encodeURIComponent(callId)}` : null,
+  }), {
     headers: { 'content-type': 'text/xml; charset=utf-8', 'cache-control': 'no-store' },
   });
 }

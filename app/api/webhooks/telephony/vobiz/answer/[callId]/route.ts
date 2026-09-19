@@ -82,6 +82,8 @@ export async function POST(
   return new Response(
     vobizStreamXml({
       streamUrl: stream.toString(),
+      // Keep Vobiz input aligned with the gateway's telephony codec.
+      contentType: 'audio/x-mulaw;rate=8000',
       statusCallbackUrl: publicBaseUrl
         ? `${publicBaseUrl}/api/webhooks/telephony/vobiz/status/${encodeURIComponent(call.id)}`
         : null,

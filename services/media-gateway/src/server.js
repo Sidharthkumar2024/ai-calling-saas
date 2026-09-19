@@ -205,6 +205,17 @@ wss.on('connection', (socket, request) => {
     socket.close(1008, 'Unauthorized');
     return;
   }
+  if (carrier === 'vobiz') {
+    // Vobiz's `start` event identifies the carrier call, not Call Vani's
+    // record. The record id is placed in the signed-by-secret stream URL that
+    // our answer endpoint generated after authorising the route.
+    preauthorizedCallId = url.searchParams.get('callId') || null;
+    if (!preauthorizedCallId) {
+      log('rejected_vobiz_without_call_id', {});
+      socket.close(1008, 'Missing callId');
+      return;
+    }
+  }
 
   // Legs for the same call share a room, so a supervisor can join one.
   const room = preauthorizedCallId ? rooms.open(preauthorizedCallId) : null;

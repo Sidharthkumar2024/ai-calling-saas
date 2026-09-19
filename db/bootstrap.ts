@@ -2960,12 +2960,23 @@ async function seedPlatformReferenceCatalog(db: D1Database) {
 }
 
 async function seedLocalDemo(db: D1Database) {
+  // Demo credentials must never be committed. A production database is seeded
+  // through the secure runtime environment, while existing accounts are left
+  // untouched by the INSERT OR IGNORE statements below.
+  const adminPassword = process.env.SEED_PLATFORM_ADMIN_PASSWORD;
+  const ownerPassword = process.env.SEED_CUSTOMER_OWNER_PASSWORD;
+  if (!adminPassword || !ownerPassword) {
+    if (process.env.NODE_ENV === 'production') return;
+    throw new Error(
+      'Set SEED_PLATFORM_ADMIN_PASSWORD and SEED_CUSTOMER_OWNER_PASSWORD before seeding local demo accounts.',
+    );
+  }
   const adminHash = await hashSeedPassword(
-    'VaaniAdmin#2026',
+    adminPassword,
     'vaani-admin-local',
   );
   const ownerHash = await hashSeedPassword(
-    'VaaniUser#2026',
+    ownerPassword,
     'vaani-owner-local',
   );
   const demoMfaGraceUntil = new Date(

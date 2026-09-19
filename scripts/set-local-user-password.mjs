@@ -25,8 +25,9 @@ async function hashPassword(password) {
   return `pbkdf2$${iterations}$${Buffer.from(salt).toString('base64')}$${Buffer.from(derived).toString('base64')}`;
 }
 
-const email = String(process.argv[2] ?? '').trim().toLowerCase();
-if (!email || !email.includes('@')) {
+const accountArgument = String(process.argv[2] ?? '').trim();
+const email = accountArgument.toLowerCase();
+if (accountArgument !== '--list' && (!email || !email.includes('@'))) {
   console.error(
     'Usage: node --experimental-strip-types scripts/set-local-user-password.mjs account@example.com',
   );
@@ -52,6 +53,40 @@ function candidateDatabases() {
   const explicit = process.env.CALLVANI_SQLITE_PATH?.trim();
   if (explicit) return [resolve(explicit)];
   return walk('/var/lib/callvani/runtime');
+}
+
+if (accountArgument === '--list') {
+  let accountCount = 0;
+  for (const path of candidateDatabases()) {
+    let database;
+    try {
+      database = new DatabaseSync(path, { readOnly: true });
+      const table = database
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'app_users'",
+        )
+        .get();
+      if (!table) continue;
+      const accounts = database
+        .prepare('SELECT email, role, status FROM app_users ORDER BY email')
+        .all();
+      if (accounts.length === 0) continue;
+      console.log(path);
+      for (const account of accounts) {
+        console.log(`  ${account.email} (${account.role}, ${account.status})`);
+        accountCount += 1;
+      }
+    } catch {
+      // Ignore unrelated or concurrently locked runtime databases.
+    } finally {
+      database?.close();
+    }
+  }
+  if (accountCount === 0) {
+    console.error('No application accounts were found.');
+    process.exitCode = 1;
+  }
+  process.exit();
 }
 
 function matchingDatabase() {

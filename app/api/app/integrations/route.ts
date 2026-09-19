@@ -59,6 +59,7 @@ export async function POST(request: Request) {
     webhookSecret?: string;
     model?: string;
     fromAddress?: string;
+    senderId?: string;
   };
   if (!body.type || !INTEGRATION_TYPES.has(body.type)) {
     return NextResponse.json(
@@ -101,6 +102,7 @@ export async function POST(request: Request) {
     accountId: body.accountId?.trim() || null,
     model: body.model?.trim() || null,
     fromAddress: body.fromAddress?.trim() || null,
+    senderId: body.senderId?.trim() || null,
     credentialHint: apiKey ? `••••${apiKey.slice(-4)}` : null,
   });
   const encrypted = await encryptSecret(

@@ -224,17 +224,7 @@ async function uploadKyc(
   // workspace's number and satisfy, or block, a compliance check that is not
   // its own.
   if (phoneNumberId) {
-    const owned = await getRawDb()
-      .prepare(
-        `SELECT id FROM phone_numbers WHERE id = ? AND organization_id = ? LIMIT 1`,
-      )
-      .bind(phoneNumberId, organizationId)
-      .first<{ id: string }>();
-    if (!owned)
-      return NextResponse.json(
-        { error: 'That number is not in this workspace.' },
-        { status: 404 },
-      );
+    return NextResponse.json({ error: 'Submit number verification directly to your carrier. Call Vani no longer collects number KYC documents.' }, { status: 410 });
   }
   const id = `kyc_${crypto.randomUUID()}`;
   const checksum = await fileChecksum(await file.arrayBuffer());
@@ -251,14 +241,6 @@ async function uploadKyc(
     VALUES (?, ?, ?, ?, ?, ?, 'submitted')`)
       .bind(id, organizationId, phoneNumberId, documentType, key, checksum),
   ];
-  if (phoneNumberId) {
-    statements.push(
-      db
-        .prepare(`UPDATE phone_numbers SET kyc_status = 'submitted', status = 'kyc_review',
-      onboarding_status = 'provider_review' WHERE id = ? AND organization_id = ?`)
-        .bind(phoneNumberId, organizationId),
-    );
-  }
   await db.batch(statements);
   return NextResponse.json({ id, status: 'submitted' }, { status: 201 });
 }

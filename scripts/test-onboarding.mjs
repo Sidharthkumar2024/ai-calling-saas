@@ -31,13 +31,13 @@ console.log('progress:');
 const fresh = onboardingState(nothing);
 ok('a new workspace has done nothing', fresh.completed === 0 && fresh.percent === 0);
 ok('the first prompt is choosing a plan', fresh.nextStep.id === 'plan');
-ok('every step is listed, optional ones included', fresh.total === 8);
+ok('seven business setup steps, no number KYC step', fresh.total === 7 && fresh.steps.every(s => s.id !== 'documents'));
 const half = onboardingState({ ...nothing, planSelected: true, businessDetails: true });
-ok('progress counts what is done', half.completed === 2 && half.percent === 25);
-ok('the next prompt moves on', half.nextStep.id === 'documents');
+ok('progress counts what is done', half.completed === 2 && half.percent === 29);
+ok('the next prompt moves on to payment, not number KYC', half.nextStep.id === 'payment');
 ok(
-  'an optional step is still prompted, just not required',
-  half.nextStep.required === false,
+  'payment is still required',
+  half.nextStep.required === true,
 );
 
 console.log('the §3 gate:');
@@ -55,7 +55,7 @@ ok('all required steps done means live', onboardingState(required).live === true
 ok(
   'optional steps do not block: no integrations, no knowledge, still live',
   onboardingState(required).live === true &&
-    onboardingState(required).steps.filter((s) => !s.done).length === 3,
+    onboardingState(required).steps.filter((s) => !s.done).length === 2,
 );
 ok('nothing is left to prompt once everything is done', onboardingState({
   ...required,

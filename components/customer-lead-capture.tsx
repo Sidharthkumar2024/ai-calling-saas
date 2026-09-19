@@ -242,7 +242,7 @@ export function CustomerLeadCapture({
             Build, preview and publish your callback popup
           </h1>
           <p className="mt-2 max-w-3xl text-xs leading-5 text-ink-muted sm:text-sm">
-            Every submission enters the tenant CRM with page attribution,
+            Every submission enters the customer CRM with page attribution,
             consent-aware follow-up and AI scoring.
           </p>
         </div>

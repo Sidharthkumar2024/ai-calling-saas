@@ -1,7 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Loader2, Plus, RefreshCw, Send, Trash2 } from 'lucide-react';
+import {
+  Coins,
+  Loader2,
+  MessageSquareText,
+  Plus,
+  RefreshCw,
+  Send,
+  Smartphone,
+  Trash2,
+} from 'lucide-react';
 
 import {
   CATEGORIES,
@@ -140,6 +149,14 @@ export function CustomerWhatsAppTemplates() {
     );
 
   const problems = composing ? validateDraft(draft) : [];
+  const estimatedCredits =
+    draft.category === 'MARKETING' ? 6 : draft.category === 'UTILITY' ? 3 : 3;
+  const previewBody = draft.body
+    ? draft.body.replace(/\{\{(\d+)\}\}/g, (_match, slot) => {
+        const examples = ['Aarav', 'tomorrow 4 PM', '₹2,499'];
+        return examples[Number(slot) - 1] ?? `Sample ${slot}`;
+      })
+    : 'Hello Aarav, your appointment is confirmed. Reply here if you need to change it.';
 
   return (
     <div className="space-y-4">
@@ -197,6 +214,8 @@ export function CustomerWhatsAppTemplates() {
 
       {composing ? (
         <section className="portal-panel space-y-3 p-5">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="min-w-0 space-y-3">
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="text-[11px] text-ink-muted">
               Name
@@ -275,6 +294,16 @@ export function CustomerWhatsAppTemplates() {
               className="mt-1 w-full rounded-lg border border-hairline bg-surface px-2 py-1.5 text-[12px] text-ink"
             />
           </label>
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-3">
+            <p className="flex items-center gap-2 text-[11px] font-semibold text-emerald-900">
+              <Coins className="size-3.5" /> Estimated wallet cost
+            </p>
+            <p className="mt-1 text-[11px] text-emerald-900/75">
+              {estimatedCredits} credits per accepted send for this category.
+              Final debit still depends on provider acceptance and later
+              webhook reconciliation.
+            </p>
+          </div>
           {/* Every reason at once, while the words are still on screen. Meta
               answers in hours, and one problem per round is the failure this
               replaces. */}
@@ -311,6 +340,44 @@ export function CustomerWhatsAppTemplates() {
             >
               Cancel
             </button>
+          </div>
+            </div>
+            <aside className="rounded-[2rem] border border-hairline bg-[#101815] p-3 text-white shadow-xl">
+              <div className="rounded-[1.5rem] bg-[#eef8f1] p-3 text-[#143526]">
+                <div className="mb-3 flex items-center justify-between text-[10px]">
+                  <span>9:41</span>
+                  <Smartphone className="size-3.5" />
+                </div>
+                <div className="rounded-2xl bg-white p-3 shadow-sm">
+                  <p className="flex items-center gap-2 text-[11px] font-semibold">
+                    <MessageSquareText className="size-3.5 text-emerald-700" />
+                    {draft.name || 'template_name'}
+                  </p>
+                  {draft.header ? (
+                    <p className="mt-3 text-[11px] font-semibold">
+                      {draft.header}
+                    </p>
+                  ) : null}
+                  <p className="mt-2 whitespace-pre-wrap text-[12px] leading-5">
+                    {previewBody}
+                  </p>
+                  {draft.footer ? (
+                    <p className="mt-2 text-[10px] text-emerald-900/55">
+                      {draft.footer}
+                    </p>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="mt-3 w-full rounded-full bg-emerald-600 px-3 py-2 text-[11px] font-semibold text-white"
+                  >
+                    Reply on WhatsApp
+                  </button>
+                </div>
+                <p className="mt-3 text-center text-[10px] text-emerald-900/60">
+                  Live preview — Meta rendering may vary.
+                </p>
+              </div>
+            </aside>
           </div>
         </section>
       ) : null}

@@ -6,6 +6,7 @@ const sections = [
   ['quickstart', 'Quickstart'],
   ['authentication', 'Authentication'],
   ['leads', 'Lead API'],
+  ['sms', 'SMS send'],
   ['credits', 'Wallet'],
   ['forms', 'Forms & widgets'],
   ['webhooks', 'Webhooks'],
@@ -23,6 +24,12 @@ curl --fail-with-body "$CALL_VANI_ORIGIN/api/v1/leads" \\
   -d '{"sourceType":"manual","externalLeadId":"crm-1042",
        "name":"Aarav Mehta","phone":"+919876543210",
        "productInterest":"Product demo","notes":"Requested a callback"}'`;
+const smsExample = `# Session-authenticated app endpoint, for workspace users.
+# Public bearer-key SMS v1 is intentionally not exposed yet.
+curl --fail-with-body "$CALL_VANI_ORIGIN/api/app/sms" \\
+  -H "Content-Type: application/json" \\
+  -b "YOUR_APP_SESSION_COOKIE" \\
+  -d '{"to":"+919876543210","message":"Hi Aarav, your Call Vani demo is confirmed."}'`;
 const verifier = `import { createHmac, timingSafeEqual } from 'node:crypto';
 
 export function verifyWebhook(rawBody, header, secret) {
@@ -171,7 +178,7 @@ export default function DocsPage() {
           <Section id="authentication" title="02 / Authentication & scopes">
             <p>
               Send <code>Authorization: Bearer vaani_live_…</code>. Keys are
-              shown once, hashed at rest, tenant-scoped and revocable. Create
+              shown once, hashed at rest, customer-scoped and revocable. Create
               separate keys per server and give each only the required scope.
               Never put a private key in a website, mobile bundle, URL or log.
             </p>
@@ -260,7 +267,29 @@ export default function DocsPage() {
               }
             </DocCode>
           </Section>
-          <Section id="credits" title="04 / Wallet balance">
+          <Section id="sms" title="04 / SMS send">
+            <Endpoint
+              method="POST"
+              path="/api/app/sms"
+              scope="Workspace session · campaigns.manage"
+            />
+            <p>
+              SMS is available inside the authenticated app for workspaces that
+              connect a BYO <code>sms_gateway</code> integration. This endpoint
+              holds wallet credits before sending, finalizes when the provider
+              accepts the message and releases the hold for sandbox/no-provider
+              or provider rejection.
+            </p>
+            <DocCode>{smsExample}</DocCode>
+            <p>
+              First version charges one <code>sms_message</code> event per
+              submitted message. Provider segment-count reconciliation belongs
+              in the delivery webhook and is not exposed as a public API yet.
+              If no SMS gateway is connected, the API returns sandbox delivery
+              and releases the wallet hold.
+            </p>
+          </Section>
+          <Section id="credits" title="05 / Wallet balance">
             <Endpoint
               method="GET"
               path="/api/v1/credits"
@@ -283,8 +312,16 @@ export default function DocsPage() {
               one rupee or one minute. Do not derive a charge from balance
               alone.
             </p>
+            <p>
+              In-app usage charges use a hold → finalize → release model.
+              Current billable ids include inbound call minute, outbound call
+              minute, AI voice minute, test call, WhatsApp marketing template,
+              WhatsApp utility/authentication template, WhatsApp service reply,
+              SMS message, email send and recording storage. Workspace admins
+              can view the exact live rate card in Billing.
+            </p>
           </Section>
-          <Section id="forms" title="05 / Website forms & widgets">
+          <Section id="forms" title="06 / Website forms & widgets">
             <p>
               Create an active form under Lead Capture. Configure its allowed
               origins, fields, logo, theme and display trigger. The generated
@@ -316,7 +353,7 @@ export default function DocsPage() {
               the lead-form endpoint.
             </p>
           </Section>
-          <Section id="webhooks" title="06 / Signed lead webhooks">
+          <Section id="webhooks" title="07 / Signed lead webhooks">
             <p>
               Add an HTTPS receiver under Integrations &amp; API → Webhooks. The
               currently emitted events are <code>lead.created</code> and{' '}
@@ -339,7 +376,7 @@ export default function DocsPage() {
               asynchronously, and use durable event-ID deduplication.
             </p>
           </Section>
-          <Section id="errors" title="07 / Errors, retries & limits">
+          <Section id="errors" title="08 / Errors, retries & limits">
             <ul className="list-disc space-y-2 pl-5">
               <li>
                 <strong>400:</strong> invalid lead JSON, fields, source or
@@ -368,7 +405,7 @@ export default function DocsPage() {
               gateway limit before public production exposure.
             </p>
           </Section>
-          <Section id="billing" title="08 / Billing units & payment state">
+          <Section id="billing" title="09 / Billing units & payment state">
             <p>
               New monthly plans: Launch ₹2,999; Growth ₹9,999; Scale ₹24,999.
               Usage is separate. New credit packs cost ₹1.90/credit; existing
@@ -397,7 +434,7 @@ export default function DocsPage() {
               until each voice route has validated duration metering.
             </p>
           </Section>
-          <Section id="integrations" title="09 / Connect the right account">
+          <Section id="integrations" title="10 / Connect the right account">
             <p>
               Customers connect their own accounts from Integrations; platform
               operators configure provider credentials privately. Never share
@@ -415,7 +452,7 @@ export default function DocsPage() {
                 callback with the configured lead-form key.
               </li>
               <li>
-                <strong>WhatsApp:</strong> verify tenant business/phone assets
+                <strong>WhatsApp:</strong> verify customer business/phone assets
                 and opt-in. Outside the rolling customer-service window,
                 approved templates are required. Marketing is not generally
                 free.

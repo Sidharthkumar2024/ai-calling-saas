@@ -123,6 +123,7 @@ const round = (value: number) => Math.round(value);
 export function costPerMinute(
   rate: RateLookup,
   assumptions: Assumptions = DEFAULT_ASSUMPTIONS,
+  carrierBilling: 'platform' | 'customer' = 'platform',
 ): MinuteCost {
   const turns = Math.max(0, assumptions.turnsPerMinute);
   const inputTokens = turns * assumptions.inputTokensPerTurn;
@@ -168,9 +169,9 @@ export function costPerMinute(
     },
     {
       key: 'telephony',
-      label: 'Carrier',
-      micros: priceFor(rate('telephony', 'minutes'), 'minutes', 1),
-      quantity: '1 minute',
+      label: carrierBilling === 'customer' ? 'Carrier (customer pays provider directly)' : 'Carrier',
+      micros: carrierBilling === 'customer' ? 0 : priceFor(rate('telephony', 'minutes'), 'minutes', 1),
+      quantity: carrierBilling === 'customer' ? 'Excluded from Call Vani costs' : '1 minute',
     },
   ];
 

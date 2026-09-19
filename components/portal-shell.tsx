@@ -253,6 +253,7 @@ export function PortalShell({
               {credits.toLocaleString('en-IN')}
             </button>
           ) : null}
+          <Link href="/status" className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-ink-muted hover:text-ink"><Activity className="size-3.5" /> Status</Link>
           <Link
             href="/docs"
             className="hidden items-center gap-2 rounded-lg px-2 py-2 text-[11px] text-ink-muted hover:bg-surface-strong hover:text-ink sm:flex"
@@ -280,12 +281,6 @@ export function PortalShell({
               ))}
             </select>
           </label>
-          <Badge
-            variant="outline"
-            className="hidden border-emerald-400/15 bg-emerald-400/6 text-[11px] text-success-text sm:inline-flex"
-          >
-            Core healthy
-          </Badge>
         </header>
 
         {children}

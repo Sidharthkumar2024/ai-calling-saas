@@ -1,5 +1,6 @@
 'use client';
 import { ProviderLogo } from '@/components/provider-logo';
+import { ServiceStatus } from '@/components/service-status';
 import { displayBrand } from '@/lib/display-brand';
 
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
@@ -493,6 +494,9 @@ const groups: PortalNavGroup[] = [
         translationKey: 'nav.billing',
       },
       {
+        id: 'api_status', label: 'API & service status', icon: Activity,
+      },
+      {
         id: 'team',
         label: 'Team',
         icon: UsersRound,
@@ -945,6 +949,7 @@ export function CustomerPortal({ session }: { session: CustomerSession }) {
             {!loading && !error && active === 'objects' ? (
               <CustomerObjects />
             ) : null}
+            {!loading && !error && active === 'api_status' ? <ServiceStatus /> : null}
             {!loading && !error && active === 'whatsapp_inbox' ? (
               <CustomerWhatsAppInbox />
             ) : null}
@@ -1016,7 +1021,7 @@ function CustomerOverview({
       <Header
         eyebrow="Revenue command center"
         title="Good evening, your AI team is working"
-        description="Leads, conversations, appointments and revenue actions—measured from tenant-owned records."
+        description="Leads, conversations, appointments and revenue actions—measured from customer-owned records."
         action={
           <Button
             onClick={() => onNavigate('campaigns')}

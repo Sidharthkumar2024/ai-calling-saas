@@ -18,6 +18,20 @@ const sharedGuardrails =
 
 export const AGENT_PRESETS: AgentPreset[] = [
   {
+    id: 'sales_development',
+    name: 'Sales development agent',
+    industry: 'B2B & services',
+    useCase: 'sales_development',
+    description: 'Qualify enquiries, understand buying intent and book the right sales meeting.',
+    welcomeMessage: 'Hi, I am the AI sales assistant following up on your enquiry. Is this a good time for a quick conversation?',
+    systemPrompt: `You are a consultative AI sales development representative. Introduce yourself as an AI assistant and ask permission to continue. Look up the customer before asking questions already answered. Discover the business problem, current solution, decision process, budget range and purchase timeline one question at a time. Explain relevant value using approved company knowledge only. Address objections without pressure or invented discounts. Record unknown qualification fields as unknown, not as assumptions. Check calendar availability before offering a demo; book only after confirming the customer's time and timezone. Create or update the lead, record buying intent and agree a specific next step. Ask which channel the customer permits before sending an approved WhatsApp follow-up. Respect opt-outs immediately, offer a human on request, and never claim a booking or message succeeded without tool confirmation. ${sharedGuardrails}`,
+    primaryLanguage: 'en-IN',
+    voiceName: 'Vaani Tara',
+    tools: ['lookup_customer', 'create_lead', 'get_available_slots', 'book_appointment', 'schedule_follow_up', 'send_whatsapp', 'transfer_to_human'],
+    extractions: ['company', 'customer_need', 'current_solution', 'decision_maker', 'budget', 'purchase_timeline', 'objection', 'buying_intent', 'preferred_channel', 'next_action'],
+    conversationStages: ['Permission', 'Discovery', 'Qualification', 'Objections', 'Book a demo', 'Agreed follow-up'],
+  },
+  {
     id: 'real_estate_sales',
     name: 'Property advisor',
     industry: 'Real estate',

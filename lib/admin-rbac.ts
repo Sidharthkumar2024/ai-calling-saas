@@ -45,10 +45,10 @@ export function isAdminRole(value: unknown): value is AdminRole {
 /** What each role is for, in the words the person assigning it reads. */
 export const ADMIN_ROLE_LABEL: Record<AdminRole, string> = {
   super_admin: 'Super admin — everything, including who else is an admin',
-  operations: 'Operations — tenants, providers and support sessions',
-  finance: 'Finance — tenants and billing',
+  operations: 'Operations — customers, providers and support sessions',
+  finance: 'Finance — customers and billing',
   analyst: 'Analyst — read-only',
-  support: 'Support executive — reads tenants, opens audited support sessions',
+  support: 'Support executive — reads customers, opens audited support sessions',
 };
 
 export type AdminRole =

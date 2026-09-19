@@ -432,15 +432,19 @@ so they are not re-narrated here.
 
 **Still engineering here.**
 
-- **[CODE] A campaign cannot place a call.** `startOutboundCall` and
-  `startVobizCall` both exist and both are reachable; the only path to either is
-  POST /api/app/calls, one number at a time. The dial loop walks every gate a real call must pass
-  and then records each eligible contact as blocked with the reason, because it
-  has nowhere to send it. Wiring it needs two things this code does not have: a
-  link from a call back to the contact it belongs to, and an end driven by the
-  telephony webhook — without the second, a contact who answers is dialled
-  again on the next backoff until the attempt limit runs out. It is also [KEY]:
-  there is no outbound leg without a carrier.
+- ~~**[CODE] A campaign cannot place a call.**~~ Done. The dial loop places the
+  call now. What made it possible was the half that was missing rather than the
+  dialling itself: `call_records.campaign_contact_id` joins a call to the contact
+  it was placed for, and `lib/campaign-settlement.ts` is the only thing that
+  moves a contact out of `dialing` — from the carrier's webhook, or from the
+  hourly sweep when no webhook comes. A contact is claimed with a conditional
+  write, so two overlapping passes cannot ring the same phone; a retried callback
+  settles nothing twice; and the retry ladder the campaign form has always
+  written (`backoffMinutes`) is finally read, so "two hours, then a day" is two
+  hours and then a day. `attempted` counts calls a carrier accepted and nothing
+  else. Still [KEY] for the last step: there is no outbound leg without a carrier
+  account, and with none configured the loop records `telephony_unconfigured`
+  exactly as before.
 - ~~**[CODE] An Ask cannot check its own answer.**~~ Done. The `expect` field
   is read now: an answer of the wrong kind is refused, the Ask says what was
   wrong and asks again, up to three times, and then carries on with what it has
@@ -495,6 +499,26 @@ dial loop, which is now possible but still needs a call↔contact link. Also
 unresolved: their partner-API page documents `POST /login` returning a JWT, and
 no login, token, refresh or SSO endpoint appears anywhere in their OpenAPI
 spec. Nothing here depends on it; it is flagged rather than coded against.
+
+**Found while wiring the campaign dialer.**
+
+- `campaigns.connected` is rendered on the campaigns screen and had **no writer
+  anywhere**. It counts now, once per contact that left `dialing` connected.
+- `campaign_contacts.attempt_count` was never incremented by anything,
+  `status = 'retry'` had no writer, and `next_attempt_at` was only ever written
+  as NULL. All three are live.
+- `call_records.provider_reference` existed as a column and only **inbound**
+  rows carried it — measured in the local database: 2 of 92 inbound rows had
+  one, 0 of 13 outbound. So a carrier callback naming its own call id and
+  nothing of ours could not find an outbound call at all. Both outbound paths
+  write it now.
+- `next_attempt_at` joined the ISO-versus-SQLite timestamp audit. It was a
+  latent instance — nothing wrote the column, so nothing compared wrongly yet —
+  and writing it would have made the comparison live.
+- The workflow canvas drew a node's problem count **outside its own border**: a
+  card is a fixed 76px box and four lines of text need 82, so the line that fell
+  out was always the last one, which is the count of what is wrong with that
+  node. Measured in the browser: 8px outside before, 0 after.
 
 **The standing audits, today.**
 

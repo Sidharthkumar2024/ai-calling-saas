@@ -184,6 +184,9 @@ let saved = 0,
   refusal = null,
   sends = 0,
   templateSends = 0,
+  holds = 0,
+  finals = 0,
+  releases = 0,
   connected = true,
   templateRow = null,
   inbound = new Date().toISOString();
@@ -243,6 +246,33 @@ const modules = {
       return { status: 'sent', providerReference: 'synthetic-template' };
     },
   },
+  '@/lib/usage-wallet': {
+    holdUsageCredits: async () => {
+      holds++;
+      return {
+        status: 'held',
+        estimatedCredits: 1,
+        balance: 999,
+      };
+    },
+    finalizeUsageCredits: async () => {
+      finals++;
+      return {
+        status: 'finalized',
+        estimatedCredits: 1,
+        finalCredits: 1,
+        balance: 998,
+      };
+    },
+    releaseUsageHold: async () => {
+      releases++;
+      return {
+        status: 'released',
+        estimatedCredits: 1,
+        balance: 999,
+      };
+    },
+  },
   '@/lib/whatsapp-inbox': await import('../lib/whatsapp-inbox.ts'),
   '@/lib/whatsapp-templates': await import('../lib/whatsapp-templates.ts'),
   '@/lib/whatsapp-bot-rules': await import('../lib/whatsapp-bot-rules.ts'),
@@ -293,6 +323,9 @@ inbound = new Date().toISOString();
 equal((await reply({ phone: '+919876543210', text: 'Hi' })).status, 200);
 equal(sends, 1);
 equal(saved, 1);
+equal(holds, 1);
+equal(finals, 1);
+equal(releases, 0);
 
 // A refusal is reported in its own words. The sender turns down a
 // do-not-contact number before it goes near Meta, and "Meta did not accept
@@ -303,9 +336,11 @@ const refused = await reply({ phone: '+919876543210', text: 'Hi' });
 equal(refused.status, 409);
 equal((await refused.json()).error, 'This customer is on the do-not-contact list.');
 equal(sends, 1);
+equal(releases, 1);
 // Anything else is still a gateway problem.
 refusal = 'Meta returned 503.';
 equal((await reply({ phone: '+919876543210', text: 'Hi' })).status, 502);
+equal(releases, 2);
 refusal = null;
 
 // Templates: the answer to a closed window, not a way around it.
@@ -342,6 +377,8 @@ const savedBefore = saved;
 equal((await sendTemplate({ templateId: 'wt_1', params: ['Asha', 'Tuesday'] })).status, 200);
 equal(templateSends, 1);
 equal(saved, savedBefore + 1);
+equal(holds, 4);
+equal(finals, 2);
 templateRow = null;
 inbound = new Date().toISOString();
 // Actual commerce adapter: tenant routing, structured encrypted token decoding,
@@ -349,7 +386,7 @@ inbound = new Date().toISOString();
 const commerceDb = new DatabaseSync(':memory:');
 commerceDb.exec(`CREATE TABLE integration_connections(organization_id TEXT, type TEXT, public_config_json TEXT, encrypted_secret TEXT, status TEXT); CREATE TABLE whatsapp_messages(organization_id TEXT, sender_phone TEXT, direction TEXT, created_at TEXT); CREATE TABLE suppression_entries(id TEXT, phone_hash TEXT, organization_id TEXT, scope TEXT, expires_at TEXT);`);
 function dbStatement(query, args = []) { return { bind(...values) { return dbStatement(query, values); }, async first() { return commerceDb.prepare(query).get(...args) ?? null; }, async all() { return { results: commerceDb.prepare(query).all(...args) }; } }; }
-const commerceModules = { '@/db/index': { getRawDb: () => ({ prepare: dbStatement }) }, '@/lib/security': { decryptSecret: async value => value, sha256 }, '@/lib/provider-secret-policy': { decodeProviderSecret }, '@/lib/platform-secrets': { readPlatformSecret: async () => ({ disabled: false, config: {}, secrets: {} }) }, '@/lib/whatsapp-inbox': { replyWindow } };
+const commerceModules = { '@/db/index': { getRawDb: () => ({ prepare: dbStatement }) }, '@/lib/security': { decryptSecret: async value => value, sha256 }, '@/lib/provider-secret-policy': { decodeProviderSecret }, '@/lib/platform-secrets': { readPlatformSecret: async () => ({ disabled: false, config: {}, secrets: {} }) }, '@/lib/whatsapp-inbox': { replyWindow }, '@/lib/smtp-email': { sendSmtpEmail: async () => ({ id: 'smtp-test', accepted: [], rejected: [] }) } };
 const commerce = {};
 let commerceFetches = 0;
 const commerceEnv = { WHATSAPP_ACCESS_TOKEN: 'platform-token', WHATSAPP_PHONE_NUMBER_ID: '123456', WHATSAPP_DEFAULT_ORGANIZATION_ID: 'org_A' };

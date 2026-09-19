@@ -118,6 +118,18 @@ export async function providerReadiness(organizationId?: string | null) {
       ['ELEVENLABS_API_KEY', 'ELEVENLABS_VOICE_ID'],
     ),
     readiness(
+      'cartesia',
+      'Call Vani Sonic Voice',
+      platform.set.has('cartesia') || connected.has('cartesia_voice'),
+      ['CARTESIA_API_KEY', 'CARTESIA_VOICE_ID'],
+    ),
+    readiness(
+      'bolna',
+      'Call Vani Bolna Voice Agent',
+      platform.set.has('bolna') || connected.has('bolna_voice'),
+      ['BOLNA_API_KEY'],
+    ),
+    readiness(
       'openai',
       'Vaani Realtime',
       openai || connected.has('openai_platform'),
@@ -161,6 +173,63 @@ export async function providerReadiness(organizationId?: string | null) {
       razorpay || connected.has('razorpay'),
       ['RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET', 'RAZORPAY_WEBHOOK_SECRET'],
     ),
+    readiness(
+      'smtp',
+      'Call Vani Mail',
+      (platform.set.has('smtp') &&
+        Boolean(configString(platformConfig('smtp'), 'host')) &&
+        Boolean(configString(platformConfig('smtp'), 'username')) &&
+        Boolean(configString(platformConfig('smtp'), 'fromAddress'))) ||
+        Boolean(
+          process.env.SMTP_HOST &&
+            process.env.SMTP_USERNAME &&
+            process.env.SMTP_PASSWORD &&
+            process.env.SMTP_FROM,
+        ),
+      ['SMTP_HOST', 'SMTP_USERNAME', 'SMTP_PASSWORD', 'SMTP_FROM'],
+    ),
+    readiness(
+      'stripe',
+      'Call Vani Payments · Stripe',
+      platform.set.has('stripe') || connected.has('stripe'),
+      ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET'],
+    ),
+    readiness(
+      'payu',
+      'Call Vani Payments · PayU',
+      platform.set.has('payu') || connected.has('payu'),
+      ['PAYU_MERCHANT_KEY', 'PAYU_MERCHANT_SALT'],
+    ),
+    readiness(
+      'phonepe',
+      'Call Vani Payments · PhonePe',
+      platform.set.has('phonepe') || connected.has('phonepe'),
+      ['PHONEPE_MERCHANT_ID', 'PHONEPE_SALT_KEY'],
+    ),
+    readiness(
+      'paytm',
+      'Call Vani Payments · Paytm',
+      platform.set.has('paytm') || connected.has('paytm'),
+      ['PAYTM_MERCHANT_ID', 'PAYTM_MERCHANT_KEY'],
+    ),
+    readiness(
+      'cashfree',
+      'Call Vani Payments · Cashfree',
+      platform.set.has('cashfree') || connected.has('cashfree'),
+      ['CASHFREE_CLIENT_ID', 'CASHFREE_CLIENT_SECRET'],
+    ),
+    readiness(
+      'vobiz',
+      'Call Vani Numbers · Vobiz',
+      platform.set.has('vobiz') || connected.has('telephony_vobiz'),
+      ['VOBIZ_AUTH_ID', 'VOBIZ_AUTH_TOKEN'],
+    ),
+    readiness(
+      'sms',
+      'Call Vani SMS',
+      platform.set.has('sms') || connected.has('sms_gateway'),
+      ['SMS_PROVIDER', 'SMS_API_KEY', 'SMS_SENDER_ID'],
+    ),
   ].map((item) =>
     platform.disabled.has(item.adapter)
       ? {
@@ -191,12 +260,21 @@ export async function synthesizeSpeech(input: {
    */
   outputFormat?: 'mp3' | 'ulaw_8000' | 'pcm_16000';
 }) {
-  const [credentials, globalVoice, sarvamPlatform, elevenPlatform] =
+  const [
+    credentials,
+    globalVoice,
+    cartesiaVoice,
+    sarvamPlatform,
+    elevenPlatform,
+    cartesiaPlatform,
+  ] =
     await Promise.all([
       connectionCredentials(input.organizationId, 'sarvam_voice'),
       connectionCredentials(input.organizationId, 'elevenlabs_voice'),
+      connectionCredentials(input.organizationId, 'cartesia_voice'),
       platformProviderSecret('sarvam'),
       platformProviderSecret('elevenlabs'),
+      platformProviderSecret('cartesia'),
     ]);
   const apiKey = sarvamPlatform.disabled
     ? undefined
@@ -226,6 +304,37 @@ export async function synthesizeSpeech(input: {
     configString(elevenPlatform.config, 'modelId') ||
     process.env.ELEVENLABS_MODEL_ID ||
     undefined;
+  const cartesiaApiKey = cartesiaPlatform.disabled
+    ? undefined
+    : cartesiaVoice.secrets.apiKey ||
+      cartesiaPlatform.apiKey ||
+      process.env.CARTESIA_API_KEY;
+  const cartesiaVoiceId =
+    (input.voice?.provider === 'cartesia' ? input.voice.voiceId || '' : '') ||
+    (cartesiaVoice.secrets.apiKey
+      ? configString(cartesiaVoice.publicConfig, 'accountId')
+      : '') ||
+    configString(cartesiaPlatform.config, 'voiceId') ||
+    process.env.CARTESIA_VOICE_ID ||
+    '';
+  if (input.voice?.provider === 'cartesia') {
+    if (!cartesiaApiKey || !cartesiaVoiceId)
+      throw new ProviderConfigurationError(
+        'Cartesia needs an API key and voice ID before this voice can be used.',
+      );
+    return synthesizeCartesiaSpeech({
+      ...input,
+      apiKey: cartesiaApiKey,
+      voiceId: cartesiaVoiceId,
+      modelId:
+        input.voice.modelId ||
+        configString(cartesiaPlatform.config, 'model') ||
+        'sonic-3.6',
+      baseUrl:
+        configString(cartesiaPlatform.config, 'baseUrl') ||
+        'https://api.cartesia.ai',
+    });
+  }
   // Which engine speaks this language, rather than which key happens to exist.
   // The old rule routed everything to Sarvam unless the profile said otherwise
   // or the language was exactly 'en-IN'. With an India-only catalog that held;
@@ -1122,35 +1231,51 @@ export class CarrierRejectedError extends Error {
 /**
  * Place a call through Vobiz, the carrier this product resells.
  *
- * Where Exotel is a carrier a customer brings, Vobiz is the one Vaani supplies:
- * the workspace is a sub-account under the partner account, with its own Auth
- * ID, its own balance and its own numbers. So the credentials read here are the
- * workspace's own — a call placed with the partner's would bill the partner and
- * land in the wrong account's CDRs.
+ * Where Exotel is commonly a carrier a customer brings, Vobiz can be managed
+ * by Call Vani. A workspace credential/sub-account always wins; the encrypted
+ * platform partner credential is the fallback for managed numbers. That keeps
+ * onboarding one-click while preserving strict BYO/sub-account isolation when
+ * a customer connects their own account.
  *
  * A 200 from this API means **queued**, not answered. Nothing about the call is
  * known until their callbacks arrive, which is why the returned status is
  * `queued` and why the answer and status URLs are built before the request.
  */
 /**
- * The Vobiz sub-account credentials belonging to one workspace.
+ * Resolve the Vobiz credentials for one workspace. Prefer its sub-account and
+ * fall back to the platform partner account for a managed Call Vani number.
  *
  * Exported because the callbacks need them too: their signature is an HMAC
  * keyed by the very same auth token, so a webhook cannot tell a real callback
  * from a forged one without reading the workspace's own credentials first.
  */
 export async function vobizWorkspaceCredentials(organizationId: string) {
-  const credentials = await connectionCredentials(
-    organizationId,
-    'telephony_vobiz',
-  );
+  const [credentials, managed] = await Promise.all([
+    connectionCredentials(organizationId, 'telephony_vobiz'),
+    platformProviderSecret('vobiz'),
+  ]);
+  const workspaceAuthId = configString(credentials.publicConfig, 'accountId');
+  const workspaceAuthToken = credentials.secrets.apiKey || '';
+  const managedConfig = managed.config as Record<string, unknown>;
   return {
     // The panel stores the auth id as public configuration and the token as
     // the encrypted secret, which is the right split: the id names the
     // sub-account and appears in their CDRs, the token is a password.
-    authId: configString(credentials.publicConfig, 'accountId'),
-    authToken: credentials.secrets.apiKey || '',
-    baseUrl: configString(credentials.publicConfig, 'baseUrl') || undefined,
+    authId:
+      workspaceAuthId ||
+      (!managed.disabled ? configString(managedConfig, 'authId') : '') ||
+      process.env.VOBIZ_AUTH_ID ||
+      '',
+    authToken:
+      workspaceAuthToken ||
+      (!managed.disabled ? managed.apiKey || '' : '') ||
+      process.env.VOBIZ_AUTH_TOKEN ||
+      '',
+    baseUrl:
+      configString(credentials.publicConfig, 'baseUrl') ||
+      (!managed.disabled ? configString(managedConfig, 'baseUrl') : '') ||
+      process.env.VOBIZ_BASE_URL ||
+      undefined,
   };
 }
 
@@ -1174,7 +1299,7 @@ export async function startVobizCall(input: {
   const publicBaseUrl = (process.env.PUBLIC_BASE_URL || '').replace(/\/$/, '');
   if (!authId || !authToken)
     throw new ProviderConfigurationError(
-      'This workspace has no Vobiz credentials. Add them in Integrations.',
+      'No Vobiz credentials are available. Connect the workspace provider or configure the managed platform account.',
     );
   // Their platform fetches these URLs; a localhost or http base means a call
   // that connects to silence, so it is refused here rather than discovered on
@@ -1309,6 +1434,13 @@ export async function testIntegrationConnection(
     // Deepgram uses a Token scheme rather than Bearer.
     return probe('https://api.deepgram.com/v1/projects', {
       authorization: `Token ${secrets.apiKey || ''}`,
+    });
+  }
+  if (row.type === 'bolna_voice') {
+    const resolvedBaseUrl =
+      baseUrl.replace(/\/$/, '') || 'https://api.bolna.ai';
+    return probe(`${resolvedBaseUrl}/user/me`, {
+      authorization: `Bearer ${secrets.apiKey || ''}`,
     });
   }
   if (row.type === 'stripe') {
@@ -1510,6 +1642,102 @@ async function synthesizeGlobalSpeech(input: {
     audioBase64,
     latencyMs,
     contentType: response.headers.get('content-type') || 'audio/mpeg',
+  };
+}
+
+const CARTESIA_OUTPUT: Record<
+  string,
+  { outputFormat: Record<string, unknown>; contentType: string }
+> = {
+  mp3: {
+    outputFormat: { container: 'mp3', bit_rate: 128000, sample_rate: 44100 },
+    contentType: 'audio/mpeg',
+  },
+  ulaw_8000: {
+    outputFormat: {
+      container: 'raw',
+      encoding: 'pcm_mulaw',
+      sample_rate: 8000,
+    },
+    contentType: 'audio/basic',
+  },
+  pcm_16000: {
+    outputFormat: {
+      container: 'raw',
+      encoding: 'pcm_s16le',
+      sample_rate: 16000,
+    },
+    contentType: 'audio/pcm;rate=16000',
+  },
+};
+
+async function synthesizeCartesiaSpeech(input: {
+  organizationId: string;
+  text: string;
+  languageCode: string;
+  apiKey: string;
+  voiceId: string;
+  modelId: string;
+  baseUrl: string;
+  outputFormat?: string;
+  voice?: { speakingRate?: string } | null;
+}) {
+  const output =
+    CARTESIA_OUTPUT[input.outputFormat ?? 'mp3'] ?? CARTESIA_OUTPUT.mp3;
+  const rate = Number(input.voice?.speakingRate);
+  const started = Date.now();
+  const response = await fetch(`${input.baseUrl.replace(/\/+$/, '')}/tts/bytes`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${input.apiKey}`,
+      'cartesia-version': '2026-08-14',
+      accept: output.contentType,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model_id: input.modelId,
+      transcript: input.text.slice(0, 2500),
+      voice: input.voiceId,
+      locale:
+        input.languageCode === 'hinglish' ? 'hi-IN' : input.languageCode,
+      normalization: 'auto',
+      output_format: output.outputFormat,
+      ...(Number.isFinite(rate) && rate >= 0.6 && rate <= 1.5
+        ? { generation_config: { speed: rate } }
+        : {}),
+    }),
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(
+      `Cartesia synthesis failed (${response.status}): ${detail.slice(0, 180)}`,
+    );
+  }
+  const latencyMs = Date.now() - started;
+  const requestId =
+    response.headers.get('x-request-id') || response.headers.get('request-id');
+  const audioBase64 = bytesToBase64(
+    new Uint8Array(await response.arrayBuffer()),
+  );
+  await recordUsage(
+    input.organizationId,
+    'provider_cartesia',
+    'speech',
+    'tts',
+    latencyMs,
+    requestId,
+    {
+      unit: 'characters',
+      units: input.text.slice(0, 2500).length,
+      model: input.modelId,
+    },
+  );
+  return {
+    providerReference: requestId,
+    audioBase64,
+    latencyMs,
+    contentType: response.headers.get('content-type') || output.contentType,
   };
 }
 

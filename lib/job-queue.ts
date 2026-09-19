@@ -1288,7 +1288,24 @@ async function closeIdleCalls(job: JobRow) {
     job.organization_id,
     MAX_CALL_MINUTES,
   );
-  return { closed, reservationsReleased: released };
+  // A campaign contact leaves `dialing` when the carrier's webhook says how the
+  // call ended. When no webhook comes — a dropped delivery, a wrong callback
+  // URL, a deploy in the middle — the contact stays there, and no query in the
+  // product picks it up again: the audience stops shrinking and the campaign
+  // never completes. This is the other way out.
+  const { reconcileDialingContacts } =
+    await import('@/lib/campaign-settlement');
+  const { reconciled } = await reconcileDialingContacts(
+    getRawDb(),
+    job.organization_id,
+    MAX_CALL_MINUTES,
+    new Date(),
+  );
+  return {
+    closed,
+    reservationsReleased: released,
+    contactsReconciled: reconciled,
+  };
 }
 
 async function analyseCall(job: JobRow, payload: Record<string, unknown>) {

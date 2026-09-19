@@ -44,7 +44,8 @@ export type CredentialFieldKey =
   | 'baseUrl'
   | 'webhookSecret'
   | 'model'
-  | 'fromAddress';
+  | 'fromAddress'
+  | 'senderId';
 
 export type CredentialField = {
   key: CredentialFieldKey;
@@ -136,7 +137,7 @@ export const INTEGRATION_CATALOG: IntegrationDefinition[] = [
     label: 'Vobiz',
     category: 'telephony',
     blurb:
-      'Indian voice, resold through Vaani. Each workspace is its own sub-account.',
+      'Connect your own Vobiz account for voice routing. Number rental and verification stay with Vobiz.',
     monogram: 'Vo',
     verifiable: false,
     // Their own two credentials, rather than the generic `apiKey` this entry
@@ -170,6 +171,31 @@ export const INTEGRATION_CATALOG: IntegrationDefinition[] = [
         required: false,
         placeholder: 'https://api.vobiz.ai',
         hint: 'Leave blank unless Vobiz has given you a different host.',
+      },
+    ],
+  },
+  {
+    id: 'bolna_voice',
+    label: 'Bolna AI',
+    category: 'telephony',
+    blurb:
+      'Voice agents, outbound calls, phone numbers and execution webhooks from Bolna.',
+    monogram: 'Bo',
+    verifiable: true,
+    fields: [
+      KEY('Bearer API key'),
+      {
+        key: 'baseUrl',
+        label: 'API base URL',
+        required: false,
+        placeholder: 'https://api.bolna.ai',
+      },
+      {
+        key: 'webhookSecret',
+        label: 'Webhook secret',
+        required: false,
+        secret: true,
+        hint: 'Use for completed-call webhook verification when enabled.',
       },
     ],
   },
@@ -317,6 +343,28 @@ export const INTEGRATION_CATALOG: IntegrationDefinition[] = [
     fields: [KEY()],
   },
   {
+    id: 'cartesia_voice',
+    label: 'Cartesia',
+    category: 'tts',
+    blurb: 'Sonic realtime speech for premium low-latency voices.',
+    monogram: 'Ca',
+    verifiable: false,
+    fields: [
+      KEY('API key'),
+      {
+        key: 'model',
+        label: 'Model',
+        required: false,
+        placeholder: 'sonic-3',
+      },
+      {
+        key: 'accountId',
+        label: 'Default voice ID',
+        required: false,
+      },
+    ],
+  },
+  {
     id: 'sarvam_voice',
     label: 'Sarvam',
     category: 'stt',
@@ -347,6 +395,35 @@ export const INTEGRATION_CATALOG: IntegrationDefinition[] = [
     monogram: 'Ai',
     verifiable: false,
     fields: [KEY()],
+  },
+  {
+    id: 'sms_gateway',
+    label: 'SMS gateway',
+    category: 'messaging',
+    blurb: 'Send OTP, payment links and missed-call follow-ups by SMS.',
+    monogram: 'SMS',
+    verifiable: false,
+    fields: [
+      {
+        key: 'baseUrl',
+        label: 'API base URL',
+        required: false,
+        placeholder: 'https://api.your-sms-provider.com',
+      },
+      KEY('API key'),
+      {
+        key: 'senderId',
+        label: 'Sender ID',
+        required: false,
+        placeholder: 'CALLVN',
+      },
+      {
+        key: 'webhookSecret',
+        label: 'Delivery webhook secret',
+        required: false,
+        secret: true,
+      },
+    ],
   },
   {
     id: 'resend',
@@ -393,6 +470,78 @@ export const INTEGRATION_CATALOG: IntegrationDefinition[] = [
     monogram: 'St',
     verifiable: true,
     fields: [KEY('Secret key', 'sk_live_…')],
+  },
+  {
+    id: 'payu',
+    label: 'PayU',
+    category: 'payments',
+    blurb: 'India checkout, payment links and signed webhooks.',
+    monogram: 'PU',
+    verifiable: false,
+    fields: [
+      { key: 'accountId', label: 'Merchant key', required: true },
+      KEY('Merchant salt'),
+      {
+        key: 'webhookSecret',
+        label: 'Webhook secret',
+        required: false,
+        secret: true,
+      },
+    ],
+  },
+  {
+    id: 'phonepe',
+    label: 'PhonePe',
+    category: 'payments',
+    blurb: 'UPI checkout and payment status callbacks.',
+    monogram: 'Pe',
+    verifiable: false,
+    fields: [
+      { key: 'accountId', label: 'Merchant ID', required: true },
+      KEY('Salt key'),
+      {
+        key: 'model',
+        label: 'Salt index',
+        required: false,
+        placeholder: '1',
+      },
+    ],
+  },
+  {
+    id: 'paytm',
+    label: 'Paytm',
+    category: 'payments',
+    blurb: 'Paytm checkout and order-status reconciliation.',
+    monogram: 'Pt',
+    verifiable: false,
+    fields: [
+      { key: 'accountId', label: 'Merchant ID', required: true },
+      KEY('Merchant key'),
+      {
+        key: 'model',
+        label: 'Website / channel',
+        required: false,
+        placeholder: 'DEFAULT',
+      },
+    ],
+  },
+  {
+    id: 'cashfree',
+    label: 'Cashfree',
+    category: 'payments',
+    blurb: 'India checkout, order status and payouts-ready reconciliation.',
+    monogram: 'Cf',
+    verifiable: false,
+    fields: [
+      { key: 'accountId', label: 'Client ID', required: true },
+      KEY('Client secret'),
+      {
+        key: 'webhookSecret',
+        label: 'Webhook secret',
+        required: false,
+        secret: true,
+      },
+    ],
   },
 
   // ---- Commerce ----

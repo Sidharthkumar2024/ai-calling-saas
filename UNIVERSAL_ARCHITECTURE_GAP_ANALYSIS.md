@@ -1,6 +1,10 @@
-# Universal AI Business + Calling OS — pending list
+# Universal AI Business + Calling OS — current gap list
 
 Compared with `Universal_AI_Business_Calling_OS_Architecture.pdf` on 2026-09-06.
+Reconciled again on 2026-09-12 against the current local code and the latest
+Call Vani feature flow. Items below are only kept as pending when they are still
+code work, live-provider acceptance work or an explicit production activation
+gate.
 
 ## Already covered in the local SaaS
 
@@ -15,6 +19,16 @@ Compared with `Universal_AI_Business_Calling_OS_Architecture.pdf` on 2026-09-06.
 - Numbers, SIP trunk records, KYC workflow, provider usage/latency telemetry,
   billing/credits/invoices and support tickets.
 - Private R2/S3 configuration surface and recording authorization path.
+- WhatsApp Command Center UI now has inbox operations, template/form send
+  actions, a builder palette and live phone previews. This closes the older
+  "basic inbox only" UI gap, but not Meta delivery receipts, Embedded Signup or
+  campaign-scale runtime gates.
+- Customer usage wallet/rate-card foundation now includes DB-backed usage rates,
+  admin editing, customer rate-card display, SMS send debit, WhatsApp send debit
+  and payment-link delivery debit/release flows.
+- AI Business Manager no longer starts blank: first-use discovery and launch
+  setup preview now recommend agent, WhatsApp, lead-form and test-call next
+  steps. Full schema generation/publishing remains separate.
 
 ## Pending or only partially implemented
 
@@ -24,18 +38,21 @@ Compared with `Universal_AI_Business_Calling_OS_Architecture.pdf` on 2026-09-06.
    variants, inventory, media assets, relations, searchable custom fields and
    computed fields end to end. The current object APIs are the foundation, not the
    full listing/inventory studio described in the PDF.
-2. **AI schema builder** — business discovery should propose object types, fields,
-   CRM stages and workflows, then persist an approval/publish step. Current AI
-   manager recommendations are not yet a complete schema-generation flow.
+2. **AI schema builder** — business discovery and launch setup preview now
+   exist, but the next layer should propose object types, fields, CRM stages and
+   workflows, then persist an approval/publish step. Current recommendations are
+   not yet a complete schema-generation flow.
 3. **Real second carrier** — Twilio/alternate telephony adapter, signed callbacks,
    failover routing and carrier-level DTMF/packet-loss validation still require
    implementation plus a verified carrier account.
 4. **Production media gateway** — deploy the WebSocket gateway regionally with
    `MEDIA_GATEWAY_SECRET`, public WSS, autoscaling, barge-in load tests and a real
    carrier leg. Local simulator coverage is not a production carrier test.
-5. **WhatsApp inbox UI and reply workflow** — the tenant-scoped inbox API and
-   inbound persistence exist; a polished inbox screen, thread view, reply composer,
-   template picker, delivery states and assignment/hand-off UI remain.
+5. **WhatsApp production lifecycle** — inbox UI, reply composer, Command Center
+   strip, template/form send paths and wallet debit exist. Still pending:
+   Meta Embedded Signup, approved template lifecycle, delivery/read/failure
+   receipt reconciliation, broadcast cost estimate/scheduling, assignment
+   cursor hardening and production WABA acceptance.
 6. **Private storage activation** — bind R2/S3, KMS/encryption, malware/MIME scan,
    lifecycle/retention jobs, backup/restore drill and signed-download monitoring.
 7. **Customer-owned integrations** — complete official OAuth/app-install flows and
@@ -44,8 +61,8 @@ Compared with `Universal_AI_Business_Calling_OS_Architecture.pdf` on 2026-09-06.
 8. **Payment separation** — finish tenant merchant gateway onboarding, test/live
    mode separation, webhook reconciliation and refund/chargeback handling for
    customer end-customer payments. The admin catalog now includes Razorpay,
-   Stripe, PayU, PhonePe, Paytm and manual bank transfer; provider adapters and
-   merchant verification are still activation work.
+   Stripe, PayU, PhonePe, Paytm, Cashfree and manual bank transfer; provider
+   adapters and merchant verification are still activation work.
 9. **Historical-call intelligence** — complete 50–70-call ingestion, consent gate,
    transcription/mining, winning/failed pattern extraction, playbook/evaluation-set
    approval and regression scoring. Existing playbook and objection tools are the
@@ -103,10 +120,11 @@ Compared with `Universal_AI_Business_Calling_OS_Architecture.pdf` on 2026-09-06.
 
 ## Recommended next implementation order
 
-1. WhatsApp inbox UI + replies.
-2. Object/listing studio + AI schema builder.
+1. Meta Embedded Signup, WhatsApp template lifecycle, delivery receipts and
+   broadcast wallet estimation.
+2. Object/listing studio + AI schema builder approval/publish.
 3. Production storage activation and document scanning/retention.
 4. Official OAuth connectors and tenant payment onboarding.
-5. Historical-call mining + prompt/voice evaluation.
-6. SSO/SCIM and squads/handoff.
-7. Production media deployment, scale tests and 10M hardening.
+5. Carrier minute settlement across every voice path and live media deployment.
+6. Historical-call mining + prompt/voice evaluation.
+7. SSO/SCIM, squads/handoff, scale tests and 10M hardening.

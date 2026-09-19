@@ -156,7 +156,7 @@ export function classifyService(
   const total = Number(sample.total ?? 0);
   const failures = Number(sample.failures ?? 0);
   const errorRate = total > 0 ? failures / total : null;
-  const p95 = Number.isFinite(Number(sample.p95LatencyMs))
+  const p95 = sample.p95LatencyMs != null && Number.isFinite(Number(sample.p95LatencyMs))
     ? Number(sample.p95LatencyMs)
     : null;
   const quotaUsedFraction =

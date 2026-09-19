@@ -1,4 +1,5 @@
 'use client';
+import { ProviderLogo } from '@/components/provider-logo';
 import { displayBrand } from '@/lib/display-brand';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -242,7 +243,7 @@ export function CustomerAgentStudio({
             Build · Test · Publish
           </p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-            Agent Studio
+            Sales Agent Studio
           </h1>
           <p className="mt-2 max-w-3xl text-xs leading-5 text-ink-muted sm:text-sm">
             Configure the conversation, intelligence, voice and actions, then
@@ -354,7 +355,7 @@ export function CustomerAgentStudio({
             </p>
             <p className="mt-2 text-[11px] leading-4 text-ink-muted">
               Test without calling a customer. Browser voice needs an available
-              voice connection; phone calls require number verification and KYC.
+              voice connection; phone calls require a verified carrier connection and call routing.
             </p>
           </div>
         </aside>
@@ -433,8 +434,8 @@ function SettingsPanel({
     return (
       <div className="space-y-6">
         <SettingSection
-          title="Pre-trained industry playbooks"
-          note="Start from a focused sales or support flow, then add your approved business knowledge"
+          title="Sales playbooks"
+          note="Choose a sales workflow, add your approved business knowledge and save the agent"
         >
           <div className="grid gap-3 sm:grid-cols-2">
             {AGENT_PRESETS.map((preset) => (
@@ -479,6 +480,22 @@ function SettingsPanel({
               </button>
             ))}
           </div>
+        </SettingSection>
+        <SettingSection
+          title="Sales journey"
+          note="Playbook stages and qualification fields saved with this agent"
+        >
+          <ol className="grid gap-2 sm:grid-cols-3">
+            {(Array.isArray(draft.callingConfig.conversationStages) ? draft.callingConfig.conversationStages : ['Choose a playbook']).map((stage, index) => (
+              <li key={String(stage)} className="flex items-center gap-2 rounded-xl border border-hairline bg-surface-muted p-3 text-xs">
+                <span className="grid size-6 shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-800">{index + 1}</span>{String(stage)}
+              </li>
+            ))}
+          </ol>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {draft.extractions.map(field => <span key={field} className="rounded-md border border-hairline px-2 py-1 text-[11px] text-ink-muted">{field.replaceAll('_', ' ')}</span>)}
+          </div>
+          <p className="mt-3 text-xs text-ink-muted">Unknown answers stay unknown. Meetings, follow-ups and handoffs require configured tools and a confirmed tool result.</p>
         </SettingSection>
         <SettingSection
           title="Welcome message"
@@ -587,6 +604,16 @@ function SettingsPanel({
   if (tab === 'languages')
     return (
       <div className="space-y-6">
+        <SettingSection title="Your sales voice stack" note="Listening, reasoning and speech are separate layers, selected from configured providers">
+          <div className="grid gap-3 sm:grid-cols-3">
+            {[
+              ['deepgram', 'Listen', 'Deepgram, Sarvam or ElevenLabs transcribe the customer. Test your target language and background noise.'],
+              ['openai', 'Understand', 'The configured language model handles discovery, objections and tool calls using your approved knowledge.'],
+              ['elevenlabs', 'Speak', 'Sarvam and ElevenLabs power the current speech runtime. Choose a language-matched voice and test interruptions.'],
+            ].map(([provider, title, description]) => <div key={title} className="rounded-xl border border-hairline bg-surface-muted p-4"><ProviderLogo provider={provider} /><p className="mt-3 text-sm font-medium">{title}</p><p className="mt-2 text-xs leading-5 text-ink-muted">{description}</p></div>)}
+          </div>
+          <p className="mt-3 text-xs text-ink-muted">A saved API key is not a successful voice test. Cartesia configuration is available, but is not yet wired into this speech runtime. Use Playground to check your active engine before launch.</p>
+        </SettingSection>
         <SettingSection
           title="Language and voice"
           note="Regional catalog with private provider routing and language-specific voice selection"
@@ -956,7 +983,7 @@ function SettingsPanel({
         <div className="grid gap-3 sm:grid-cols-2">
           {[
             ['Inbound agent', 'Assign an approved number'],
-            ['Outbound calling', 'KYC + consent + calling window'],
+            ['Outbound calling', 'Provider connection + consent + calling window'],
             ['Voicemail detection', 'Avoid long automated recordings'],
             ['Auto reschedule', 'Use explicit customer-requested timing'],
           ].map(([title, note]) => (
@@ -1983,7 +2010,7 @@ function TestConsole({
               Phone test is publish-gated
             </h3>
             <p className="mt-3 text-xs leading-5 text-ink-muted">
-              Verify your number, complete KYC and approve the calling use case.
+              Connect your carrier, configure call routing and confirm calling consent.
               Until then, use browser voice for the same conversational response
               without placing a call.
             </p>

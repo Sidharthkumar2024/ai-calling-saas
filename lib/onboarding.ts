@@ -20,7 +20,7 @@ export type OnboardingFacts = {
   planSelected: boolean;
   /** Legal name and tax identity, where the country needs one. */
   businessDetails: boolean;
-  /** At least one KYC document uploaded. */
+  /** Legacy business-document fact; not a number KYC gate or onboarding step. */
   documents: boolean;
   /** A paid invoice exists. This is the gate §3 cares about. */
   paid: boolean;
@@ -68,16 +68,9 @@ export function onboardingSteps(facts: OnboardingFacts): OnboardingStep[] {
       done: facts.businessDetails,
     },
     {
-      id: 'documents',
-      label: 'Documents',
-      description: 'Business registration and calling-purpose evidence.',
-      required: false,
-      done: facts.documents,
-    },
-    {
       id: 'payment',
       label: 'Payment',
-      description: 'A paid invoice. §3: no free production plan.',
+      description: 'Activate your subscription to use production calling.',
       required: true,
       done: facts.paid,
     },

@@ -275,7 +275,7 @@ export function CustomerSignup({ inviteToken }: { inviteToken?: string }) {
                       <ShieldCheck className="mb-2 size-4 text-cyan-700" />{' '}
                       Trial agents cannot call arbitrary phone numbers.
                       Publishing requires number ownership verification,
-                      business KYC and calling consent.
+                      provider connection and calling consent.
                     </div>
                   </>
                 ) : null}

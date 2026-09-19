@@ -1,4 +1,5 @@
 import { getRawDb } from './index';
+import { CUSTOMER_USAGE_RATES } from '@/lib/customer-usage-pricing';
 import { SEED_RATE_CARDS } from '@/lib/rate-cards';
 import { publishCommercialCatalog } from '@/lib/publish-commercial-catalog';
 
@@ -351,6 +352,23 @@ async function bootstrap() {
     )`),
     db.prepare(
       `CREATE INDEX IF NOT EXISTS idx_credit_ledger_org_created ON credit_ledger (organization_id, created_at)`,
+    ),
+    db.prepare(`CREATE TABLE IF NOT EXISTS customer_usage_rates (
+      id TEXT PRIMARY KEY NOT NULL,
+      category TEXT NOT NULL,
+      operation TEXT NOT NULL,
+      label TEXT NOT NULL,
+      unit TEXT NOT NULL,
+      credits INTEGER NOT NULL,
+      cost_basis TEXT NOT NULL,
+      customer_note TEXT NOT NULL,
+      margin_note TEXT NOT NULL,
+      status TEXT DEFAULT 'active' NOT NULL,
+      updated_by TEXT,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_customer_usage_rates_category ON customer_usage_rates (category, status)`,
     ),
     db.prepare(`CREATE TABLE IF NOT EXISTS invoices (
       id TEXT PRIMARY KEY NOT NULL,
@@ -1432,6 +1450,17 @@ async function bootstrap() {
     // window comes from provider_usage_events; this row carries the facts a
     // window cannot show — the last success, a tripped breaker, a declared
     // maintenance window, credential expiry and quota.
+    db.prepare(`CREATE TABLE IF NOT EXISTS public_status_updates (
+      id TEXT PRIMARY KEY NOT NULL,
+      component TEXT NOT NULL,
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      state TEXT NOT NULL,
+      starts_at TEXT NOT NULL,
+      ends_at TEXT,
+      created_by TEXT NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`),
     db.prepare(`CREATE TABLE IF NOT EXISTS service_health (
       component TEXT PRIMARY KEY NOT NULL,
       state TEXT DEFAULT 'unknown' NOT NULL,
@@ -2554,6 +2583,22 @@ async function bootstrap() {
   await ensureColumn(db, 'call_records', 'intelligence_status', 'TEXT');
   // Carrier's own call id, used to make an inbound webhook retry idempotent.
   await ensureColumn(db, 'call_records', 'provider_reference', 'TEXT');
+  // Which campaign contact this call was placed for.
+  //
+  // A campaign's audience lives in `campaign_contacts`; a call lives in
+  // `call_records`; and until now the only thing joining them was the lead id,
+  // which is null for an imported phone number. So a campaign could not be told
+  // how one of its own calls ended — which is exactly why the dialer refused to
+  // place them: a contact who answered would be dialled again on the next
+  // backoff, because nothing could mark them done.
+  await ensureColumn(db, 'call_records', 'campaign_contact_id', 'TEXT');
+  await db
+    .prepare(
+      `CREATE INDEX IF NOT EXISTS idx_call_records_campaign_contact ON call_records (campaign_contact_id)`,
+    )
+    .run();
+  // The other direction, so the campaign screen can open the call it made.
+  await ensureColumn(db, 'campaign_contacts', 'last_call_id', 'TEXT');
   // The WebRTC capability probe's findings (§6), stored beside the HTTP
   // measurements rather than mixed into them: they answer different questions.
   await ensureColumn(db, 'device_test_runs', 'webrtc_json', 'TEXT');
@@ -2681,6 +2726,42 @@ async function bootstrap() {
       )
       .run();
   }
+  // Customer-facing usage prices are separate from provider cost cards. The
+  // defaults are seeded once and then editable from the admin panel, so pricing
+  // changes never require an ENV change or deploy.
+  for (const rate of CUSTOMER_USAGE_RATES) {
+    await db
+      .prepare(
+        `INSERT OR IGNORE INTO customer_usage_rates
+          (id, category, operation, label, unit, credits, cost_basis,
+           customer_note, margin_note, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')`,
+      )
+      .bind(
+        rate.id,
+        rate.category,
+        rate.operation,
+        rate.label,
+        rate.unit,
+        rate.credits,
+        rate.costBasis,
+        rate.customerNote,
+        rate.marginNote,
+      )
+      .run();
+  }
+  // Update only unchanged seeded descriptions for the BYO-carrier model.
+  // Never reset an admin's prices, status, or customized text on startup.
+  const oldUsageCopy = [
+    ['call_inbound_minute', 'Carrier inbound minute + media gateway', 'Charged per started minute after the call connects.', 'Keep above carrier minute + STT/TTS pass-through exposure.'],
+    ['call_outbound_minute', 'Carrier outbound minute + dialing control', 'Charged per started minute after answer.', 'Higher than inbound because outbound carrier rates vary more.'],
+    ['ai_voice_minute', 'Deepgram/Sarvam STT + LLM + Cartesia/ElevenLabs TTS', 'Charged while the AI is actively listening or speaking.', 'Main margin line; tune after real provider invoices.'],
+  ];
+  for (const [id, oldCost, oldNote, oldMargin] of oldUsageCopy) {
+    const current = CUSTOMER_USAGE_RATES.find(rate => rate.id === id)!;
+    await db.prepare(`UPDATE customer_usage_rates SET cost_basis = ?, customer_note = ?, margin_note = ? WHERE id = ? AND cost_basis = ? AND customer_note = ? AND margin_note = ?`)
+      .bind(current.costBasis, current.customerNote, current.marginNote, id, oldCost, oldNote, oldMargin).run();
+  }
   // §15: nothing on the platform is 'platform_provided' any more — the rented
   // number path is gone, so a row still claiming it would describe a number
   // nobody owns.
@@ -2748,10 +2829,13 @@ async function seedLocalDemo(db: D1Database) {
     'VaaniUser#2026',
     'vaani-owner-local',
   );
+  const demoMfaGraceUntil = new Date(
+    Date.now() + 7 * 24 * 60 * 60 * 1000,
+  ).toISOString();
 
   await db.batch([
     db.prepare(`INSERT OR IGNORE INTO organizations (id, slug, name, status)
-      VALUES ('org_vaani_demo', 'urbannest-realty', 'UrbanNest Realty', 'active')`),
+      VALUES ('org_vaani_demo', 'sidharth-kumar-services', 'Sidharth Kumar · SaaS & Digital Services', 'active')`),
     db
       .prepare(`INSERT OR IGNORE INTO app_users
       (id, organization_id, name, email, password_hash, role, status)
@@ -2760,11 +2844,39 @@ async function seedLocalDemo(db: D1Database) {
     db
       .prepare(`INSERT OR IGNORE INTO app_users
       (id, organization_id, name, email, password_hash, role, status)
-      VALUES ('user_vaani_owner', 'org_vaani_demo', 'Sidharth Kumar', 'owner@vaani.local', ?, 'customer_owner', 'active')`)
+      VALUES ('user_vaani_owner', 'org_vaani_demo', 'Sidharth Kumar', 'sidharthkumar2028@gmail.com', ?, 'customer_owner', 'active')`)
       .bind(ownerHash),
+    db
+      .prepare(`INSERT INTO user_security_settings
+      (user_id, email_verified_at, mfa_enabled, mfa_grace_until, updated_at)
+      VALUES ('user_vaani_admin', CURRENT_TIMESTAMP, 0, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(user_id) DO UPDATE SET
+        email_verified_at = COALESCE(user_security_settings.email_verified_at, CURRENT_TIMESTAMP),
+        mfa_grace_until = CASE
+          WHEN user_security_settings.mfa_enabled = 1 THEN user_security_settings.mfa_grace_until
+          WHEN user_security_settings.mfa_grace_until IS NULL THEN excluded.mfa_grace_until
+          WHEN user_security_settings.mfa_grace_until < CURRENT_TIMESTAMP THEN excluded.mfa_grace_until
+          ELSE user_security_settings.mfa_grace_until
+        END,
+        updated_at = CURRENT_TIMESTAMP`)
+      .bind(demoMfaGraceUntil),
+    db
+      .prepare(`INSERT INTO user_security_settings
+      (user_id, email_verified_at, mfa_enabled, mfa_grace_until, updated_at)
+      VALUES ('user_vaani_owner', CURRENT_TIMESTAMP, 0, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(user_id) DO UPDATE SET
+        email_verified_at = COALESCE(user_security_settings.email_verified_at, CURRENT_TIMESTAMP),
+        mfa_grace_until = CASE
+          WHEN user_security_settings.mfa_enabled = 1 THEN user_security_settings.mfa_grace_until
+          WHEN user_security_settings.mfa_grace_until IS NULL THEN excluded.mfa_grace_until
+          WHEN user_security_settings.mfa_grace_until < CURRENT_TIMESTAMP THEN excluded.mfa_grace_until
+          ELSE user_security_settings.mfa_grace_until
+        END,
+        updated_at = CURRENT_TIMESTAMP`)
+      .bind(demoMfaGraceUntil),
     db.prepare(`INSERT OR IGNORE INTO organization_members
       (id, organization_id, user_id, email, role)
-      VALUES ('member_vaani_owner', 'org_vaani_demo', 'user_vaani_owner', 'owner@vaani.local', 'admin')`),
+      VALUES ('member_vaani_owner', 'org_vaani_demo', 'user_vaani_owner', 'sidharthkumar2028@gmail.com', 'admin')`),
     db.prepare(`INSERT OR IGNORE INTO lead_sources
       (id, organization_id, type, name, external_account_id, webhook_secret, status)
       VALUES ('source_demo_meta', 'org_vaani_demo', 'meta_ads', 'Meta Lead Ads', 'Awaiting OAuth', 'vaani-meta-local-verification', 'ready_for_credentials')`),
@@ -2783,7 +2895,7 @@ async function seedLocalDemo(db: D1Database) {
     db
       .prepare(`INSERT OR IGNORE INTO lead_forms
       (id, organization_id, name, public_key, fields_json, allowed_domains_json, status)
-      VALUES ('form_demo_popup', 'org_vaani_demo', 'Project enquiry popup', 'form_urbannest', ?, '["http://localhost:3000"]', 'active')`)
+      VALUES ('form_demo_popup', 'org_vaani_demo', 'IT services consultation', 'form_sidharth_services', ?, '["http://localhost:3000"]', 'active')`)
       .bind(
         JSON.stringify([
           { key: 'name', label: 'Name', required: true },
@@ -2830,7 +2942,7 @@ async function seedLocalDemo(db: D1Database) {
       VALUES ('invoice_demo_paid', 'org_vaani_demo', 'VAI-2026-0831', 'paid', '[{"description":"Growth plan","quantity":1,"amount":799900}]', 799900, 143982, 943882, 'INR', '2026-08-31T10:00:00.000Z', '2026-08-31T10:02:00.000Z')`),
     db.prepare(`INSERT OR IGNORE INTO phone_numbers
       (id, organization_id, phone_number, country, number_type, acquisition_type, public_provider_name, assigned_agent_name, direction, kyc_status, status, monthly_rental)
-      VALUES ('number_demo_active', 'org_vaani_demo', '+911244982201', 'IN', 'local', 'bring_your_own', 'Exotel', 'Sara · Sales', 'inbound_outbound', 'approved', 'active', 0)`),
+      VALUES ('number_demo_active', 'org_vaani_demo', '+918071582881', 'IN', 'local', 'bring_your_own', 'Vobiz', 'Aarohi · Services Sales', 'inbound_outbound', 'not_required', 'active', 0)`),
     db.prepare(`INSERT OR IGNORE INTO phone_numbers
       (id, organization_id, phone_number, country, number_type, acquisition_type, public_provider_name, assigned_agent_name, direction, kyc_status, status, monthly_rental)
       VALUES ('number_demo_byoc', 'org_vaani_demo', '+919876500001', 'IN', 'mobile', 'bring_your_own', 'Vaani Connect', 'Meera · Reception', 'inbound', 'approved', 'active', 0)`),
@@ -2842,19 +2954,19 @@ async function seedLocalDemo(db: D1Database) {
       VALUES ('integration_demo_willow', 'org_vaani_demo', 'willow_custom', 'Willow / Custom HTTP', 'needs_documentation', '{"note":"Awaiting official calling API base URL and authentication scheme"}')`),
     db.prepare(`INSERT OR IGNORE INTO onboarding_profiles
       (organization_id, phone, use_case, primary_language, stage, completed_at)
-      VALUES ('org_vaani_demo', '+919876500001', 'sales', 'hi-IN', 'complete', CURRENT_TIMESTAMP)`),
+      VALUES ('org_vaani_demo', '+917510020067', 'sales', 'hi-IN', 'complete', CURRENT_TIMESTAMP)`),
     db.prepare(`INSERT OR IGNORE INTO voice_agents
       (id, organization_id, name, use_case, status, welcome_message, system_prompt,
        primary_language, voice_name, intelligence_profile, temperature, max_tokens,
        endpointing_ms, interrupt_words, tools_json, extractions_json, calling_config_json,
        cost_per_minute)
       VALUES (
-        'agent_demo_maya', 'org_vaani_demo', 'Sara', 'commerce_sales', 'active',
-        'नमस्ते, मैं Sara बोल रही हूँ. क्या अभी दो मिनट बात कर सकते हैं?',
-        'You are a concise multilingual revenue agent. Understand intent, explain the product, confirm consent, and use approved tools for WhatsApp, payment links, appointments, or human transfer.',
+        'agent_demo_maya', 'org_vaani_demo', 'Aarohi', 'sales_development', 'active',
+        'नमस्ते, मैं आरोही, सिद्धार्थ कुमार की AI assistant बोल रही हूँ। क्या अभी एक मिनट बात करना सुविधाजनक है?',
+        'You are Sidharth Kumar''s consultative AI sales assistant for verified SaaS product development, custom portals, CRM and API integrations, AI calling workflows, websites, e-commerce, LMS, admin panels and digital marketing automation. Speak naturally in the caller''s Hindi, Hinglish or English. Ask permission to continue, discover the business problem one question at a time, and use only approved knowledge. Never invent clients, prices, guarantees, certifications or availability. Qualify the need, timeline and decision process, then offer a confirmed meeting or human transfer. Respect opt-outs immediately and never claim an action succeeded without a successful tool result.',
         'hi-IN', 'Vaani Tara', 'Vaani Sense Balanced', 20, 250, 250, 2,
-        '["send_whatsapp","create_payment_link","schedule_follow_up","book_appointment","transfer_to_human"]',
-        '["language","intent","product","amount","payment_timing","next_action"]',
+        '["lookup_customer","create_lead","schedule_follow_up","book_appointment","transfer_to_human","end_call"]',
+        '["language","intent","service_interest","business_problem","timeline","decision_process","next_action"]',
         '{"inbound":true,"outbound":true,"voicemailDetection":true,"silenceTimeoutSeconds":15,"maxCallSeconds":300,"callingWindow":"10:00-19:00 Asia/Kolkata"}',
         55
       )`),
@@ -2881,6 +2993,42 @@ async function seedLocalDemo(db: D1Database) {
   ]);
 
   await db.batch([
+    // Demo content is deliberately updated (rather than only inserted) so an
+    // existing local database receives the same Sidharth-services experience
+    // as a clean install. Login identity is not rewritten because another
+    // local test user may already own the resume email.
+    db.prepare(`UPDATE organizations
+      SET slug = 'sidharth-kumar-services',
+          name = 'Sidharth Kumar · SaaS & Digital Services', status = 'active'
+      WHERE id = 'org_vaani_demo'`),
+    db.prepare(`UPDATE lead_forms
+      SET name = 'IT services consultation', public_key = 'form_sidharth_services'
+      WHERE id = 'form_demo_popup' AND organization_id = 'org_vaani_demo'`),
+    db.prepare(`UPDATE phone_numbers
+      SET phone_number = '+918071582881', country = 'IN', number_type = 'local',
+          acquisition_type = 'bring_your_own', public_provider_name = 'Vobiz',
+          assigned_agent_name = 'Aarohi · Services Sales',
+          direction = 'inbound_outbound', kyc_status = 'not_required',
+          status = 'active', monthly_rental = 0
+      WHERE id = 'number_demo_active' AND organization_id = 'org_vaani_demo'`),
+    db.prepare(`UPDATE voice_agents SET
+        name = 'Aarohi', use_case = 'sales_development', status = 'active',
+        welcome_message = 'नमस्ते, मैं आरोही, सिद्धार्थ कुमार की AI assistant बोल रही हूँ। क्या अभी एक मिनट बात करना सुविधाजनक है?',
+        system_prompt = 'You are Sidharth Kumar''s consultative AI sales assistant for verified SaaS product development, custom portals, CRM and API integrations, AI calling workflows, websites, e-commerce, LMS, admin panels and digital marketing automation. Speak naturally in the caller''s Hindi, Hinglish or English. Ask permission to continue, discover the business problem one question at a time, and use only approved knowledge. Never invent clients, prices, guarantees, certifications or availability. Qualify the need, timeline and decision process, then offer a confirmed meeting or human transfer. Respect opt-outs immediately and never claim an action succeeded without a successful tool result.',
+        primary_language = 'hi-IN', voice_name = 'Vaani Tara',
+        intelligence_profile = 'Vaani Sense Balanced', temperature = 20,
+        max_tokens = 250, endpointing_ms = 250, interrupt_words = 2,
+        tools_json = '["lookup_customer","create_lead","schedule_follow_up","book_appointment","transfer_to_human","end_call"]',
+        extractions_json = '["language","intent","service_interest","business_problem","timeline","decision_process","next_action"]',
+        calling_config_json = '{"inbound":true,"outbound":true,"voicemailDetection":true,"silenceTimeoutSeconds":15,"maxCallSeconds":300,"callingWindow":"10:00-19:00 Asia/Kolkata"}',
+        cost_per_minute = 55
+      WHERE id = 'agent_demo_maya' AND organization_id = 'org_vaani_demo'`),
+    db.prepare(`UPDATE campaigns SET
+        name = 'SaaS & digital services consultations', status = 'paused',
+        audience_size = 0, attempted = 0, connected = 0, converted = 0
+      WHERE id = 'campaign_demo_gurugram' AND organization_id = 'org_vaani_demo'`),
+    db.prepare(`UPDATE knowledge_bases SET name = 'Sidharth Kumar · services and profile'
+      WHERE id = 'kb_demo_products' AND organization_id = 'org_vaani_demo'`),
     db.prepare(`UPDATE plans SET included_credits = 100,
       features_json = '["100 trial credits","1 AI agent","CRM lite","API sandbox"]'
       WHERE id = 'plan_free'`),
@@ -2917,8 +3065,20 @@ async function seedLocalDemo(db: D1Database) {
        '["ELEVENLABS_API_KEY","ELEVENLABS_VOICE_ID"]', 'optional', 'not_connected', 'Multilingual low-latency speech, voice selection and streaming output', 0)`),
     db.prepare(`INSERT OR IGNORE INTO platform_providers
       (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
+      VALUES ('provider_cartesia', 'Cartesia AI', 'Call Vani Sonic Voice', 'speech',
+       '["CARTESIA_API_KEY","CARTESIA_VOICE_ID","CARTESIA_MODEL"]', 'optional', 'not_connected', 'Low-latency Sonic TTS/STT option for premium realtime voices', 0)`),
+    db.prepare(`INSERT OR IGNORE INTO platform_providers
+      (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
+      VALUES ('provider_bolna', 'Bolna AI', 'Call Vani Bolna Voice Agent', 'voice_platform',
+       '["BOLNA_API_KEY","BOLNA_BASE_URL","BOLNA_WEBHOOK_SECRET"]', 'optional', 'not_connected', 'Voice-agent platform for agents, calls, templates and execution webhooks', 0)`),
+    db.prepare(`INSERT OR IGNORE INTO platform_providers
+      (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
       VALUES ('provider_razorpay', 'Razorpay', 'Vaani Payments', 'payments',
        '["RAZORPAY_KEY_ID","RAZORPAY_KEY_SECRET","RAZORPAY_WEBHOOK_SECRET"]', 'optional', 'sandbox', 'Payment links, subscriptions and webhook status', 0)`),
+    db.prepare(`INSERT OR IGNORE INTO platform_providers
+      (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
+      VALUES ('provider_stripe', 'Stripe', 'Call Vani Payments · Stripe', 'payments',
+       '["STRIPE_SECRET_KEY","STRIPE_WEBHOOK_SECRET"]', 'optional', 'not_connected', 'International card payments, balance checks and signed checkout webhooks', 0)`),
     db.prepare(`INSERT OR IGNORE INTO platform_providers
       (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
       VALUES ('provider_payu', 'PayU', 'Vaani Payments · PayU', 'payments',
@@ -2933,6 +3093,10 @@ async function seedLocalDemo(db: D1Database) {
        '["PAYTM_MERCHANT_ID","PAYTM_MERCHANT_KEY","PAYTM_WEBSITE","PAYTM_WEBHOOK_SECRET"]', 'optional', 'not_connected', 'Paytm checkout and payment status', 0)`),
     db.prepare(`INSERT OR IGNORE INTO platform_providers
       (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
+      VALUES ('provider_cashfree', 'Cashfree Payments', 'Call Vani Payments · Cashfree', 'payments',
+       '["CASHFREE_CLIENT_ID","CASHFREE_CLIENT_SECRET","CASHFREE_WEBHOOK_SECRET"]', 'optional', 'not_connected', 'India checkout, payouts-ready reconciliation and signed payment webhooks', 0)`),
+    db.prepare(`INSERT OR IGNORE INTO platform_providers
+      (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
       VALUES ('provider_bank_transfer', 'Manual bank transfer', 'Vaani Payments · Bank transfer', 'payments',
        '["BANK_TRANSFER_ACCOUNT_NAME","BANK_TRANSFER_ACCOUNT_NUMBER","BANK_TRANSFER_IFSC"]', 'optional', 'admin_review', 'Manual proof upload and admin reconciliation', 0)`),
     db.prepare(`INSERT OR IGNORE INTO platform_providers
@@ -2945,8 +3109,16 @@ async function seedLocalDemo(db: D1Database) {
        '["TELEPHONY_API_KEY","TELEPHONY_API_SECRET","SIP_GATEWAY"]', 'required_for_live', 'not_connected', 'Inbound, outbound, DID and SIP routing', 0)`),
     db.prepare(`INSERT OR IGNORE INTO platform_providers
       (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
+      VALUES ('provider_vobiz', 'Vobiz AI', 'Call Vani Numbers · Vobiz', 'telephony',
+       '["VOBIZ_AUTH_ID","VOBIZ_AUTH_TOKEN","VOBIZ_BASE_URL"]', 'optional', 'not_connected', 'Partner/sub-account numbers, outbound calls and status webhooks', 0)`),
+    db.prepare(`INSERT OR IGNORE INTO platform_providers
+      (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
       VALUES ('provider_twilio', 'Twilio', 'Vaani Connect Global', 'telephony',
        '["TWILIO_ACCOUNT_SID","TWILIO_AUTH_TOKEN","TWILIO_PHONE_NUMBER","TWILIO_WEBHOOK_SECRET"]', 'optional', 'not_connected', 'Secondary carrier, global numbers and failover routing', 0)`),
+    db.prepare(`INSERT OR IGNORE INTO platform_providers
+      (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
+      VALUES ('provider_sms', 'SMS gateway', 'Call Vani SMS', 'messaging',
+       '["SMS_PROVIDER","SMS_API_KEY","SMS_SENDER_ID","SMS_WEBHOOK_SECRET"]', 'optional', 'not_connected', 'OTP, missed-call follow-up and payment-link SMS routing', 0)`),
     db.prepare(`INSERT OR IGNORE INTO platform_providers
       (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
       VALUES ('provider_storage', 'Cloudflare R2 / S3', 'Vaani Vault', 'storage',
@@ -2957,8 +3129,8 @@ async function seedLocalDemo(db: D1Database) {
        '["GOOGLE_CLIENT_ID","GOOGLE_CLIENT_SECRET","GOOGLE_REDIRECT_URI"]', 'planned', 'admin_disabled', 'Customer account sign-in; button visible but inactive', 1)`),
     db.prepare(`INSERT OR IGNORE INTO platform_providers
       (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
-      VALUES ('provider_email', 'Resend / SMTP', 'Vaani Mail', 'email',
-       '["EMAIL_PROVIDER","RESEND_API_KEY","EMAIL_FROM"]', 'optional', 'not_connected', 'Transactional email, fallback delivery and account notifications', 0)`),
+      VALUES ('provider_email', 'Resend / SMTP', 'Call Vani Mail', 'email',
+       '["EMAIL_PROVIDER","RESEND_API_KEY","SMTP_HOST","SMTP_PORT","SMTP_USERNAME","SMTP_PASSWORD","EMAIL_FROM"]', 'optional', 'not_connected', 'Transactional email, fallback delivery and account notifications', 0)`),
     db.prepare(`INSERT OR IGNORE INTO platform_providers
       (id, internal_name, public_name, category, required_credentials_json, status, health, usage_note, customer_visible)
       VALUES ('provider_enterprise_identity', 'OIDC / SAML + SCIM', 'Vaani Enterprise Identity', 'identity',
@@ -2974,6 +3146,25 @@ async function seedLocalDemo(db: D1Database) {
       VALUES ('kb_demo_products', 'org_vaani_demo', 'Products & objections',
        'Approved product facts, pricing, FAQs and objection handling', 'Hindi + English',
        'ready', 4, 186, CURRENT_TIMESTAMP)`),
+    db.prepare(`INSERT OR IGNORE INTO knowledge_sources
+      (id, organization_id, knowledge_base_id, type, name, content_hash, status, synced_at)
+      VALUES ('source_sidharth_resume', 'org_vaani_demo', 'kb_demo_products', 'text',
+       'Sidharth Kumar verified professional profile', 'resume-2026-09-19', 'ready', CURRENT_TIMESTAMP)`),
+    db.prepare(`INSERT OR IGNORE INTO knowledge_chunks
+      (id, organization_id, source_id, ordinal, content, token_estimate, metadata_json)
+      VALUES ('chunk_sidharth_profile', 'org_vaani_demo', 'source_sidharth_resume', 0,
+       'Sidharth Kumar is based in New Delhi. He is Co-founder and SaaS Product and Client Delivery Lead at Hexbytes since December 2024, co-founded with Sourabh Chauhan. His work covers SaaS architecture, portals and role-based access, APIs and webhooks, AI workflows, CRM, pricing and client delivery. The resume states the team has delivered for more than 100 clients.',
+       92, '{"source":"resume","verified":true}')`),
+    db.prepare(`INSERT OR IGNORE INTO knowledge_chunks
+      (id, organization_id, source_id, ordinal, content, token_estimate, metadata_json)
+      VALUES ('chunk_sidharth_services', 'org_vaani_demo', 'source_sidharth_resume', 1,
+       'Verified service capabilities include SaaS product development, custom customer and admin portals, CRM systems, API and webhook integrations, AI telecalling and lead management, websites, e-commerce, learning management systems, and marketing automation. Products referenced in the resume include Adgrowly GBP management, an AI telecalling and lead-management platform, salon management software, and WhatsApp API or AI omnichannel work.',
+       93, '{"source":"resume","verified":true}')`),
+    db.prepare(`INSERT OR IGNORE INTO knowledge_chunks
+      (id, organization_id, source_id, ordinal, content, token_estimate, metadata_json)
+      VALUES ('chunk_sidharth_languages', 'org_vaani_demo', 'source_sidharth_resume', 2,
+       'Sidharth speaks Hindi natively and English professionally, and is a beginner in Japanese. He is pursuing a B.Tech in Computer Science and Engineering with expected completion in 2027. For project enquiries the assistant should collect the requested service, current problem, target timeline, approximate scope and preferred meeting time, without inventing a quotation.',
+       78, '{"source":"resume","verified":true}')`),
     // Two demo workflows. They used to be a list of step names that matched no
     // node type — `wait_2_hours`, `update_crm` — on a trigger the builder does
     // not have, carrying 83 and 214 runs that never happened. The old executor

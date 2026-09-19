@@ -2,7 +2,24 @@
 import { ProviderLogo } from '@/components/provider-logo';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, Copy, RefreshCw, Send, Square, ArrowUpRight, Leaf, MessageCircle, Database, ShieldCheck, ChevronDown } from 'lucide-react';
+import {
+  Bot,
+  Check,
+  ClipboardList,
+  Copy,
+  Database,
+  FileText,
+  Leaf,
+  MessageCircle,
+  PhoneCall,
+  RefreshCw,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  Square,
+  ArrowUpRight,
+  ChevronDown,
+} from 'lucide-react';
 
 import { type Block, type Inline, parseBlocks } from '@/lib/chat-markdown';
 import { DISCOVERY_QUESTIONS, type Confidence } from '@/lib/growth-manager';
@@ -176,6 +193,12 @@ export function CustomerGrowth() {
         <div><MessageCircle /><span>Saved conversations</span><strong>{board.chats?.length ?? 0}</strong></div>
         <div><ArrowUpRight /><span>Recommended next steps</span><strong>{board.recommendations.length}</strong></div>
       </div>
+      <LaunchSetupPreview
+        answers={board.discovery.answers}
+        complete={board.discovery.complete}
+        observations={board.observations.length}
+        recommendations={board.recommendations.length}
+      />
       <GrowthChat chips={board.chips ?? []} suggestedGoal={board.suggestedGoal ?? ''} chats={board.chats ?? []} onDone={load} />
       <details className="portal-panel p-5">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3"><span className="font-semibold">Business context <span className="ml-2 text-sm font-normal text-ink-muted">{Math.round(board.discovery.progress * 100)}% complete</span></span><ChevronDown className="size-4" /></summary>
@@ -367,6 +390,147 @@ type ConnectorStatusView = {
   selection: string | null;
   lastSyncedAt: string | null;
 };
+
+function LaunchSetupPreview({
+  answers,
+  complete,
+  observations,
+  recommendations,
+}: {
+  answers: Record<string, string>;
+  complete: boolean;
+  observations: number;
+  recommendations: number;
+}) {
+  const company = answers.company?.trim() || 'your business';
+  const goal = answers.goals?.trim() || 'Generate qualified leads';
+  const audience = answers.ideal_customer?.trim() || 'new prospects';
+  const leadDefinition =
+    answers.lead_definition?.trim() || 'people who share their name and phone';
+  const business = answers.business?.trim() || 'your offer';
+  const setup = [
+    {
+      icon: Bot,
+      title: 'AI agent',
+      body: `${company} receptionist that qualifies ${audience} and explains ${business}.`,
+      action: 'Open Agent Studio',
+      href: '#agents',
+    },
+    {
+      icon: MessageCircle,
+      title: 'WhatsApp starter',
+      body: `Utility template for follow-ups, plus a bot that asks for ${leadDefinition}.`,
+      action: 'Open WhatsApp',
+      href: '#whatsapp_inbox',
+    },
+    {
+      icon: FileText,
+      title: 'Lead form',
+      body: `Name, phone, interest and one custom field matched to: ${goal}.`,
+      action: 'Open Lead Capture',
+      href: '#lead_capture',
+    },
+    {
+      icon: PhoneCall,
+      title: 'Test call',
+      body: `Browser playground script that checks greeting, objection handling and handoff.`,
+      action: 'Test Agent',
+      href: '#agents',
+    },
+  ];
+  const checklist = [
+    { label: 'Business brief complete', done: complete },
+    { label: 'Recommended setup generated', done: complete },
+    { label: 'Evidence board has live observations', done: observations > 0 },
+    { label: 'Growth recommendations available', done: recommendations > 0 },
+    { label: 'Run first test call', done: false },
+    { label: 'Submit first WhatsApp template', done: false },
+  ];
+
+  return (
+    <section className="portal-panel overflow-hidden p-0">
+      <div className="grid gap-0 lg:grid-cols-[1.3fr_0.7fr]">
+        <div className="bg-[radial-gradient(circle_at_15%_10%,rgba(187,247,208,0.7),transparent_26%),linear-gradient(135deg,#f8fff9,#ffffff)] p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold text-emerald-900">
+                <Sparkles className="size-3.5" /> Launch setup preview
+              </span>
+              <h2 className="mt-3 text-lg font-semibold tracking-tight">
+                {complete
+                  ? `Here is the first Call Vani setup for ${company}.`
+                  : 'Answer the brief and this becomes your launch plan.'}
+              </h2>
+              <p className="mt-1 max-w-2xl text-sm text-ink-muted">
+                Nothing is published automatically. These are the assets Call
+                Vani prepares so the user does not start from a blank dashboard.
+              </p>
+            </div>
+            <span className="rounded-full border border-emerald-200 bg-white/80 px-3 py-1 text-[11px] text-emerald-900">
+              Goal: {goal}
+            </span>
+          </div>
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
+            {setup.map((item) => {
+              const Icon = item.icon;
+              return (
+                <a
+                  key={item.title}
+                  href={item.href}
+                  className="group rounded-2xl border border-emerald-100 bg-white/85 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-xl bg-emerald-100 p-2 text-emerald-900">
+                      <Icon className="size-4" />
+                    </span>
+                    <span className="text-sm font-semibold">{item.title}</span>
+                  </div>
+                  <p className="mt-3 text-[12px] leading-5 text-ink-body">
+                    {item.body}
+                  </p>
+                  <span className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800">
+                    {item.action}{' '}
+                    <ArrowUpRight className="size-3 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                  </span>
+                </a>
+              );
+            })}
+          </div>
+        </div>
+        <div className="border-t border-hairline bg-surface-muted p-5 lg:border-l lg:border-t-0">
+          <div className="flex items-center gap-2">
+            <ClipboardList className="size-4 text-primary" />
+            <h3 className="text-sm font-semibold">Launch checklist</h3>
+          </div>
+          <div className="mt-4 space-y-2">
+            {checklist.map((item) => (
+              <div
+                key={item.label}
+                className="flex items-center gap-2 rounded-xl border border-hairline bg-surface px-3 py-2 text-[12px]"
+              >
+                <span
+                  className={`grid size-5 place-items-center rounded-full ${
+                    item.done
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-surface-strong text-ink-muted'
+                  }`}
+                >
+                  {item.done ? <Check className="size-3" /> : '•'}
+                </span>
+                <span>{item.label}</span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-4 rounded-xl border border-hairline bg-white p-3 text-[11px] leading-5 text-ink-muted">
+            Admin/API provider controls are intentionally not required here.
+            The customer sees simple setup steps; advanced provider setup stays
+            hidden until needed.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 /**
  * §6's three connections: Google Analytics, Search Console and HubSpot.

@@ -227,7 +227,7 @@ export function CustomerTeam({
           <div>
             <h2 className="text-sm font-semibold">Active members</h2>
             <p className="mt-1 text-[11px] text-ink-muted">
-              {data.members.length} people in this isolated tenant
+              {data.members.length} people in this isolated customer
             </p>
           </div>
           <UsersRound className="size-4 text-ink-muted" />

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { getRawDb } from '@/db/index';
 import { requireCustomer } from '@/lib/api-session';
+import { customerUsageRates } from '@/lib/customer-usage-pricing';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +11,15 @@ export async function GET(request: Request) {
   if (auth.response) return auth.response;
   const organizationId = auth.session.organizationId!;
   const db = getRawDb();
-  const [wallet, subscription, plans, creditPackages, invoices, ledger] =
+  const [
+    wallet,
+    subscription,
+    plans,
+    creditPackages,
+    invoices,
+    ledger,
+    usageRates,
+  ] =
     await Promise.all([
       db
         .prepare(
@@ -53,6 +62,7 @@ export async function GET(request: Request) {
         )
         .bind(organizationId)
         .all(),
+      customerUsageRates(),
     ]);
 
   return NextResponse.json({
@@ -60,6 +70,10 @@ export async function GET(request: Request) {
     subscription,
     plans: plans.results,
     creditPackages: creditPackages.results,
+    usageRateCard: {
+      currency: 'credits',
+      rates: usageRates.filter((rate) => rate.status !== 'retired'),
+    },
     invoices: invoices.results,
     ledger: ledger.results,
     paymentMode: process.env.STRIPE_SECRET_KEY ? 'stripe' : 'local_sandbox',

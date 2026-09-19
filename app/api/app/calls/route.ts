@@ -162,9 +162,19 @@ export async function POST(request: Request) {
             recordCall,
           });
     await db
-      .prepare(`UPDATE call_records SET status = ?, analysis_json = json_set(analysis_json, '$.providerReference', ?)
+      // The column as well as the blob. `provider_reference` is what the
+      // inbound webhook looks a call up by; only inbound rows have ever
+      // carried it, so a carrier callback that names its own call id and
+      // nothing of ours could not find an outbound call at all.
+      .prepare(`UPDATE call_records SET status = ?, provider_reference = ?,
+        analysis_json = json_set(analysis_json, '$.providerReference', ?)
       WHERE id = ?`)
-      .bind(result.status, result.providerReference, callId)
+      .bind(
+        result.status,
+        result.providerReference,
+        result.providerReference,
+        callId,
+      )
       .run();
     return NextResponse.json(
       {

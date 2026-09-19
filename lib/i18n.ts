@@ -212,7 +212,7 @@ const en = {
   'login.admin.eyebrow': 'Platform control',
   'login.admin.title': 'Call Vani admin console',
   'login.admin.description':
-    'Manage tenants, KYC, calling operations, plans, credits, integrations and platform health.',
+    'Manage customers, provider connections, calling operations, plans, credits, integrations and platform health.',
   'login.admin.useAccount':
     'Use the dedicated admin account. Accounts cannot cross between portals.',
   'login.customer.eyebrow': 'Customer workspace',
@@ -246,14 +246,14 @@ const en = {
   'adminNav.customers': 'Customers',
   'adminNav.call_ops': 'Call operations',
   'adminNav.voice_engines': 'Voice engines',
-  'adminNav.numbers_kyc': 'Numbers & KYC',
+  'adminNav.numbers_kyc': 'Numbers & connections',
   'adminNav.plans_billing': 'Plans & billing',
   'adminNav.trials_commerce': 'Trials & commerce',
   'adminNav.integrations': 'API & integrations',
   'adminNav.platform_apis': 'Provider & auth config',
   'adminNav.system_audit': 'System & audit',
   'adminNav.support_tickets': 'Support tickets',
-  'adminScreen.customers.eyebrow': 'Tenant management',
+  'adminScreen.customers.eyebrow': 'Customer management',
   'adminScreen.customers.title': 'Customer accounts',
   'adminScreen.customers.description':
     'Plan, wallet, numbers and lead volume stay scoped to each organization.',
@@ -265,10 +265,10 @@ const en = {
   'adminScreen.voice_engines.title': 'Measured provider performance',
   'adminScreen.voice_engines.description':
     'Latency, volume and error rate come from recorded provider calls. Engines with no traffic are shown as unmeasured rather than healthy.',
-  'adminScreen.numbers_kyc.eyebrow': 'Telephony governance',
-  'adminScreen.numbers_kyc.title': 'Number activation and KYC review',
+  'adminScreen.numbers_kyc.eyebrow': 'Provider connections',
+  'adminScreen.numbers_kyc.title': 'Customer-owned numbers and provider connections',
   'adminScreen.numbers_kyc.description':
-    'Review managed numbers, native carrier imports and SIP routes with an auditable ownership-to-activation flow.',
+    'Connect existing carrier numbers, check provider ownership and configure call routing. Number rental and verification stay with the carrier.',
   'adminScreen.plans_billing.eyebrow': 'Commercial control',
   'adminScreen.plans_billing.title': 'Plans, credits and invoices',
   'adminScreen.plans_billing.description':
@@ -276,7 +276,7 @@ const en = {
   'adminScreen.trials_commerce.eyebrow': 'Activation & assisted revenue',
   'adminScreen.trials_commerce.title': 'Trials, agent tests and AI commerce',
   'adminScreen.trials_commerce.description':
-    'Monitor free-credit activation, no-call playground usage and payment-link execution across tenants without exposing provider credentials.',
+    'Monitor free-credit activation, no-call playground usage and payment-link execution across customers without exposing provider credentials.',
   'adminScreen.integrations.eyebrow': 'Integration control plane',
   'adminScreen.integrations.title': 'API, webhooks and provider adapters',
   'adminScreen.integrations.description':
@@ -285,14 +285,14 @@ const en = {
   'adminScreen.platform_apis.title': 'Identity, APIs and cloud requirements',
   'adminScreen.platform_apis.description':
     'Customer screens use Call Vani product names. Provider credentials, readiness and health remain inside this operator console.',
-  'adminScreen.support_tickets.eyebrow': 'Tenant support',
+  'adminScreen.support_tickets.eyebrow': 'Customer support',
   'adminScreen.support_tickets.title': 'Support desk',
   'adminScreen.support_tickets.description':
     'Customer tickets, platform replies, assignment and resolution status in one admin queue.',
   'adminScreen.system_audit.eyebrow': 'Security & reliability',
   'adminScreen.system_audit.title': 'System health and audit trail',
   'adminScreen.system_audit.description':
-    'Every sensitive mutation is attributable, tenant-scoped and designed for incident review.',
+    'Every sensitive mutation is attributable, customer-scoped and designed for incident review.',
 
   // Settings screen copy
   'settings.recording.consent': 'Record with consent',
@@ -305,7 +305,7 @@ const en = {
   'settings.redact': 'Redact sensitive data in transcripts and analytics',
   'settings.saveButton': 'Save settings',
   'settings.compliance.title': 'Compliance ledger',
-  'settings.compliance.hint': 'Tenant-scoped evidence used by the call gate',
+  'settings.compliance.hint': 'Customer-scoped evidence used by the call gate',
 
   // Panel titles, hints and placeholders
   'panel.branches.title': 'Branches and teams',
@@ -345,7 +345,7 @@ const en = {
   'field.defaultLanguage': 'Default conversation language',
   'field.gatewayUri': 'Gateway URI',
   'field.intent': 'Intent',
-  'field.kycDocuments': 'KYC documents',
+  'field.kycDocuments': 'Business documents',
   'field.knowledge': 'Knowledge',
   'field.latency': 'Latency',
   'field.leadsCreated': 'Leads created',
@@ -430,11 +430,11 @@ const en = {
   'screen.call_history.eyebrow': 'Conversation system of record',
   'screen.call_history.title': 'Call history & recordings',
   'screen.call_history.description':
-    'Tenant-scoped recordings, transcripts, summaries, costs, outcomes and disconnect reasons.',
+    'Customer-scoped recordings, transcripts, summaries, costs, outcomes and disconnect reasons.',
   'screen.live_monitor.eyebrow': 'Realtime operations',
   'screen.live_monitor.title': 'Live monitoring',
   'screen.live_monitor.description':
-    'Observe active calls, latency, sentiment and escalation signals without exposing other tenants.',
+    'Observe active calls, latency, sentiment and escalation signals without exposing other customers.',
   'screen.analytics.eyebrow': 'Performance intelligence',
   'screen.analytics.title': 'Analytics',
   'screen.analytics.description':
@@ -752,8 +752,8 @@ const en = {
   'landing.security.badge': 'Built for responsible calling',
   'landing.security.title': 'Strong controls for teams that call at scale.',
   'landing.security.sub':
-    'Tenant isolation, role-based access, consent evidence, DNC suppression, audit trails and human escalation are part of the operating model — not afterthoughts.',
-  'landing.security.isolation.title': 'Tenant isolation',
+    'Customer isolation, role-based access, consent evidence, DNC suppression, audit trails and human escalation are part of the operating model — not afterthoughts.',
+  'landing.security.isolation.title': 'Customer isolation',
   'landing.security.isolation.description':
     'Every company’s leads, knowledge and calls stay separated.',
   'landing.security.roles.title': 'Role-based access',
@@ -1024,7 +1024,7 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'login.admin.eyebrow': 'प्लेटफ़ॉर्म नियंत्रण',
   'login.admin.title': 'Call Vani admin कंसोल',
   'login.admin.description':
-    'टेनेंट, KYC, कॉल संचालन, प्लान, क्रेडिट, इंटीग्रेशन और प्लेटफ़ॉर्म स्वास्थ्य — सब संभालिए।',
+    'कस्टमर, प्रोवाइडर कनेक्शन, कॉल संचालन, प्लान, क्रेडिट, इंटीग्रेशन और प्लेटफ़ॉर्म स्वास्थ्य — सब संभालिए।',
   'login.admin.useAccount':
     'सिर्फ़ admin खाते से आइए। खाते एक portal से दूसरे में नहीं चलते।',
   'login.customer.eyebrow': 'ग्राहक वर्कस्पेस',
@@ -1056,14 +1056,14 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'adminNav.customers': 'ग्राहक',
   'adminNav.call_ops': 'कॉल संचालन',
   'adminNav.voice_engines': 'आवाज़ इंजन',
-  'adminNav.numbers_kyc': 'नंबर और KYC',
+  'adminNav.numbers_kyc': 'नंबर और कनेक्शन',
   'adminNav.plans_billing': 'प्लान और बिलिंग',
   'adminNav.trials_commerce': 'ट्रायल और कॉमर्स',
   'adminNav.integrations': 'API और इंटीग्रेशन',
   'adminNav.platform_apis': 'प्रोवाइडर और लॉगिन सेटअप',
   'adminNav.system_audit': 'सिस्टम और ऑडिट',
   'adminNav.support_tickets': 'सपोर्ट टिकट',
-  'adminScreen.customers.eyebrow': 'टेनेंट प्रबंधन',
+  'adminScreen.customers.eyebrow': 'कस्टमर प्रबंधन',
   'adminScreen.customers.title': 'ग्राहक खाते',
   'adminScreen.customers.description':
     'प्लान, वॉलेट, नंबर और लीड — सब हर संगठन तक सीमित रहते हैं।',
@@ -1076,9 +1076,9 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'adminScreen.voice_engines.description':
     'Latency, मात्रा और त्रुटि दर दर्ज प्रोवाइडर कॉल से आते हैं। जिन इंजनों पर कोई ट्रैफ़िक नहीं, उन्हें स्वस्थ नहीं — "मापा नहीं गया" दिखाया जाता है।',
   'adminScreen.numbers_kyc.eyebrow': 'टेलीफ़ोनी शासन',
-  'adminScreen.numbers_kyc.title': 'नंबर चालू करना और KYC जाँच',
+  'adminScreen.numbers_kyc.title': 'कस्टमर के नंबर और प्रोवाइडर कनेक्शन',
   'adminScreen.numbers_kyc.description':
-    'मैनेज्ड नंबर, कैरियर से आए नंबर और SIP रूट जाँचिए — मालिकाना हक़ से चालू होने तक पूरा ऑडिट होता है।',
+    'अपने कैरियर के नंबर जोड़ें और कॉल रूटिंग सेट करें। नंबर का किराया और वेरिफ़िकेशन कैरियर संभालेगा।',
   'adminScreen.plans_billing.eyebrow': 'व्यापारिक नियंत्रण',
   'adminScreen.plans_billing.title': 'प्लान, क्रेडिट और इनवॉइस',
   'adminScreen.plans_billing.description':
@@ -1086,7 +1086,7 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'adminScreen.trials_commerce.eyebrow': 'सक्रियण और सहायक आमदनी',
   'adminScreen.trials_commerce.title': 'ट्रायल, एजेंट टेस्ट और AI कॉमर्स',
   'adminScreen.trials_commerce.description':
-    'मुफ़्त क्रेडिट, बिना-कॉल playground का उपयोग और पेमेंट लिंक — सभी टेनेंट में देखिए, बिना प्रोवाइडर credentials खोले।',
+    'मुफ़्त क्रेडिट, बिना-कॉल playground का उपयोग और पेमेंट लिंक — सभी कस्टमर में देखिए, बिना प्रोवाइडर credentials खोले।',
   'adminScreen.integrations.eyebrow': 'इंटीग्रेशन नियंत्रण',
   'adminScreen.integrations.title': 'API, webhook और प्रोवाइडर अडैप्टर',
   'adminScreen.integrations.description':
@@ -1095,14 +1095,14 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'adminScreen.platform_apis.title': 'लॉगिन, API और क्लाउड ज़रूरतें',
   'adminScreen.platform_apis.description':
     'ग्राहक की स्क्रीन पर Call Vani के नाम दिखते हैं। प्रोवाइडर credentials, तैयारी और स्वास्थ्य इसी operator console में रहते हैं।',
-  'adminScreen.support_tickets.eyebrow': 'टेनेंट सपोर्ट',
+  'adminScreen.support_tickets.eyebrow': 'कस्टमर सपोर्ट',
   'adminScreen.support_tickets.title': 'सपोर्ट डेस्क',
   'adminScreen.support_tickets.description':
     'ग्राहक के टिकट, प्लेटफ़ॉर्म के जवाब, सौंपना और समाधान की स्थिति — एक ही admin क़तार में।',
   'adminScreen.system_audit.eyebrow': 'सुरक्षा और भरोसा',
   'adminScreen.system_audit.title': 'सिस्टम स्वास्थ्य और ऑडिट रिकॉर्ड',
   'adminScreen.system_audit.description':
-    'हर संवेदनशील बदलाव किसके द्वारा हुआ यह दर्ज है, टेनेंट तक सीमित है, और घटना-समीक्षा के लिए बना है।',
+    'हर संवेदनशील बदलाव किसके द्वारा हुआ यह दर्ज है, कस्टमर तक सीमित है, और घटना-समीक्षा के लिए बना है।',
 
   'settings.recording.consent': 'सहमति के साथ रिकॉर्ड करें',
   'settings.recording.disabled': 'रिकॉर्ड न करें',
@@ -1151,7 +1151,7 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'field.defaultLanguage': 'बातचीत की डिफ़ॉल्ट भाषा',
   'field.gatewayUri': 'गेटवे URI',
   'field.intent': 'मंशा',
-  'field.kycDocuments': 'KYC दस्तावेज़',
+  'field.kycDocuments': 'बिज़नेस दस्तावेज़',
   'field.knowledge': 'जानकारी',
   'field.latency': 'Latency',
   'field.leadsCreated': 'बनी लीड',
@@ -1542,8 +1542,8 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'landing.security.badge': 'ज़िम्मेदार कॉलिंग के लिए बना',
   'landing.security.title': 'बड़े पैमाने पर कॉल करने वाली टीमों के लिए मज़बूत नियंत्रण.',
   'landing.security.sub':
-    'टेनेंट अलगाव, भूमिका के हिसाब से पहुँच, सहमति का सबूत, DNC suppression, ऑडिट ट्रेल और इंसान तक escalation — ये ऑपरेटिंग मॉडल का हिस्सा हैं, बाद में जोड़ी गई चीज़ें नहीं।',
-  'landing.security.isolation.title': 'टेनेंट अलगाव',
+    'कस्टमर अलगाव, भूमिका के हिसाब से पहुँच, सहमति का सबूत, DNC suppression, ऑडिट ट्रेल और इंसान तक escalation — ये ऑपरेटिंग मॉडल का हिस्सा हैं, बाद में जोड़ी गई चीज़ें नहीं।',
+  'landing.security.isolation.title': 'कस्टमर अलगाव',
   'landing.security.isolation.description':
     'हर कंपनी के leads, जानकारी और कॉल अलग-अलग रहते हैं।',
   'landing.security.roles.title': 'भूमिका के हिसाब से पहुँच',

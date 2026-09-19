@@ -9,6 +9,11 @@ import {
   sendWhatsAppPaymentLink,
 } from '@/lib/commerce';
 import { recordAudit } from '@/lib/demo-seed';
+import {
+  finalizeUsageCredits,
+  holdUsageCredits,
+  releaseUsageHold,
+} from '@/lib/usage-wallet';
 
 export const dynamic = 'force-dynamic';
 
@@ -210,53 +215,110 @@ export async function POST(request: Request) {
   }
 
   let delivery: Awaited<ReturnType<typeof sendWhatsAppPaymentLink>>;
+  let usage:
+    | { credits: number; balance: number; referenceId: string }
+    | null = null;
   let deliveredChannel = preferredChannel;
   let deliveredDestination = preferredDestination;
   try {
-    delivery =
+    const firstDelivery =
       preferredChannel === 'whatsapp'
-        ? await sendWhatsAppPaymentLink({
+        ? await sendPaymentDeliveryWithWallet({
             organizationId,
-            destination: customerPhone,
-            customerName,
-            amount: amountPaise,
-            shortUrl: created.shortUrl,
+            channel: 'whatsapp',
+            referenceId: messageId,
+            description: `WhatsApp payment link to ${customerPhone}`,
+            send: () =>
+              sendWhatsAppPaymentLink({
+                organizationId,
+                destination: customerPhone,
+                customerName,
+                amount: amountPaise,
+                shortUrl: created.shortUrl,
+              }),
           })
-        : await sendEmailPaymentLink({
+        : await sendPaymentDeliveryWithWallet({
             organizationId,
-            destination: customerEmail,
-            customerName,
-            amount: amountPaise,
-            shortUrl: created.shortUrl,
+            channel: 'email',
+            referenceId: messageId,
+            description: `Email payment link to ${customerEmail}`,
+            send: () =>
+              sendEmailPaymentLink({
+                organizationId,
+                destination: customerEmail,
+                customerName,
+                amount: amountPaise,
+                shortUrl: created.shortUrl,
+              }),
           });
+    delivery = firstDelivery.delivery;
+    usage = firstDelivery.usage;
     if (
       preferredChannel === 'whatsapp' &&
       delivery.status === 'sandbox_delivered' &&
       validEmail
     ) {
-      delivery = await sendEmailPaymentLink({
+      const fallbackDelivery = await sendPaymentDeliveryWithWallet({
         organizationId,
-        destination: customerEmail,
-        customerName,
-        amount: amountPaise,
-        shortUrl: created.shortUrl,
+        channel: 'email',
+        referenceId: `${messageId}_email_fallback`,
+        description: `Email payment link fallback to ${customerEmail}`,
+        send: () =>
+          sendEmailPaymentLink({
+            organizationId,
+            destination: customerEmail,
+            customerName,
+            amount: amountPaise,
+            shortUrl: created.shortUrl,
+          }),
       });
+      delivery = fallbackDelivery.delivery;
+      usage = fallbackDelivery.usage;
       deliveredChannel = 'email';
       deliveredDestination = customerEmail;
     }
   } catch (error) {
+    if (error instanceof UsageBillingError)
+      return NextResponse.json(
+        {
+          error:
+            'Wallet balance is too low to deliver this payment link. Top up credits and try again.',
+          requiredCredits: error.requiredCredits,
+          balance: error.balance,
+        },
+        { status: 402 },
+      );
     if (preferredChannel === 'whatsapp' && validEmail) {
       try {
-        delivery = await sendEmailPaymentLink({
+        const fallbackDelivery = await sendPaymentDeliveryWithWallet({
           organizationId,
-          destination: customerEmail,
-          customerName,
-          amount: amountPaise,
-          shortUrl: created.shortUrl,
+          channel: 'email',
+          referenceId: `${messageId}_email_fallback`,
+          description: `Email payment link fallback to ${customerEmail}`,
+          send: () =>
+            sendEmailPaymentLink({
+              organizationId,
+              destination: customerEmail,
+              customerName,
+              amount: amountPaise,
+              shortUrl: created.shortUrl,
+            }),
         });
+        delivery = fallbackDelivery.delivery;
+        usage = fallbackDelivery.usage;
         deliveredChannel = 'email';
         deliveredDestination = customerEmail;
       } catch (fallbackError) {
+        if (fallbackError instanceof UsageBillingError)
+          return NextResponse.json(
+            {
+              error:
+                'Wallet balance is too low to deliver this payment link by email. Top up credits and try again.',
+              requiredCredits: fallbackError.requiredCredits,
+              balance: fallbackError.balance,
+            },
+            { status: 402 },
+          );
         delivery = {
           status: 'failed',
           providerReference: '',
@@ -333,6 +395,8 @@ export async function POST(request: Request) {
       shortUrl: created.shortUrl,
       status: delivery.status,
       provider: created.provider,
+      chargedCredits: usage?.credits ?? 0,
+      balance: usage?.balance ?? null,
     },
     { status: 201 },
   );
@@ -367,22 +431,37 @@ async function runDueActions(organizationId: string) {
         }>();
       if (!payment || !payload.messageId)
         throw new Error('Scheduled payment message is incomplete.');
-      const delivery =
+      const deliveryResult =
         payload.channel === 'email' && payment.customer_email
-          ? await sendEmailPaymentLink({
+          ? await sendPaymentDeliveryWithWallet({
               organizationId,
-              destination: payment.customer_email,
-              customerName: payment.customer_name,
-              amount: payment.amount,
-              shortUrl: payment.short_url,
+              channel: 'email',
+              referenceId: payload.messageId,
+              description: `Scheduled email payment link to ${payment.customer_email}`,
+              send: () =>
+                sendEmailPaymentLink({
+                  organizationId,
+                  destination: payment.customer_email!,
+                  customerName: payment.customer_name,
+                  amount: payment.amount,
+                  shortUrl: payment.short_url,
+                }),
             })
-          : await sendWhatsAppPaymentLink({
+          : await sendPaymentDeliveryWithWallet({
               organizationId,
-              destination: payment.customer_phone,
-              customerName: payment.customer_name,
-              amount: payment.amount,
-              shortUrl: payment.short_url,
+              channel: 'whatsapp',
+              referenceId: payload.messageId,
+              description: `Scheduled WhatsApp payment link to ${payment.customer_phone}`,
+              send: () =>
+                sendWhatsAppPaymentLink({
+                  organizationId,
+                  destination: payment.customer_phone,
+                  customerName: payment.customer_name,
+                  amount: payment.amount,
+                  shortUrl: payment.short_url,
+                }),
             });
+      const delivery = deliveryResult.delivery;
       await db.batch([
         db
           .prepare(`UPDATE outbound_messages SET status = ?, provider_reference = ?,
@@ -427,4 +506,89 @@ function parseFutureDate(value?: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime()) || date.getTime() <= Date.now()) return null;
   return date.toISOString();
+}
+
+class UsageBillingError extends Error {
+  requiredCredits: number;
+  balance: number;
+  constructor(input: { requiredCredits: number; balance: number }) {
+    super('Insufficient wallet balance.');
+    this.requiredCredits = input.requiredCredits;
+    this.balance = input.balance;
+  }
+}
+
+async function sendPaymentDeliveryWithWallet(input: {
+  organizationId: string;
+  channel: 'whatsapp' | 'email';
+  referenceId: string;
+  description: string;
+  send: () => Promise<Awaited<ReturnType<typeof sendWhatsAppPaymentLink>>>;
+}) {
+  const referenceType = `payment_link_${input.channel}`;
+  const hold = await holdUsageCredits({
+    organizationId: input.organizationId,
+    referenceType,
+    referenceId: input.referenceId,
+    rateId:
+      input.channel === 'whatsapp'
+        ? 'whatsapp_utility_message'
+        : 'email_send',
+    quantity: 1,
+    description: `${input.description} hold`,
+  });
+  if (hold.status === 'insufficient')
+    throw new UsageBillingError({
+      requiredCredits: hold.estimatedCredits,
+      balance: hold.balance,
+    });
+
+  try {
+    const delivery = await input.send();
+    if (delivery.status === 'failed') {
+      await releaseUsageHold({
+        organizationId: input.organizationId,
+        referenceType,
+        referenceId: input.referenceId,
+        reason: `${input.description} failed before provider acceptance; credits released`,
+      });
+      return { delivery, usage: null };
+    }
+    if (delivery.status === 'sandbox_delivered') {
+      await releaseUsageHold({
+        organizationId: input.organizationId,
+        referenceType,
+        referenceId: input.referenceId,
+        reason: `${input.description} used sandbox delivery; credits released`,
+      });
+      return { delivery, usage: null };
+    }
+    const usage = await finalizeUsageCredits({
+      organizationId: input.organizationId,
+      referenceType,
+      referenceId: input.referenceId,
+      rateId:
+        input.channel === 'whatsapp'
+          ? 'whatsapp_utility_message'
+          : 'email_send',
+      quantity: 1,
+      description: `${input.description} delivered`,
+    });
+    return {
+      delivery,
+      usage: {
+        credits: usage.finalCredits ?? usage.estimatedCredits,
+        balance: usage.balance,
+        referenceId: input.referenceId,
+      },
+    };
+  } catch (error) {
+    await releaseUsageHold({
+      organizationId: input.organizationId,
+      referenceType,
+      referenceId: input.referenceId,
+      reason: `${input.description} rejected before provider acceptance; credits released`,
+    });
+    throw error;
+  }
 }

@@ -2,12 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Bot,
   ChevronUp,
   Loader2,
   Send,
   RefreshCw,
   Search,
   MessageCircle,
+  ShieldCheck,
+  Sparkles,
+  Workflow,
 } from 'lucide-react';
 
 import { useT } from '@/components/locale-provider';
@@ -386,8 +390,79 @@ export function CustomerWhatsAppInbox() {
         </output>
       ) : null}
 
+      <section className="overflow-hidden rounded-3xl border border-emerald-100 bg-[radial-gradient(circle_at_10%_20%,rgba(187,247,208,0.8),transparent_28%),linear-gradient(135deg,#fbfff9,#ffffff)]">
+        <div className="grid gap-0 lg:grid-cols-[1fr_320px]">
+          <div className="p-5">
+            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold text-emerald-900">
+              <Sparkles className="size-3.5" /> WhatsApp Command Center
+            </span>
+            <h2 className="mt-3 text-lg font-semibold tracking-tight">
+              Inbox, templates, bot builder and forms in one operating flow.
+            </h2>
+            <p className="mt-1 max-w-2xl text-sm text-ink-muted">
+              Use the inbox for live replies, templates for approved outbound
+              starts, forms for lead capture and bot flows for automation.
+              Wallet cost checks happen before sends.
+            </p>
+            <div className="mt-4 grid gap-2 sm:grid-cols-4">
+              {[
+                ['Inbox', 'Human + AI replies', '#whatsapp_inbox', MessageCircle],
+                ['Templates', 'Meta-approved starts', '#whatsapp_templates', ShieldCheck],
+                ['Bot Builder', 'Flow canvas', '#workflows', Bot],
+                ['Forms', 'WhatsApp lead forms', '#whatsapp_flows', Workflow],
+              ].map(([title, body, href, Icon]) => (
+                <a
+                  key={String(title)}
+                  href={String(href)}
+                  className="rounded-2xl border border-emerald-100 bg-white/80 p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300"
+                >
+                  <Icon className="size-4 text-emerald-700" />
+                  <p className="mt-2 text-xs font-semibold">{String(title)}</p>
+                  <p className="mt-1 text-[11px] text-ink-muted">
+                    {String(body)}
+                  </p>
+                </a>
+              ))}
+            </div>
+          </div>
+          <div className="border-t border-emerald-100 bg-white/70 p-5 lg:border-l lg:border-t-0">
+            <p className="text-sm font-semibold">Safe sending rules</p>
+            <div className="mt-3 space-y-2 text-[11px] text-ink-body">
+              <p className="rounded-xl border border-hairline bg-surface p-3">
+                Plain replies only inside the 24-hour service window.
+              </p>
+              <p className="rounded-xl border border-hairline bg-surface p-3">
+                Templates/forms estimate wallet credits before sending.
+              </p>
+              <p className="rounded-xl border border-hairline bg-surface p-3">
+                Human handoff shows takeover warnings before reassignment.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="portal-panel grid gap-4 p-5 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <div className="space-y-1.5">
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              ['Inbox', String(threads.length), MessageCircle],
+              ['Agents', String(agents.length), Bot],
+              ['Forms', String(flows.length), Workflow],
+              ['Safe send', connected ? 'On' : 'Off', ShieldCheck],
+            ].map(([label, value, Icon]) => (
+              <div
+                key={String(label)}
+                className="rounded-xl border border-hairline bg-surface-muted p-3"
+              >
+                <Icon className="size-4 text-success-text" />
+                <p className="mt-2 text-[11px] text-ink-muted">
+                  {String(label)}
+                </p>
+                <p className="text-sm font-semibold">{String(value)}</p>
+              </div>
+            ))}
+          </div>
           <label className="mb-4 flex items-center gap-2 rounded-xl border border-hairline p-3">
             <Search className="size-4 text-ink-muted" />
             <input
@@ -445,15 +520,39 @@ export function CustomerWhatsAppInbox() {
 
         <div className="min-w-0">
           {!open ? (
-            <div className="flex min-h-72 flex-col items-center justify-center gap-3 rounded-2xl bg-emerald-50/60 p-6 text-center text-emerald-950">
-              <MessageCircle className="size-10" />
-              <h2 className="text-xl font-semibold">
-                Your customer conversations, together.
-              </h2>
-              <p className="max-w-sm text-sm">
-                Choose a conversation to reply. This inbox refreshes every 15
-                seconds while visible. The latest 200 messages are shown.
-              </p>
+            <div className="min-h-72 rounded-2xl border border-emerald-200/70 bg-[radial-gradient(circle_at_top_left,#dcfce7,transparent_34%),linear-gradient(135deg,#f8fff8,#eef8f1)] p-5 text-emerald-950">
+              <div className="grid gap-4 md:grid-cols-[1fr_0.9fr]">
+                <div>
+                  <span className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-[11px] font-medium shadow-sm">
+                    <Sparkles className="size-3.5" /> AI assisted inbox
+                  </span>
+                  <h2 className="mt-4 text-2xl font-semibold tracking-tight">
+                    Pick a chat and let the workflow guide the next action.
+                  </h2>
+                  <p className="mt-3 max-w-md text-sm leading-6 text-emerald-900/75">
+                    Human reply, approved template, WhatsApp form and handoff
+                    sit in one surface so the agent does not send blindly.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  {[
+                    ['24h reply window', 'Plain reply only when Meta allows it'],
+                    ['Templates', 'Use approved copy after the window closes'],
+                    ['Forms', 'Send structured WhatsApp Flows inside active chats'],
+                    ['Handoff', 'Assign or take over with a visible warning'],
+                  ].map(([title, body]) => (
+                    <div
+                      key={title}
+                      className="rounded-xl border border-white/70 bg-white/75 p-3 shadow-sm"
+                    >
+                      <p className="text-xs font-semibold">{title}</p>
+                      <p className="mt-1 text-[11px] text-emerald-900/65">
+                        {body}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           ) : (
             <>

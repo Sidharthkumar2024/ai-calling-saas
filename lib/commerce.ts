@@ -3,6 +3,7 @@ import { decryptSecret, sha256 } from '@/lib/security';
 import { decodeProviderSecret } from '@/lib/provider-secret-policy';
 import { readPlatformSecret } from '@/lib/platform-secrets';
 import { replyWindow } from '@/lib/whatsapp-inbox';
+import { sendSmtpEmail, type SmtpCredentials } from '@/lib/smtp-email';
 
 type SecretBundle = { apiKey?: string; webhookSecret?: string };
 type IntegrationRow = {
@@ -87,37 +88,12 @@ export async function sendEmailPaymentLink(input: {
   amount: number;
   shortUrl: string;
 }): Promise<CommerceDeliveryResult> {
-  const credentials = await emailCredentials(input.organizationId);
-  if (!credentials.apiKey || !credentials.from) {
-    return {
-      status: 'sandbox_delivered',
-      providerReference: `sandbox_email_${crypto.randomUUID()}`,
-      payload: {
-        mode: 'local_sandbox',
-        reason: 'Transactional email credentials are not connected.',
-      },
-    };
-  }
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${credentials.apiKey}`,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: credentials.from,
-      to: [input.destination],
-      subject: `Your secure payment link · ₹${(input.amount / 100).toLocaleString('en-IN')}`,
-      html: `<p>Hello ${escapeHtml(input.customerName)},</p><p>Your secure payment link is ready.</p><p><a href="${escapeHtml(input.shortUrl)}">Pay ₹${(input.amount / 100).toLocaleString('en-IN')}</a></p>`,
-    }),
-    signal: AbortSignal.timeout(15_000),
+  return sendTransactionalEmail({
+    organizationId: input.organizationId,
+    to: input.destination,
+    subject: `Your secure payment link · ₹${(input.amount / 100).toLocaleString('en-IN')}`,
+    html: `<p>Hello ${escapeHtml(input.customerName)},</p><p>Your secure payment link is ready.</p><p><a href="${escapeHtml(input.shortUrl)}">Pay ₹${(input.amount / 100).toLocaleString('en-IN')}</a></p>`,
   });
-  const payload = (await response.json()) as { id?: string; message?: string };
-  if (!response.ok || !payload.id)
-    throw new Error(
-      payload.message || 'Email could not send the payment link.',
-    );
-  return { status: 'sent', providerReference: payload.id, payload };
 }
 
 export async function sendWhatsAppPaymentLink(input: {
@@ -742,8 +718,48 @@ async function whatsAppCredentials(organizationId: string) {
 }
 
 async function emailCredentials(organizationId: string) {
+  const smtp = await readPlatformSecret('smtp');
+  const smtpConfig = smtp.config as Record<string, unknown>;
+  const smtpCredentials: SmtpCredentials | null =
+    !smtp.disabled &&
+    typeof smtpConfig.host === 'string' &&
+    typeof smtpConfig.username === 'string' &&
+    typeof smtpConfig.fromAddress === 'string' &&
+    typeof smtp.secrets.password === 'string'
+      ? {
+          host: smtpConfig.host,
+          port: Math.max(1, Number(smtpConfig.port) || 465),
+          secure: String(smtpConfig.secure ?? 'true') !== 'false',
+          username: smtpConfig.username,
+          password: smtp.secrets.password,
+          from: smtpConfig.fromAddress,
+          fromName:
+            typeof smtpConfig.fromName === 'string'
+              ? smtpConfig.fromName
+              : 'Call Vani',
+        }
+      : null;
+  if (smtpCredentials)
+    return { provider: 'smtp' as const, smtp: smtpCredentials };
+  const envSmtp: SmtpCredentials | null =
+    process.env.SMTP_HOST &&
+    process.env.SMTP_USERNAME &&
+    process.env.SMTP_PASSWORD &&
+    process.env.SMTP_FROM
+      ? {
+          host: process.env.SMTP_HOST,
+          port: Math.max(1, Number(process.env.SMTP_PORT) || 465),
+          secure: process.env.SMTP_SECURE !== 'false',
+          username: process.env.SMTP_USERNAME,
+          password: process.env.SMTP_PASSWORD,
+          from: process.env.SMTP_FROM,
+          fromName: process.env.SMTP_FROM_NAME || 'Call Vani',
+        }
+      : null;
+  if (envSmtp) return { provider: 'smtp' as const, smtp: envSmtp };
   const platform = await readPlatformSecret('resend');
-  if (platform.disabled) return { apiKey: undefined, from: undefined };
+  if (platform.disabled)
+    return { provider: 'resend' as const, apiKey: undefined, from: undefined };
   // The marketplace stores this provider as `resend`; `email_resend` is the
   // legacy type kept so existing connections keep working. They used to
   // disagree, which meant a connected Resend key was never read.
@@ -753,18 +769,19 @@ async function emailCredentials(organizationId: string) {
       (tenant.publicConfig.fromAddress as string | undefined) ||
       (tenant.publicConfig.from as string | undefined);
     if (tenant.secrets.apiKey && from)
-      return { apiKey: tenant.secrets.apiKey, from };
+      return { provider: 'resend' as const, apiKey: tenant.secrets.apiKey, from };
   }
   if (
     platform.apiKey &&
     typeof platform.config.fromAddress === 'string' &&
     platform.config.fromAddress
   )
-    return { apiKey: platform.apiKey, from: platform.config.fromAddress };
+    return { provider: 'resend' as const, apiKey: platform.apiKey, from: platform.config.fromAddress };
   if (process.env.RESEND_API_KEY && process.env.EMAIL_FROM)
-    return { apiKey: process.env.RESEND_API_KEY, from: process.env.EMAIL_FROM };
+    return { provider: 'resend' as const, apiKey: process.env.RESEND_API_KEY, from: process.env.EMAIL_FROM };
   const bundle = await integrationSecrets(organizationId, 'email_resend');
   return {
+    provider: 'resend' as const,
     apiKey: bundle.secrets.apiKey,
     from: bundle.publicConfig.from as string | undefined,
   };
@@ -836,6 +853,15 @@ export async function sendTransactionalEmail(input: {
   html: string;
 }): Promise<CommerceDeliveryResult> {
   const credentials = await emailCredentials(input.organizationId);
+  if (credentials.provider === 'smtp' && credentials.smtp) {
+    const sent = await sendSmtpEmail({
+      credentials: credentials.smtp,
+      to: input.to,
+      subject: input.subject,
+      html: input.html,
+    });
+    return { status: 'sent', providerReference: sent.id, payload: sent };
+  }
   if (!credentials.apiKey || !credentials.from) {
     return {
       status: 'sandbox_delivered',

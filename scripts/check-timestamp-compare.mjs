@@ -35,6 +35,7 @@ const ISO_COLUMNS = [
   'ended_at', // call_records, from one writer; the Exotel webhook writes the other shape
   'expires_at', // auth_sessions, support_sessions, and consent/suppression rows straight from a request body
   'scheduled_for', // outbound_messages, sometimes carrying a +05:30 offset
+  'next_attempt_at', // campaign_contacts, written by lib/campaign-settlement.ts
 ];
 
 const files = execSync(

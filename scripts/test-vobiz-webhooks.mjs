@@ -33,7 +33,8 @@ const ok = (value, message) => {
 const sqlite = new DatabaseSync(':memory:');
 sqlite.exec(`CREATE TABLE call_records(
   id TEXT PRIMARY KEY, organization_id TEXT, status TEXT, duration_seconds INTEGER DEFAULT 0,
-  cost_credits INTEGER DEFAULT 0, analysis_json TEXT DEFAULT '{}', ended_at TEXT);
+  cost_credits INTEGER DEFAULT 0, analysis_json TEXT DEFAULT '{}', ended_at TEXT,
+  provider_reference TEXT, campaign_contact_id TEXT);
 CREATE TABLE provider_usage_events(
   id TEXT PRIMARY KEY, organization_id TEXT, provider_id TEXT, category TEXT, operation TEXT,
   units INTEGER, provider_cost_micros INTEGER, billed_credits INTEGER, status TEXT, reference_id TEXT);
@@ -72,7 +73,12 @@ const credentials = {
 };
 
 const settlements = [];
+const campaignSettlements = [];
 const modules = {
+  '@/lib/campaign-settlement': {
+    settleCampaignContactForCall: async (_db, event) =>
+      campaignSettlements.push(event),
+  },
   'next/server': {
     NextResponse: {
       json: (body, init) => new Response(JSON.stringify(body), init),
@@ -276,6 +282,16 @@ equal(settled.duration_seconds, 122);
 equal(settled.ended_at, '2026-09-12T06:02:11Z', 'their clock, not ours');
 equal(settlements.length, 1, 'billed once');
 equal(settlements[0].credits, 3, 'three started minutes');
+equal(
+  campaignSettlements[0].callId,
+  'call_1',
+  'terminal webhook settles its campaign contact',
+);
+equal(
+  campaignSettlements[0].status,
+  'completed',
+  'campaign settlement sees terminal outcome',
+);
 equal(
   JSON.parse(settled.analysis_json).providerReference,
   'vobiz-uuid-1',

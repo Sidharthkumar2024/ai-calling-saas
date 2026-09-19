@@ -2999,7 +2999,7 @@ function WorkspaceSettings({
               value={String(compliance.suppressions.length)}
             />
             <Mini
-              label={t('field.kycDocuments')}
+              label="Business documents"
               value={String(compliance.kycDocuments.length)}
             />
           </div>

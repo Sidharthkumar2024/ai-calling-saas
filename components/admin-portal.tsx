@@ -1,6 +1,9 @@
 'use client';
 import { displayBrand } from '@/lib/display-brand';
 import { ProviderLogo } from '@/components/provider-logo';
+import { AdminNumberConnections } from '@/components/admin-number-connections';
+import { ServiceStatus } from '@/components/service-status';
+import { BillingModelSummary } from '@/components/billing-model-summary';
 import { PricingReference } from '@/components/pricing-reference';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -42,11 +45,7 @@ import { Progress } from '@/components/ui/progress';
 import { ActivityAreaChart, QueueBars } from '@/components/analytics-charts';
 import { useT } from '@/components/locale-provider';
 import { formatMoney } from '@/lib/currency';
-import {
-  KYC_DOCUMENT_LABEL,
-  kycProgress,
-  nextKycStatuses,
-} from '@/lib/kyc-documents';
+
 import { USAGE_UNITS } from '@/lib/rate-cards';
 import { reactivationNote, suspensionNote } from '@/lib/tenant-suspension';
 
@@ -100,6 +99,7 @@ type AdminPayload = {
   commerce?: Record<string, unknown>[];
   system?: Record<string, string | number | null>;
   providerHealth?: Record<string, unknown>[];
+  customerUsageRates?: Record<string, unknown>[];
   liveCalls?: Record<string, unknown>[];
   authProviders?: Record<string, unknown>[];
   platformProviders?: Record<string, unknown>[];
@@ -183,7 +183,7 @@ const groups: PortalNavGroup[] = [
     items: [
       {
         id: 'numbers_kyc',
-        label: 'Numbers & KYC',
+        label: 'Numbers & connections',
         icon: FileCheck2,
         translationKey: 'adminNav.numbers_kyc',
       },
@@ -218,6 +218,9 @@ const groups: PortalNavGroup[] = [
     label: 'Governance',
     translationKey: 'adminNav.group.governance',
     items: [
+      {
+        id: 'api_status', label: 'API & service status', icon: Activity,
+      },
       {
         id: 'system_audit',
         label: 'System & audit',
@@ -354,7 +357,7 @@ export function AdminPortal({ session }: { session: AdminSession }) {
           <VoiceEngines data={data} />
         ) : null}
         {!loading && !error && active === 'numbers_kyc' ? (
-          <NumbersKyc data={data} onChanged={load} />
+          <AdminNumberConnections numbers={data.numbers ?? []} onNavigate={setActive} />
         ) : null}
         {!loading && !error && active === 'plans_billing' ? (
           <PlansBilling data={data} onChanged={load} />
@@ -368,6 +371,7 @@ export function AdminPortal({ session }: { session: AdminSession }) {
         {!loading && !error && active === 'platform_apis' ? (
           <PlatformApis data={data} onChanged={load} />
         ) : null}
+        {!loading && !error && active === 'api_status' ? <ServiceStatus admin /> : null}
         {!loading && !error && active === 'system_audit' ? (
           <SystemAudit data={data} />
         ) : null}
@@ -395,7 +399,7 @@ function AdminOverview({
     Boolean(item.configured),
   ).length;
   const attentionCount =
-    Number(data.compliance?.pending_documents ?? stats.pending_kyc ?? 0) +
+    Number(stats.pending_connections ?? 0) +
     Number(revenue.open_invoices ?? 0) +
     Number(stats.open_alerts ?? 0) +
     Number(stats.open_tickets ?? 0);
@@ -418,11 +422,11 @@ function AdminOverview({
               </span>
             </div>
             <h1 className="mt-5 max-w-3xl text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
-              Operate every tenant, call and rupee from one control room.
+              Operate every customer, call and rupee from one control room.
             </h1>
             <p className="mt-3 max-w-2xl text-xs leading-5 text-ink-muted sm:text-sm">
               Live capacity, provider readiness, commercial health and
-              compliance reviews—without exposing tenant conversations or
+              compliance reviews—without exposing customer conversations or
               infrastructure secrets.
             </p>
           </div>
@@ -503,13 +507,13 @@ function AdminOverview({
         <Stat
           label="CRM leads"
           value={num(stats.leads)}
-          note="Tenant-isolated records"
+          note="Customer-isolated records"
           icon={BarChart3}
         />
         <Stat
           label="Active numbers"
           value={num(stats.active_numbers)}
-          note={`${num(stats.pending_kyc)} pending KYC`}
+          note={`${num(stats.pending_connections)} connections need setup`}
           icon={FileCheck2}
         />
         <Stat
@@ -615,8 +619,8 @@ function AdminOverview({
           <div className="mt-3 divide-y divide-white/7">
             {[
               [
-                'KYC review',
-                `${num(data.compliance?.pending_documents ?? stats.pending_kyc)} submitted documents`,
+                'Number connections',
+                `${num(stats.pending_connections)} routes need setup`,
                 'Review',
                 'numbers_kyc',
               ],
@@ -634,7 +638,7 @@ function AdminOverview({
               ],
               [
                 'Support desk',
-                `${num(stats.open_tickets)} tenant tickets`,
+                `${num(stats.open_tickets)} customer tickets`,
                 'Open',
                 'support_tickets',
               ],
@@ -677,7 +681,7 @@ function Customers({ data }: { data: AdminPayload }) {
         <Stat
           label="Organizations"
           value={num(data.stats?.customers)}
-          note="Active tenants"
+          note="Active customers"
           icon={Building2}
         />
         <Stat
@@ -689,7 +693,7 @@ function Customers({ data }: { data: AdminPayload }) {
         <Stat
           label="CRM records"
           value={num(data.stats?.leads)}
-          note="Tenant-isolated"
+          note="Customer-isolated"
           icon={BarChart3}
         />
       </div>
@@ -1505,250 +1509,7 @@ function VoiceEngines({ data }: { data: AdminPayload }) {
   );
 }
 
-function NumbersKyc({
-  data,
-  onChanged,
-}: {
-  data: AdminPayload;
-  onChanged: () => Promise<void>;
-}) {
-  const t = useT();
-  const [busy, setBusy] = useState('');
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
-  /**
-   * Where each number's paperwork actually stands.
-   *
-   * The queue used to show a document *count*, and Approve unlocked at one.
-   * A count cannot tell a reviewer whether the one file on a number is the
-   * address proof or the use-case declaration, so this reads the same
-   * checklist the customer is shown — the documents are already in the
-   * payload, newest first, which is the order `kycProgress` expects.
-   */
-  const progressByNumber = new Map(
-    (data.numbers ?? []).map((row) => {
-      const documents = (data.kycDocuments ?? [])
-        .filter((doc) => textValue(doc.phone_number_id) === textValue(row.id))
-        .map((doc) => ({
-          document_type: textValue(doc.document_type),
-          status: textValue(doc.status),
-        }));
-      return [
-        textValue(row.id),
-        kycProgress(documents, textValue(row.connection_mode) || null),
-      ] as const;
-    }),
-  );
-  async function review(numberId: string, status: 'approved' | 'rejected') {
-    setBusy(numberId);
-    setMessage('');
-    setError('');
-    try {
-      const response = await fetch('/api/admin/platform', {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ action: 'kyc_status', numberId, status }),
-      });
-      const payload = (await response.json()) as { error?: string };
-      if (!response.ok)
-        throw new Error(payload.error || 'Unable to update KYC status.');
-      setMessage(
-        status === 'approved'
-          ? 'KYC approved and the number route is active.'
-          : 'Changes requested from the customer.',
-      );
-      await onChanged();
-    } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : 'Unable to update KYC status.',
-      );
-    } finally {
-      setBusy('');
-    }
-  }
-  const providerRoutes = new Set(
-    (data.numbers ?? []).map((item) => textValue(item.provider_code, 'auto')),
-  ).size;
-  return (
-    <div className="space-y-6">
-      <SectionHeader
-        eyebrow={t('adminScreen.numbers_kyc.eyebrow')}
-        title={t('adminScreen.numbers_kyc.title')}
-        description={t('adminScreen.numbers_kyc.description')}
-      />
-      {message ? (
-        <div className="rounded-xl border border-emerald-300/15 bg-emerald-300/[0.035] p-3 text-xs text-success-text">
-          {message}
-        </div>
-      ) : null}
-      {error ? (
-        <div className="rounded-xl border border-red-300/15 bg-red-300/[0.035] p-3 text-xs text-danger-text">
-          {error}
-        </div>
-      ) : null}
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Stat
-          label="Active numbers"
-          value={num(data.stats?.active_numbers)}
-          note="Dedicated caller identities"
-          icon={PhoneCall}
-        />
-        <Stat
-          label="Pending KYC"
-          value={num(data.stats?.pending_kyc)}
-          note="Review or resubmission"
-          icon={FileCheck2}
-        />
-        <Stat
-          label="Submitted documents"
-          value={num(data.compliance?.pending_documents)}
-          note="Private object storage"
-          icon={ShieldCheck}
-        />
-        <Stat
-          label="Provider routes"
-          value={num(providerRoutes)}
-          note="Native import and SIP"
-          icon={Network}
-        />
-      </div>
-      <Panel className="overflow-hidden">
-        <PanelHeader
-          title="Activation queue"
-          description="Approve only after ownership, business purpose and provider routing checks pass"
-        />
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[1120px] text-left text-xs">
-            <thead className="border-y border-hairline text-[11px] uppercase tracking-[0.13em] text-ink-muted">
-              <tr>
-                {[
-                  'Number',
-                  'Customer',
-                  'Provider path',
-                  'Use case',
-                  'Volume',
-                  'Documents',
-                  'KYC',
-                  'Onboarding',
-                  'Decision',
-                ].map((h) => (
-                  <th key={h} className="px-3 py-3 font-medium">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/7">
-              {(data.numbers ?? []).map((row) => (
-                <tr key={String(row.id)}>
-                  <td className="px-3 py-4 font-mono">
-                    {textValue(row.phone_number)}
-                  </td>
-                  <td className="px-3 py-4 text-ink-body">
-                    {textValue(row.organization_name)}
-                  </td>
-                  <td className="px-3 py-4 text-ink-muted">
-                    <p className="capitalize">
-                      {textValue(row.provider_code, 'auto')}
-                    </p>
-                    <p className="mt-1 text-[11px] text-ink-muted">
-                      {textValue(
-                        row.connection_mode,
-                        textValue(row.acquisition_type),
-                      ).replaceAll('_', ' ')}
-                    </p>
-                  </td>
-                  <td className="max-w-48 px-3 py-4 text-ink-muted">
-                    {textValue(row.business_use_case)}
-                  </td>
-                  <td className="px-3 py-4 text-ink-muted">
-                    {num(row.estimated_monthly_minutes)} min
-                  </td>
-                  <td className="max-w-56 px-3 py-4 text-ink-muted">
-                    <p>
-                      {progressByNumber.get(textValue(row.id))?.approved
-                        .length ?? 0}
-                      {' of '}
-                      {progressByNumber.get(textValue(row.id))?.required
-                        .length ?? 0}
-                      {' accepted'}
-                    </p>
-                    <p className="mt-1 text-[11px] leading-relaxed text-ink-muted">
-                      {progressByNumber.get(textValue(row.id))?.message}
-                    </p>
-                  </td>
-                  <td className="px-3 py-4">
-                    <Status value={textValue(row.kyc_status)} />
-                  </td>
-                  <td className="px-3 py-4">
-                    <Status
-                      value={textValue(
-                        row.onboarding_status,
-                        textValue(row.status),
-                      )}
-                    />
-                  </td>
-                  <td className="px-3 py-4">
-                    <div className="flex gap-2">
-                      <Button
-                        aria-label={`Approve KYC for ${textValue(row.phone_number)}`}
-                        disabled={
-                          busy === textValue(row.id) ||
-                          row.kyc_status === 'approved' ||
-                          // Waiting documents are approved by this click, so
-                          // they do not block it; a required one that is
-                          // absent or was turned down does.
-                          (progressByNumber.get(textValue(row.id))?.missing
-                            .length ?? 1) +
-                            (progressByNumber.get(textValue(row.id))?.rejected
-                              .length ?? 0) >
-                            0 ||
-                          !['kyc_review', 'provider_review'].includes(
-                            textValue(
-                              row.onboarding_status,
-                              textValue(row.status),
-                            ),
-                          )
-                        }
-                        onClick={() =>
-                          void review(textValue(row.id), 'approved')
-                        }
-                        size="sm"
-                        className="bg-emerald-300 text-[#07120d] hover:bg-emerald-200"
-                      >
-                        Approve
-                      </Button>
-                      <Button
-                        aria-label={`Request KYC changes for ${textValue(row.phone_number)}`}
-                        disabled={
-                          busy === textValue(row.id) ||
-                          row.kyc_status === 'rejected'
-                        }
-                        onClick={() =>
-                          void review(textValue(row.id), 'rejected')
-                        }
-                        size="sm"
-                        variant="outline"
-                        className="border-hairline bg-transparent"
-                      >
-                        Request changes
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Panel>
 
-      <KycDocumentReview data={data} onChanged={onChanged} />
-      <VoiceConsentReview data={data} onChanged={onChanged} />
-    </div>
-  );
-}
 
 /**
  * Consent to clone somebody's voice, decided by a person.
@@ -1931,112 +1692,7 @@ function VoiceConsentReview({
  * opened, and one bad file meant sending all of them back. A reviewer could not
  * see what they were deciding about at all.
  */
-function KycDocumentReview({
-  data,
-  onChanged,
-}: {
-  data: AdminPayload;
-  onChanged: () => Promise<void>;
-}) {
-  const [busy, setBusy] = useState('');
-  const [problem, setProblem] = useState('');
-  const documents = data.kycDocuments ?? [];
 
-  async function decide(documentId: string, status: 'approved' | 'rejected') {
-    setBusy(documentId);
-    setProblem('');
-    const reason =
-      status === 'rejected'
-        ? (window.prompt('What is wrong with this document?') ?? '')
-        : '';
-    const message = await platformAction(
-      {
-        action: 'kyc_document_review',
-        documentId,
-        status,
-        rejectionReason: reason,
-      },
-      onChanged,
-    );
-    if (message) setProblem(message);
-    setBusy('');
-  }
-
-  return (
-    <Panel>
-      <PanelHeader
-        title="Documents submitted"
-        description="Each file a customer sent, decided one at a time. Approving a number's whole set at once meant accepting files nobody had read."
-      />
-      {problem ? (
-        <p role="alert" className="mt-3 text-[11px] text-danger-text">
-          {problem}
-        </p>
-      ) : null}
-      {documents.length === 0 ? (
-        <p className="mt-3 text-[11px] text-ink-muted">
-          No documents have been submitted yet.
-        </p>
-      ) : null}
-      <div className="mt-4 space-y-2">
-        {documents.map((row) => {
-          const id = textValue(row.id);
-          const status = textValue(row.status, 'submitted');
-          const moves = nextKycStatuses(status);
-          return (
-            <div
-              key={id}
-              className="flex flex-wrap items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2.5 text-[11px]"
-            >
-              <span className="text-[11px] font-medium text-ink">
-                {KYC_DOCUMENT_LABEL[
-                  textValue(
-                    row.document_type,
-                  ) as keyof typeof KYC_DOCUMENT_LABEL
-                ] ?? textValue(row.document_type).replaceAll('_', ' ')}
-              </span>
-              <span className="text-ink-muted">
-                {textValue(row.organization_name)}
-              </span>
-              <Status value={status} />
-              {row.rejection_reason ? (
-                <span className="text-danger-text">
-                  {textValue(row.rejection_reason)}
-                </span>
-              ) : null}
-              <span className="ml-auto flex gap-1.5">
-                {moves.includes('approved') ? (
-                  <Button
-                    size="sm"
-                    disabled={busy === id}
-                    onClick={() => void decide(id, 'approved')}
-                    className="bg-emerald-300 text-[#07120d] hover:bg-emerald-200"
-                  >
-                    Accept
-                  </Button>
-                ) : null}
-                {moves.includes('rejected') ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={busy === id}
-                    onClick={() => void decide(id, 'rejected')}
-                    className="border-hairline bg-transparent"
-                  >
-                    Send back
-                  </Button>
-                ) : null}
-                {moves.length === 0 ? (
-                  <span className="text-ink-muted">Decided</span>
-                ) : null}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </Panel>
-  );
-}
 
 function PlansBilling({
   data,
@@ -2111,6 +1767,7 @@ function PlansBilling({
           {error}
         </div>
       ) : null}
+      <BillingModelSummary admin />
       {showPackage ? (
         <Panel>
           <div className="grid gap-4 md:grid-cols-[1fr_0.6fr_0.6fr_auto]">
@@ -2246,6 +1903,7 @@ function PlansBilling({
           ))}
         </div>
       </Panel>
+      <CustomerUsageRateEditor data={data} onChanged={onChanged} />
       <CurrencyRates data={data} onChanged={onChanged} />
       <CostModel data={data} onChanged={onChanged} />
       <PricingReference admin />
@@ -2270,6 +1928,187 @@ function PlansBilling({
         />
       </div>
     </div>
+  );
+}
+
+function CustomerUsageRateEditor({
+  data,
+  onChanged,
+}: {
+  data: AdminPayload;
+  onChanged: () => Promise<void>;
+}) {
+  const [drafts, setDrafts] = useState<
+    Record<
+      string,
+      {
+        credits: string;
+        status: string;
+        customerNote: string;
+        marginNote: string;
+      }
+    >
+  >({});
+  const [saving, setSaving] = useState('');
+  const [notice, setNotice] = useState('');
+  const rows = data.customerUsageRates ?? [];
+
+  const draftFor = (row: Record<string, unknown>) => {
+    const id = textValue(row.id);
+    return (
+      drafts[id] ?? {
+        credits: String(num(row.credits)),
+        status: textValue(row.status) || 'active',
+        customerNote: textValue(row.customerNote),
+        marginNote: textValue(row.marginNote),
+      }
+    );
+  };
+
+  function updateDraft(
+    id: string,
+    patch: Partial<{
+      credits: string;
+      status: string;
+      customerNote: string;
+      marginNote: string;
+    }>,
+  ) {
+    const row = rows.find((item) => textValue(item.id) === id);
+    if (!row) return;
+    setDrafts((current) => ({
+      ...current,
+      [id]: { ...draftFor(row), ...patch },
+    }));
+  }
+
+  async function save(row: Record<string, unknown>) {
+    const id = textValue(row.id);
+    const draft = draftFor(row);
+    setSaving(id);
+    setNotice('');
+    try {
+      const message = await platformAction(
+        {
+          action: 'customer_usage_rate_update',
+          rateId: id,
+          creditsPerUnit: Number(draft.credits),
+          status: draft.status,
+          customerNote: draft.customerNote,
+          marginNote: draft.marginNote,
+        },
+        onChanged,
+      );
+      setDrafts((current) => {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
+      setNotice(message ?? 'Customer usage rate saved.');
+    } catch (caught) {
+      setNotice(
+        caught instanceof Error
+          ? caught.message
+          : 'Unable to save customer usage rate.',
+      );
+    } finally {
+      setSaving('');
+    }
+  }
+
+  return (
+    <Panel>
+      <PanelHeader
+        title="Customer usage rate card"
+        description="Wallet credits deducted from customers for calls, AI voice, WhatsApp, SMS, email and storage"
+      />
+      <div className="mt-3 rounded-xl border border-emerald-300/15 bg-emerald-300/[0.035] p-3 text-[11px] text-success-text">
+        Public pricing stays simple, while this table controls exact wallet
+        debit rates and margin notes. Provider cost cards remain separate.
+      </div>
+      {notice ? (
+        <p className="mt-3 text-[11px] text-ink-muted">{notice}</p>
+      ) : null}
+      <div className="mt-4 overflow-hidden rounded-2xl border border-hairline">
+        <div className="grid grid-cols-[1.3fr_0.7fr_0.55fr_0.55fr_1.5fr_1.5fr_0.5fr] gap-3 border-b border-hairline bg-surface-muted px-4 py-3 text-[10px] uppercase tracking-[0.2em] text-ink-muted">
+          <span>Billable item</span>
+          <span>Category</span>
+          <span>Unit</span>
+          <span>Credits</span>
+          <span>Customer note</span>
+          <span>Margin note</span>
+          <span>Status</span>
+        </div>
+        {rows.map((row) => {
+          const id = textValue(row.id);
+          const draft = draftFor(row);
+          return (
+            <div
+              key={id}
+              className="grid grid-cols-[1.3fr_0.7fr_0.55fr_0.55fr_1.5fr_1.5fr_0.5fr] gap-3 border-b border-hairline px-4 py-3 text-xs last:border-b-0"
+            >
+              <div>
+                <p className="font-medium text-ink">{textValue(row.label)}</p>
+                <p className="mt-1 text-[10px] text-ink-muted">{id}</p>
+              </div>
+              <p className="text-ink-muted">{textValue(row.category)}</p>
+              <p className="text-ink-muted">{textValue(row.unit)}</p>
+              <Input
+                aria-label={`${id} credits`}
+                type="number"
+                min={0}
+                value={draft.credits}
+                onChange={(event) =>
+                  updateDraft(id, { credits: event.target.value })
+                }
+                className="h-9 border-hairline bg-surface-muted"
+              />
+              <Input
+                aria-label={`${id} customer note`}
+                value={draft.customerNote}
+                onChange={(event) =>
+                  updateDraft(id, { customerNote: event.target.value })
+                }
+                className="h-9 border-hairline bg-surface-muted"
+              />
+              <Input
+                aria-label={`${id} margin note`}
+                value={draft.marginNote}
+                onChange={(event) =>
+                  updateDraft(id, { marginNote: event.target.value })
+                }
+                className="h-9 border-hairline bg-surface-muted"
+              />
+              <div className="flex items-center gap-2">
+                <select
+                  aria-label={`${id} status`}
+                  value={draft.status}
+                  onChange={(event) =>
+                    updateDraft(id, { status: event.target.value })
+                  }
+                  className="h-9 rounded-lg border border-hairline bg-surface-muted px-2 text-[11px]"
+                >
+                  <option value="active">active</option>
+                  <option value="retired">retired</option>
+                </select>
+                <Button
+                  size="sm"
+                  disabled={saving === id}
+                  onClick={() => void save(row)}
+                  className="h-9 bg-primary text-primary-foreground hover:bg-[#1d4ed8]"
+                >
+                  {saving === id ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    <Save />
+                  )}
+                </Button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Panel>
   );
 }
 
@@ -2363,7 +2202,7 @@ function NewPlan({ onChanged }: { onChanged: () => Promise<void> }) {
             ['monthlyPrice', 'Monthly price (paise)'],
             ['includedCredits', 'Included credits'],
             ['maxAgents', 'Max agents'],
-            ['maxNumbers', 'Max numbers'],
+            ['maxNumbers', 'Connected number limit'],
             ['concurrency', 'Concurrency'],
           ] as const
         ).map(([field, label]) => (
@@ -2496,7 +2335,7 @@ function PlanCard({
               }
             />
             <PlanField
-              label="Max numbers"
+              label="Connected number limit"
               value={draft.maxNumbers}
               number
               onChange={(value) =>
@@ -2552,7 +2391,7 @@ function PlanCard({
           <div className="mt-5 space-y-2 text-xs text-ink-body">
             <p>{num(draft.includedCredits)} included credits</p>
             <p>
-              {num(draft.maxAgents)} agents · {num(draft.maxNumbers)} numbers
+              {num(draft.maxAgents)} agents · {num(draft.maxNumbers)} connected numbers
             </p>
             <p>{num(draft.concurrency)} concurrent calls</p>
           </div>
@@ -2723,7 +2562,7 @@ function Integrations({ data }: { data: AdminPayload }) {
               <Status value={textValue(item.status)} />
             </div>
             <div className="mt-5 flex items-center justify-between rounded-xl bg-surface-muted p-3 text-xs">
-              <span className="text-ink-muted">Connected tenants</span>
+              <span className="text-ink-muted">Connected customers</span>
               <span>{num(item.tenants)}</span>
             </div>
           </Panel>
@@ -2766,6 +2605,8 @@ type KeyProvider = {
     secret?: boolean;
   }[];
   fetchVoices?: boolean;
+  testAction?: string;
+  testLabel?: string;
 };
 
 const KEY_PROVIDERS: KeyProvider[] = [
@@ -2813,6 +2654,108 @@ const KEY_PROVIDERS: KeyProvider[] = [
     ],
   },
   {
+    id: 'cartesia',
+    name: 'Cartesia — Sonic voices',
+    note: 'Low-latency TTS/STT option for premium realtime voice lanes.',
+    fields: [
+      { k: 'voiceId', label: 'Default voice ID' },
+      { k: 'model', label: 'Model', placeholder: 'sonic-3' },
+      { k: 'baseUrl', label: 'API base URL', placeholder: 'https://api.cartesia.ai' },
+    ],
+  },
+  {
+    id: 'bolna',
+    name: 'Bolna — voice agent platform',
+    note: 'Agents, calls, templates, phone-number providers and completed-call webhooks.',
+    fields: [
+      { k: 'baseUrl', label: 'API base URL', placeholder: 'https://api.bolna.ai' },
+      { k: 'webhookSecret', label: 'Webhook signing secret', secret: true },
+      { k: 'defaultAgentId', label: 'Default agent ID' },
+      { k: 'statusPage', label: 'Status page', placeholder: 'https://status.bolna.ai' },
+    ],
+  },
+  {
+    id: 'vobiz',
+    name: 'Vobiz — numbers, calls and SMS',
+    note: 'Partner/sub-account Auth ID + token used for workspace numbers and callbacks.',
+    fields: [
+      { k: 'authId', label: 'Auth ID', placeholder: 'MA_XXXXXXXX' },
+      { k: 'baseUrl', label: 'API base URL', placeholder: 'https://api.vobiz.ai' },
+      { k: 'webhookSecret', label: 'Webhook signing secret', secret: true },
+    ],
+  },
+  {
+    id: 'twilio',
+    name: 'Twilio — global telephony',
+    note: 'Global numbers, programmable voice, SMS fallback and carrier failover.',
+    fields: [
+      { k: 'accountSid', label: 'Account SID', placeholder: 'AC...' },
+      { k: 'fromNumber', label: 'Default from number', placeholder: '+14155550100' },
+      { k: 'webhookSecret', label: 'Webhook signing secret', secret: true },
+    ],
+  },
+  {
+    id: 'sms',
+    name: 'SMS gateway — OTP and links',
+    note: 'Generic SMS route for OTP, payment links, missed-call follow-up and delivery webhooks.',
+    fields: [
+      { k: 'provider', label: 'Provider', placeholder: 'vobiz, twilio, msg91, gupshup' },
+      { k: 'senderId', label: 'Sender ID', placeholder: 'CALLVN' },
+      { k: 'baseUrl', label: 'API base URL' },
+      { k: 'webhookSecret', label: 'Delivery webhook secret', secret: true },
+    ],
+  },
+  {
+    id: 'razorpay',
+    name: 'Razorpay — India payments',
+    note: 'Platform key ID, secret and signed webhook for checkout, wallet top-ups and reconciliation.',
+    fields: [
+      { k: 'accountId', label: 'Key ID', placeholder: 'rzp_live_...' },
+      { k: 'webhookSecret', label: 'Webhook signing secret', secret: true },
+    ],
+  },
+  {
+    id: 'stripe',
+    name: 'Stripe — international cards',
+    note: 'Store platform Stripe keys and webhook secret for card payments outside India.',
+    fields: [{ k: 'webhookSecret', label: 'Webhook signing secret', secret: true }],
+  },
+  {
+    id: 'payu',
+    name: 'PayU — India checkout',
+    note: 'Merchant key/salt and signed callback configuration.',
+    fields: [
+      { k: 'merchantKey', label: 'Merchant key' },
+      { k: 'webhookSecret', label: 'Webhook secret', secret: true },
+    ],
+  },
+  {
+    id: 'phonepe',
+    name: 'PhonePe — UPI checkout',
+    note: 'Merchant ID, salt key and salt index for PhonePe checkout/status.',
+    fields: [
+      { k: 'merchantId', label: 'Merchant ID' },
+      { k: 'saltIndex', label: 'Salt index', placeholder: '1' },
+      { k: 'webhookSecret', label: 'Webhook secret', secret: true },
+    ],
+  },
+  {
+    id: 'paytm',
+    name: 'Paytm — wallet and checkout',
+    note: 'Merchant credentials and website/channel settings.',
+    fields: [
+      { k: 'merchantId', label: 'Merchant ID' },
+      { k: 'website', label: 'Website/channel', placeholder: 'DEFAULT' },
+      { k: 'webhookSecret', label: 'Webhook secret', secret: true },
+    ],
+  },
+  {
+    id: 'cashfree',
+    name: 'Cashfree — India payments',
+    note: 'Client ID/secret and webhook secret for checkout and reconciliation.',
+    fields: [{ k: 'webhookSecret', label: 'Webhook secret', secret: true }],
+  },
+  {
     id: 'whatsapp',
     name: 'Meta — platform WhatsApp app',
     note: 'App-level setup only. Each customer must connect their own verified WhatsApp sender. No shared sender fallback.',
@@ -2829,9 +2772,25 @@ const KEY_PROVIDERS: KeyProvider[] = [
     ],
   },
   {
+    id: 'smtp',
+    name: 'Hostinger SMTP — transactional email',
+    note: 'Encrypted SMTP login managed by super admin. Used for invites, payment links and account notifications.',
+    fields: [
+      { k: 'host', label: 'SMTP host', placeholder: 'smtp.hostinger.com' },
+      { k: 'port', label: 'Port', placeholder: '465' },
+      { k: 'secure', label: 'Implicit TLS', placeholder: 'true' },
+      { k: 'username', label: 'SMTP username', placeholder: 'noreply@callvani.com' },
+      { k: 'password', label: 'SMTP password (encrypted)', secret: true },
+      { k: 'fromAddress', label: 'From email', placeholder: 'noreply@callvani.com' },
+      { k: 'fromName', label: 'From name', placeholder: 'Call Vani' },
+    ],
+    testAction: 'smtp_test',
+    testLabel: 'Test connection',
+  },
+  {
     id: 'resend',
     name: 'Resend — transactional email',
-    note: 'Verified platform sending address for transactional email. Tenant-specific connections take precedence.',
+    note: 'Verified platform sending address for transactional email. Customer-specific connections take precedence.',
     fields: [{ k: 'fromAddress', label: 'Verified sender email' }],
   },
   {
@@ -3007,6 +2966,14 @@ function ProviderKeyCard({
     }
   }
 
+  async function testConnection() {
+    const result = await call(
+      { action: provider.testAction, provider: provider.id },
+      'test',
+    );
+    if (result) flash('Connection verified ✓');
+  }
+
   return (
     <div className="rounded-xl border border-hairline bg-surface-muted p-4">
       <div className="flex items-center justify-between">
@@ -3073,6 +3040,21 @@ function ProviderKeyCard({
               <Activity />
             )}{' '}
             Fetch my voices
+          </Button>
+        ) : null}
+        {provider.testAction ? (
+          <Button
+            variant="outline"
+            disabled={busy === 'test' || !hasKey}
+            onClick={testConnection}
+            className="h-8 border-hairline bg-transparent text-[11px]"
+          >
+            {busy === 'test' ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              <Activity />
+            )}{' '}
+            {provider.testLabel ?? 'Test connection'}
           </Button>
         ) : null}
         {hasKey ? (
@@ -4313,8 +4295,11 @@ function CostModel({
             <p className="text-[11px] font-medium text-ink">
               What a minute sells for
             </p>
-            {model.credits.map((pack) => (
-              <p key={pack.packName} className="text-[11px] text-ink-muted">
+            {model.credits.map((pack, index) => (
+              <p
+                key={`${pack.packName}-${pack.sellPerMinuteMicros}-${pack.marginPerMinute ?? 'unknown'}-${index}`}
+                className="text-[11px] text-ink-muted"
+              >
                 <span className="text-ink-body">{pack.packName}</span>
                 {' · '}
                 {pack.summary}

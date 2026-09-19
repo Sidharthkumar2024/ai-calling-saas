@@ -63,7 +63,7 @@ export async function GET(request: Request) {
              (SELECT count(*) FROM support_tickets WHERE status NOT IN ('resolved', 'closed')) AS open_tickets,
              (SELECT count(*) FROM sip_trunks) AS sip_trunks,
              (SELECT count(*) FROM phone_numbers WHERE status = 'active') AS active_numbers,
-             (SELECT count(*) FROM phone_numbers WHERE kyc_status NOT IN ('approved', 'rejected')) AS pending_kyc,
+             (SELECT count(*) FROM phone_numbers WHERE status NOT IN ('active', 'released', 'paused')) AS pending_connections,
              (SELECT count(*) FROM webhook_endpoints WHERE status = 'active') AS webhooks`,
       )
       .first(),
@@ -110,7 +110,7 @@ export async function GET(request: Request) {
     db
       .prepare(
         `SELECT n.id, n.phone_number, n.status, n.kyc_status, n.acquisition_type,
-             n.public_provider_name, n.provider_code, n.connection_mode,
+             n.public_provider_name, n.provider_code, n.connection_mode, n.direction, n.assigned_agent_name,
              n.business_use_case, n.estimated_monthly_minutes, n.onboarding_status,
              o.name AS organization_name,
              (SELECT count(*) FROM kyc_documents d WHERE d.phone_number_id = n.id
@@ -397,7 +397,7 @@ export async function GET(request: Request) {
       ? cheapest.get(`${category}:${unit}`)!
       : null;
 
-  const minute = costPerMinute(lookup as never);
+  const minute = costPerMinute(lookup as never, undefined, 'customer');
   const averageCallMinutes =
     Number(
       (
@@ -439,7 +439,7 @@ export async function GET(request: Request) {
     assumptions: {
       ...DEFAULT_ASSUMPTIONS,
       note:
-        'Illustrative INR-only Sarvam 105B + Bulbul v3 + Sarvam STT stack, not the actual routed provider mix. Carrier and fixed costs are unpriced. ' +
+        'Illustrative INR-only Sarvam 105B + Bulbul v3 + Sarvam STT stack, not the actual routed provider mix. Customer-paid carrier charges are excluded; platform infrastructure is still unpriced. ' +
         DEFAULT_ASSUMPTIONS.note,
     },
     minute,

@@ -30,7 +30,7 @@ const portalCopy = {
     eyebrow: 'Platform control',
     title: 'Call Vani admin console',
     description:
-      'Manage tenants, KYC, calling operations, plans, credits, integrations and platform health.',
+      'Manage customers, provider connections, calling operations, plans, credits, integrations and platform health.',
     icon: ShieldCheck,
     accent: 'from-emerald-100 via-white to-white',
   },

@@ -254,7 +254,7 @@ export function LeadCapturePanel({
         <CardContent className="grid min-h-[420px] place-items-center">
           <div className="text-center">
             <LoaderCircle className="mx-auto mb-3 size-6 animate-spin text-primary" />
-            <p className="text-sm font-medium">Loading tenant CRM</p>
+            <p className="text-sm font-medium">Loading customer CRM</p>
             <p className="mt-1 text-xs text-muted-foreground">
               Connecting lead sources, AI queue and pipeline…
             </p>
@@ -293,7 +293,7 @@ export function LeadCapturePanel({
             Capture → understand → call → sell
           </h2>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-            Meta, Google and website leads enter one tenant-isolated CRM. AI
+            Meta, Google and website leads enter one customer-isolated CRM. AI
             scores every enquiry, prepares the conversation and queues the next
             sales action.
           </p>

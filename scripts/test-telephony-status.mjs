@@ -32,10 +32,20 @@ equal(normaliseCallStatus('no-answer'), 'no_answer');
 equal(normaliseCallStatus('no answer'), 'no_answer');
 equal(normaliseCallStatus('NoAnswer'), 'no_answer');
 equal(normaliseCallStatus('NO_ANSWER'), 'no_answer');
-ok(isTerminalCallStatus(normaliseCallStatus('no-answer')), 'and it ends the call');
+ok(
+  isTerminalCallStatus(normaliseCallStatus('no-answer')),
+  'and it ends the call',
+);
 
 // The ones that already worked keep working.
-for (const status of ['completed', 'failed', 'busy', 'queued', 'ringing', 'in_progress'])
+for (const status of [
+  'completed',
+  'failed',
+  'busy',
+  'queued',
+  'ringing',
+  'in_progress',
+])
   equal(normaliseCallStatus(status), status);
 equal(normaliseCallStatus('in progress'), 'in_progress');
 equal(normaliseCallStatus('  Completed  '), 'completed');
@@ -51,7 +61,11 @@ equal(normaliseCallStatus('something-else'), 'processing');
 equal(normaliseCallStatus(''), 'processing');
 equal(normaliseCallStatus(null), 'processing');
 equal(normaliseCallStatus(undefined), 'processing');
-equal(isTerminalCallStatus('processing'), false, 'so it never stamps an end time');
+equal(
+  isTerminalCallStatus('processing'),
+  false,
+  'so it never stamps an end time',
+);
 
 // The terminal set has one definition, and the SQL list is made from it.
 equal(isTerminalCallStatus('completed'), true);
@@ -69,7 +83,9 @@ const routeSource = readFileSync(
   new URL('../app/api/webhooks/telephony/exotel/route.ts', import.meta.url),
   'utf8',
 );
-const match = routeSource.match(/`(UPDATE call_records SET[\s\S]*?WHERE id = \?)`/);
+const match = routeSource.match(
+  /`(UPDATE call_records SET[\s\S]*?WHERE id = \?)`/,
+);
 ok(match, 'the webhook still has one UPDATE over call_records');
 const UPDATE = match[1].replace(/\$\{TERMINAL_SQL_LIST\}/g, TERMINAL_SQL_LIST);
 ok(!UPDATE.includes('${'), 'and nothing else in it is interpolated at runtime');
@@ -78,7 +94,7 @@ const sqlite = new DatabaseSync(':memory:');
 sqlite.exec(`
   CREATE TABLE call_records (id TEXT PRIMARY KEY, status TEXT, duration_seconds INTEGER,
     recording_status TEXT, recording_storage_key TEXT, recording_url TEXT,
-    analysis_json TEXT DEFAULT '{}', ended_at TEXT);
+    analysis_json TEXT DEFAULT '{}', ended_at TEXT, provider_reference TEXT);
 `);
 const seed = (over = {}) => {
   sqlite.prepare('DELETE FROM call_records').run();
@@ -96,37 +112,60 @@ const seed = (over = {}) => {
     );
 };
 const callback = (over = {}) =>
-  sqlite
-    .prepare(UPDATE)
-    .run(
-      over.status ?? 'completed',
-      over.status ?? 'completed',
-      over.duration ?? 0,
-      over.duration ?? 0,
-      over.recordingStatus ?? 'pending',
-      over.key ?? null,
-      over.url ?? null,
-      over.providerReference ?? 'sid_1',
-      over.status ?? 'completed',
-      'call_1',
-    );
-const row = () => sqlite.prepare('SELECT * FROM call_records WHERE id = ?').get('call_1');
+  sqlite.prepare(UPDATE).run(
+    over.status ?? 'completed',
+    over.status ?? 'completed',
+    over.duration ?? 0,
+    over.duration ?? 0,
+    over.recordingStatus ?? 'pending',
+    over.key ?? null,
+    over.url ?? null,
+    over.providerReference ?? 'sid_1',
+    // Twice: the carrier's call id goes onto the column as well as into the
+    // analysis blob. Only inbound rows ever carried it, so a callback that
+    // named its own call id and nothing of ours could not find an outbound
+    // call at all.
+    over.providerReference ?? 'sid_1',
+    over.status ?? 'completed',
+    'call_1',
+  );
+const row = () =>
+  sqlite.prepare('SELECT * FROM call_records WHERE id = ?').get('call_1');
 
 // A call finishes.
 seed();
-callback({ status: 'completed', duration: 42, recordingStatus: 'stored', key: 'k1', url: 'https://rec/1' });
+callback({
+  status: 'completed',
+  duration: 42,
+  recordingStatus: 'stored',
+  key: 'k1',
+  url: 'https://rec/1',
+});
 equal(row().status, 'completed');
 equal(row().duration_seconds, 42);
 ok(row().ended_at, 'and its end is stamped');
+equal(
+  row().provider_reference,
+  'sid_1',
+  'the carrier call id lands on the column, not only in the blob',
+);
 const endedFirst = row().ended_at;
 
 // THE REWIND. A stray late `ringing` used to put it back on the air.
 callback({ status: 'ringing' });
 equal(row().status, 'completed', 'a finished call is not moved backwards');
-equal(row().recording_status, 'stored', 'and a stored recording is not un-published');
+equal(
+  row().recording_status,
+  'stored',
+  'and a stored recording is not un-published',
+);
 equal(row().recording_storage_key, 'k1');
 equal(row().duration_seconds, 42, 'nor is a known duration replaced with zero');
-equal(row().ended_at, endedFirst, 'the end time is the first one, not the latest callback');
+equal(
+  row().ended_at,
+  endedFirst,
+  'the end time is the first one, not the latest callback',
+);
 
 // A later terminal callback may still correct a terminal call.
 callback({ status: 'failed', duration: 50 });
@@ -147,10 +186,24 @@ callback({ status: 'in_progress' });
 equal(row().status, 'in_progress');
 
 // A second callback fills in what the first lacked.
-seed({ status: 'completed', duration: 30, recordingStatus: 'pending', endedAt: '2026-09-11 10:00:00' });
-callback({ status: 'completed', recordingStatus: 'stored', key: 'k2', url: 'https://rec/2' });
+seed({
+  status: 'completed',
+  duration: 30,
+  recordingStatus: 'pending',
+  endedAt: '2026-09-11 10:00:00',
+});
+callback({
+  status: 'completed',
+  recordingStatus: 'stored',
+  key: 'k2',
+  url: 'https://rec/2',
+});
 equal(row().recording_status, 'stored');
 equal(row().recording_storage_key, 'k2');
-equal(row().duration_seconds, 30, 'and a zero duration does not erase the one on record');
+equal(
+  row().duration_seconds,
+  30,
+  'and a zero duration does not erase the one on record',
+);
 
 console.log(`telephony status: ${checks} assertions passed.`);

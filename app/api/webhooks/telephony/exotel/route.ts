@@ -4,7 +4,12 @@ import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { storeRecording } from '@/lib/recording-storage';
 import { exotelCredits, settleExotel } from '@/lib/exotel-settlement';
-import { normaliseCallStatus, TERMINAL_SQL_LIST } from '@/lib/telephony-status';
+import { settleCampaignContactForCall } from '@/lib/campaign-settlement';
+import {
+  isTerminalCallStatus,
+  normaliseCallStatus,
+  TERMINAL_SQL_LIST,
+} from '@/lib/telephony-status';
 
 export const dynamic = 'force-dynamic';
 
@@ -100,6 +105,7 @@ export async function POST(request: Request) {
       recording_storage_key = coalesce(?, recording_storage_key),
       recording_url = coalesce(?, recording_url),
       analysis_json = json_set(analysis_json, '$.providerReference', ?),
+      provider_reference = coalesce(?, provider_reference),
       ended_at = CASE WHEN ? IN (${TERMINAL_SQL_LIST}) THEN coalesce(ended_at, CURRENT_TIMESTAMP) ELSE ended_at END
       WHERE id = ?`)
     .bind(
@@ -111,10 +117,19 @@ export async function POST(request: Request) {
       recordingKey,
       recordingUrl,
       providerReference,
+      providerReference,
       status,
       call.id,
     )
     .run();
+  // A campaign contact is only ever moved out of `dialing` from here or from
+  // the hourly sweep, so a contact who answered is not dialled again.
+  if (isTerminalCallStatus(status))
+    await settleCampaignContactForCall(db, {
+      callId: call.id,
+      status,
+      now: new Date(),
+    });
   const statements = [
     db
       .prepare(`INSERT INTO provider_usage_events

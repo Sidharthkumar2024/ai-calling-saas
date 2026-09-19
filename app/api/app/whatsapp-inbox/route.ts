@@ -10,6 +10,11 @@ import {
   whatsAppConnected,
 } from '@/lib/commerce';
 import {
+  finalizeUsageCredits,
+  holdUsageCredits,
+  releaseUsageHold,
+} from '@/lib/usage-wallet';
+import {
   fillTemplate,
   validateParams,
   type Template,
@@ -309,6 +314,25 @@ export async function POST(request: Request) {
         },
         { status: 409 },
       );
+    const usageReference = `whatsapp_template_${crypto.randomUUID()}`;
+    const hold = await holdUsageCredits({
+      organizationId,
+      referenceType: 'whatsapp_template',
+      referenceId: usageReference,
+      rateId: whatsappTemplateRateId(template.category),
+      quantity: 1,
+      description: `WhatsApp ${template.category.toLowerCase()} template hold: ${template.name}`,
+    });
+    if (hold.status === 'insufficient')
+      return NextResponse.json(
+        {
+          error:
+            'Wallet balance is too low for this WhatsApp template. Top up credits and try again.',
+          requiredCredits: hold.estimatedCredits,
+          balance: hold.balance,
+        },
+        { status: 402 },
+      );
     let result;
     try {
       result = await sendWhatsAppTemplate({
@@ -319,6 +343,12 @@ export async function POST(request: Request) {
         params: params.slice(0, 20),
       });
     } catch (error) {
+      await releaseUsageHold({
+        organizationId,
+        referenceType: 'whatsapp_template',
+        referenceId: usageReference,
+        reason: 'WhatsApp template was rejected before provider acceptance; credits released',
+      });
       return NextResponse.json(
         {
           error:
@@ -329,7 +359,13 @@ export async function POST(request: Request) {
         { status: 502 },
       );
     }
-    if (result.status !== 'sent')
+    if (result.status !== 'sent') {
+      await releaseUsageHold({
+        organizationId,
+        referenceType: 'whatsapp_template',
+        referenceId: usageReference,
+        reason: 'WhatsApp template was not sent; credits released',
+      });
       return NextResponse.json(
         {
           error:
@@ -337,6 +373,15 @@ export async function POST(request: Request) {
         },
         { status: 409 },
       );
+    }
+    const usage = await finalizeUsageCredits({
+      organizationId,
+      referenceType: 'whatsapp_template',
+      referenceId: usageReference,
+      rateId: whatsappTemplateRateId(template.category),
+      quantity: 1,
+      description: `WhatsApp ${template.category.toLowerCase()} template sent: ${template.name}`,
+    });
     // Stored filled in, because what belongs in the transcript is what the
     // customer read — not the template with its slots still showing.
     await db
@@ -359,7 +404,12 @@ export async function POST(request: Request) {
       phone,
       { template: template.name, language: template.language },
     );
-    return NextResponse.json({ ok: true, status: result.status });
+    return NextResponse.json({
+      ok: true,
+      status: result.status,
+      credits: usage.finalCredits ?? usage.estimatedCredits,
+      balance: usage.balance,
+    });
   }
 
   /**
@@ -435,6 +485,25 @@ export async function POST(request: Request) {
         ? body.text.trim().slice(0, 1024)
         : `Please fill in this short form: ${flow.name}`;
     const flowToken = `wft_${crypto.randomUUID()}`;
+    const usageReference = `whatsapp_flow_${flowToken}`;
+    const hold = await holdUsageCredits({
+      organizationId,
+      referenceType: 'whatsapp_flow',
+      referenceId: usageReference,
+      rateId: 'whatsapp_service_reply',
+      quantity: 1,
+      description: `WhatsApp form message hold: ${flow.name}`,
+    });
+    if (hold.status === 'insufficient')
+      return NextResponse.json(
+        {
+          error:
+            'Wallet balance is too low for this WhatsApp form message. Top up credits and try again.',
+          requiredCredits: hold.estimatedCredits,
+          balance: hold.balance,
+        },
+        { status: 402 },
+      );
     // Written before the send. If the send fails the row is removed; if the
     // process dies between the two, an unanswered row is a smaller problem
     // than an answer arriving with no row to match it to.
@@ -462,6 +531,12 @@ export async function POST(request: Request) {
         body: message,
       });
     } catch (error) {
+      await releaseUsageHold({
+        organizationId,
+        referenceType: 'whatsapp_flow',
+        referenceId: usageReference,
+        reason: 'WhatsApp form was rejected before provider acceptance; credits released',
+      });
       await db
         .prepare(
           `DELETE FROM whatsapp_flow_responses WHERE organization_id = ? AND flow_token = ?`,
@@ -479,6 +554,12 @@ export async function POST(request: Request) {
       );
     }
     if (result.status !== 'sent') {
+      await releaseUsageHold({
+        organizationId,
+        referenceType: 'whatsapp_flow',
+        referenceId: usageReference,
+        reason: 'WhatsApp form was not sent; credits released',
+      });
       await db
         .prepare(
           `DELETE FROM whatsapp_flow_responses WHERE organization_id = ? AND flow_token = ?`,
@@ -490,6 +571,14 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     }
+    const usage = await finalizeUsageCredits({
+      organizationId,
+      referenceType: 'whatsapp_flow',
+      referenceId: usageReference,
+      rateId: 'whatsapp_service_reply',
+      quantity: 1,
+      description: `WhatsApp form message sent: ${flow.name}`,
+    });
     await db
       .prepare(`INSERT INTO whatsapp_messages
         (id, organization_id, phone_number_id, wa_message_id, direction,
@@ -512,7 +601,12 @@ export async function POST(request: Request) {
         flow: flow.name,
       },
     );
-    return NextResponse.json({ ok: true, status: result.status });
+    return NextResponse.json({
+      ok: true,
+      status: result.status,
+      credits: usage.finalCredits ?? usage.estimatedCredits,
+      balance: usage.balance,
+    });
   }
 
   const text = typeof body?.text === 'string' ? body.text.trim() : '';
@@ -566,6 +660,25 @@ export async function POST(request: Request) {
   if (!window.open)
     return NextResponse.json({ error: window.reason }, { status: 409 });
 
+  const usageReference = `whatsapp_reply_${crypto.randomUUID()}`;
+  const hold = await holdUsageCredits({
+    organizationId,
+    referenceType: 'whatsapp_reply',
+    referenceId: usageReference,
+    rateId: 'whatsapp_service_reply',
+    quantity: 1,
+    description: `WhatsApp service reply hold to ${phone}`,
+  });
+  if (hold.status === 'insufficient')
+    return NextResponse.json(
+      {
+        error:
+          'Wallet balance is too low for this WhatsApp reply. Top up credits and try again.',
+        requiredCredits: hold.estimatedCredits,
+        balance: hold.balance,
+      },
+      { status: 402 },
+    );
   let result;
   try {
     result = await sendWhatsAppText({
@@ -574,6 +687,12 @@ export async function POST(request: Request) {
       body: text,
     });
   } catch (error) {
+    await releaseUsageHold({
+      organizationId,
+      referenceType: 'whatsapp_reply',
+      referenceId: usageReference,
+      reason: 'WhatsApp reply was rejected before provider acceptance; credits released',
+    });
     // The sender refuses a do-not-contact number before it goes near Meta, and
     // "Meta did not accept this, check the connection" sends somebody to look
     // at the integration and try again — over a customer who asked not to be
@@ -586,7 +705,13 @@ export async function POST(request: Request) {
       { status: /do-not-contact/i.test(reason) ? 409 : 502 },
     );
   }
-  if (result.status !== 'sent')
+  if (result.status !== 'sent') {
+    await releaseUsageHold({
+      organizationId,
+      referenceType: 'whatsapp_reply',
+      referenceId: usageReference,
+      reason: 'WhatsApp reply was not sent; credits released',
+    });
     return NextResponse.json(
       {
         error:
@@ -594,8 +719,17 @@ export async function POST(request: Request) {
       },
       { status: 409 },
     );
+  }
 
   // Record only accepted sends. Provider acceptance is not a delivery receipt.
+  const usage = await finalizeUsageCredits({
+    organizationId,
+    referenceType: 'whatsapp_reply',
+    referenceId: usageReference,
+    rateId: 'whatsapp_service_reply',
+    quantity: 1,
+    description: `WhatsApp service reply sent to ${phone}`,
+  });
   await db
     .prepare(`INSERT INTO whatsapp_messages
       (id, organization_id, phone_number_id, wa_message_id, direction,
@@ -612,5 +746,18 @@ export async function POST(request: Request) {
   await recordAudit(auth.session, 'whatsapp.replied', 'whatsapp', phone, {
     status: result.status,
   });
-  return NextResponse.json({ ok: true, status: result.status });
+  return NextResponse.json({
+    ok: true,
+    status: result.status,
+    credits: usage.finalCredits ?? usage.estimatedCredits,
+    balance: usage.balance,
+  });
+}
+
+function whatsappTemplateRateId(category: string) {
+  const normalized = category.toLowerCase();
+  if (normalized.includes('marketing')) return 'whatsapp_marketing_message';
+  if (normalized.includes('utility') || normalized.includes('authentication'))
+    return 'whatsapp_utility_message';
+  return 'whatsapp_utility_message';
 }

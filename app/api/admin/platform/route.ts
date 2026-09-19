@@ -4,11 +4,7 @@ import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { requireAdminCapability, type AdminCapability } from '@/lib/admin-rbac';
 import { recordAudit } from '@/lib/demo-seed';
-import {
-  canMoveKyc,
-  KYC_DOCUMENT_LABEL,
-  kycProgress,
-} from '@/lib/kyc-documents';
+
 import { isUsageUnit, USAGE_UNITS } from '@/lib/rate-cards';
 import {
   platformProviderSecret,
@@ -17,6 +13,8 @@ import {
 import { encryptSecret } from '@/lib/security';
 import { splitProviderConfig } from '@/lib/provider-secret-policy';
 import { googleAuthConfig } from '@/lib/google-auth-config';
+import { customerUsageRates } from '@/lib/customer-usage-pricing';
+import { verifySmtp, type SmtpCredentials } from '@/lib/smtp-email';
 
 // Providers whose keys the admin panel may store.
 // Sign-in providers whose OAuth credentials the platform admin may store.
@@ -28,10 +26,21 @@ const MANAGED_PROVIDERS = new Set([
   'anthropic',
   'openai',
   'deepgram',
+  'cartesia',
+  'bolna',
   'resend',
+  'smtp',
   'razorpay',
+  'stripe',
+  'payu',
+  'phonepe',
+  'paytm',
+  'cashfree',
   'whatsapp',
   'exotel',
+  'vobiz',
+  'twilio',
+  'sms',
   // The OAuth apps behind the growth manager's connectors (§6). Registered
   // once by the platform so a workspace presses Connect instead of creating a
   // Google Cloud project of its own. The client id and redirect URL go in
@@ -50,8 +59,18 @@ const PROVIDER_ROW_IDS: Record<string, string> = {
   openai: 'provider_openai',
   anthropic: 'provider_anthropic',
   razorpay: 'provider_razorpay',
+  stripe: 'provider_stripe',
+  payu: 'provider_payu',
+  phonepe: 'provider_phonepe',
+  paytm: 'provider_paytm',
+  cashfree: 'provider_cashfree',
+  smtp: 'provider_email',
   whatsapp: 'provider_whatsapp',
   exotel: 'provider_telephony',
+  vobiz: 'provider_vobiz',
+  bolna: 'provider_bolna',
+  cartesia: 'provider_cartesia',
+  sms: 'provider_sms',
 };
 
 /**
@@ -78,6 +97,7 @@ const ACTION_CAPABILITIES: Record<string, AdminCapability> = {
   provider_key_save: 'providers.manage',
   provider_key_clear: 'providers.manage',
   provider_status: 'providers.manage',
+  smtp_test: 'providers.manage',
   elevenlabs_tts_test: 'providers.manage',
   elevenlabs_voices: 'providers.manage',
   auth_visibility: 'security.manage',
@@ -89,6 +109,7 @@ const ACTION_CAPABILITIES: Record<string, AdminCapability> = {
   credit_package_status: 'billing.manage',
   fx_rate_set: 'billing.manage',
   rate_card_set: 'billing.manage',
+  customer_usage_rate_update: 'billing.manage',
   price_book_set: 'billing.manage',
   kyc_status: 'tenants.manage',
   kyc_document_review: 'tenants.manage',
@@ -110,6 +131,7 @@ export async function GET(request: Request) {
     tickets,
     messages,
     voiceConsents,
+    customerUsageRateRows,
   ] = await Promise.all([
     db
       .prepare(
@@ -152,6 +174,7 @@ export async function GET(request: Request) {
           WHERE c.state IN ('pending', 'rejected') OR p.platform_blocked = 1
           ORDER BY c.state = 'pending' DESC, c.created_at`)
       .all(),
+    customerUsageRates(),
   ]);
   const readiness = await providerReadiness();
   // Persist the measured result. `status` stays operator-controlled (they may
@@ -210,6 +233,7 @@ export async function GET(request: Request) {
       };
     }),
     providerReadiness: readiness,
+    customerUsageRates: customerUsageRateRows,
     tickets: tickets.results,
     ticketMessages: messages.results,
   });
@@ -248,6 +272,10 @@ export async function PATCH(request: Request) {
     category?: string;
     unit?: string;
     priceMicros?: number;
+    rateId?: string;
+    creditsPerUnit?: number;
+    customerNote?: string;
+    marginNote?: string;
     model?: string;
     baseCurrency?: string;
     quoteCurrency?: string;
@@ -362,6 +390,55 @@ export async function PATCH(request: Request) {
       {},
     );
     return NextResponse.json({ cleared: true });
+  }
+
+  if (body.action === 'smtp_test') {
+    const stored = await platformProviderSecret('smtp');
+    const config = stored.config as Record<string, unknown>;
+    const password = stored.secrets.password;
+    const credentials: SmtpCredentials | null =
+      !stored.disabled &&
+      typeof config.host === 'string' &&
+      typeof config.username === 'string' &&
+      typeof config.fromAddress === 'string' &&
+      typeof password === 'string'
+        ? {
+            host: config.host,
+            port: Math.max(1, Number(config.port) || 465),
+            secure: String(config.secure ?? 'true') !== 'false',
+            username: config.username,
+            password,
+            from: config.fromAddress,
+            fromName:
+              typeof config.fromName === 'string'
+                ? config.fromName
+                : 'Call Vani',
+          }
+        : null;
+    if (!credentials)
+      return NextResponse.json(
+        { error: 'Save the complete SMTP configuration first.' },
+        { status: 400 },
+      );
+    try {
+      await verifySmtp(credentials);
+      await recordAudit(
+        auth.session,
+        'provider.smtp_verified',
+        'platform_provider',
+        'smtp',
+        { host: credentials.host, port: credentials.port },
+      );
+      return NextResponse.json({ ok: true });
+    } catch {
+      return NextResponse.json(
+        {
+          error:
+            'SMTP authentication or TLS verification failed. Check the saved mailbox credentials.',
+        },
+        { status: 502 },
+      );
+    }
   }
 
   if (body.action === 'elevenlabs_tts_test') {
@@ -956,6 +1033,63 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ ok: true, id, provider, category, unit });
   }
 
+  if (body.action === 'customer_usage_rate_update') {
+    const rateId = String(body.rateId ?? '').trim();
+    const existing = await db
+      .prepare(
+        `SELECT id, label FROM customer_usage_rates WHERE id = ? LIMIT 1`,
+      )
+      .bind(rateId)
+      .first<{ id: string; label: string }>();
+    if (!existing)
+      return NextResponse.json(
+        { error: 'That customer usage rate does not exist.' },
+        { status: 404 },
+      );
+    const credits = boundedInteger(body.creditsPerUnit, 0, 100_000_000);
+    const status = body.status === 'retired' ? 'retired' : 'active';
+    const customerNote =
+      typeof body.customerNote === 'string'
+        ? body.customerNote.trim().slice(0, 400)
+        : '';
+    const marginNote =
+      typeof body.marginNote === 'string'
+        ? body.marginNote.trim().slice(0, 400)
+        : '';
+    await db
+      .prepare(
+        `UPDATE customer_usage_rates
+         SET credits = ?, status = ?,
+             customer_note = COALESCE(NULLIF(?, ''), customer_note),
+             margin_note = COALESCE(NULLIF(?, ''), margin_note),
+             updated_by = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+      )
+      .bind(
+        credits,
+        status,
+        customerNote,
+        marginNote,
+        auth.session.userId,
+        rateId,
+      )
+      .run();
+    await recordAudit(
+      auth.session,
+      'billing.customer_usage_rate_updated',
+      'customer_usage_rate',
+      rateId,
+      { credits, status, customerNote, marginNote },
+    );
+    return NextResponse.json({
+      ok: true,
+      id: rateId,
+      label: existing.label,
+      credits,
+      status,
+    });
+  }
+
   if (body.action === 'fx_rate_set') {
     const base = String(body.baseCurrency ?? '')
       .trim()
@@ -1080,168 +1214,8 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ ok: true, productType, productId, currency });
   }
 
-  // One document at a time, so a reviewer can accept the GST certificate and
-  // send back the address proof rather than deciding the whole set at once.
-  if (body.action === 'kyc_document_review') {
-    const documentId = String(body.documentId ?? '');
-    const row = await db
-      .prepare(`SELECT id, status FROM kyc_documents WHERE id = ? LIMIT 1`)
-      .bind(documentId)
-      .first<{ id: string; status: string }>();
-    if (!row)
-      return NextResponse.json(
-        { error: 'That document does not exist.' },
-        { status: 404 },
-      );
-    const next = String(body.status ?? '');
-    if (!canMoveKyc(row.status, next))
-      return NextResponse.json(
-        {
-          error: `A document that is ${row.status.replaceAll('_', ' ')} cannot be moved to ${next || 'that'}.`,
-        },
-        { status: 409 },
-      );
-    await db
-      .prepare(`UPDATE kyc_documents SET status = ?, rejection_reason = ?,
-        reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP WHERE id = ?`)
-      .bind(
-        next,
-        next === 'rejected'
-          ? body.rejectionReason?.trim().slice(0, 300) ||
-              'Please send a clearer copy of this document.'
-          : null,
-        auth.session.userId,
-        documentId,
-      )
-      .run();
-    await recordAudit(
-      auth.session,
-      `kyc_document.${next}`,
-      'kyc_document',
-      documentId,
-      { reason: body.rejectionReason ?? null },
-    );
-    return NextResponse.json({ ok: true, status: next });
-  }
-
-  if (body.action === 'kyc_status') {
-    if (!body.numberId || !['approved', 'rejected'].includes(body.status ?? ''))
-      return NextResponse.json(
-        { error: 'Number and review decision are required.' },
-        { status: 400 },
-      );
-    const approved = body.status === 'approved';
-    const review = await db
-      .prepare(`SELECT id, organization_id, status, onboarding_status, connection_mode
-      FROM phone_numbers WHERE id = ? LIMIT 1`)
-      .bind(body.numberId)
-      .first<{
-        id: string;
-        organization_id: string;
-        status: string;
-        onboarding_status: string;
-        connection_mode: string | null;
-      }>();
-    if (!review)
-      return NextResponse.json(
-        { error: 'Number request not found.' },
-        { status: 404 },
-      );
-    if (approved) {
-      // The gate used to be "at least one submitted document", which is not
-      // what a carrier asks for. The customer's own screen has been listing
-      // the five required documents and how many are accepted; approval was
-      // the one place that never read that list, so a number could go live on
-      // a single uploaded file with four required ones missing.
-      const uploaded = await db
-        .prepare(
-          // Scoped to the number's own workspace as well as to the number.
-          // A row here carries whatever `phone_number_id` was posted with it,
-          // and this gate decides whether somebody's number goes live.
-          `SELECT document_type, status FROM kyc_documents
-           WHERE phone_number_id = ? AND organization_id = ? ORDER BY created_at DESC`,
-        )
-        .bind(body.numberId, review.organization_id)
-        .all<{ document_type: string; status: string }>();
-      const progress = kycProgress(
-        uploaded.results ?? [],
-        review.connection_mode,
-      );
-      // Documents still waiting are approved by this very action, so they do
-      // not block it. A required document that is absent, or whose latest
-      // upload was turned down, does.
-      const outstanding = [...progress.missing, ...progress.rejected];
-      if (outstanding.length > 0)
-        return NextResponse.json(
-          {
-            error: `This number cannot be approved yet: ${outstanding
-              .map((type) => KYC_DOCUMENT_LABEL[type])
-              .join(
-                ', ',
-              )} ${outstanding.length === 1 ? 'is' : 'are'} missing or rejected.`,
-            missing: progress.missing,
-            rejected: progress.rejected,
-          },
-          { status: 409 },
-        );
-    }
-    if (
-      approved &&
-      !['kyc_review', 'provider_review'].includes(review.status) &&
-      !['kyc_review', 'provider_review'].includes(review.onboarding_status)
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            'Ownership and KYC review must be completed before activation.',
-        },
-        { status: 409 },
-      );
-    }
-    const result = await db
-      .prepare(
-        `UPDATE phone_numbers SET kyc_status = ?, status = ?, onboarding_status = ? WHERE id = ?`,
-      )
-      .bind(
-        body.status,
-        approved ? 'active' : 'kyc_rejected',
-        approved ? 'active' : 'changes_required',
-        body.numberId,
-      )
-      .run();
-    if (!result.meta.changes)
-      return NextResponse.json(
-        { error: 'Number request was not updated.' },
-        { status: 409 },
-      );
-    // Only the ones still waiting. This used to update every document on the
-    // number, so approving a GST certificate also approved an address proof
-    // nobody had read — and re-approving later overwrote the reviewer and the
-    // timestamp on decisions already made.
-    await db
-      .prepare(
-        `UPDATE kyc_documents SET status = ?, rejection_reason = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP
-         WHERE phone_number_id = ? AND organization_id = ?
-           AND status IN ('submitted', 'under_review')`,
-      )
-      .bind(
-        body.status,
-        approved
-          ? null
-          : body.rejectionReason?.trim().slice(0, 300) ||
-              'Please resubmit the requested business evidence.',
-        auth.session.userId,
-        body.numberId,
-        review.organization_id,
-      )
-      .run();
-    await recordAudit(
-      auth.session,
-      `kyc.${body.status}`,
-      'phone_number',
-      body.numberId,
-    );
-    return NextResponse.json({ updated: true });
+  if (body.action === 'kyc_status' || body.action === 'kyc_document_review') {
+    return NextResponse.json({ error: 'Number verification is handled by the customer’s carrier. Call Vani no longer collects or approves number KYC.' }, { status: 410 });
   }
   if (body.action === 'ticket_reply') {
     const ticket = await db

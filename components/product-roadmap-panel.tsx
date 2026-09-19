@@ -54,9 +54,9 @@ const statusTone: Record<DeliveryStatus, string> = {
 
 const roadmapModules: RoadmapModule[] = [
   {
-    name: 'Tenant, auth & roles',
+    name: 'Customer, auth & roles',
     status: 'Backend ready',
-    available: 'Tenant-aware workspace context and customer/admin role views.',
+    available: 'Customer-aware workspace context and customer/admin role views.',
     next: 'Production auth, invitations, RBAC matrix, MFA and session controls.',
   },
   {
@@ -156,8 +156,8 @@ const roadmapModules: RoadmapModule[] = [
     name: 'Super Admin & support',
     status: 'Interactive demo',
     available:
-      'Platform KPIs, tenant directory and provider-level operations UI.',
-    next: 'Tenant actions, support impersonation controls, jobs and incident tooling.',
+      'Platform KPIs, customer directory and provider-level operations UI.',
+    next: 'Customer actions, support impersonation controls, jobs and incident tooling.',
   },
   {
     name: 'API, integrations & webhooks',
@@ -192,7 +192,7 @@ const phases = [
     progress: 38,
     tone: 'text-success-text',
     items: [
-      'Production tenant auth, RBAC and onboarding',
+      'Production customer auth, RBAC and onboarding',
       'Agent Studio + real telephony + durable callbacks',
       'Lead-to-CRM-to-call-to-sale closed loop',
       'Billing, consent, audit and Super Admin controls',
@@ -318,7 +318,7 @@ export function ProductRoadmapPanel({
           [
             'Backend-ready modules',
             '3',
-            'Persisted and tenant-aware',
+            'Persisted and customer-aware',
             CheckCircle2,
           ],
           [
@@ -409,7 +409,7 @@ export function ProductRoadmapPanel({
               <div className="flex-1">
                 <p className="text-sm font-medium">Current scope boundary</p>
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  Partner portals, reseller controls and tenant branding are not
+                  Partner portals, reseller controls and customer branding are not
                   part of this roadmap. Reconsider them only after the core
                   commercial product has real usage, reliability and unit
                   economics.

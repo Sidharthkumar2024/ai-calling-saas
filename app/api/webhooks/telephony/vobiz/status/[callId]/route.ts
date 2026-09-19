@@ -3,7 +3,12 @@ import { NextResponse } from 'next/server';
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
 import { exotelCredits, settleExotel } from '@/lib/exotel-settlement';
-import { normaliseCallStatus, TERMINAL_SQL_LIST } from '@/lib/telephony-status';
+import { settleCampaignContactForCall } from '@/lib/campaign-settlement';
+import {
+  isTerminalCallStatus,
+  normaliseCallStatus,
+  TERMINAL_SQL_LIST,
+} from '@/lib/telephony-status';
 import { vobizWorkspaceCredentials } from '@/lib/provider-adapters';
 import { readVobizCallback, verifyVobizSignature } from '@/lib/vobiz';
 
@@ -88,6 +93,7 @@ export async function POST(
         THEN status ELSE ? END,
       duration_seconds = CASE WHEN ? > 0 THEN ? ELSE duration_seconds END,
       analysis_json = json_set(analysis_json, '$.providerReference', ?),
+      provider_reference = coalesce(?, provider_reference),
       ended_at = CASE WHEN ? THEN coalesce(ended_at, ?) ELSE ended_at END
       WHERE id = ?`)
     .bind(
@@ -95,6 +101,7 @@ export async function POST(
       status,
       duration,
       duration,
+      callback.callUuid,
       callback.callUuid,
       terminal ? 1 : 0,
       // Their clock for when the call ended, not ours for when we heard about
@@ -104,6 +111,13 @@ export async function POST(
       call.id,
     )
     .run();
+
+  if (isTerminalCallStatus(status))
+    await settleCampaignContactForCall(db, {
+      callId: call.id,
+      status,
+      now: new Date(),
+    });
 
   await db
     .prepare(`INSERT INTO provider_usage_events

@@ -3,12 +3,11 @@
  *
  * Two live at once and they are not interchangeable. Exotel is a carrier the
  * customer brings — their account, their caller id, configured in Integrations.
- * Vobiz is the one Vaani resells: the workspace is a sub-account, and the
- * number it calls from is one Vaani handed it, which is why the choice is made
- * from `phone_numbers` rather than from whichever credentials happen to exist.
+ * Vobiz is also customer-owned. Only an active, explicitly connected number
+ * can select it; credentials alone are not proof of number ownership/routing.
  *
  * Written as a lookup rather than a setting on purpose. A workspace that has
- * been given a Vobiz number should not also have to tell the product that it
+ * connected a Vobiz number should not also have to tell the product that it
  * has one, and a setting that can disagree with the numbers table is a setting
  * that eventually does.
  */
@@ -29,7 +28,7 @@ export type CarrierChoice =
  * The first active Vobiz number that may dial out, or Exotel.
  *
  * `status = 'active'` is the whole test on the Vobiz side: a number still in
- * KYC, or one that was released, is not something to place a call from, and
+ * pending provider setup, or one that was released, cannot place calls, and
  * their API refuses a `from` the sub-account does not own — so guessing here
  * would turn a configuration problem into a failed call.
  */

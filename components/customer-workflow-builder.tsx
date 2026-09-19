@@ -81,7 +81,17 @@ type Catalogue = {
 };
 
 const NODE_WIDTH = 196;
-const NODE_HEIGHT = 76;
+/**
+ * Tall enough for everything a node card puts in it.
+ *
+ * The card holds four lines — kind, name, summary, and the count of problems
+ * when it has any — and 76px held three. So the line that fell outside the
+ * border was always the last one, which is the problem count: the card told you
+ * something was wrong with it by writing that fact underneath itself, over
+ * whatever was there. Every other line fits inside a card with no problems,
+ * which is why it looked fine until it mattered.
+ */
+const NODE_HEIGHT = 94;
 const COLUMN_GAP = 76;
 const ROW_GAP = 22;
 
@@ -686,7 +696,10 @@ export function CustomerWorkflowBuilder() {
                       width: NODE_WIDTH,
                       height: NODE_HEIGHT,
                     }}
-                    className={`absolute rounded-lg border p-2.5 text-left transition-colors ${
+                    // `overflow-hidden` is the belt to the height's braces: a
+                    // longer name or a fifth line clips at the border instead
+                    // of spilling across the card below it.
+                    className={`absolute flex flex-col overflow-hidden rounded-lg border p-2.5 text-left transition-colors ${
                       selected === entry.id
                         ? 'border-primary bg-surface-muted'
                         : issues.length > 0
@@ -704,7 +717,7 @@ export function CustomerWorkflowBuilder() {
                       {summaryOf(entry)}
                     </span>
                     {issues.length > 0 ? (
-                      <span className="mt-0.5 block text-[11px] text-danger-text">
+                      <span className="mt-auto block pt-0.5 text-[11px] text-danger-text">
                         {issues.length} problem{issues.length === 1 ? '' : 's'}
                       </span>
                     ) : null}

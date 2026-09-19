@@ -1,5 +1,8 @@
 import { getRawDb } from '@/db/index';
+import { chooseCarrier } from '@/lib/carrier-router';
+import { settleCampaignContactForCall } from '@/lib/campaign-settlement';
 import { enqueueJob } from '@/lib/job-enqueue';
+import { startOutboundCall, startVobizCall } from '@/lib/provider-adapters';
 import { assertCanPlaceRealCall } from '@/lib/onboarding-service';
 import { checkPlanLimit } from '@/lib/plan-limits';
 import { sha256 } from '@/lib/security';
@@ -12,14 +15,22 @@ import { localClock, minuteOfDay } from '@/lib/shifts';
  * `call_jobs` had no writers and the campaign row's status never moved. This
  * walks the campaign's own contacts through the gates a real outbound call must
  * pass — consent, suppression, calling window, plan concurrency, wallet — and
- * records exactly why each contact was attempted or skipped.
+ * then places the call.
  *
- * What it does NOT do is place the call. `startOutboundCall` exists and is
- * reached from POST /api/app/calls, one number at a time; no path from a
- * campaign reaches it. Every eligible contact is therefore recorded as
- * blocked, with the reason, rather than counted as attempted — which is what
- * this used to do, so a configured workspace watched `attempted` climb through
- * an audience nobody had called.
+ * It did not place it until now, and the reason it did not is worth keeping:
+ * placing a call is only half of a dialer. The other half is knowing how the
+ * call ended, and nothing joined a `call_records` row to the
+ * `campaign_contacts` row it was placed for, so a contact who answered would be
+ * dialled again on the next backoff until the attempt limit ran out. That link
+ * is `call_records.campaign_contact_id` now, and `lib/campaign-settlement.ts`
+ * is the only thing that moves a contact out of `dialing` — from the carrier's
+ * webhook, or from the hourly sweep when no webhook comes.
+ *
+ * Two rules hold this together. A contact is claimed with a conditional write,
+ * so two overlapping passes cannot dial the same person twice. And `attempted`
+ * counts calls the carrier accepted, never rows this function wrote — counting
+ * its own writes is what made a campaign look like it was working through an
+ * audience nobody had called.
  */
 
 export type DialSummary = {
@@ -88,6 +99,21 @@ export async function dialCampaign(
       skipped,
       requeued: false,
       reason: 'campaign_not_running',
+    };
+
+  // A call with no agent has nobody on this end of it. The campaign form asks
+  // for one, so this is a campaign that lost its agent — archived, or deleted
+  // — rather than one that never had one, and dialling would ring a customer
+  // into silence.
+  if (!campaign.agent_id)
+    return {
+      campaignId,
+      status: campaign.status,
+      considered: 0,
+      attempted: 0,
+      skipped,
+      requeued: false,
+      reason: 'no_agent_assigned',
     };
 
   const parse = <T>(raw: string, fallback: T): T => {
@@ -185,11 +211,11 @@ export async function dialCampaign(
   }
 
   const due = await db
-    .prepare(`SELECT id, phone, consent_status, attempt_count
+    .prepare(`SELECT id, phone, consent_status, attempt_count, lead_id
       FROM campaign_contacts
       WHERE campaign_id = ? AND organization_id = ?
         AND status IN ('pending', 'retry')
-        AND (next_attempt_at IS NULL OR next_attempt_at <= datetime('now'))
+        AND (next_attempt_at IS NULL OR datetime(next_attempt_at) <= datetime('now'))
       ORDER BY created_at LIMIT ?`)
     .bind(campaignId, organizationId, slots)
     .all<{
@@ -197,13 +223,24 @@ export async function dialCampaign(
       phone: string;
       consent_status: string;
       attempt_count: number;
+      lead_id: string | null;
     }>();
   const contacts = due.results ?? [];
-  // Stays zero until something here actually dials. It is reported, and a
-  // number that only ever counted rows it had written was the whole problem.
-  const attempted = 0;
+  // Counts calls a carrier accepted, never rows this function wrote.
+  let attempted = 0;
   const streamUrl = process.env.VOICE_STREAM_URL || '';
   const telephonyReady = streamUrl.startsWith('wss://');
+  // Chosen once for the whole pass: every contact in a campaign is called from
+  // the same number, and a workspace that changed carrier mid-pass would
+  // otherwise have half its audience called from each.
+  const carrier = await chooseCarrier(db, organizationId);
+  const recordingPolicy = await db
+    .prepare(
+      'SELECT recording_policy FROM organization_settings WHERE organization_id = ? LIMIT 1',
+    )
+    .bind(organizationId)
+    .first<{ recording_policy: string }>();
+  const recordCall = recordingPolicy?.recording_policy !== 'disabled';
 
   for (const contact of contacts) {
     // Suppression is checked per contact, because it can be added mid-campaign.
@@ -241,28 +278,92 @@ export async function dialCampaign(
       continue;
     }
 
-    // Nothing here places a call, and nothing else in the product places one
-    // for a campaign either: `startOutboundCall` exists and is reached only by
-    // POST /api/app/calls, one number at a time. This loop used to mark the
-    // contact `dialing`, consume an attempt, schedule a retry and count it in
-    // `campaigns.attempted` — so with a stream URL configured a campaign
-    // reported a growing attempt count, worked through its audience, retried
-    // everybody on a backoff, exhausted them and completed, with not one phone
-    // ringing.
-    //
-    // Recording the block is the honest half. Wiring the origination in is a
-    // change that makes this product telephone real people from a schedule,
-    // and that is not something to switch on inside a bug fix: it needs a link
-    // from a call back to the contact it belongs to and a webhook-driven end,
-    // or a contact who answers is dialled again on the next backoff until the
-    // attempt limit runs out.
-    await db
-      .prepare(
-        `UPDATE campaign_contacts SET status = 'blocked', outcome = 'origination_not_wired' WHERE id = ?`,
-      )
+    // Claim the contact before anything is placed. Two passes of the same
+    // campaign can overlap — the queue requeues this function and a person can
+    // press Start — and the conditional write is what stops both of them
+    // ringing the same phone. Losing the race is not an error; it means
+    // somebody else is already calling this person.
+    const claimed = await db
+      .prepare(`UPDATE campaign_contacts
+        SET status = 'dialing', attempt_count = attempt_count + 1, next_attempt_at = NULL
+        WHERE id = ? AND status IN ('pending','retry')`)
       .bind(contact.id)
       .run();
-    bump(skipped, 'origination_not_wired');
+    if (!Number(claimed.meta?.changes ?? 0)) {
+      bump(skipped, 'claimed_elsewhere');
+      continue;
+    }
+
+    const callId = `call_${crypto.randomUUID()}`;
+    await db
+      .prepare(`INSERT INTO call_records
+        (id, organization_id, agent_id, lead_id, campaign_id, campaign_contact_id, direction,
+         from_number, to_number, status, outcome, recording_status, started_at, analysis_json)
+        VALUES (?, ?, ?, ?, ?, ?, 'outbound', ?, ?, 'queued', 'unknown', ?, ?, '{}')`)
+      .bind(
+        callId,
+        organizationId,
+        campaign.agent_id,
+        contact.lead_id,
+        campaignId,
+        contact.id,
+        carrier.fromNumber ?? 'pending_assignment',
+        contact.phone,
+        recordCall ? 'pending' : 'not_available',
+        new Date().toISOString(),
+      )
+      .run();
+
+    try {
+      const placed =
+        carrier.carrier === 'vobiz'
+          ? await startVobizCall({
+              organizationId,
+              callId,
+              fromNumber: carrier.fromNumber,
+              destination: contact.phone,
+            })
+          : await startOutboundCall({
+              organizationId,
+              callId,
+              destination: contact.phone,
+              streamUrl,
+              recordCall,
+            });
+      await db
+        .prepare(`UPDATE call_records SET status = ?, provider_reference = ?,
+          analysis_json = json_set(analysis_json, '$.providerReference', ?) WHERE id = ?`)
+        .bind(
+          placed.status,
+          placed.providerReference,
+          placed.providerReference,
+          callId,
+        )
+        .run();
+      // Counted here and nowhere else: the carrier has the call.
+      attempted += 1;
+    } catch (error) {
+      const reason =
+        error instanceof Error
+          ? error.message.slice(0, 300)
+          : 'carrier_rejected';
+      await db
+        .prepare(`UPDATE call_records SET status = 'failed', disconnect_reason = ?,
+          ended_at = ? WHERE id = ?`)
+        .bind(reason, new Date().toISOString(), callId)
+        .run();
+      // A call the carrier refused is a call that did not reach anybody, so it
+      // is settled the same way a call nobody answered is: retried on the
+      // campaign's own backoff, or exhausted. Leaving the contact `dialing`
+      // here is what would strand it — no webhook is coming for a call that
+      // was never placed.
+      const settlement = await settleCampaignContactForCall(db, {
+        callId,
+        status: 'failed',
+        now: new Date(),
+      });
+      bump(skipped, settlement.status === 'exhausted' ? 'exhausted' : 'failed');
+    }
   }
 
   await db
@@ -270,9 +371,13 @@ export async function dialCampaign(
     .bind(attempted, campaignId)
     .run();
 
+  // `dialing` counts as outstanding. It did not have to before, because no
+  // contact was ever in that state; now a pass that dials its last contacts
+  // would otherwise mark the campaign completed while their phones were still
+  // ringing, and the calls that followed would belong to a finished campaign.
   const remaining = await db
     .prepare(`SELECT count(*) AS pending FROM campaign_contacts
-      WHERE campaign_id = ? AND status IN ('pending','retry')`)
+      WHERE campaign_id = ? AND status IN ('pending','retry','dialing')`)
     .bind(campaignId)
     .first<{ pending: number }>();
   const pending = Number(remaining?.pending ?? 0);

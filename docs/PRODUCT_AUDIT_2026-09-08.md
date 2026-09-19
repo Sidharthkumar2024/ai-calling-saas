@@ -2,7 +2,12 @@
 
 ## Latest revision: branding, responsive UI, API contract and billing safety
 
-This revision supersedes the earlier pricing proposal below. **The complete backlog is not finished.** P0/P1 items remain real implementation work, not all external-credential blockers.
+This revision supersedes the earlier pricing proposal below. Reconciled again
+on 2026-09-12: the customer rate-card, admin usage-rate editor, SMS send debit,
+AI Business setup preview and WhatsApp Command Center UI are now present locally.
+**The complete production backlog is still not finished.** The remaining P0/P1
+items below are a mix of live-provider activation, production reconciliation and
+real implementation work.
 
 | Request | Current status | Evidence / remaining limit |
 | --- | --- | --- |
@@ -107,15 +112,16 @@ The standard ₹19/minute planning target is not a universal live tariff: realti
 5. **Credentials/bootstrap.** Audit/migrate old plaintext secret-shaped config and historical audit entries, rotate potentially exposed credentials and remove obsolete ENV fallbacks only after a verified transition. The root encryption key, database binding and media-gateway deployment still need secure infrastructure bootstrap; putting that root key inside the database it encrypts is not an alternative.
 6. **Authentication production readiness.** Confirm real email delivery/verification, recovery, MFA enrollment, admin account provisioning and session protection on the intended HTTPS domain. Use local demo credentials only locally and rotate them before deployment.
 
-### P1: requested features still needing implementation
+### P1: requested features still needing implementation or production hardening
 
-- WhatsApp chatbot drag/drop graph editor, versioned publish/rollback and runtime execution. Existing voice/general workflow builders are not a completed WhatsApp chatbot builder.
-- WhatsApp Flows/form authoring, publish state, encrypted dynamic-data endpoint and response mapping. [WhatsApp Flows](https://whatsappbusiness.com/products/whatsapp-flows/), [official endpoint example](https://github.com/WhatsApp/WhatsApp-Flows-Tools/tree/main/examples/endpoint/nodejs/basic).
-- Template creation/approval/category lifecycle, variables/media validation, campaign scheduling, opt-in evidence, delivery/read/failure receipts, inbox assignment and cursor pagination. Current inbox displays a bounded recent history.
+- WhatsApp chatbot drag/drop graph editor now has a stronger customer-facing canvas/palette/preview surface, but versioned publish/rollback and production runtime execution still need the graph-to-runtime bridge.
+- WhatsApp Flows/form builder now has visible block controls and phone preview, but Meta Flow publish state, encrypted dynamic-data endpoint and response mapping are still pending. [WhatsApp Flows](https://whatsappbusiness.com/products/whatsapp-flows/), [official endpoint example](https://github.com/WhatsApp/WhatsApp-Flows-Tools/tree/main/examples/endpoint/nodejs/basic).
+- Template creation/category UX and send-time credit estimates exist in the customer surface, but approval sync, variables/media validation, campaign scheduling, opt-in evidence, delivery/read/failure receipts, cursor pagination and production WABA lifecycle remain.
 - Tenant-scoped WhatsApp agent configuration and server-enforced feature/role entitlements; redaction, approved tool/action allowlists, link/domain policy, prompt-injection resistance, moderation, approval-before-send and human takeover. Do not enable autonomous outgoing messages merely because an LLM can draft text.
 - Payment gateway onboarding and settlement across the requested providers. Razorpay/Stripe foundations do not mean PayU, PhonePe, Paytm, Cashfree and manual-transfer reconciliation are all complete. Review tenant-specific webhook-secret selection, particularly remaining ENV-first Razorpay paths.
+- Generic SMS send/debit is now implemented for a BYO `sms_gateway`; delivery receipts, final segment count settlement and live provider acceptance remain.
 - Streaming Deepgram/media-gateway integration, voice catalog/language compatibility, provider failover and actual end-to-end p50/p95 latency measurement. ElevenLabs webhook support alone does not reduce conversational latency.
-- Business Manager: a richer industry-specific interview, approved business playbook generation, reviewed recommendation-to-action handoff and measured outcomes. The new brief is the starting point, not an autonomous growth department.
+- Business Manager: the blank-start problem is fixed with a launch setup preview, but a richer industry-specific interview, approved business playbook generation, reviewed recommendation-to-action handoff and measured outcomes are still needed. The new brief is the starting point, not an autonomous growth department.
 - Lead forms: independent draft/published snapshots, additional field types/reordering/conditional questions, explicit consent evidence and true inline placement if required. Inline is deliberately not offered by this popup editor.
 - Full admin-provider lifecycle for every newly added adapter, all runtime configuration paths, quotas, health verification and secret rotation UI. Not every remaining ENV value is admin-managed.
 - Large-scale load/failover/backups, storage lifecycle/scanning, legal/compliance review, SSO/SCIM, mobile apps and white-label deployment remain separate acceptance work. No 10-million-user or zero-data-leak claim has been established.

@@ -26,15 +26,19 @@ async function hashPassword(password) {
 }
 
 const command = String(process.argv[2] ?? '').trim();
-const accountArgument =
-  command === '--create-admin' ? String(process.argv[3] ?? '').trim() : command;
+const adminCommand =
+  command === '--create-admin' || command === '--promote-admin';
+const accountArgument = adminCommand
+  ? String(process.argv[3] ?? '').trim()
+  : command;
 const email = accountArgument.toLowerCase();
 if (command !== '--list' && (!email || !email.includes('@'))) {
   console.error(
     'Usage:\n' +
       '  node scripts/set-local-user-password.mjs --list\n' +
       '  node scripts/set-local-user-password.mjs account@example.com\n' +
-      '  node scripts/set-local-user-password.mjs --create-admin account@example.com',
+      '  node scripts/set-local-user-password.mjs --create-admin account@example.com\n' +
+      '  node scripts/set-local-user-password.mjs --promote-admin existing@example.com',
   );
   process.exit(2);
 }
@@ -203,7 +207,7 @@ async function hidden(prompt) {
 }
 
 try {
-  if (command === '--create-admin') {
+  if (adminCommand) {
     const path = applicationDatabases();
     const database = new DatabaseSync(path);
     let existing;
@@ -216,9 +220,18 @@ try {
     } finally {
       database.close();
     }
-    if (existing && existing.role !== 'platform_admin') {
+    if (
+      command === '--create-admin' &&
+      existing &&
+      existing.role !== 'platform_admin'
+    ) {
       throw new Error(
-        'That email belongs to a customer account. Use a different email for the admin portal.',
+        'That email belongs to a customer account. Use --promote-admin only when converting that exact account was explicitly requested.',
+      );
+    }
+    if (command === '--promote-admin' && !existing) {
+      throw new Error(
+        'No existing account was found to promote. Use --create-admin instead.',
       );
     }
 
@@ -242,19 +255,21 @@ try {
     try {
       writable.exec('BEGIN IMMEDIATE');
       const encoded = await hashPassword(password);
+      const affectedUserId = existing?.id ?? `user_${crypto.randomUUID()}`;
       if (existing) {
         writable
-          .prepare(
-            "UPDATE app_users SET password_hash = ?, status = 'active', admin_role = 'super_admin' WHERE id = ? AND role = 'platform_admin'",
-          )
+          .prepare(`UPDATE app_users
+            SET password_hash = ?, organization_id = NULL,
+                role = 'platform_admin', status = 'active',
+                admin_role = 'super_admin'
+            WHERE id = ?`)
           .run(encoded, existing.id);
       } else {
-        const userId = `user_${crypto.randomUUID()}`;
         writable
           .prepare(`INSERT INTO app_users
             (id, organization_id, name, email, password_hash, role, status, admin_role)
             VALUES (?, NULL, 'Sidharth Kumar', ?, ?, 'platform_admin', 'active', 'super_admin')`)
-          .run(userId, email, encoded);
+          .run(affectedUserId, email, encoded);
         const securityTable = writable
           .prepare(
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'user_security_settings'",
@@ -268,9 +283,12 @@ try {
               ON CONFLICT(user_id) DO UPDATE SET
                 email_verified_at = COALESCE(user_security_settings.email_verified_at, CURRENT_TIMESTAMP),
                 updated_at = CURRENT_TIMESTAMP`)
-            .run(userId);
+            .run(affectedUserId);
         }
       }
+      writable
+        .prepare('DELETE FROM auth_sessions WHERE user_id = ?')
+        .run(affectedUserId);
       writable.exec('COMMIT');
     } catch (error) {
       try {
@@ -283,7 +301,7 @@ try {
       writable.close();
     }
     console.log(
-      `${existing ? 'Password updated' : 'Platform admin created'} for ${email}.`,
+      `${existing ? 'Platform admin updated' : 'Platform admin created'} for ${email}.`,
     );
     process.exit();
   }

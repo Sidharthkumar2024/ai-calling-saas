@@ -4,8 +4,16 @@ import { resolve } from 'node:path';
 import process from 'node:process';
 import { DatabaseSync } from 'node:sqlite';
 
-const databasePath = process.env.CALLVANI_SQLITE_PATH?.trim();
-const destination = String(process.argv[2] ?? '').replace(/[\s()-]/g, '');
+const argumentsList = process.argv.slice(2);
+const productionMode = argumentsList.includes('--production');
+const databasePath =
+  process.env.CALLVANI_SQLITE_PATH?.trim() ||
+  (productionMode
+    ? '/var/lib/callvani/runtime/v3/d1/miniflare-D1DatabaseObject/faaf2b0445ab934c3aac48ddf0cdfade8f9bac050be98993748742cdd2cb05fb.sqlite'
+    : '');
+const destination = String(
+  argumentsList.find((argument) => argument !== '--production') ?? '',
+).replace(/[\s()-]/g, '');
 const publicBaseUrl = String(process.env.PUBLIC_BASE_URL ?? '').replace(
   /\/$/,
   '',
@@ -19,17 +27,15 @@ if (process.env.CALLVANI_OPERATOR_TEST !== 'YES') {
   );
   process.exit(2);
 }
-if (
-  !databasePath ||
-  !/^\+[1-9]\d{7,14}$/.test(destination) ||
-  !publicBaseUrl.startsWith('https://') ||
-  !voiceStreamUrl.startsWith('wss://') ||
-  !encryptionKey ||
-  encryptionKey.length < 32
-) {
-  console.error(
-    'Production DB, E.164 destination, PUBLIC_BASE_URL, VOICE_STREAM_URL and VAANI_ENCRYPTION_KEY are required.',
-  );
+const missing = [
+  !databasePath ? 'production database' : '',
+  !/^\+[1-9]\d{7,14}$/.test(destination) ? 'E.164 destination' : '',
+  !publicBaseUrl.startsWith('https://') ? 'PUBLIC_BASE_URL' : '',
+  !voiceStreamUrl.startsWith('wss://') ? 'VOICE_STREAM_URL' : '',
+  !encryptionKey || encryptionKey.length < 32 ? 'VAANI_ENCRYPTION_KEY' : '',
+].filter(Boolean);
+if (missing.length > 0) {
+  console.error(`Missing or invalid: ${missing.join(', ')}.`);
   process.exit(2);
 }
 

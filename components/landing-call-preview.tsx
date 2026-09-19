@@ -68,12 +68,12 @@ export function LandingCallPreview({
         <h3>
           {step === 3 || step === 4
             ? text('All taken care of.', 'सब हो गया।')
-            : text('Neha Kapoor', 'नेहा कपूर')}
+            : text('Rahul Mehta', 'राहुल मेहता')}
         </h3>
         <p>
           {step === 3 || step === 4
             ? text('One call. Every next step.', 'एक कॉल। हर अगला काम।')
-            : text('Website enquiry · Property', 'वेबसाइट पूछताछ · प्रॉपर्टी')}
+            : text('Website enquiry · SaaS project', 'वेबसाइट पूछताछ · SaaS प्रोजेक्ट')}
         </p>
         <div className="vani-call-status">
           <span />
@@ -127,17 +127,17 @@ export function LandingCallPreview({
         ) : step === 2 ? (
           <>
             <div className="vani-chat-bubble">
-              2 BHK chahiye, Sector 82 mein.
+              Humein sales CRM aur AI calling setup karna hai.
             </div>
             <div className="vani-chat-bubble vani-chat-agent">
-              Bilkul. Aapka budget aur move-in plan kya hai?
+              Bilkul. Aapki team size aur launch timeline kya hai?
             </div>
             <div className="vani-chat-bubble">
-              85 lakh tak. Site visit kar sakte hain?
+              12 लोगों की team है। इस हफ्ते demo कर सकते हैं?
             </div>
             <div className="vani-intent">
               <CheckCheck size={16} />
-              {text('Intent captured · Site visit', 'इरादा समझा · साइट विज़िट')}
+              {text('Intent captured · Product demo', 'इरादा समझा · प्रोडक्ट डेमो')}
             </div>
           </>
         ) : step === 3 ? (
@@ -147,7 +147,7 @@ export function LandingCallPreview({
                 <CalendarCheck2 size={18} />
               </span>
               <div>
-                <strong>{text('Site visit booked', 'साइट विज़िट बुक')}</strong>
+                <strong>{text('Demo call booked', 'डेमो कॉल बुक')}</strong>
                 <p>{text('Saturday · 11:00 AM', 'शनिवार · सुबह 11 बजे')}</p>
               </div>
             </div>
@@ -158,7 +158,7 @@ export function LandingCallPreview({
               <div>
                 <strong>{text('Sent on WhatsApp', 'WhatsApp पर भेजा')}</strong>
                 <p>
-                  {text('Location + property details', 'लोकेशन और प्रॉपर्टी डिटेल')}
+                  {text('Service deck + meeting link', 'सर्विस डेक और मीटिंग लिंक')}
                 </p>
               </div>
               <Check size={15} />
@@ -181,7 +181,7 @@ export function LandingCallPreview({
                 <span>{text('QUALIFIED LEAD', 'क्वालिफाइड लीड')}</span>
                 <ArrowUpRight size={17} />
               </div>
-              <strong>{text('Neha Kapoor', 'नेहा कपूर')}</strong>
+              <strong>{text('Rahul Mehta', 'राहुल मेहता')}</strong>
               <p>Sector 82 · ₹85 lakh</p>
               <div className="vani-score">
                 <span>{text('Intent score', 'इंटेंट स्कोर')}</span>

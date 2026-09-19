@@ -216,9 +216,9 @@ export function LeadCapturePanel({
               ? 'ananya@example.com'
               : 'vikram@example.com',
           campaignName: `${label} · Product enquiry`,
-          productInterest: 'Premium 3BHK property',
+          productInterest: 'AI calling and sales CRM',
           notes:
-            'Asked for current price and wants to book a site visit this week.',
+            'Asked for SaaS pricing and wants to schedule a discovery call this week.',
           estimatedValue: 11_500_000,
         }),
       });

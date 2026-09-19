@@ -6,8 +6,26 @@ import { publishCommercialCatalog } from '@/lib/publish-commercial-catalog';
 let bootstrapPromise: Promise<void> | null = null;
 
 export function ensureSchema(): Promise<void> {
-  bootstrapPromise ??= bootstrap();
+  bootstrapPromise ??= bootstrapOnce();
   return bootstrapPromise;
+}
+
+/**
+ * Sites applies the checked-in Drizzle migrations before the Worker starts.
+ * Replaying the full legacy bootstrap (hundreds of DDL/seed statements) on the
+ * first request of every new stateless isolate can exceed the Worker request
+ * deadline.  Use a late-schema sentinel to keep production requests fast,
+ * while retaining the bootstrap as a fallback for genuinely empty/local D1
+ * databases.
+ */
+async function bootstrapOnce() {
+  const db = getRawDb();
+  try {
+    await db.prepare('SELECT id FROM public_status_updates LIMIT 1').first();
+    return;
+  } catch {
+    await bootstrap();
+  }
 }
 
 async function bootstrap() {

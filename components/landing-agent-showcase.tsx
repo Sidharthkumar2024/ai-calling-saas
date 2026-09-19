@@ -40,7 +40,7 @@ const examples = [
     language: 'Hindi + English',
     customer: 'My budget is around ₹2 crore and I want possession this year.',
     response:
-      'आपकी timeline और budget match करते हैं। मैं दो suitable options share करके Saturday site visit reserve कर सकती हूँ।',
+      'आपकी timeline और budget के हिसाब से CRM, AI calling और automation का सही package सुझा सकती हूँ। क्या मैं Sidharth के साथ demo call schedule कर दूँ?',
     actionKey: 'showcase.qualification',
   },
   {

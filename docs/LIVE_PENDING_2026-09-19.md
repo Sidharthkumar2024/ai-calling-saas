@@ -54,12 +54,19 @@ of local completion do not establish production activation.
 
 ## Current call explanation
 
-The fresh VPS workspace now contains the carrier connection and purchased
-number. Ownership is now verified; routing checks are still pending. Its
-customer agent is Aarohi, currently in `testing` rather than Live. The media
-gateway accepts only the confirmed Twilio, Exotel and browser protocols at this
-point; Vobiz's exact bidirectional stream event contract must be confirmed
-before claiming audio interoperability. These are confirmed blockers before a
-Vobiz dial request can be expected to work.
-The Vobiz dashboard confirms the number exists and displays INR 25 balance.
-API credential validity and voice-enabled number ownership are verified. Outbound permissions, TLS callbacks and audio remain unverified. No real test call completed.
+The VPS workspace contains the carrier connection and the number is attached
+to the Vobiz application. Ownership is verified; routing checks are still
+pending. Its customer agent is Aarohi, currently in `testing` rather than
+Live. The deployed media gateway advertises the `vobiz` adapter and its
+synthetic protocol tests pass, but Vobiz's exact live bidirectional stream
+contract still needs an answered call before audio interoperability can be
+claimed. These are confirmed blockers before a production dial request should
+be attempted.
+
+The Vobiz dashboard confirms the attached number and INR 25 balance. The
+production inbound endpoint rejects an incomplete callback with the expected
+HTTP 400 validation response, and the media health endpoint returns HTTP 200.
+Local regression evidence on 19 September: Google callback 69 assertions,
+password reset 11 assertions, Vobiz adapter 66 assertions and Vobiz webhooks
+29 assertions. These are synthetic tests only; no real test call or email
+delivery has completed.

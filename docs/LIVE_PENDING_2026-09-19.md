@@ -17,7 +17,7 @@ of local completion do not establish production activation.
 - Vobiz console independently shows one active number +918071582881 and INR 25 balance; provider call routing remains unverified.
 - Removed old root A 172.66.3.26 in Hostinger. Authoritative DNS now returns only VPS 129.121.139.191; www aliases root. Resolver caches may lag.
 - VPS port 443 is not serving yet; certbot installed but no live certificate. Certificate-service terms approval requested before issuance.
-- Vobiz ownership support added and locally tested (101 assertions plus TypeScript). First production ownership attempt returned 502; credentials/request/response/save phase diagnostics added without exposing secrets. Do not mark the number active.
+- Vobiz ownership verification now returns HTTP 200 on VPS after deployment e416f20. Root cause of 502: workerd rejects Request redirect mode `error`; changed to `manual`, rejecting 3xx without forwarding credentials. 106 assertions and TypeScript pass. Number is ownership-verified, routing_required, not active.
 
 ## Pending, in execution order
 
@@ -26,7 +26,8 @@ of local completion do not establish production activation.
 | P0 | Domain and TLS | DNS cutover completed; install/verify VPS TLS for root and www, confirm HTTPS reaches VPS. |
 | P0 | Google sign-in | Save existing OAuth client credentials encrypted, enable provider, confirm consent/test-user availability, test callback and session on live domain. |
 | P0 | Account access | Verify customer and admin login through final HTTPS domain, role separation, logout and reset-password email delivery. |
-| P0 | Vobiz | Connect purchased account to Siddharth workspace; verify owned outbound number, balance and permissions; bind number to agent. Do not treat purchase as app connection. |
+| P0 | Vobiz | Customer credentials and ownership verified. Bind number to a ready agent and verify outbound permissions with an actual call. |
+| P0 | Inbound adapter | Existing generic inbound endpoint only returns JSON routing decisions, not Vobiz voice XML. Implement/test signed Vobiz inbound entry, idempotent call creation, route activation and media bridging before pointing provider application at it. |
 | P0 | Voice | Connect available STT, reasoning and TTS credentials; test Hindi/English male/female samples; select measured quality and latency. No provider currently has verified production health. |
 | P0 | Media/webhooks | Verify HTTPS answer/status callbacks, public WSS gateway, shared secret, signature validation and bidirectional audio. |
 | P0 | Test call | Activate configured agent, dial user-authorized +917510020067 once ready, record provider UUID, ringing/answer/end status and two-way audio result. No live call completed yet. |
@@ -51,8 +52,8 @@ of local completion do not establish production activation.
 ## Current call explanation
 
 The fresh VPS workspace now contains the carrier connection and purchased
-number, but ownership/routing checks are still pending. Its starter agent is
+number. Ownership is now verified; routing checks are still pending. Its starter agent is
 draft with calls disabled. These are confirmed application blockers before a
 Vobiz dial request can be expected to work.
 The Vobiz dashboard confirms the number exists and displays INR 25 balance.
-API credential validity, outbound permissions and audio remain unverified.
+API credential validity and voice-enabled number ownership are verified. Outbound permissions, TLS callbacks and audio remain unverified. No real test call completed.

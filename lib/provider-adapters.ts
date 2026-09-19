@@ -330,6 +330,8 @@ export async function synthesizeSpeech(input: {
         input.voice.modelId ||
         configString(cartesiaPlatform.config, 'model') ||
         'sonic-3.6',
+      apiVersion:
+        configString(cartesiaPlatform.config, 'apiVersion') || '2026-03-01',
       baseUrl:
         configString(cartesiaPlatform.config, 'baseUrl') ||
         'https://api.cartesia.ai',
@@ -1668,6 +1670,7 @@ async function synthesizeCartesiaSpeech(input: {
   apiKey: string;
   voiceId: string;
   modelId: string;
+  apiVersion: string;
   baseUrl: string;
   outputFormat?: string;
   voice?: { speakingRate?: string } | null;
@@ -1680,7 +1683,7 @@ async function synthesizeCartesiaSpeech(input: {
     method: 'POST',
     headers: {
       authorization: `Bearer ${input.apiKey}`,
-      'cartesia-version': '2026-08-14',
+      'cartesia-version': input.apiVersion,
       accept: output.contentType,
       'content-type': 'application/json',
     },

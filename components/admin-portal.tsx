@@ -2660,6 +2660,11 @@ const KEY_PROVIDERS: KeyProvider[] = [
     fields: [
       { k: 'voiceId', label: 'Default voice ID' },
       { k: 'model', label: 'Model', placeholder: 'sonic-3' },
+      {
+        k: 'apiVersion',
+        label: 'API version',
+        placeholder: '2026-03-01',
+      },
       { k: 'baseUrl', label: 'API base URL', placeholder: 'https://api.cartesia.ai' },
     ],
   },

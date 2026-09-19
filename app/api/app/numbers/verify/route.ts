@@ -53,6 +53,7 @@ export async function POST(request: Request) {
       },
       { status: 409 },
     );
+  let phase = 'credentials';
   try {
     const config = JSON.parse(connection.public_config_json || '{}');
     const secret = JSON.parse(await decryptSecret(connection.encrypted_secret));
@@ -69,6 +70,7 @@ export async function POST(request: Request) {
         },
         { status: 409 },
       );
+    phase = 'provider_request';
     const response = await fetch(url, {
       headers: row.provider_code === 'vobiz' ? {
         'X-Auth-ID': String(config.accountId),
@@ -86,6 +88,7 @@ export async function POST(request: Request) {
         },
         { status: 502 },
       );
+    phase = 'provider_response';
     if (
       !ownsProviderNumber(
         row.provider_code,
@@ -101,6 +104,7 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     // Ownership alone does not prove that callbacks/media routing work.
+    phase = 'save_verification';
     await db
       .prepare(
         `UPDATE phone_numbers SET kyc_status = 'provider_managed', status = CASE WHEN status = 'active' THEN status ELSE 'routing_required' END, onboarding_status = CASE WHEN status = 'active' THEN onboarding_status ELSE 'routing_required' END WHERE id = ? AND organization_id = ?`,
@@ -119,9 +123,16 @@ export async function POST(request: Request) {
       nextStep:
         'Provider ownership verified. Call routing still needs a supported carrier callback and a successful connection test; this check does not activate calls.',
     });
-  } catch {
+  } catch (error) {
+    // Never log credentials, URLs, response bodies or raw exception messages.
+    const reason = error instanceof Error &&
+      ['TimeoutError', 'AbortError', 'SyntaxError', 'OperationError', 'TypeError'].includes(error.name)
+      ? error.name : 'Error';
+    console.error('number.ownership_check_failed', { provider: row.provider_code, phase, reason });
     return NextResponse.json(
       {
+        code: 'ownership_check_failed',
+        phase,
         error:
           'Could not complete the provider ownership check. Try again or update the carrier credentials.',
       },

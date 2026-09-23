@@ -131,6 +131,7 @@ function usableConsentId(value: unknown) {
   if (!value || typeof value !== 'object') return '';
   const consent = value as Record<string, unknown>;
   if (text(consent.status) !== 'granted') return '';
+  if (text(consent.purpose) !== 'outbound_calling') return '';
   const expiresAt = text(consent.expires_at);
   if (expiresAt && Date.parse(expiresAt) <= Date.now()) return '';
   return text(consent.id);

@@ -58,6 +58,7 @@ export async function POST(request: Request) {
       .first<{ balance: number }>(),
     db
       .prepare(`SELECT id FROM consent_records WHERE id = ? AND organization_id = ? AND phone = ?
+      AND purpose = 'outbound_calling' AND lawful_basis = 'explicit_consent'
       AND status = 'granted' AND (expires_at IS NULL OR expires_at > ?)`)
       .bind(
         body.consentRecordId || '',

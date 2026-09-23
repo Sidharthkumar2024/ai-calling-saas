@@ -9,6 +9,10 @@ const compliance = readFileSync(
   new URL('../app/api/app/compliance/route.ts', import.meta.url),
   'utf8',
 );
+const callsRoute = readFileSync(
+  new URL('../app/api/app/calls/route.ts', import.meta.url),
+  'utf8',
+);
 
 let assertions = 0;
 const check = (condition, message) => {
@@ -48,6 +52,15 @@ check(
     'SELECT id, status, purpose, captured_at, expires_at FROM consent_records',
   ),
   'Suppression lookup returns the consent id needed for safe reuse',
+);
+check(
+  dialer.includes("text(consent.purpose) !== 'outbound_calling'"),
+  'The client never reuses consent recorded for another communication purpose',
+);
+check(
+  callsRoute.includes("purpose = 'outbound_calling'") &&
+    callsRoute.includes("lawful_basis = 'explicit_consent'"),
+  'The server independently enforces outbound-call purpose and explicit consent',
 );
 check(!dialer.includes('7510020067'), 'No personal destination is hardcoded');
 

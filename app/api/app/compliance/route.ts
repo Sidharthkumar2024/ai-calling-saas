@@ -158,11 +158,12 @@ export async function POST(request: Request) {
         expires_at: string | null;
       }>();
     const consent = await db
-      .prepare(`SELECT status, purpose, captured_at, expires_at FROM consent_records
+      .prepare(`SELECT id, status, purpose, captured_at, expires_at FROM consent_records
         WHERE organization_id = ? AND phone = ?
         ORDER BY captured_at DESC LIMIT 1`)
       .bind(organizationId, phone)
       .first<{
+        id: string;
         status: string;
         purpose: string | null;
         captured_at: string;
@@ -224,7 +225,13 @@ async function uploadKyc(
   // workspace's number and satisfy, or block, a compliance check that is not
   // its own.
   if (phoneNumberId) {
-    return NextResponse.json({ error: 'Submit number verification directly to your carrier. Call Vani no longer collects number KYC documents.' }, { status: 410 });
+    return NextResponse.json(
+      {
+        error:
+          'Submit number verification directly to your carrier. Call Vani no longer collects number KYC documents.',
+      },
+      { status: 410 },
+    );
   }
   const id = `kyc_${crypto.randomUUID()}`;
   const checksum = await fileChecksum(await file.arrayBuffer());

@@ -8,6 +8,7 @@ import {
   PhoneCall,
   PhoneOff,
   Play,
+  ShieldCheck,
 } from 'lucide-react';
 
 import { useNotifications } from '@/components/notification-center';
@@ -74,6 +75,20 @@ const bandTone: Record<string, string> = {
 type Agent = { id: string; name: string; primary_language: string };
 type NumberRow = { id: string; phone_number: string; status: string };
 type Turn = { heard: string; reply: string; latency?: Record<string, number> };
+type CarrierCall = {
+  id: string;
+  status: string;
+  outcome?: string;
+  durationSeconds?: number;
+  disconnectReason?: string;
+};
+
+const TERMINAL_CARRIER_STATUSES = new Set([
+  'completed',
+  'failed',
+  'busy',
+  'no_answer',
+]);
 
 /** Signed 16-bit sample to a mulaw byte (G.711). */
 function pcmToMulaw(sample: number) {
@@ -96,6 +111,29 @@ function text(value: unknown, fallback = '') {
   if (typeof value === 'number' || typeof value === 'boolean')
     return value.toString();
   return fallback;
+}
+
+async function readApiBody(response: Response) {
+  const raw = await response.text();
+  if (!raw) return {} as Record<string, unknown>;
+  try {
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    return {
+      error: response.ok
+        ? 'The server returned an unreadable response.'
+        : 'The calling service returned an unreadable response. Try again.',
+    };
+  }
+}
+
+function usableConsentId(value: unknown) {
+  if (!value || typeof value !== 'object') return '';
+  const consent = value as Record<string, unknown>;
+  if (text(consent.status) !== 'granted') return '';
+  const expiresAt = text(consent.expires_at);
+  if (expiresAt && Date.parse(expiresAt) <= Date.now()) return '';
+  return text(consent.id);
 }
 
 function mulawToPcm(byte: number) {
@@ -128,6 +166,15 @@ export function CustomerDialer() {
   const [notice, setNotice] = useState<string | null>(null);
   const [seconds, setSeconds] = useState(0);
   const [transport, setTransport] = useState<TransportSummary | null>(null);
+  const [carrierAgentId, setCarrierAgentId] = useState('');
+  const [carrierDestination, setCarrierDestination] = useState('');
+  const [carrierConsentConfirmed, setCarrierConsentConfirmed] = useState(false);
+  const [carrierBusy, setCarrierBusy] = useState(false);
+  const [carrierCall, setCarrierCall] = useState<CarrierCall | null>(null);
+  const [carrierNotice, setCarrierNotice] = useState<{
+    tone: 'info' | 'error' | 'success';
+    message: string;
+  } | null>(null);
 
   const socketRef = useRef<WebSocket | null>(null);
   const callIdRef = useRef<string | null>(null);
@@ -164,11 +211,13 @@ export function CustomerDialer() {
       setNumbers(body.numbers ?? []);
       setRecent(body.recent ?? []);
       setGatewayReady(Boolean(body.gatewayConfigured));
-      if (!agentId && body.agents?.[0]) setAgentId(body.agents[0].id);
+      const firstAgentId = body.agents?.[0]?.id ?? '';
+      setAgentId((current) => current || firstAgentId);
+      setCarrierAgentId((current) => current || firstAgentId);
     } catch {
       setGatewayReady(false);
     }
-  }, [agentId]);
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
@@ -196,6 +245,71 @@ export function CustomerDialer() {
     const timer = window.setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => window.clearInterval(timer);
   }, [state]);
+
+  const carrierCallId = carrierCall?.id ?? '';
+  const carrierCallStatus = carrierCall?.status ?? '';
+  const carrierPolling = Boolean(
+    carrierCallId && !TERMINAL_CARRIER_STATUSES.has(carrierCallStatus),
+  );
+
+  // A carrier call continues after this tab makes the request. Follow the
+  // server-owned call row until a carrier callback moves it to a terminal
+  // state, so "started" is never presented as "completed".
+  useEffect(() => {
+    if (!carrierPolling) return;
+    let disposed = false;
+    let timer = 0;
+    const poll = async () => {
+      try {
+        const response = await fetch(
+          `/api/app/calls/${encodeURIComponent(carrierCallId)}`,
+          { cache: 'no-store' },
+        );
+        const body = await readApiBody(response);
+        if (disposed) return;
+        if (!response.ok) {
+          setCarrierNotice({
+            tone: 'error',
+            message: text(body.error, 'Call status could not be refreshed.'),
+          });
+        } else {
+          const call = (body.call ?? {}) as Record<string, unknown>;
+          const status = text(call.status, carrierCallStatus || 'queued');
+          setCarrierCall({
+            id: carrierCallId,
+            status,
+            outcome: text(call.outcome),
+            durationSeconds: Number(call.duration_seconds ?? 0),
+            disconnectReason: text(call.disconnect_reason),
+          });
+          if (TERMINAL_CARRIER_STATUSES.has(status)) {
+            setCarrierNotice({
+              tone: status === 'completed' ? 'success' : 'info',
+              message:
+                status === 'completed'
+                  ? 'The carrier call has finished. Final usage will appear in billing.'
+                  : `The carrier ended the call as ${status.replaceAll('_', ' ')}.`,
+            });
+            void load();
+            return;
+          }
+        }
+      } catch {
+        if (!disposed)
+          setCarrierNotice({
+            tone: 'error',
+            message:
+              'Call status refresh was interrupted. The call may still be live.',
+          });
+      }
+      if (!disposed) timer = window.setTimeout(poll, 2000);
+    };
+    timer = window.setTimeout(poll, 1200);
+    return () => {
+      disposed = true;
+      window.clearTimeout(timer);
+    };
+  }, [carrierCallId, carrierCallStatus, carrierPolling, load]);
 
   // Round trip is measured over the call socket, not over HTTP, because that
   // is the connection the voice travels on. The gateway echoes our own clock
@@ -323,7 +437,12 @@ export function CustomerDialer() {
         );
         metricsRef.current.openedAt = Date.now();
         setState('live');
-        notify({ event: 'call_connected', subject: callIdRef.current ?? undefined, title: 'Browser audio connected', detail: 'Your microphone is connected to the voice gateway.' });
+        notify({
+          event: 'call_connected',
+          subject: callIdRef.current ?? undefined,
+          title: 'Browser audio connected',
+          detail: 'Your microphone is connected to the voice gateway.',
+        });
       };
       socket.onmessage = (message) => {
         const frame = JSON.parse(String(message.data)) as {
@@ -452,6 +571,124 @@ export function CustomerDialer() {
     await load();
   }
 
+  async function startCarrierCall() {
+    const phone = carrierDestination.trim().replaceAll(' ', '');
+    setCarrierNotice(null);
+    setCarrierCall(null);
+    if (!/^\+[1-9]\d{7,14}$/.test(phone)) {
+      setCarrierNotice({
+        tone: 'error',
+        message:
+          'Enter the destination in E.164 format, for example +919876543210.',
+      });
+      return;
+    }
+    if (!carrierAgentId) {
+      setCarrierNotice({
+        tone: 'error',
+        message: 'Select an active AI agent.',
+      });
+      return;
+    }
+    if (!carrierConsentConfirmed) {
+      setCarrierNotice({
+        tone: 'error',
+        message: 'Confirm the contact has agreed to receive this call.',
+      });
+      return;
+    }
+
+    setCarrierBusy(true);
+    try {
+      // Always check the hashed do-not-contact list immediately before the
+      // billable mutation. The calls endpoint checks it again to close the
+      // race between this response and the carrier request.
+      const suppressionResponse = await fetch('/api/app/compliance', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'check_suppression', phone }),
+      });
+      const suppression = await readApiBody(suppressionResponse);
+      if (!suppressionResponse.ok)
+        throw new Error(
+          text(
+            suppression.error,
+            'The suppression check could not be completed.',
+          ),
+        );
+      if (suppression.suppressed)
+        throw new Error(
+          'This contact is on the do-not-contact list and cannot be called.',
+        );
+
+      let consentRecordId = usableConsentId(suppression.consent);
+      if (!consentRecordId) {
+        const consentResponse = await fetch('/api/app/compliance', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            action: 'grant_consent',
+            phone,
+            purpose: 'outbound_calling',
+          }),
+        });
+        const consent = await readApiBody(consentResponse);
+        if (!consentResponse.ok)
+          throw new Error(
+            text(consent.error, 'Consent could not be recorded.'),
+          );
+        consentRecordId = text(consent.id);
+        if (!consentRecordId)
+          throw new Error('Consent was recorded without a usable reference.');
+      }
+
+      const response = await fetch('/api/app/calls', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          agentId: carrierAgentId,
+          to: phone,
+          consentRecordId,
+        }),
+      });
+      const body = await readApiBody(response);
+      if (!response.ok) {
+        const failedCallId = text(body.callId);
+        if (failedCallId)
+          setCarrierCall({ id: failedCallId, status: 'failed' });
+        throw new Error(
+          text(body.error, 'The carrier call could not be started.'),
+        );
+      }
+      const id = text(body.id);
+      if (!id) throw new Error('The carrier did not return a call reference.');
+      const status = text(body.status, 'queued');
+      setCarrierCall({ id, status });
+      setCarrierConsentConfirmed(false);
+      setCarrierNotice({
+        tone: 'success',
+        message:
+          'Call submitted to the carrier. Keep this panel open for live status.',
+      });
+      notify({
+        event: 'call_connected',
+        subject: id,
+        title: 'Carrier call submitted',
+        detail: `The carrier is dialling ••••${phone.slice(-4)}.`,
+      });
+    } catch (caught) {
+      setCarrierNotice({
+        tone: 'error',
+        message:
+          caught instanceof Error
+            ? caught.message
+            : 'The carrier call could not be started.',
+      });
+    } finally {
+      setCarrierBusy(false);
+    }
+  }
+
   const live = state === 'live';
   const ending = state === 'ending';
   const clock = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
@@ -486,7 +723,14 @@ export function CustomerDialer() {
       ) : null}
 
       <section className="portal-panel p-5">
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div>
+          <h2 className="text-sm font-semibold">Browser AI test</h2>
+          <p className="mt-1 text-[11px] leading-relaxed text-ink-muted">
+            Talk to the selected AI through this browser. It tests your
+            microphone and the media gateway; it does not ring a phone.
+          </p>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <label className="block">
             <span className="text-[11px] text-ink-muted">AI agent</span>
             <select
@@ -592,6 +836,153 @@ export function CustomerDialer() {
             {held ? `${t('dialer.heldNotice')} ` : ''}
             {t('dialer.resumeHint')}
           </p>
+        ) : null}
+      </section>
+
+      <section className="portal-panel p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="size-4 text-success-text" />
+              <h2 className="text-sm font-semibold">Real carrier call</h2>
+            </div>
+            <p className="mt-1 max-w-2xl text-[11px] leading-relaxed text-ink-muted">
+              This rings the contact through your connected carrier and spends
+              wallet credits. Call Vani checks suppression and valid consent
+              again on the server before dialling.
+            </p>
+          </div>
+          <span className="rounded-full border border-hairline bg-surface-muted px-2.5 py-1 text-[11px] text-ink-muted">
+            Customer workspace route
+          </span>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <label className="block">
+            <span className="text-[11px] text-ink-muted">AI agent</span>
+            <select
+              value={carrierAgentId}
+              disabled={carrierBusy || carrierPolling}
+              onChange={(event) => setCarrierAgentId(event.target.value)}
+              className="mt-1 w-full rounded-lg border border-hairline bg-surface-strong px-3 py-2 text-[11px]"
+            >
+              {agents.map((agent) => (
+                <option key={agent.id} value={agent.id}>
+                  {agent.name} · {agent.primary_language}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-[11px] text-ink-muted">
+              E.164 destination
+            </span>
+            <input
+              value={carrierDestination}
+              disabled={carrierBusy || carrierPolling}
+              inputMode="tel"
+              autoComplete="tel"
+              placeholder="+919876543210"
+              onChange={(event) => {
+                setCarrierDestination(event.target.value);
+                setCarrierConsentConfirmed(false);
+              }}
+              className="mt-1 w-full rounded-lg border border-hairline bg-surface-strong px-3 py-2 font-mono text-[11px]"
+            />
+          </label>
+        </div>
+
+        <label className="mt-4 flex cursor-pointer items-start gap-2 rounded-xl border border-hairline bg-surface-muted p-3">
+          <input
+            type="checkbox"
+            checked={carrierConsentConfirmed}
+            disabled={carrierBusy || carrierPolling}
+            onChange={(event) =>
+              setCarrierConsentConfirmed(event.target.checked)
+            }
+            className="mt-0.5 size-4"
+          />
+          <span className="text-[11px] leading-relaxed text-ink-body">
+            I confirm this contact has explicitly agreed to receive this
+            outbound call. If a current consent record exists it is reused;
+            otherwise this confirmation records one for outbound calling.
+          </span>
+        </label>
+
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <Button
+            className="portal-primary"
+            disabled={
+              carrierBusy ||
+              carrierPolling ||
+              !carrierAgentId ||
+              !carrierDestination.trim() ||
+              !carrierConsentConfirmed
+            }
+            onClick={() => void startCarrierCall()}
+          >
+            {carrierBusy ? <Loader2 className="animate-spin" /> : <PhoneCall />}
+            {carrierBusy ? 'Checking and dialling…' : 'Ring contact now'}
+          </Button>
+          <p className="text-[11px] text-ink-muted">
+            Suppression → consent → carrier → live status
+          </p>
+        </div>
+
+        {carrierNotice ? (
+          <p
+            role={carrierNotice.tone === 'error' ? 'alert' : 'status'}
+            className={`mt-3 rounded-lg border px-3 py-2 text-[11px] ${
+              carrierNotice.tone === 'error'
+                ? 'border-red-400/25 bg-red-400/[0.06] text-danger-text'
+                : carrierNotice.tone === 'success'
+                  ? 'border-emerald-400/25 bg-emerald-400/[0.06] text-success-text'
+                  : 'border-hairline bg-surface-muted text-ink-body'
+            }`}
+          >
+            {carrierNotice.message}
+          </p>
+        ) : null}
+
+        {carrierCall ? (
+          <div className="mt-3 grid gap-2 rounded-xl border border-hairline bg-surface-muted p-3 sm:grid-cols-3">
+            <div>
+              <p className="text-[11px] uppercase tracking-wider text-ink-muted">
+                Call ID
+              </p>
+              <p className="mt-1 break-all font-mono text-[11px] text-ink">
+                {carrierCall.id}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] uppercase tracking-wider text-ink-muted">
+                Carrier status
+              </p>
+              <p className="mt-1 flex items-center gap-1.5 text-[11px] text-ink">
+                {carrierPolling ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : null}
+                {carrierCall.status.replaceAll('_', ' ')}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] uppercase tracking-wider text-ink-muted">
+                Final result
+              </p>
+              <p className="mt-1 text-[11px] text-ink">
+                {carrierCall.outcome || 'Waiting for carrier'}
+                {typeof carrierCall.durationSeconds === 'number' &&
+                carrierCall.durationSeconds > 0
+                  ? ` · ${carrierCall.durationSeconds}s`
+                  : ''}
+              </p>
+              {carrierCall.disconnectReason ? (
+                <p className="mt-1 text-[11px] text-ink-muted">
+                  {carrierCall.disconnectReason}
+                </p>
+              ) : null}
+            </div>
+          </div>
         ) : null}
       </section>
 

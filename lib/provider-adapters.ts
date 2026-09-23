@@ -25,6 +25,7 @@ import { routeSynthesis } from '@/lib/tts-router';
 import {
   SUPPORTED_LANGUAGES,
   languageName,
+  sarvamSttLanguageCode,
   type SpeechEngine,
 } from '@/lib/languages';
 
@@ -584,7 +585,7 @@ async function transcribeWithSarvam(
   form.append('model', 'saarika:v2.5');
   // 'unknown' lets Sarvam auto-detect the spoken language (Hindi, Punjabi,
   // Haryanvi, English, etc.) so the caller can switch languages freely.
-  form.append('language_code', input.languageCode || 'unknown');
+  form.append('language_code', sarvamSttLanguageCode(input.languageCode));
   const response = await fetch('https://api.sarvam.ai/speech-to-text', {
     method: 'POST',
     headers: { 'api-subscription-key': apiKey },

@@ -41,6 +41,38 @@ export type LanguageEntry = {
   engines: SpeechEngine[];
 };
 
+const SARVAM_STT_LANGUAGE_CODES = new Set([
+  'unknown',
+  'hi-IN',
+  'bn-IN',
+  'kn-IN',
+  'ml-IN',
+  'mr-IN',
+  'od-IN',
+  'pa-IN',
+  'ta-IN',
+  'te-IN',
+  'en-IN',
+  'gu-IN',
+  'as-IN',
+  'ur-IN',
+  'ne-IN',
+  'kok-IN',
+  'ks-IN',
+  'sd-IN',
+  'sa-IN',
+]);
+
+/**
+ * Sarvam STT rejects product-level aliases such as `hinglish` and
+ * `haryanvi`. Those modes are deliberately code-switching, so auto detection
+ * is more accurate than forcing Hindi and keeps Punjabi/English turns valid.
+ */
+export function sarvamSttLanguageCode(languageCode?: string | null) {
+  const candidate = String(languageCode || 'unknown').trim();
+  return SARVAM_STT_LANGUAGE_CODES.has(candidate) ? candidate : 'unknown';
+}
+
 export const SUPPORTED_LANGUAGES: readonly LanguageEntry[] = [
   {
     code: 'hinglish',

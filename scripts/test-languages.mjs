@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 
 import {
   SUPPORTED_LANGUAGES,
+  sarvamSttLanguageCode,
   SUPPORTED_LANGUAGE_CODES,
   enginesForLanguage,
   findLanguage,
@@ -25,6 +26,15 @@ check('§11 global languages are present', () => {
   for (const code of ['fr-FR', 'es-ES', 'zh-CN', 'ja-JP'])
     assert.ok(SUPPORTED_LANGUAGE_CODES.has(code), `${code} missing`);
   assert.equal(languagesForRegion('global').length, 4);
+});
+
+check('Sarvam STT receives only provider-supported language codes', () => {
+  assert.equal(sarvamSttLanguageCode('hi-IN'), 'hi-IN');
+  assert.equal(sarvamSttLanguageCode('en-IN'), 'en-IN');
+  assert.equal(sarvamSttLanguageCode('hinglish'), 'unknown');
+  assert.equal(sarvamSttLanguageCode('haryanvi'), 'unknown');
+  assert.equal(sarvamSttLanguageCode('fr-FR'), 'unknown');
+  assert.equal(sarvamSttLanguageCode(''), 'unknown');
 });
 
 check('the Indian catalog is not diminished by adding global ones', () => {

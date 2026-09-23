@@ -583,7 +583,11 @@ async function transcribeWithSarvam(
     new Blob([input.audio], { type: input.contentType || 'audio/wav' }),
     'audio.wav',
   );
-  form.append('model', 'saarika:v2.5');
+  // Saaras v4 is tuned for 8 kHz telephony and code-mixed Indian speech.
+  // `codemix` preserves natural Hindi/English switching instead of forcing a
+  // translated or monolingual transcript.
+  form.append('model', 'saaras:v4');
+  form.append('mode', 'codemix');
   // 'unknown' lets Sarvam auto-detect the spoken language (Hindi, Punjabi,
   // Haryanvi, English, etc.) so the caller can switch languages freely.
   form.append('language_code', sarvamSttLanguageCode(input.languageCode));

@@ -34,12 +34,14 @@ const sqlite = new DatabaseSync(':memory:');
 sqlite.exec(`CREATE TABLE call_records(
   id TEXT PRIMARY KEY, organization_id TEXT, status TEXT, duration_seconds INTEGER DEFAULT 0,
   cost_credits INTEGER DEFAULT 0, analysis_json TEXT DEFAULT '{}', ended_at TEXT,
-  provider_reference TEXT, campaign_contact_id TEXT);
+  provider_reference TEXT, campaign_contact_id TEXT, disconnect_reason TEXT);
 CREATE TABLE provider_usage_events(
   id TEXT PRIMARY KEY, organization_id TEXT, provider_id TEXT, category TEXT, operation TEXT,
   units INTEGER, provider_cost_micros INTEGER, billed_credits INTEGER, status TEXT, reference_id TEXT);
 INSERT INTO call_records(id, organization_id, status) VALUES ('call_1', 'org_1', 'queued');
-INSERT INTO call_records(id, organization_id, status) VALUES ('call_2', 'org_2', 'queued');`);
+INSERT INTO call_records(id, organization_id, status) VALUES ('call_2', 'org_2', 'queued');
+INSERT INTO call_records(id, organization_id, status) VALUES ('call_3', 'org_1', 'in_progress');
+INSERT INTO call_records(id, organization_id, status) VALUES ('call_4', 'org_1', 'in_progress');`);
 
 const db = {
   prepare(sql) {
@@ -271,6 +273,40 @@ equal(
   null,
 );
 
+// Stream lifecycle callbacks share the URL but are not call lifecycle events.
+// StartStream used to normalise its missing CallStatus to `processing` and
+// overwrite the `in_progress` written by the answer callback.
+const streamStarted = await post(statusRoute, STATUS_URL, 'call_1', {
+  headers: signed(STATUS_URL, 'n3-stream'),
+  form: {
+    Event: 'StartStream',
+    CallUUID: 'vobiz-uuid-1',
+    StreamID: 'stream-1',
+  },
+});
+equal(streamStarted.status, 200);
+equal(
+  sqlite.prepare("SELECT status FROM call_records WHERE id = 'call_1'").get()
+    .status,
+  'ringing',
+  'stream telemetry does not overwrite call lifecycle status',
+);
+await post(statusRoute, STATUS_URL, 'call_1', {
+  headers: signed(STATUS_URL, 'n3-played'),
+  form: {
+    Event: 'PlayedStream',
+    CallUUID: 'vobiz-uuid-1',
+    StreamID: 'stream-1',
+    Name: 'callvani-1',
+  },
+});
+equal(
+  sqlite.prepare("SELECT status FROM call_records WHERE id = 'call_1'").get()
+    .status,
+  'ringing',
+  'played-stream acknowledgement also preserves lifecycle status',
+);
+
 // Hangup, two minutes and two seconds of talk after nine seconds of ringing.
 const hangup = {
   Event: 'Hangup',
@@ -316,6 +352,65 @@ equal(
   'vobiz-uuid-1',
   'the call can be found in their CDRs',
 );
+
+// The generic callback contract sends `Status`, and a Hangup may carry only
+// its generic timestamp. It must still close the call and retain the carrier's
+// disconnect reason instead of leaving a permanent processing row.
+const genericStatusUrl =
+  'https://vaani.test/api/webhooks/telephony/vobiz/status/call_3';
+equal(
+  (
+    await post(statusRoute, genericStatusUrl, 'call_3', {
+      headers: signed(genericStatusUrl, 'n4-generic'),
+      form: {
+        Event: 'Hangup',
+        Status: 'completed',
+        CallUUID: 'vobiz-uuid-3',
+        timestamp: '2026-09-12T06:05:00Z',
+        Duration: '109',
+        HangupCauseName: 'Normal Hangup',
+      },
+    })
+  ).status,
+  200,
+);
+const genericSettled = sqlite
+  .prepare("SELECT * FROM call_records WHERE id = 'call_3'")
+  .get();
+equal(genericSettled.status, 'completed');
+equal(genericSettled.ended_at, '2026-09-12T06:05:00Z');
+equal(genericSettled.disconnect_reason, 'Normal Hangup');
+equal(genericSettled.duration_seconds, 109);
+equal(
+  settlements.length,
+  1,
+  'ambiguous total duration updates history but never bills as talk time',
+);
+
+// Event=Hangup alone is terminal even when neither callback timestamp field is
+// present. The server receipt time is the last-resort end time, so the row can
+// never remain permanently live after an authoritative hangup.
+const timestampFreeStatusUrl =
+  'https://vaani.test/api/webhooks/telephony/vobiz/status/call_4';
+equal(
+  (
+    await post(statusRoute, timestampFreeStatusUrl, 'call_4', {
+      headers: signed(timestampFreeStatusUrl, 'n4-no-time'),
+      form: {
+        Event: 'Hangup',
+        CallUUID: 'vobiz-uuid-4',
+      },
+    })
+  ).status,
+  200,
+);
+const timestampFreeSettled = sqlite
+  .prepare("SELECT * FROM call_records WHERE id = 'call_4'")
+  .get();
+equal(timestampFreeSettled.status, 'completed');
+ok(timestampFreeSettled.ended_at, 'server receipt time closes timestamp-free hangup');
+equal(timestampFreeSettled.duration_seconds, 0);
+equal(settlements.length, 1, 'timestamp-free zero-talk hangup is not billed');
 
 // Their platform retries any non-200 three times, and retries arrive late and
 // out of order. The same hangup again must not bill again.

@@ -185,6 +185,8 @@ equal(hangup.endedAt, '2026-09-12T06:02:11Z');
 // Talk time, not ring time: 06:00:09 to 06:02:11 is 122 seconds, and the nine
 // seconds the phone spent ringing belong to nobody's bill.
 equal(hangup.talkSeconds, 122);
+equal(hangup.durationSeconds, 122);
+equal(hangup.disconnectReason, null);
 // A call that rang out has an end and no answer, so it has no talk time — not
 // zero-by-accident, and certainly not the ring duration.
 equal(
@@ -201,6 +203,35 @@ equal(
 // A callback with no call in it is not a callback.
 equal(readVobizCallback({ Event: 'Hangup' }), null);
 
+// The generic callback guide names the field `Status`, while the call API
+// guide names it `CallStatus`. Production integrations must accept both, and a
+// timestamp-only Hangup is still the authoritative end-of-call signal.
+const genericHangup = readVobizCallback({
+  Event: 'Hangup',
+  Status: 'completed',
+  CallUUID: 'uuid-generic',
+  timestamp: '2026-09-12T06:02:11Z',
+  Duration: '109',
+  HangupCauseName: 'Normal Hangup',
+});
+equal(genericHangup.status, 'completed');
+equal(genericHangup.endedAt, '2026-09-12T06:02:11Z');
+equal(genericHangup.disconnectReason, 'Normal Hangup');
+equal(genericHangup.talkSeconds, null);
+equal(genericHangup.durationSeconds, 109);
+
+// Stream telemetry carries CallUUID but no call lifecycle status. Keeping the
+// status blank lets the route ignore it rather than downgrading a live call to
+// `processing`.
+equal(
+  readVobizCallback({
+    Event: 'StartStream',
+    CallUUID: 'uuid-stream',
+    StreamID: 'stream-1',
+  }).status,
+  '',
+);
+
 // --- their words, in this product's vocabulary -------------------------------------
 
 // Every status they send already lands on a status this product knows, so the
@@ -208,6 +239,8 @@ equal(readVobizCallback({ Event: 'Hangup' }), null);
 equal(normaliseCallStatus('ringing'), 'ringing');
 equal(normaliseCallStatus('in-progress'), 'in_progress');
 equal(normaliseCallStatus('completed'), 'completed');
+equal(normaliseCallStatus('cancel'), 'failed');
+equal(normaliseCallStatus('timeout'), 'no_answer');
 
 // --- the XML they fetch when the call is answered ---------------------------------
 

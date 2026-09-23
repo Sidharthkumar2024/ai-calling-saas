@@ -157,9 +157,10 @@ export function readVobizCallAccepted(body: unknown): VobizCallAccepted | null {
  *
  * Their field names are capitalised (`CallUUID`, `CallStatus`) and the hangup
  * callback lower-cases one of them (`stir_verification`), so nothing here
- * assumes a single convention. `CallStatus` is the field to read, not `Event`:
- * `Event` says which callback fired, `CallStatus` says what state the call is
- * in, and only the second one belongs in a call record.
+ * assumes a single convention. The call-specific guide uses `CallStatus`, the
+ * generic callback guide uses `Status`, and lifecycle events provide a safe
+ * fallback when either status field is omitted. Stream events intentionally
+ * remain statusless so they cannot overwrite the call lifecycle.
  */
 export type VobizCallback = {
   event: string;
@@ -179,6 +180,10 @@ export type VobizCallback = {
    * charge that is only ever found by the person who was charged.
    */
   talkSeconds: number | null;
+  /** Total carrier-reported call duration, used for history but not billing. */
+  durationSeconds: number | null;
+  /** Carrier-provided reason, when a completed call includes one. */
+  disconnectReason: string | null;
 };
 
 export function readVobizCallback(
@@ -193,6 +198,15 @@ export function readVobizCallback(
     }
     return '';
   };
+  const firstSeconds = (...keys: string[]) => {
+    for (const key of keys) {
+      const value = payload[key];
+      if (value === null || value === undefined || value === '') continue;
+      const seconds = Number(value);
+      if (Number.isFinite(seconds)) return Math.max(0, Math.round(seconds));
+    }
+    return null;
+  };
   const callUuid = first(
     'CallUUID',
     'call_uuid',
@@ -200,18 +214,74 @@ export function readVobizCallback(
     'request_uuid',
   );
   if (!callUuid) return null;
+  const event = first('Event', 'event');
   const answeredAt = first('AnswerTime') || null;
-  const endedAt = first('EndTime') || null;
+  // The call API's hangup callback documents `EndTime`; the generic callback
+  // contract also guarantees `timestamp`. An authoritative Hangup must still
+  // carry a usable end time when only that generic field is delivered, rather
+  // than leaving the record live forever.
+  const endedAt =
+    first('EndTime', 'end_time') ||
+    (/^hangup$/i.test(event) ? first('Timestamp', 'timestamp') : '') ||
+    null;
+  // Vobiz currently documents `CallStatus` on the call-specific callback and
+  // `Status` on the generic webhook example. Accept both. Stream callbacks do
+  // not include either field; they deliberately stay blank so the call-status
+  // route can recognise them as transport telemetry rather than walking a
+  // live call back to `processing`.
+  const reportedStatus = first(
+    'CallStatus',
+    'call_status',
+    'Status',
+    'status',
+  );
+  const status =
+    reportedStatus ||
+    (/^hangup$/i.test(event)
+      ? 'completed'
+      : /^ring$/i.test(event)
+        ? 'ringing'
+        : /^startapp$/i.test(event)
+          ? 'in-progress'
+          : '');
+  const timestampTalkSeconds = secondsBetween(answeredAt, endedAt);
+  // Prefer bill/talk duration when Vobiz supplies it. The generic `Duration`
+  // includes ringing on some accounts, so it is safe for call history but not
+  // for wallet charging when no billable duration or answer timestamp exists.
+  const talkSeconds =
+    timestampTalkSeconds ??
+    firstSeconds(
+      'BillDuration',
+      'bill_duration',
+      'BillSeconds',
+      'bill_seconds',
+      'BillSec',
+      'billsec',
+      'ConversationDuration',
+      'conversation_duration',
+    );
+  const durationSeconds =
+    firstSeconds('Duration', 'duration') ?? talkSeconds;
   return {
-    event: first('Event', 'event'),
+    event,
     callUuid,
-    status: first('CallStatus', 'call_status'),
+    status,
     from: first('From', 'from'),
     to: first('To', 'to'),
     startedAt: first('StartTime', 'SessionStart') || null,
     answeredAt,
     endedAt,
-    talkSeconds: secondsBetween(answeredAt, endedAt),
+    talkSeconds,
+    durationSeconds,
+    disconnectReason:
+      first(
+        'HangupCauseName',
+        'hangup_cause_name',
+        'HangupCause',
+        'hangup_cause',
+        'FailureReason',
+        'failure_reason',
+      ) || null,
   };
 }
 

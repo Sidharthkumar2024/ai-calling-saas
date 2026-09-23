@@ -53,7 +53,9 @@ equal(normaliseCallStatus('  Completed  '), 'completed');
 // Words a carrier says its own way.
 equal(normaliseCallStatus('answered'), 'completed');
 equal(normaliseCallStatus('cancelled'), 'failed');
+equal(normaliseCallStatus('cancel'), 'failed');
 equal(normaliseCallStatus('unanswered'), 'no_answer');
+equal(normaliseCallStatus('timeout'), 'no_answer');
 
 // A word this product does not know is not guessed into a terminal state:
 // 'processing' says the call is not over as far as anyone here can tell.

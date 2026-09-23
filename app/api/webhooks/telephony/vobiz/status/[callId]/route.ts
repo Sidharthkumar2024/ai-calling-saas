@@ -42,10 +42,15 @@ export async function POST(
   const db = getRawDb();
   const call = await db
     .prepare(
-      'SELECT id, organization_id, cost_credits FROM call_records WHERE id = ? LIMIT 1',
+      'SELECT id, organization_id, status, cost_credits FROM call_records WHERE id = ? LIMIT 1',
     )
     .bind(callId)
-    .first<{ id: string; organization_id: string; cost_credits: number }>();
+    .first<{
+      id: string;
+      organization_id: string;
+      status: string;
+      cost_credits: number;
+    }>();
   if (!call)
     return NextResponse.json({ error: 'Call is unknown.' }, { status: 404 });
 
@@ -79,17 +84,47 @@ export async function POST(
       { error: 'No call reference in the callback.' },
       { status: 400 },
     );
-  const status = normaliseCallStatus(callback.status);
-  const duration = callback.talkSeconds ?? 0;
-  const terminal = callback.endedAt !== null;
+
+  // `<Stream statusCallbackUrl>` sends transport events to this URL too. They
+  // have a CallUUID but intentionally no call status. Ring/StartApp/Hangup get
+  // an event-derived lifecycle status in `readVobizCallback`, so anything that
+  // remains blank here is transport telemetry (including future events) and
+  // must not walk a live call back to `processing`.
+  if (!callback.status) {
+    return NextResponse.json({
+      received: true,
+      callId: call.id,
+      status: call.status,
+      event: callback.event,
+    });
+  }
+
+  const normalisedStatus = normaliseCallStatus(callback.status);
+  // Hangup is authoritative even if a provider rollout introduces a status
+  // word this build does not yet know. Never combine ended_at with the live
+  // lifecycle word `processing`.
+  const status =
+    /^hangup$/i.test(callback.event) &&
+    !isTerminalCallStatus(normalisedStatus)
+      ? 'completed'
+      : normalisedStatus;
+  const duration = callback.durationSeconds ?? callback.talkSeconds ?? 0;
+  // Some Vobiz hangup deliveries omit EndTime and only carry Event=Hangup (or
+  // a terminal status). The event is documented as the authoritative call-end
+  // signal, so terminality cannot depend on one optional timestamp.
+  const terminal =
+    /^hangup$/i.test(callback.event) || isTerminalCallStatus(status);
+  const endedAt = callback.endedAt ?? new Date().toISOString();
 
   // Credits are settled once, on the first callback that carries talk time.
   // `cost_credits` being zero is what says it has not happened yet, which is
   // the same test the Exotel leg makes — deliberately, so a workspace on either
   // carrier is billed by one rule.
   const credits =
-    terminal && duration > 0 && Number(call.cost_credits || 0) === 0
-      ? exotelCredits(duration)
+    terminal &&
+    Number(callback.talkSeconds ?? 0) > 0 &&
+    Number(call.cost_credits || 0) === 0
+      ? exotelCredits(Number(callback.talkSeconds))
       : 0;
   const settled =
     credits > 0
@@ -103,6 +138,7 @@ export async function POST(
       duration_seconds = CASE WHEN ? > 0 THEN ? ELSE duration_seconds END,
       analysis_json = json_set(analysis_json, '$.providerReference', ?),
       provider_reference = coalesce(?, provider_reference),
+      disconnect_reason = CASE WHEN ? THEN coalesce(?, disconnect_reason) ELSE disconnect_reason END,
       ended_at = CASE WHEN ? THEN coalesce(ended_at, ?) ELSE ended_at END
       WHERE id = ?`)
     .bind(
@@ -113,10 +149,12 @@ export async function POST(
       callback.callUuid,
       callback.callUuid,
       terminal ? 1 : 0,
+      callback.disconnectReason,
+      terminal ? 1 : 0,
       // Their clock for when the call ended, not ours for when we heard about
       // it: their retries can be minutes late, and a duration that disagrees
       // with its own timestamps is the kind of thing a customer disputes.
-      callback.endedAt ?? new Date().toISOString(),
+      endedAt,
       call.id,
     )
     .run();

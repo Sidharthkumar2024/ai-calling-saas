@@ -106,16 +106,46 @@ console.log('call start:');
 console.log('Vobiz acknowledgements:');
 {
   const client = fakeClient();
-  const { session, logs } = harness(client, 'vobiz');
-  session.callId = 'call_vobiz_ack';
-  await session.handle(JSON.stringify({ event: 'playedStream' }));
+  const { session, sent, logs } = harness(client, 'vobiz');
+  await session.handle(
+    JSON.stringify({
+      event: 'start',
+      streamId: 'vobiz_stream_1',
+      start: {
+        callUUID: 'call_vobiz_ack',
+        mediaFormat: { encoding: 'audio/x-mulaw', sampleRate: 8000 },
+      },
+    }),
+  );
+  const audio = sent.filter((frame) => frame.event === 'playAudio');
+  const checkpoint = sent.find((frame) => frame.event === 'checkpoint');
+  ok(
+    'Vobiz greeting is raw 20ms mulaw addressed to the active stream',
+    audio.length > 1 &&
+      audio.every(
+        (frame) =>
+          frame.streamId === 'vobiz_stream_1' &&
+          frame.media.contentType === 'audio/x-mulaw' &&
+          frame.media.sampleRate === 8000 &&
+          Buffer.from(frame.media.payload, 'base64').length <= 160,
+      ),
+  );
+  ok(
+    'Vobiz greeting ends with a named playback checkpoint',
+    checkpoint?.streamId === 'vobiz_stream_1' &&
+      checkpoint?.name === 'callvani-1',
+  );
+  await session.handle(
+    JSON.stringify({ event: 'playedStream', name: checkpoint.name }),
+  );
   ok(
     'Vobiz playback acknowledgement is attributable to the call',
     logs.some(
       (entry) =>
         entry.event === 'carrier_ack' &&
         entry.callId === 'call_vobiz_ack' &&
-        entry.acknowledgement === 'playedStream',
+        entry.acknowledgement === 'playedStream' &&
+        entry.checkpointName === 'callvani-1',
     ),
   );
 }

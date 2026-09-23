@@ -2,11 +2,13 @@ import { NextResponse } from 'next/server';
 
 import { ensureSchema } from '@/db/bootstrap';
 import { getRawDb } from '@/db/index';
+import { simulateAgentTurn } from '@/lib/agent-simulator';
 import { recordCallTurn } from '@/lib/call-telemetry';
 import { buildOpening, parseOpening } from '@/lib/campaign-opening';
 import { isOpeningStyle, STYLE_GUIDANCE } from '@/lib/campaign-studio';
 import { resolveAgentVoice } from '@/lib/voice-profiles';
 import { routeTurn } from '@/lib/llm-router';
+import { resolveSpokenLiveTurn } from '@/lib/live-voice-turn';
 import { providerFailureDetail } from '@/lib/provider-http';
 import {
   ProviderConfigurationError,
@@ -269,66 +271,86 @@ async function runTurn(body: TurnRequest, callId: string) {
   });
 
   const turnIndex = ordered.length;
-  const live = await generateVoiceAgentTurn({
-    organizationId,
-    agentName: call.agent_name ?? 'Vaani',
-    businessName: call.business_name,
-    useCase: call.use_case ?? undefined,
+  // Compute the same deterministic safety reply used by the customer
+  // playground before attempting connected reasoning. `ordered` already ends
+  // with this caller turn, so do not pass that turn twice as history.
+  const fallback = simulateAgentTurn({
+    message: transcript,
+    useCase: call.use_case ?? 'general_customer_conversation',
     language,
-    systemPrompt: call.system_prompt ?? '',
-    maxTokens: Number(call.max_tokens || 180),
-    modelOverride: route.model,
-    messages: ordered,
-    // The picker's selection now reaches the model instead of being ignored.
-    toolSelection: call.tools_json,
-    // On an inbound call the caller is `from_number`; on an outbound one it is
-    // whoever we dialled. Neither ever reached the prompt, so the model had to
-    // guess a phone number for every tool that takes one.
-    callerNumber:
-      call.direction === 'inbound' ? call.from_number : call.to_number,
-    toolContext: {
-      organizationId,
-      agentId: call.agent_id,
-      sessionId: callId,
-      turnId: turnIndex,
-    },
+    businessName: call.business_name,
+    history: ordered.slice(0, -1),
   });
-
-  // 8 kHz mulaw is exactly what the carrier streams, so the gateway forwards
-  // it untouched. Asking for MP3 here would need a decoder it does not have.
-  const speech = await synthesizeSpeech({
-    organizationId,
-    text: live.text,
-    languageCode: language,
-    voice,
-    outputFormat: 'ulaw_8000',
+  const spoken = await resolveSpokenLiveTurn({
+    fallback: { text: fallback.response, latencyMs: fallback.latencyMs },
+    reason: () =>
+      generateVoiceAgentTurn({
+        organizationId,
+        agentName: call.agent_name ?? 'Vaani',
+        businessName: call.business_name,
+        useCase: call.use_case ?? undefined,
+        language,
+        systemPrompt: call.system_prompt ?? '',
+        maxTokens: Number(call.max_tokens || 180),
+        modelOverride: route.model,
+        messages: ordered,
+        // The picker's selection now reaches the model instead of being ignored.
+        toolSelection: call.tools_json,
+        // On an inbound call the caller is `from_number`; on an outbound one it is
+        // whoever we dialled. Neither ever reached the prompt, so the model had to
+        // guess a phone number for every tool that takes one.
+        callerNumber:
+          call.direction === 'inbound' ? call.from_number : call.to_number,
+        toolContext: {
+          organizationId,
+          agentId: call.agent_id,
+          sessionId: callId,
+          turnId: turnIndex,
+        },
+      }),
+    // 8 kHz mulaw is exactly what the carrier streams, so the gateway forwards
+    // it untouched. Asking for MP3 here would need a decoder it does not have.
+    synthesize: (text) =>
+      synthesizeSpeech({
+        organizationId,
+        text,
+        languageCode: language,
+        voice,
+        outputFormat: 'ulaw_8000',
+      }),
+    onReasoningFallback: (error) =>
+      console.error(
+        'Connected live reasoning failed; using deterministic spoken fallback.',
+        error,
+      ),
   });
   await recordCallTurn({
     organizationId,
     callId,
     role: 'agent',
-    content: live.text,
+    content: spoken.text,
     language,
-    latencyMs: live.latencyMs + speech.latencyMs,
-    model: route.model,
-    toolCalls: live.toolCalls,
+    latencyMs: spoken.reasoningLatencyMs + spoken.speech.latencyMs,
+    model: spoken.mode === 'connected' ? route.model : null,
+    toolCalls: spoken.toolCalls,
   });
 
   // A tool may have decided the conversation is over.
-  const endCall = (live.toolCalls ?? []).some(
+  const endCall = spoken.toolCalls.some(
     (call_) => call_.name === 'end_call',
   );
   return NextResponse.json({
     transcript,
-    replyText: live.text,
-    audioBase64: speech.audioBase64,
-    contentType: speech.contentType,
-    toolCalls: (live.toolCalls ?? []).map((item) => item.name),
+    replyText: spoken.text,
+    audioBase64: spoken.speech.audioBase64,
+    contentType: spoken.speech.contentType,
+    toolCalls: spoken.toolCalls.map((item) => item.name),
     endCall,
+    pipelineMode: spoken.mode,
     latency: {
       stt: heard.latencyMs,
-      llm: live.latencyMs,
-      tts: speech.latencyMs,
+      llm: spoken.reasoningLatencyMs,
+      tts: spoken.speech.latencyMs,
     },
   });
 }

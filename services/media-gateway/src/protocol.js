@@ -130,8 +130,14 @@ export function parseInbound(carrier, raw) {
       };
     if (event === 'stop') return { kind: 'stop' };
     // `playedStream` and `clearedAudio` are acknowledgements from Vobiz. The
-    // gateway paces its own output and needs no state transition for either.
-    return { kind: 'ignore', reason: event ?? 'unknown_event' };
+    // gateway paces its own output and needs no state transition for either,
+    // but preserve the checkpoint name so production logs can prove which
+    // utterance actually reached the caller.
+    return {
+      kind: 'ignore',
+      reason: event ?? 'unknown_event',
+      name: typeof message.name === 'string' ? message.name : null,
+    };
   }
 
   return { kind: 'ignore', reason: `unsupported_carrier:${carrier}` };
@@ -165,6 +171,18 @@ export function buildMedia(carrier, { streamSid, payload }) {
     stream_sid: streamSid,
     media: { payload },
   });
+}
+
+/**
+ * Marks the end of one Vobiz utterance.
+ *
+ * Vobiz only emits `playedStream` after audio followed by a checkpoint has
+ * actually played. Without this command a successful socket write proves only
+ * that Call Vani queued JSON, not that the caller heard the greeting/reply.
+ */
+export function buildCheckpoint(carrier, { streamSid, name }) {
+  if (carrier !== 'vobiz') return null;
+  return JSON.stringify({ event: 'checkpoint', streamId: streamSid, name });
 }
 
 /**

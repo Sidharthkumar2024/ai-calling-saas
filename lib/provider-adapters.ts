@@ -597,8 +597,24 @@ export async function reasonWithTools(input: {
     process.env.ANTHROPIC_MODEL;
   // The router may ask for a stronger model on this turn only.
   const model = input.model?.trim() || configuredModel;
-  if (!apiKey || !model)
+  if (!apiKey || !model) {
+    // Sarvam is configured once by the platform admin and is also capable of
+    // running the conversation brain. It is deliberately not read from a
+    // customer integration: every workspace gets the same governed provider
+    // lane while metering remains attributed to the workspace that used it.
+    const sarvamPlatform = await platformProviderSecret('sarvam');
+    const sarvamApiKey = sarvamPlatform.disabled
+      ? undefined
+      : sarvamPlatform.apiKey || process.env.SARVAM_API_KEY;
+    if (sarvamApiKey)
+      return reasonWithSarvam(
+        input,
+        sarvamApiKey,
+        configString(sarvamPlatform.config, 'reasoningModel') ||
+          'sarvam-105b-conversations',
+      );
     throw new ProviderConfigurationError('Vaani Sense is not connected.');
+  }
   const started = Date.now();
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -660,6 +676,264 @@ export async function reasonWithTools(input: {
     },
   );
   return { ...payload, latencyMs };
+}
+
+type SarvamChatMessage = {
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content: string | null;
+  tool_call_id?: string;
+  tool_calls?: Array<{
+    id: string;
+    type: 'function';
+    function: { name: string; arguments: string };
+  }>;
+};
+
+/** Convert Call Vani's Anthropic-shaped tools to Sarvam function tools. */
+export function sarvamChatTools(tools: Array<Record<string, unknown>> = []) {
+  return tools.flatMap((tool) => {
+    const name = typeof tool.name === 'string' ? tool.name.trim() : '';
+    if (!name) return [];
+    return [
+      {
+        type: 'function' as const,
+        function: {
+          name,
+          ...(typeof tool.description === 'string'
+            ? { description: tool.description }
+            : {}),
+          parameters:
+            tool.input_schema && typeof tool.input_schema === 'object'
+              ? tool.input_schema
+              : { type: 'object', properties: {} },
+        },
+      },
+    ];
+  });
+}
+
+/**
+ * Translate the internal transcript to OpenAI-compatible chat messages.
+ * Tool results become dedicated `tool` messages for multi-round actions.
+ */
+export function sarvamChatMessages(
+  system: string,
+  messages: Array<{
+    role: 'user' | 'assistant';
+    content: string | unknown[];
+  }>,
+): SarvamChatMessage[] {
+  const converted: SarvamChatMessage[] = [{ role: 'system', content: system }];
+  for (const message of messages) {
+    if (typeof message.content === 'string') {
+      converted.push({ role: message.role, content: message.content });
+      continue;
+    }
+    if (!Array.isArray(message.content)) continue;
+    const blocks = message.content.filter(
+      (block): block is Record<string, unknown> =>
+        Boolean(block) && typeof block === 'object',
+    );
+    const text = blocks
+      .filter(
+        (block) => block.type === 'text' && typeof block.text === 'string',
+      )
+      .map((block) => String(block.text).trim())
+      .filter(Boolean)
+      .join('\n');
+    if (message.role === 'assistant') {
+      const toolCalls = blocks.flatMap((block, index) => {
+        if (block.type !== 'tool_use' || typeof block.name !== 'string')
+          return [];
+        return [
+          {
+            id:
+              typeof block.id === 'string' && block.id
+                ? block.id
+                : `call_${index}`,
+            type: 'function' as const,
+            function: {
+              name: block.name,
+              arguments: JSON.stringify(
+                block.input && typeof block.input === 'object'
+                  ? block.input
+                  : {},
+              ),
+            },
+          },
+        ];
+      });
+      converted.push({
+        role: 'assistant',
+        content: text || null,
+        ...(toolCalls.length ? { tool_calls: toolCalls } : {}),
+      });
+      continue;
+    }
+    if (text) converted.push({ role: 'user', content: text });
+    for (const block of blocks) {
+      if (block.type !== 'tool_result') continue;
+      converted.push({
+        role: 'tool',
+        content:
+          typeof block.content === 'string'
+            ? block.content
+            : JSON.stringify(block.content ?? {}),
+        tool_call_id:
+          typeof block.tool_use_id === 'string' ? block.tool_use_id : '',
+      });
+    }
+  }
+  return converted;
+}
+
+function sarvamToolInput(value: unknown): Record<string, unknown> {
+  if (value && typeof value === 'object' && !Array.isArray(value))
+    return value as Record<string, unknown>;
+  if (typeof value !== 'string') return {};
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Map Sarvam's OpenAI-style answer back to the existing tool loop contract. */
+export function sarvamChatResponse(payload: {
+  id?: string;
+  choices?: Array<{
+    finish_reason?: string | null;
+    message?: {
+      content?: unknown;
+      tool_calls?: Array<{
+        id?: string;
+        function?: { name?: string; arguments?: unknown };
+      }>;
+    };
+  }>;
+}) {
+  const choice = payload.choices?.[0];
+  const message = choice?.message;
+  const text =
+    typeof message?.content === 'string' ? message.content.trim() : '';
+  const toolUses = (message?.tool_calls ?? []).flatMap((call, index) => {
+    const name = call.function?.name?.trim();
+    if (!name) return [];
+    return [
+      {
+        type: 'tool_use' as const,
+        id: call.id || `call_${index}`,
+        name,
+        input: sarvamToolInput(call.function?.arguments),
+      },
+    ];
+  });
+  const content: Array<Record<string, unknown>> = [];
+  if (text) content.push({ type: 'text', text });
+  content.push(...toolUses);
+  return {
+    id: payload.id,
+    content,
+    stop_reason: toolUses.length
+      ? 'tool_use'
+      : choice?.finish_reason === 'length'
+        ? 'max_tokens'
+        : 'end_turn',
+  };
+}
+
+async function reasonWithSarvam(
+  input: {
+    organizationId: string;
+    system: string;
+    messages: Array<{
+      role: 'user' | 'assistant';
+      content: string | unknown[];
+    }>;
+    tools?: Array<Record<string, unknown>>;
+    maxTokens?: number;
+  },
+  apiKey: string,
+  model: string,
+) {
+  const started = Date.now();
+  const response = await fetch('https://api.sarvam.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'api-subscription-key': apiKey,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      messages: sarvamChatMessages(input.system, input.messages),
+      max_tokens: reasoningBudget(input.maxTokens),
+      ...(input.tools?.length
+        ? { tools: sarvamChatTools(input.tools), tool_choice: 'auto' }
+        : {}),
+    }),
+    signal: AbortSignal.timeout(25_000),
+  });
+  let payload: {
+    id?: string;
+    choices?: Array<{
+      finish_reason?: string | null;
+      message?: {
+        content?: unknown;
+        tool_calls?: Array<{
+          id?: string;
+          function?: { name?: string; arguments?: unknown };
+        }>;
+      };
+    }>;
+    usage?: {
+      prompt_tokens?: number;
+      completion_tokens?: number;
+      input_tokens?: number;
+      output_tokens?: number;
+    };
+    error?: { message?: string };
+  } = {};
+  try {
+    payload = (await response.json()) as typeof payload;
+  } catch {
+    if (!response.ok)
+      throw new Error(`Sarvam reasoning failed (${response.status}).`);
+    throw new Error('Sarvam reasoning returned an unreadable response.');
+  }
+  if (!response.ok || !payload.id || !payload.choices?.length)
+    throw new Error(
+      payload.error?.message ||
+        `Sarvam reasoning failed (${response.status}).`,
+    );
+  const latencyMs = Date.now() - started;
+  const inputTokens = Number(
+    payload.usage?.prompt_tokens ?? payload.usage?.input_tokens ?? 0,
+  );
+  const outputTokens = Number(
+    payload.usage?.completion_tokens ?? payload.usage?.output_tokens ?? 0,
+  );
+  await recordUsage(
+    input.organizationId,
+    'provider_sarvam',
+    'reasoning',
+    'input_tokens',
+    latencyMs,
+    payload.id,
+    { unit: 'input_tokens', units: inputTokens, model },
+  );
+  await recordUsage(
+    input.organizationId,
+    'provider_sarvam',
+    'reasoning',
+    'output_tokens',
+    latencyMs,
+    payload.id,
+    { unit: 'output_tokens', units: outputTokens, model },
+  );
+  return { ...sarvamChatResponse(payload), latencyMs };
 }
 
 /** Reads the workspace's enabled conversation languages, tolerating bad JSON. */

@@ -8,6 +8,7 @@ import {
 } from './audio.js';
 import { TurnDetector, frameDurationMs } from './turn-detector.js';
 import {
+  buildCheckpoint,
   buildClear,
   buildMedia,
   buildMode,
@@ -77,6 +78,8 @@ export class CallSession {
     this.playbackTimer = null;
     /** Settles the promise `play()` awaits, so stopping playback unblocks it. */
     this.playbackDone = null;
+    /** Unique names let Vobiz acknowledgements identify an exact utterance. */
+    this.playbackSequence = 0;
     /** This leg's microphone is off: it contributes no audio and drives no turn. */
     this.muted = false;
     /**
@@ -106,6 +109,7 @@ export class CallSession {
       this.log('carrier_ack', {
         callId: this.callId,
         acknowledgement: frame.reason,
+        checkpointName: frame.name ?? null,
       });
     }
     return null;
@@ -379,6 +383,7 @@ export class CallSession {
       contentType: result.contentType ?? 'missing',
       samples: samples.length,
     });
+    const checkpointName = `callvani-${++this.playbackSequence}`;
     this.detector.setAgentSpeaking(true);
     await new Promise((resolve) => {
       let offset = 0;
@@ -409,6 +414,19 @@ export class CallSession {
             payload: encodeG711(slice, this.format.encoding).toString('base64'),
           }),
         );
+        if (offset >= samples.length) {
+          const checkpoint = buildCheckpoint(this.carrier, {
+            streamSid: this.streamSid,
+            name: checkpointName,
+          });
+          if (checkpoint) {
+            this.send(checkpoint);
+            this.log('playback_checkpoint', {
+              callId: this.callId,
+              checkpointName,
+            });
+          }
+        }
         this.playbackTimer = setTimeout(tick, 20);
       };
       tick();

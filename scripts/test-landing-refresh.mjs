@@ -20,10 +20,10 @@ check(
 );
 const opening = introFrame(0, 8.52);
 check(
-  opening.time === 2 &&
+  opening.time === 2.32 &&
     opening.time === INTRO_OPENING_SECONDS &&
     opening.reveal === 0,
-  'Hold the requested full-height robot frame before scroll',
+  'Hold the screenshot-matched 2.32 s robot frame before scroll',
 );
 check(
   introFrame(0.85, 8.52).reveal === 1,
@@ -125,6 +125,23 @@ check(
 const intro = readFileSync(
   new URL('../components/landing-video-intro.tsx', import.meta.url),
   'utf8',
+);
+const landingStyles = readFileSync(
+  new URL('../app/globals.css', import.meta.url),
+  'utf8',
+);
+const introFilmStyles =
+  landingStyles.match(/\.vani-intro-film\s*\{([^}]*)\}/)?.[1] ?? '';
+check(
+  introFilmStyles.includes('width: 100%') &&
+    introFilmStyles.includes('height: 100%') &&
+    introFilmStyles.includes('object-fit: cover') &&
+    introFilmStyles.includes('object-position: center'),
+  'The matched frame keeps its centered full-bleed crop at every viewport width',
+);
+check(
+  /\.vani-video-stage\s*\{[^}]*height:\s*100svh/.test(landingStyles),
+  'The intro stage follows the mobile safe viewport height',
 );
 check(
   intro.includes("error.name === 'AbortError'"),

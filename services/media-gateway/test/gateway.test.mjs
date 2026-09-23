@@ -10,6 +10,7 @@ import {
 } from '../src/audio.js';
 import { TurnDetector, frameDurationMs } from '../src/turn-detector.js';
 import {
+  buildCheckpoint,
   buildClear,
   buildMedia,
   buildPong,
@@ -325,6 +326,23 @@ ok(
       frame.media?.payload === 'P'
     );
   })(),
+);
+ok(
+  'vobiz checkpoint identifies the active stream and utterance',
+  (() => {
+    const frame = JSON.parse(
+      buildCheckpoint('vobiz', { streamSid: 'S', name: 'response-3' }),
+    );
+    return (
+      frame.event === 'checkpoint' &&
+      frame.streamId === 'S' &&
+      frame.name === 'response-3'
+    );
+  })(),
+);
+ok(
+  'non-Vobiz carriers do not receive Vobiz checkpoint commands',
+  buildCheckpoint('twilio', { streamSid: 'S', name: 'response-3' }) === null,
 );
 ok(
   'clear frames are built for both carriers',

@@ -2656,11 +2656,16 @@ const KEY_PROVIDERS: KeyProvider[] = [
   },
   {
     id: 'sarvam',
-    name: 'Sarvam — speech + transcription',
-    note: 'Indian-language STT and TTS (Hindi, Punjabi, Haryanvi, English).',
+    name: 'Sarvam — Indic voice + conversational reasoning',
+    note: 'Platform-owned Indian-language STT/TTS and the Vaani Sense conversation brain for Hindi, Punjabi, Haryanvi and English calls.',
     fields: [
       { k: 'speaker', label: 'Default speaker', placeholder: 'shubh' },
       { k: 'model', label: 'Speech model', placeholder: 'bulbul:v3' },
+      {
+        k: 'reasoningModel',
+        label: 'Conversation reasoning model',
+        placeholder: 'sarvam-105b-conversations',
+      },
     ],
     testAction: 'provider_connection_test',
     testLabel: 'Verify Hindi voice',

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   SUPPORTED_LANGUAGES,
   sarvamSttLanguageCode,
+  sarvamTtsLanguageCode,
   SUPPORTED_LANGUAGE_CODES,
   enginesForLanguage,
   findLanguage,
@@ -35,6 +36,12 @@ check('Sarvam STT receives only provider-supported language codes', () => {
   assert.equal(sarvamSttLanguageCode('haryanvi'), 'unknown');
   assert.equal(sarvamSttLanguageCode('fr-FR'), 'unknown');
   assert.equal(sarvamSttLanguageCode(''), 'unknown');
+});
+
+check('Sarvam TTS maps conversational aliases to a speakable locale', () => {
+  assert.equal(sarvamTtsLanguageCode('hinglish'), 'hi-IN');
+  assert.equal(sarvamTtsLanguageCode('haryanvi'), 'hi-IN');
+  assert.equal(sarvamTtsLanguageCode('pa-IN'), 'pa-IN');
 });
 
 check('the Indian catalog is not diminished by adding global ones', () => {

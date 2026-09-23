@@ -73,6 +73,15 @@ export function sarvamSttLanguageCode(languageCode?: string | null) {
   return SARVAM_STT_LANGUAGE_CODES.has(candidate) ? candidate : 'unknown';
 }
 
+/** Sarvam TTS does not accept auto-detect, so Indic speech aliases use Hindi. */
+export function sarvamTtsLanguageCode(languageCode?: string | null) {
+  const candidate = String(languageCode || '').trim();
+  if (candidate === 'hinglish' || candidate === 'haryanvi') return 'hi-IN';
+  return SARVAM_STT_LANGUAGE_CODES.has(candidate) && candidate !== 'unknown'
+    ? candidate
+    : 'hi-IN';
+}
+
 export const SUPPORTED_LANGUAGES: readonly LanguageEntry[] = [
   {
     code: 'hinglish',

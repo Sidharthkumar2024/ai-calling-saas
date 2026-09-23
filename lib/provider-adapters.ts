@@ -26,6 +26,7 @@ import {
   SUPPORTED_LANGUAGES,
   languageName,
   sarvamSttLanguageCode,
+  sarvamTtsLanguageCode,
   type SpeechEngine,
 } from '@/lib/languages';
 
@@ -378,7 +379,7 @@ export async function synthesizeSpeech(input: {
     },
     body: JSON.stringify({
       text: input.text.slice(0, 2500),
-      language_code: input.languageCode,
+      language_code: sarvamTtsLanguageCode(input.languageCode),
       speaker:
         (input.voice?.provider === 'sarvam' ? input.voice.voiceId || '' : '') ||
         input.speaker ||

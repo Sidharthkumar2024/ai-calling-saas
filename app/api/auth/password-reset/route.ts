@@ -26,9 +26,11 @@ export async function POST(request: Request) {
     const email = body.email?.trim().toLowerCase() || '';
     const limit = await enforceRateLimit({
       namespace: 'password-reset',
-      identifier: requestFingerprint(request, email),
+      // Key the request budget to the target account. An attacker must not be
+      // able to bypass reset-email throttling by rotating/spoofing IP headers.
+      identifier: email,
       limit: 4,
-      windowSeconds: 300,
+      windowSeconds: 3600,
     });
     if (!limit.allowed)
       return NextResponse.json(
@@ -66,7 +68,9 @@ export async function POST(request: Request) {
           portalPathFor(request),
           process.env.PUBLIC_BASE_URL || request.url,
         );
-        resetUrl.searchParams.set('reset_token', token);
+        // Fragments are never sent in HTTP requests or Referer headers, so the
+        // bearer reset token does not reach proxy/access logs.
+        resetUrl.hash = new URLSearchParams({ reset_token: token }).toString();
         try {
           const delivery = await sendTransactionalEmail({
             organizationId: user.organization_id ?? '',

@@ -15,6 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  referrer: 'no-referrer',
   // Nginx proxies the VPS service through 127.0.0.1. Without an explicit
   // public base, Next resolves social/image metadata against that internal
   // host and visitors receive unusable localhost URLs.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -80,16 +80,19 @@ export function PortalLogin({ portal }: PortalLoginProps) {
   const [resetToken, setResetToken] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [resetNotice, setResetNotice] = useState("");
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      const params = new URLSearchParams(window.location.search);
-      const token = params.get("reset_token");
+  useLayoutEffect(() => {
+      const queryParams = new URLSearchParams(window.location.search);
+      const fragmentParams = new URLSearchParams(
+        window.location.hash.replace(/^#/, ""),
+      );
+      const token =
+        fragmentParams.get("reset_token") ?? queryParams.get("reset_token");
       if (token) {
         setResetToken(token);
         setResetMode(true);
       }
-      if (params.has("error")) {
-        const googleError = params.get("error") || "";
+      if (queryParams.has("error")) {
+        const googleError = queryParams.get("error") || "";
         const messages: Record<string, string> = {
           google_verification_required:
             "This account needs a one-time Google link from the platform team before its first Google sign-in.",
@@ -115,11 +118,8 @@ export function PortalLogin({ portal }: PortalLoginProps) {
             "Google sign-in could not be completed. Please start again or use email and password.",
         );
       }
-      if (token)
-        window.history.replaceState(null, "", window.location.pathname);
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, []);
+      if (token) window.history.replaceState(null, "", window.location.pathname);
+  }, [portal]);
 
   async function submit(event: { preventDefault: () => void }) {
     event.preventDefault();

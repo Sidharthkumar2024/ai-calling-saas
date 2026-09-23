@@ -67,7 +67,8 @@ export async function enforceRateLimit(input: {
 
 export function requestFingerprint(request: Request, suffix = '') {
   const forwarded =
+    request.headers.get('x-real-ip') ||
     request.headers.get('cf-connecting-ip') ||
-    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+    request.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim();
   return `${forwarded || 'local'}:${suffix}`;
 }

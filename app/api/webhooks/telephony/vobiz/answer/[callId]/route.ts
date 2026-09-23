@@ -67,6 +67,12 @@ export async function POST(
       { error: 'No media gateway is configured.' },
       { status: 503 },
     );
+  const gatewaySecret = process.env.MEDIA_GATEWAY_SECRET || '';
+  if (!gatewaySecret)
+    return NextResponse.json(
+      { error: 'No media gateway authentication is configured.' },
+      { status: 503 },
+    );
   // The gateway is one host for the whole platform, so the call it is carrying
   // has to be named in the URL. Exotel's leg cannot do this — its stream URL is
   // fixed at dial time — which is why the gateway has never been able to say
@@ -74,6 +80,12 @@ export async function POST(
   const stream = new URL(streamUrl);
   stream.searchParams.set('callId', call.id);
   stream.searchParams.set('carrier', 'vobiz');
+  // Vobiz cannot attach an HTTP Authorization header to its media socket.
+  // The gateway therefore authenticates carrier legs with this shared secret
+  // on the secure wss:// URL. Omitting it makes the carrier connect and then
+  // immediately fail with `rejected_bad_token`, leaving an answered call with
+  // no AI audio.
+  stream.searchParams.set('token', gatewaySecret);
 
   const publicBaseUrl = (process.env.PUBLIC_BASE_URL || '').replace(/\/$/, '');
 

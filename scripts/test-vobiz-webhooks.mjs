@@ -127,6 +127,7 @@ const load = (path) => {
 };
 
 process.env.VOICE_STREAM_URL = 'wss://gateway.test/stream';
+process.env.MEDIA_GATEWAY_SECRET = 'gateway-secret-for-test';
 process.env.PUBLIC_BASE_URL = 'https://vaani.test';
 
 const answer = load(
@@ -202,6 +203,11 @@ ok(xml.includes('<Stream '), 'the answer document streams the call');
 ok(
   xml.includes('callId=call_1') || xml.includes('callId%3Dcall_1'),
   'the stream URL names the call',
+);
+ok(
+  xml.includes('token=gateway-secret-for-test') ||
+    xml.includes('token%3Dgateway-secret-for-test'),
+  'the carrier stream authenticates to the media gateway',
 );
 ok(
   xml.includes('/status/call_1'),

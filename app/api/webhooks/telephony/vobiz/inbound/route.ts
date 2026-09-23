@@ -63,6 +63,9 @@ export async function POST(request: Request) {
   const streamBase = process.env.VOICE_STREAM_URL || '';
   if (!streamBase.startsWith('wss://'))
     return NextResponse.json({ error: 'Secure media gateway is not configured.' }, { status: 503 });
+  const gatewaySecret = process.env.MEDIA_GATEWAY_SECRET || '';
+  if (!gatewaySecret)
+    return NextResponse.json({ error: 'Media gateway authentication is not configured.' }, { status: 503 });
 
   const existing = await db.prepare(`SELECT id FROM call_records
     WHERE organization_id = ? AND provider_reference = ? LIMIT 1`)
@@ -79,6 +82,7 @@ export async function POST(request: Request) {
   const stream = new URL(streamBase);
   stream.searchParams.set('callId', callId);
   stream.searchParams.set('carrier', 'vobiz');
+  stream.searchParams.set('token', gatewaySecret);
   const publicBase = (process.env.PUBLIC_BASE_URL || '').replace(/\/$/, '');
   return new Response(vobizStreamXml({
     streamUrl: stream.toString(),

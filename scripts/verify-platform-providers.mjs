@@ -4,10 +4,12 @@ import { resolve } from 'node:path';
 import process from 'node:process';
 import { DatabaseSync } from 'node:sqlite';
 
-import {
-  PROBEABLE_PLATFORM_PROVIDERS,
-  probePlatformProvider,
-} from '../lib/platform-provider-probe.ts';
+const probeableProviders = new Set([
+  'deepgram',
+  'cartesia',
+  'elevenlabs',
+  'sarvam',
+]);
 
 const argumentsList = process.argv.slice(2);
 const productionMode = argumentsList.includes('--production');
@@ -15,9 +17,7 @@ const requestedProviders = argumentsList.filter(
   (argument) => argument !== '--production',
 );
 const providers =
-  requestedProviders.length > 0
-    ? requestedProviders
-    : [...PROBEABLE_PLATFORM_PROVIDERS];
+  requestedProviders.length > 0 ? requestedProviders : [...probeableProviders];
 const databasePath =
   process.env.CALLVANI_SQLITE_PATH?.trim() ||
   (productionMode
@@ -36,7 +36,7 @@ if (
   !databasePath ||
   !encryptionKey ||
   encryptionKey.length < 32 ||
-  providers.some((provider) => !PROBEABLE_PLATFORM_PROVIDERS.has(provider))
+  providers.some((provider) => !probeableProviders.has(provider))
 ) {
   console.error(
     'Usage: CALLVANI_SQLITE_PATH=/absolute/app.sqlite VAANI_ENCRYPTION_KEY=... node --experimental-strip-types scripts/verify-platform-providers.mjs [--production] [deepgram cartesia elevenlabs sarvam]',
@@ -81,6 +81,167 @@ function publicConfig(raw) {
   } catch {
     return {};
   }
+}
+
+function configText(config, key) {
+  return typeof config[key] === 'string' ? config[key].trim() : '';
+}
+
+function errorDetail(raw) {
+  try {
+    const parsed = JSON.parse(raw);
+    const candidate = parsed.error ?? parsed.detail ?? parsed.message;
+    if (typeof candidate === 'string') return candidate.slice(0, 180);
+    if (candidate && typeof candidate === 'object') {
+      const value =
+        typeof candidate.message === 'string'
+          ? candidate.message
+          : typeof candidate.code === 'string'
+            ? candidate.code
+            : '';
+      return value.slice(0, 180);
+    }
+  } catch {
+    // Keep a short provider response below when it is not JSON.
+  }
+  return raw.replace(/\s+/g, ' ').trim().slice(0, 180);
+}
+
+function silentWav(sampleRate = 16_000, durationMs = 250) {
+  const samples = Math.round((sampleRate * durationMs) / 1000);
+  const buffer = new ArrayBuffer(44 + samples * 2);
+  const view = new DataView(buffer);
+  const write = (offset, value) => {
+    for (let index = 0; index < value.length; index += 1)
+      view.setUint8(offset + index, value.charCodeAt(index));
+  };
+  write(0, 'RIFF');
+  view.setUint32(4, 36 + samples * 2, true);
+  write(8, 'WAVE');
+  write(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  write(36, 'data');
+  view.setUint32(40, samples * 2, true);
+  return buffer;
+}
+
+async function providerFetch(url, init) {
+  const response = await fetch(url, {
+    ...init,
+    redirect: 'manual',
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!response.ok) {
+    const detail = errorDetail(await response.text());
+    throw new Error(
+      `Provider rejected the connection (HTTP ${response.status})${detail ? `: ${detail}` : '.'}`,
+    );
+  }
+  return response;
+}
+
+async function probePlatformProvider({ provider, apiKey, config }) {
+  if (provider === 'deepgram') {
+    const model = configText(config, 'model') || 'nova-3';
+    const params = new URLSearchParams({
+      model,
+      smart_format: 'true',
+      detect_language: 'true',
+    });
+    const response = await providerFetch(
+      `https://api.deepgram.com/v1/listen?${params}`,
+      {
+        method: 'POST',
+        headers: {
+          authorization: `Token ${apiKey}`,
+          'content-type': 'audio/wav',
+        },
+        body: silentWav(),
+      },
+    );
+    return {
+      detail: `Credential and ${model} speech-to-text permission verified.`,
+      status: response.status,
+    };
+  }
+
+  if (provider === 'elevenlabs') {
+    const voiceId = configText(config, 'voiceId');
+    if (!voiceId)
+      throw new Error(
+        'Choose and save a default ElevenLabs voice before testing.',
+      );
+    const response = await providerFetch(
+      'https://api.elevenlabs.io/v1/voices',
+      {
+        headers: { 'xi-api-key': apiKey },
+      },
+    );
+    const payload = await response.json();
+    if (!payload.voices?.some((voice) => voice.voice_id === voiceId))
+      throw new Error(
+        'The saved ElevenLabs voice ID is not available to this API key.',
+      );
+    return {
+      detail: 'Credential and saved voice configuration verified.',
+      status: response.status,
+    };
+  }
+
+  if (provider === 'cartesia') {
+    const voiceId = configText(config, 'voiceId');
+    if (!voiceId)
+      throw new Error('Save a default Cartesia voice before testing.');
+    const apiVersion = configText(config, 'apiVersion') || '2026-08-14';
+    const response = await providerFetch(
+      'https://api.cartesia.ai/voices?limit=100',
+      {
+        headers: {
+          authorization: `Bearer ${apiKey}`,
+          'cartesia-version': apiVersion,
+        },
+      },
+    );
+    const payload = await response.json();
+    const voices = Array.isArray(payload) ? payload : payload.data;
+    if (!Array.isArray(voices) || !voices.some((voice) => voice.id === voiceId))
+      throw new Error(
+        'The saved Cartesia voice ID is not available to this API key.',
+      );
+    return {
+      detail: 'Credential and saved voice configuration verified.',
+      status: response.status,
+    };
+  }
+
+  const response = await providerFetch('https://api.sarvam.ai/text-to-speech', {
+    method: 'POST',
+    headers: {
+      'api-subscription-key': apiKey,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      text: 'नमस्ते',
+      language_code: 'hi-IN',
+      speaker: configText(config, 'speaker') || 'shubh',
+      model: configText(config, 'model') || 'bulbul:v3',
+      output_audio_codec: 'wav',
+      speech_sample_rate: 8000,
+    }),
+  });
+  const payload = await response.json();
+  if (!Array.isArray(payload.audios) || !payload.audios[0])
+    throw new Error('Sarvam responded without synthesized audio.');
+  return {
+    detail: 'Credential and Hindi speech synthesis verified.',
+    status: response.status,
+  };
 }
 
 function recordOutcome(database, provider, ok) {

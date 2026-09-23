@@ -47,14 +47,15 @@ function fakeClient({ replyMs = 200, keepListening = false } = {}) {
 function harness(client, carrier = 'twilio') {
   const sent = [];
   const closed = [];
+  const logs = [];
   const session = new CallSession({
     carrier,
     client,
     send: (frame) => sent.push(JSON.parse(frame)),
     close: (code, reason) => closed.push({ code, reason }),
-    log: () => {},
+    log: (event, fields) => logs.push({ event, ...fields }),
   });
-  return { session, sent, closed };
+  return { session, sent, closed, logs };
 }
 
 const startFrame = (callId = 'call_test') =>
@@ -83,7 +84,7 @@ const feed = async (session, level, frames) => {
 console.log('call start:');
 {
   const client = fakeClient();
-  const { session, sent, closed } = harness(client);
+  const { session, sent, closed, logs } = harness(client);
   await session.handle(startFrame());
   ok('a start frame greets the caller', client.calls.greeting === 1);
   ok('greeting audio is streamed as media frames', sent.length > 1);
@@ -93,6 +94,30 @@ console.log('call start:');
       Buffer.from(sent[0].media.payload, 'base64').length === 160,
   );
   ok('the call was not closed', closed.length === 0);
+  ok(
+    'playback telemetry is attributable to the call',
+    logs.some(
+      (entry) =>
+        entry.event === 'playback_start' && entry.callId === 'call_test',
+    ),
+  );
+}
+
+console.log('Vobiz acknowledgements:');
+{
+  const client = fakeClient();
+  const { session, logs } = harness(client, 'vobiz');
+  session.callId = 'call_vobiz_ack';
+  await session.handle(JSON.stringify({ event: 'playedStream' }));
+  ok(
+    'Vobiz playback acknowledgement is attributable to the call',
+    logs.some(
+      (entry) =>
+        entry.event === 'carrier_ack' &&
+        entry.callId === 'call_vobiz_ack' &&
+        entry.acknowledgement === 'playedStream',
+    ),
+  );
 }
 
 console.log('missing call id:');

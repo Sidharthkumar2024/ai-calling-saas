@@ -98,6 +98,16 @@ export class CallSession {
       if (pong) this.send(pong);
       return null;
     }
+    if (
+      frame.kind === 'ignore' &&
+      this.carrier === 'vobiz' &&
+      ['playedStream', 'clearedAudio'].includes(frame.reason)
+    ) {
+      this.log('carrier_ack', {
+        callId: this.callId,
+        acknowledgement: frame.reason,
+      });
+    }
     return null;
   }
 
@@ -163,7 +173,10 @@ export class CallSession {
       await this.play(greeting);
     } catch (error) {
       this.stats.errors += 1;
-      this.log('greeting_failed', { error: String(error.message ?? error) });
+      this.log('greeting_failed', {
+        callId: this.callId,
+        error: String(error.message ?? error),
+      });
       // Keep the media leg alive. A transient TTS/API failure must not turn an
       // answered telephone call into a forced hangup; the caller may speak and
       // the next turn can recover through another provider.
@@ -309,7 +322,10 @@ export class CallSession {
       }
     } catch (error) {
       this.stats.errors += 1;
-      this.log('turn_failed', { error: String(error.message ?? error) });
+      this.log('turn_failed', {
+        callId: this.callId,
+        error: String(error.message ?? error),
+      });
     } finally {
       this.busy = false;
     }
@@ -342,6 +358,7 @@ export class CallSession {
       } catch (error) {
         this.stats.errors += 1;
         this.log('playback_decode_failed', {
+          callId: this.callId,
           error: String(error.message ?? error),
         });
         return;
@@ -351,12 +368,14 @@ export class CallSession {
       // the log names exactly what arrived.
       this.stats.errors += 1;
       this.log('playback_unsupported_format', {
+        callId: this.callId,
         contentType: result.contentType ?? 'missing',
         hint: 'Vaani should request ulaw_8000 for a telephony leg.',
       });
       return;
     }
     this.log('playback_start', {
+      callId: this.callId,
       contentType: result.contentType ?? 'missing',
       samples: samples.length,
     });

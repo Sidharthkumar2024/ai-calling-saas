@@ -108,6 +108,13 @@ check(
     png.readUInt32BE(20) === 1536,
   'The authored phone asset exists at its declared dimensions',
 );
+const avif = readFileSync(
+  new URL('../public/media/call-vani-phone.avif', import.meta.url),
+);
+check(
+  avif.subarray(4, 12).toString() === 'ftypavif' && avif.length < 100_000,
+  'The landing page uses a compact AVIF phone asset',
+);
 const google = readFileSync(
   new URL('../public/brands/google-g.png', import.meta.url),
 );

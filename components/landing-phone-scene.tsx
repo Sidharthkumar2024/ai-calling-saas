@@ -18,10 +18,8 @@ export function LandingPhoneScene({ compact = false }: { compact?: boolean }) {
       <Image
         unoptimized
         className="cv-phone-art"
-        src="/media/call-vani-phone.png"
-        alt={
-          hi ? 'Call Vani AI कॉल असिस्टेंट' : 'Call Vani AI calling assistant'
-        }
+        src="/media/call-vani-phone.avif"
+        alt={hi ? 'Call Vani AI कॉल असिस्टेंट' : 'Call Vani AI calling assistant'}
         width={1024}
         height={1536}
       />

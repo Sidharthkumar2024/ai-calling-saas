@@ -20,6 +20,7 @@ const publicBaseUrl = String(process.env.PUBLIC_BASE_URL ?? '').replace(
 );
 const voiceStreamUrl = String(process.env.VOICE_STREAM_URL ?? '');
 const encryptionKey = process.env.VAANI_ENCRYPTION_KEY?.trim();
+const organizationId = String(process.env.CALLVANI_TEST_ORG_ID ?? '').trim();
 
 if (process.env.CALLVANI_OPERATOR_TEST !== 'YES') {
   console.error(
@@ -33,6 +34,9 @@ const missing = [
   !publicBaseUrl.startsWith('https://') ? 'PUBLIC_BASE_URL' : '',
   !voiceStreamUrl.startsWith('wss://') ? 'VOICE_STREAM_URL' : '',
   !encryptionKey || encryptionKey.length < 32 ? 'VAANI_ENCRYPTION_KEY' : '',
+  !/^[A-Za-z0-9][A-Za-z0-9_-]{2,127}$/.test(organizationId)
+    ? 'CALLVANI_TEST_ORG_ID'
+    : '',
 ].filter(Boolean);
 if (missing.length > 0) {
   console.error(`Missing or invalid: ${missing.join(', ')}.`);
@@ -75,15 +79,20 @@ try {
       n.phone_number, c.public_config_json, c.encrypted_secret
     FROM voice_agents a
     INNER JOIN number_routes r ON r.agent_id = a.id AND r.status = 'active'
+      AND r.organization_id = a.organization_id
     INNER JOIN phone_numbers n ON n.id = r.number_id AND n.status = 'active'
+      AND n.organization_id = a.organization_id
       AND n.provider_code = 'vobiz' AND n.direction != 'inbound'
     INNER JOIN integration_connections c ON c.organization_id = a.organization_id
       AND c.type = 'telephony_vobiz' AND c.status = 'connected'
-    WHERE lower(a.name) LIKE '%aarohi%' AND a.status = 'active'
-    ORDER BY r.priority LIMIT 1`)
-    .get();
+    WHERE a.organization_id = ?
+      AND lower(a.name) LIKE '%aarohi%' AND a.status = 'active'
+    ORDER BY r.priority, r.created_at, r.id LIMIT 1`)
+    .get(organizationId);
   if (!route)
-    throw new Error('Aarohi does not have a verified active Vobiz route.');
+    throw new Error(
+      `Aarohi does not have a verified active Vobiz route in ${organizationId}.`,
+    );
 
   const providers = database
     .prepare(`SELECT provider FROM platform_provider_secrets
@@ -180,6 +189,7 @@ try {
       {
         ok: true,
         callId,
+        organizationId: route.organization_id,
         provider: 'vobiz',
         providerReference: reference,
         status: 'queued',

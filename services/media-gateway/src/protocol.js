@@ -150,6 +150,10 @@ export function buildMedia(carrier, { streamSid, payload }) {
   if (carrier === 'vobiz')
     return JSON.stringify({
       event: 'playAudio',
+      // Required by Vobiz on every outbound command. Without it the socket is
+      // connected and accepts our JSON, but the audio is not associated with
+      // the active stream and the caller hears silence.
+      streamId: streamSid,
       media: {
         contentType: 'audio/x-mulaw',
         sampleRate: 8000,

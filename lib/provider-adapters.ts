@@ -20,6 +20,11 @@ import {
   vobizHeaders,
 } from '@/lib/vobiz';
 import { deepgramTranscript } from '@/lib/deepgram-stt';
+import { CARTESIA_TTS_URL } from '@/lib/cartesia';
+import {
+  fetchProviderWithRetry,
+  providerFailureDetail,
+} from '@/lib/provider-http';
 import { sttProviderOrder, type SttProvider } from '@/lib/stt-router';
 import { routeSynthesis } from '@/lib/tts-router';
 import {
@@ -102,27 +107,19 @@ export async function providerReadiness(organizationId?: string | null) {
     readiness(
       'deepgram',
       'Deepgram transcription',
-      Boolean(process.env.DEEPGRAM_API_KEY) ||
-        platform.set.has('deepgram') ||
-        connected.has('deepgram'),
+      Boolean(process.env.DEEPGRAM_API_KEY) || platform.set.has('deepgram'),
       ['DEEPGRAM_API_KEY'],
     ),
-    readiness(
-      'sarvam',
-      'Vaani Voice India',
-      sarvam || connected.has('sarvam_voice'),
-      ['SARVAM_API_KEY'],
-    ),
-    readiness(
-      'elevenlabs',
-      'Vaani Voice Global',
-      elevenlabs || connected.has('elevenlabs_voice'),
-      ['ELEVENLABS_API_KEY', 'ELEVENLABS_VOICE_ID'],
-    ),
+    readiness('sarvam', 'Vaani Voice India', sarvam, ['SARVAM_API_KEY']),
+    readiness('elevenlabs', 'Vaani Voice Global', elevenlabs, [
+      'ELEVENLABS_API_KEY',
+      'ELEVENLABS_VOICE_ID',
+    ]),
     readiness(
       'cartesia',
       'Call Vani Sonic Voice',
-      platform.set.has('cartesia') || connected.has('cartesia_voice'),
+      platform.set.has('cartesia') &&
+        Boolean(configString(platformConfig('cartesia'), 'voiceId')),
       ['CARTESIA_API_KEY', 'CARTESIA_VOICE_ID'],
     ),
     readiness(
@@ -184,9 +181,9 @@ export async function providerReadiness(organizationId?: string | null) {
         Boolean(configString(platformConfig('smtp'), 'fromAddress'))) ||
         Boolean(
           process.env.SMTP_HOST &&
-            process.env.SMTP_USERNAME &&
-            process.env.SMTP_PASSWORD &&
-            process.env.SMTP_FROM,
+          process.env.SMTP_USERNAME &&
+          process.env.SMTP_PASSWORD &&
+          process.env.SMTP_FROM,
         ),
       ['SMTP_HOST', 'SMTP_USERNAME', 'SMTP_PASSWORD', 'SMTP_FROM'],
     ),
@@ -262,83 +259,38 @@ export async function synthesizeSpeech(input: {
    */
   outputFormat?: 'mp3' | 'ulaw_8000' | 'pcm_16000';
 }) {
-  const [
-    credentials,
-    globalVoice,
-    cartesiaVoice,
-    sarvamPlatform,
-    elevenPlatform,
-    cartesiaPlatform,
-  ] =
-    await Promise.all([
-      connectionCredentials(input.organizationId, 'sarvam_voice'),
-      connectionCredentials(input.organizationId, 'elevenlabs_voice'),
-      connectionCredentials(input.organizationId, 'cartesia_voice'),
-      platformProviderSecret('sarvam'),
-      platformProviderSecret('elevenlabs'),
-      platformProviderSecret('cartesia'),
-    ]);
+  const [sarvamPlatform, elevenPlatform, cartesiaPlatform] = await Promise.all([
+    platformProviderSecret('sarvam'),
+    platformProviderSecret('elevenlabs'),
+    platformProviderSecret('cartesia'),
+  ]);
   const apiKey = sarvamPlatform.disabled
     ? undefined
-    : credentials.secrets.apiKey ||
-      sarvamPlatform.apiKey ||
-      process.env.SARVAM_API_KEY;
+    : sarvamPlatform.apiKey || process.env.SARVAM_API_KEY;
   const elevenLabsApiKey = elevenPlatform.disabled
     ? undefined
-    : globalVoice.secrets.apiKey ||
-      elevenPlatform.apiKey ||
-      process.env.ELEVENLABS_API_KEY;
-  // Explicit profile wins. A tenant-owned key uses its own default voice first.
+    : elevenPlatform.apiKey || process.env.ELEVENLABS_API_KEY;
+  // A workspace may select an allowed voice profile, but the credential that
+  // executes it is always platform-owned and encrypted in the admin vault.
   const profileVoiceId =
     input.voice?.provider === 'elevenlabs' ? input.voice.voiceId || '' : '';
   const elevenLabsVoiceId =
     profileVoiceId ||
-    (globalVoice.secrets.apiKey
-      ? configString(globalVoice.publicConfig, 'accountId')
-      : '') ||
     configString(elevenPlatform.config, 'voiceId') ||
     process.env.ELEVENLABS_VOICE_ID;
   const elevenLabsModelId =
     (input.voice?.provider === 'elevenlabs' ? input.voice.modelId || '' : '') ||
-    (globalVoice.secrets.apiKey
-      ? configString(globalVoice.publicConfig, 'model')
-      : '') ||
     configString(elevenPlatform.config, 'modelId') ||
     process.env.ELEVENLABS_MODEL_ID ||
     undefined;
   const cartesiaApiKey = cartesiaPlatform.disabled
     ? undefined
-    : cartesiaVoice.secrets.apiKey ||
-      cartesiaPlatform.apiKey ||
-      process.env.CARTESIA_API_KEY;
+    : cartesiaPlatform.apiKey || process.env.CARTESIA_API_KEY;
   const cartesiaVoiceId =
     (input.voice?.provider === 'cartesia' ? input.voice.voiceId || '' : '') ||
-    (cartesiaVoice.secrets.apiKey
-      ? configString(cartesiaVoice.publicConfig, 'accountId')
-      : '') ||
     configString(cartesiaPlatform.config, 'voiceId') ||
     process.env.CARTESIA_VOICE_ID ||
     '';
-  if (input.voice?.provider === 'cartesia') {
-    if (!cartesiaApiKey || !cartesiaVoiceId)
-      throw new ProviderConfigurationError(
-        'Cartesia needs an API key and voice ID before this voice can be used.',
-      );
-    return synthesizeCartesiaSpeech({
-      ...input,
-      apiKey: cartesiaApiKey,
-      voiceId: cartesiaVoiceId,
-      modelId:
-        input.voice.modelId ||
-        configString(cartesiaPlatform.config, 'model') ||
-        'sonic-3.6',
-      apiVersion:
-        configString(cartesiaPlatform.config, 'apiVersion') || '2026-03-01',
-      baseUrl:
-        configString(cartesiaPlatform.config, 'baseUrl') ||
-        'https://api.cartesia.ai',
-    });
-  }
   // Which engine speaks this language, rather than which key happens to exist.
   // The old rule routed everything to Sarvam unless the profile said otherwise
   // or the language was exactly 'en-IN'. With an India-only catalog that held;
@@ -358,68 +310,57 @@ export async function synthesizeSpeech(input: {
           ? 'elevenlabs'
           : null,
   });
-  if (!routing.ok) throw new ProviderConfigurationError(routing.reason);
-  if (routing.engine === 'elevenlabs') {
-    return synthesizeGlobalSpeech({
-      ...input,
-      apiKey: elevenLabsApiKey!,
-      voiceId: elevenLabsVoiceId!,
-      modelId: elevenLabsModelId,
-    });
+  type Candidate = 'cartesia' | SpeechEngine;
+  const candidates: Candidate[] = [];
+  const failures: string[] = [];
+
+  // A selected Cartesia profile remains first choice. If its platform key or
+  // transport fails, continue to a language-capable Sarvam/ElevenLabs voice
+  // instead of failing the entire telephone greeting.
+  if (input.voice?.provider === 'cartesia') {
+    if (cartesiaApiKey && cartesiaVoiceId) candidates.push('cartesia');
+    else
+      failures.push(
+        'cartesia: an admin API key and default/profile voice ID are required',
+      );
   }
-  // `routing.engine === 'sarvam'` is only reachable when the key is present,
-  // since it is what put 'sarvam' into `connected` above.
-  const sarvamKey = apiKey!;
-  const started = Date.now();
-  const response = await fetch('https://api.sarvam.ai/text-to-speech', {
-    method: 'POST',
-    headers: {
-      'api-subscription-key': sarvamKey,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      text: input.text.slice(0, 2500),
-      language_code: sarvamTtsLanguageCode(input.languageCode),
-      speaker:
-        (input.voice?.provider === 'sarvam' ? input.voice.voiceId || '' : '') ||
-        input.speaker ||
-        'shubh',
-      model: 'bulbul:v3',
-      output_audio_codec: 'wav',
-      speech_sample_rate: 16000,
-    }),
-    signal: AbortSignal.timeout(20_000),
-  });
-  const payload = (await response.json()) as {
-    request_id?: string;
-    audios?: string[];
-    error?: { message?: string };
-  };
-  if (!response.ok || !payload.audios?.[0]) {
-    throw new Error(
-      payload.error?.message || `Voice synthesis failed (${response.status}).`,
-    );
+  if (routing.ok) candidates.push(routing.engine, ...routing.fallbacks);
+  else if (!candidates.length)
+    throw new ProviderConfigurationError(routing.reason);
+
+  for (const candidate of new Set(candidates)) {
+    try {
+      if (candidate === 'cartesia')
+        return await synthesizeCartesiaSpeech({
+          ...input,
+          apiKey: cartesiaApiKey!,
+          voiceId: cartesiaVoiceId,
+          modelId:
+            input.voice?.modelId ||
+            configString(cartesiaPlatform.config, 'model') ||
+            'sonic-3.6',
+          apiVersion:
+            configString(cartesiaPlatform.config, 'apiVersion') || '2026-08-14',
+        });
+      if (candidate === 'elevenlabs')
+        return await synthesizeGlobalSpeech({
+          ...input,
+          apiKey: elevenLabsApiKey!,
+          voiceId: elevenLabsVoiceId!,
+          modelId: elevenLabsModelId,
+        });
+      return await synthesizeSarvamSpeech({
+        ...input,
+        apiKey: apiKey!,
+      });
+    } catch (error) {
+      failures.push(`${candidate}: ${providerFailureDetail(error)}`);
+    }
   }
-  const latencyMs = Date.now() - started;
-  await recordUsage(
-    input.organizationId,
-    'provider_sarvam',
-    'speech',
-    'tts',
-    latencyMs,
-    payload.request_id || null,
-    {
-      unit: 'characters',
-      units: input.text.slice(0, 2500).length,
-      model: 'bulbul:v3',
-    },
+
+  throw new Error(
+    `All connected voice engines failed. ${failures.join(' | ')}`,
   );
-  return {
-    providerReference: payload.request_id || null,
-    audioBase64: payload.audios[0],
-    latencyMs,
-    contentType: 'audio/wav',
-  };
 }
 
 export async function transcribeSpeech(input: {
@@ -428,36 +369,20 @@ export async function transcribeSpeech(input: {
   contentType?: string;
   languageCode?: string;
 }) {
-  const [
-    credentials,
-    platform,
-    elevenPlatform,
-    elevenConnection,
-    deepgramPlatform,
-    deepgramConnection,
-  ] = await Promise.all([
-    connectionCredentials(input.organizationId, 'sarvam_voice'),
+  const [platform, elevenPlatform, deepgramPlatform] = await Promise.all([
     platformProviderSecret('sarvam'),
     platformProviderSecret('elevenlabs'),
-    connectionCredentials(input.organizationId, 'elevenlabs_voice'),
     platformProviderSecret('deepgram'),
-    connectionCredentials(input.organizationId, 'deepgram'),
   ]);
   const sarvamKey = platform.disabled
     ? undefined
-    : credentials.secrets.apiKey ||
-      platform.apiKey ||
-      process.env.SARVAM_API_KEY;
+    : platform.apiKey || process.env.SARVAM_API_KEY;
   const elevenKey = elevenPlatform.disabled
     ? undefined
-    : elevenConnection.secrets.apiKey ||
-      elevenPlatform.apiKey ||
-      process.env.ELEVENLABS_API_KEY;
+    : elevenPlatform.apiKey || process.env.ELEVENLABS_API_KEY;
   const deepgramKey = deepgramPlatform.disabled
     ? undefined
-    : deepgramConnection.secrets.apiKey ||
-      deepgramPlatform.apiKey ||
-      process.env.DEEPGRAM_API_KEY;
+    : deepgramPlatform.apiKey || process.env.DEEPGRAM_API_KEY;
   if (!sarvamKey && !elevenKey && !deepgramKey)
     throw new ProviderConfigurationError(
       'No Vaani transcription engine is connected.',
@@ -511,9 +436,7 @@ export async function transcribeSpeech(input: {
           provider: 'elevenlabs' as SttProvider,
         };
     } catch (error) {
-      failures.push(
-        `${provider}: ${error instanceof Error ? error.message : 'failed'}`,
-      );
+      failures.push(`${provider}: ${providerFailureDetail(error)}`);
     }
   }
   throw new Error(failures.join(' | ') || 'Transcription failed.');
@@ -525,18 +448,20 @@ async function transcribeWithElevenLabs(
   modelId: string,
 ) {
   const started = Date.now();
-  const form = new FormData();
-  form.append(
-    'file',
-    new Blob([input.audio], { type: input.contentType || 'audio/webm' }),
-    'audio.webm',
-  );
-  form.append('model_id', modelId);
-  const response = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
-    method: 'POST',
-    headers: { 'xi-api-key': apiKey },
-    body: form,
-    signal: AbortSignal.timeout(25_000),
+  const response = await fetchProviderWithRetry('ElevenLabs STT', () => {
+    const form = new FormData();
+    form.append(
+      'file',
+      new Blob([input.audio], { type: input.contentType || 'audio/webm' }),
+      'audio.webm',
+    );
+    form.append('model_id', modelId);
+    return fetch('https://api.elevenlabs.io/v1/speech-to-text', {
+      method: 'POST',
+      headers: { 'xi-api-key': apiKey },
+      body: form,
+      signal: AbortSignal.timeout(25_000),
+    });
   });
   const raw = await response.text();
   if (!response.ok)
@@ -577,35 +502,44 @@ async function transcribeWithSarvam(
   apiKey: string,
 ) {
   const started = Date.now();
-  const form = new FormData();
-  form.append(
-    'file',
-    new Blob([input.audio], { type: input.contentType || 'audio/wav' }),
-    'audio.wav',
-  );
-  // Saaras v4 is tuned for 8 kHz telephony and code-mixed Indian speech.
-  // `codemix` preserves natural Hindi/English switching instead of forcing a
-  // translated or monolingual transcript.
-  form.append('model', 'saaras:v4');
-  form.append('mode', 'codemix');
-  // 'unknown' lets Sarvam auto-detect the spoken language (Hindi, Punjabi,
-  // Haryanvi, English, etc.) so the caller can switch languages freely.
-  form.append('language_code', sarvamSttLanguageCode(input.languageCode));
-  const response = await fetch('https://api.sarvam.ai/speech-to-text', {
-    method: 'POST',
-    headers: { 'api-subscription-key': apiKey },
-    body: form,
-    signal: AbortSignal.timeout(20_000),
+  const response = await fetchProviderWithRetry('Sarvam STT', () => {
+    const form = new FormData();
+    form.append(
+      'file',
+      new Blob([input.audio], { type: input.contentType || 'audio/wav' }),
+      'audio.wav',
+    );
+    // Saaras v4 is tuned for 8 kHz telephony and code-mixed Indian speech.
+    // `codemix` preserves natural Hindi/English switching instead of forcing a
+    // translated or monolingual transcript.
+    form.append('model', 'saaras:v4');
+    form.append('mode', 'codemix');
+    // 'unknown' lets Sarvam auto-detect the spoken language (Hindi, Punjabi,
+    // Haryanvi, English, etc.) so the caller can switch languages freely.
+    form.append('language_code', sarvamSttLanguageCode(input.languageCode));
+    return fetch('https://api.sarvam.ai/speech-to-text', {
+      method: 'POST',
+      headers: { 'api-subscription-key': apiKey },
+      body: form,
+      signal: AbortSignal.timeout(20_000),
+    });
   });
-  const payload = (await response.json()) as {
+  const raw = await response.text();
+  let payload: {
     request_id?: string;
     transcript?: string;
     language_code?: string;
     error?: { message?: string };
-  };
+  } = {};
+  try {
+    payload = raw ? JSON.parse(raw) : {};
+  } catch {
+    // See the TTS branch: provider/proxy HTML is reported as a bounded detail.
+  }
   if (!response.ok || typeof payload.transcript !== 'string')
     throw new Error(
-      payload.error?.message || `Transcription failed (${response.status}).`,
+      payload.error?.message ||
+        `Sarvam transcription failed (${response.status}): ${raw.slice(0, 180)}`,
     );
   const latencyMs = Date.now() - started;
   await recordUsage(
@@ -1271,9 +1205,7 @@ export async function vobizWorkspaceCredentials(organizationId: string) {
     // sub-account and appears in their CDRs, the token is a password.
     authId: workspaceAuthId,
     authToken: workspaceAuthToken,
-    baseUrl:
-      configString(credentials.publicConfig, 'baseUrl') ||
-      undefined,
+    baseUrl: configString(credentials.publicConfig, 'baseUrl') || undefined,
   };
 }
 
@@ -1546,6 +1478,78 @@ async function probe(url: string, headers: HeadersInit) {
  * ElevenLabs for it directly avoids an MP3 decode in the media gateway — and
  * MP3 is what this returned before, which the gateway cannot play at all.
  */
+async function synthesizeSarvamSpeech(input: {
+  organizationId: string;
+  text: string;
+  languageCode: string;
+  apiKey: string;
+  speaker?: string;
+  voice?: { provider?: string; voiceId?: string | null } | null;
+}) {
+  const started = Date.now();
+  const body = JSON.stringify({
+    text: input.text.slice(0, 2500),
+    language_code: sarvamTtsLanguageCode(input.languageCode),
+    speaker:
+      (input.voice?.provider === 'sarvam' ? input.voice.voiceId || '' : '') ||
+      input.speaker ||
+      'shubh',
+    model: 'bulbul:v3',
+    // Sarvam does not provide raw mulaw here. A real WAV is returned and the
+    // media gateway resamples/encodes it at the carrier boundary.
+    output_audio_codec: 'wav',
+    speech_sample_rate: 16000,
+  });
+  const response = await fetchProviderWithRetry('Sarvam TTS', () =>
+    fetch('https://api.sarvam.ai/text-to-speech', {
+      method: 'POST',
+      headers: {
+        'api-subscription-key': input.apiKey,
+        'content-type': 'application/json',
+      },
+      body,
+      signal: AbortSignal.timeout(20_000),
+    }),
+  );
+  const raw = await response.text();
+  let payload: {
+    request_id?: string;
+    audios?: string[];
+    error?: { message?: string };
+  } = {};
+  try {
+    payload = raw ? JSON.parse(raw) : {};
+  } catch {
+    // The status and a bounded response excerpt below are more useful than a
+    // JSON parse exception (proxies commonly return an HTML 502 page).
+  }
+  if (!response.ok || !payload.audios?.[0])
+    throw new Error(
+      payload.error?.message ||
+        `Sarvam synthesis failed (${response.status}): ${raw.slice(0, 180)}`,
+    );
+  const latencyMs = Date.now() - started;
+  await recordUsage(
+    input.organizationId,
+    'provider_sarvam',
+    'speech',
+    'tts',
+    latencyMs,
+    payload.request_id || null,
+    {
+      unit: 'characters',
+      units: input.text.slice(0, 2500).length,
+      model: 'bulbul:v3',
+    },
+  );
+  return {
+    providerReference: payload.request_id || null,
+    audioBase64: payload.audios[0],
+    latencyMs,
+    contentType: 'audio/wav',
+  };
+}
+
 const ELEVENLABS_OUTPUT: Record<
   string,
   { format: string; accept: string; contentType: string }
@@ -1581,30 +1585,31 @@ async function synthesizeGlobalSpeech(input: {
   const started = Date.now();
   // output_format is a query parameter on this endpoint; sending it in the
   // body is silently ignored and the API falls back to MP3.
-  const response = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(
-      input.voiceId,
-    )}?output_format=${encodeURIComponent(output.format)}`,
-    {
+  const url = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(
+    input.voiceId,
+  )}?output_format=${encodeURIComponent(output.format)}`;
+  const body = JSON.stringify({
+    text: input.text.slice(0, 2500),
+    model_id: input.modelId || 'eleven_multilingual_v2',
+    output_format: output.format,
+    voice_settings: {
+      stability: 0.48,
+      similarity_boost: 0.72,
+      style: 0.18,
+      use_speaker_boost: true,
+    },
+  });
+  const response = await fetchProviderWithRetry('ElevenLabs TTS', () =>
+    fetch(url, {
       method: 'POST',
       headers: {
         'xi-api-key': input.apiKey,
         accept: output.accept,
         'content-type': 'application/json',
       },
-      body: JSON.stringify({
-        text: input.text.slice(0, 2500),
-        model_id: input.modelId || 'eleven_multilingual_v2',
-        output_format: output.format,
-        voice_settings: {
-          stability: 0.48,
-          similarity_boost: 0.72,
-          style: 0.18,
-          use_speaker_boost: true,
-        },
-      }),
+      body,
       signal: AbortSignal.timeout(20_000),
-    },
+    }),
   );
   if (!response.ok) {
     const detail = await response.text();
@@ -1639,7 +1644,10 @@ async function synthesizeGlobalSpeech(input: {
     providerReference: requestId,
     audioBase64,
     latencyMs,
-    contentType: response.headers.get('content-type') || 'audio/mpeg',
+    // Some providers label raw telephony output as octet-stream. The bytes are
+    // still the explicitly requested format; passing that generic header to
+    // the gateway makes it (correctly) refuse to guess, producing silence.
+    contentType: output.contentType,
   };
 }
 
@@ -1677,7 +1685,6 @@ async function synthesizeCartesiaSpeech(input: {
   voiceId: string;
   modelId: string;
   apiVersion: string;
-  baseUrl: string;
   outputFormat?: string;
   voice?: { speakingRate?: string } | null;
 }) {
@@ -1685,28 +1692,31 @@ async function synthesizeCartesiaSpeech(input: {
     CARTESIA_OUTPUT[input.outputFormat ?? 'mp3'] ?? CARTESIA_OUTPUT.mp3;
   const rate = Number(input.voice?.speakingRate);
   const started = Date.now();
-  const response = await fetch(`${input.baseUrl.replace(/\/+$/, '')}/tts/bytes`, {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${input.apiKey}`,
-      'cartesia-version': input.apiVersion,
-      accept: output.contentType,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model_id: input.modelId,
-      transcript: input.text.slice(0, 2500),
-      voice: input.voiceId,
-      locale:
-        input.languageCode === 'hinglish' ? 'hi-IN' : input.languageCode,
-      normalization: 'auto',
-      output_format: output.outputFormat,
-      ...(Number.isFinite(rate) && rate >= 0.6 && rate <= 1.5
-        ? { generation_config: { speed: rate } }
-        : {}),
-    }),
-    signal: AbortSignal.timeout(20_000),
+  const body = JSON.stringify({
+    model_id: input.modelId,
+    transcript: input.text.slice(0, 2500),
+    voice: input.voiceId,
+    locale: input.languageCode === 'hinglish' ? 'hi-IN' : input.languageCode,
+    normalization: 'auto',
+    output_format: output.outputFormat,
+    ...(Number.isFinite(rate) && rate >= 0.6 && rate <= 1.5
+      ? { generation_config: { speed: rate } }
+      : {}),
   });
+  const response = await fetchProviderWithRetry('Cartesia TTS', () =>
+    fetch(CARTESIA_TTS_URL, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${input.apiKey}`,
+        'cartesia-version': input.apiVersion,
+        accept: output.contentType,
+        'content-type': 'application/json',
+      },
+      body,
+      redirect: 'manual',
+      signal: AbortSignal.timeout(20_000),
+    }),
+  );
   if (!response.ok) {
     const detail = await response.text();
     throw new Error(
@@ -1736,7 +1746,7 @@ async function synthesizeCartesiaSpeech(input: {
     providerReference: requestId,
     audioBase64,
     latencyMs,
-    contentType: response.headers.get('content-type') || output.contentType,
+    contentType: output.contentType,
   };
 }
 

@@ -4,6 +4,12 @@ import { ProviderLogo } from '@/components/provider-logo';
 import { numberConnectionLabel } from '@/lib/number-connection';
 import { Button } from '@/components/ui/button';
 
+function text(value: unknown, fallback = '') {
+  return typeof value === 'string' || typeof value === 'number'
+    ? String(value)
+    : fallback;
+}
+
 export function AdminNumberConnections({
   numbers,
   onNavigate,
@@ -86,24 +92,24 @@ export function AdminNumberConnections({
                 <div className="flex items-center gap-3">
                   <ProviderLogo provider={String(n.provider_code)} />
                   <div>
-                    <p className="font-medium">{String(n.phone_number)}</p>
+                    <p className="font-medium">{text(n.phone_number)}</p>
                     <p className="text-xs text-ink-muted">
-                      {String(
-                        n.organization_name ??
-                          n.customer_name ??
-                          'Customer account',
+                      {text(
+                        n.organization_name,
+                        text(n.customer_name, 'Customer account'),
                       )}
                     </p>
                   </div>
                 </div>
                 <div>
                   <p className="text-sm capitalize">
-                    {String(n.provider_code ?? 'Provider')} ·{' '}
-                    {String(n.direction ?? '').replaceAll('_', ' ')}
+                    {text(n.provider_code, 'Provider')} ·{' '}
+                    {text(n.direction).replaceAll('_', ' ')}
                   </p>
                   <p className="mt-1 text-xs text-ink-muted">
-                    {String(
-                      n.assigned_agent_name || 'Agent routing not assigned',
+                    {text(
+                      n.assigned_agent_name,
+                      'Agent routing not assigned',
                     )}
                   </p>
                 </div>

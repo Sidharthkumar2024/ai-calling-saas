@@ -308,7 +308,8 @@
     min-height: 100svh;
   }
   .vani-intro-film {
-    object-position: 56% center;
+    /* Keep the robot centred inside the narrow portrait crop. */
+    object-position: center;
   }
   .cv-intro-heading {
     max-width: 390px;

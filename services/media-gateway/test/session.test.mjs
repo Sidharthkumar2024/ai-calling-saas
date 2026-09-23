@@ -104,7 +104,9 @@ console.log('missing call id:');
   );
   ok(
     'a stream with no Vaani call id is refused rather than answered',
-    closed.length === 1 && closed[0].code === 1008 && client.calls.greeting === 0,
+    closed.length === 1 &&
+      closed[0].code === 1008 &&
+      client.calls.greeting === 0,
   );
 }
 
@@ -149,7 +151,10 @@ console.log('barge-in:');
   // block inbound frames, or the caller could never interrupt.
   void session.handle(startFrame());
   await sleep(120); // greeting is still playing
-  ok('the agent is marked as speaking', session.detector.agentSpeaking === true);
+  ok(
+    'the agent is marked as speaking',
+    session.detector.agentSpeaking === true,
+  );
   await feed(session, 0.5, 15); // 300ms of speech over the agent
   ok('barge-in was detected', session.stats.bargeIns === 1);
   ok(
@@ -158,11 +163,11 @@ console.log('barge-in:');
   );
   const afterBarge = sent.length;
   await sleep(150);
+  ok('playback stopped instead of continuing', sent.length === afterBarge);
   ok(
-    'playback stopped instead of continuing',
-    sent.length === afterBarge,
+    'the agent is no longer marked as speaking',
+    session.detector.agentSpeaking === false,
   );
-  ok('the agent is no longer marked as speaking', session.detector.agentSpeaking === false);
 }
 
 console.log('failure handling:');
@@ -194,6 +199,24 @@ console.log('failure handling:');
   ok(
     'a failed turn is counted and the call stays up',
     session.stats.errors === 2 && closed.length === 0,
+  );
+}
+
+console.log('greeting provider failure:');
+{
+  const client = {
+    async greeting() {
+      throw new Error('primary TTS timed out');
+    },
+    async turn() {
+      return { keepListening: true };
+    },
+  };
+  const { session, closed } = harness(client);
+  await session.handle(startFrame());
+  ok(
+    'a failed greeting is reported without closing the carrier stream',
+    session.stats.errors === 1 && closed.length === 0 && session.started,
   );
 }
 

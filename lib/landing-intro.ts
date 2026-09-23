@@ -1,7 +1,7 @@
-// Play enough of the supplied film for the first visit to feel intentional,
-// then stop before its white tail and reveal the durable product scene. The
-// old 1.2 second cut made the video appear to be missing on slower devices.
-export const INTRO_OPENING_SECONDS = 5.8;
+// The authored film reaches the requested, full-height robot composition at
+// two seconds. Hold that frame until the visitor scrolls, then scrub the rest
+// of the transformation into the durable product scene below the film.
+export const INTRO_OPENING_SECONDS = 2;
 export const INTRO_LAST_FRAME_SECONDS = 6.36;
 export function introFrame(progress: number, duration: number) {
   const p = Math.max(0, Math.min(1, Number.isFinite(progress) ? progress : 0));

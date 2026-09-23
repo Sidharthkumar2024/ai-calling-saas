@@ -26,7 +26,6 @@ import {
 import { NotificationBell } from '@/components/notification-center';
 import { CallVaniLogo } from '@/components/call-vani-logo';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useLocale } from '@/components/locale-provider';
 import { PORTAL_LOCALES, type TranslationKey } from '@/lib/i18n';

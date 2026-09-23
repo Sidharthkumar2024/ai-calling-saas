@@ -729,7 +729,12 @@ async function emailCredentials(organizationId: string) {
       ? {
           host: smtpConfig.host,
           port: Math.max(1, Number(smtpConfig.port) || 465),
-          secure: String(smtpConfig.secure ?? 'true') !== 'false',
+          secure:
+            typeof smtpConfig.secure === 'boolean'
+              ? smtpConfig.secure
+              : typeof smtpConfig.secure === 'string'
+                ? smtpConfig.secure !== 'false'
+                : true,
           username: smtpConfig.username,
           password: smtp.secrets.password,
           from: smtpConfig.fromAddress,

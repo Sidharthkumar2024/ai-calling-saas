@@ -219,7 +219,9 @@ const groups: PortalNavGroup[] = [
     translationKey: 'adminNav.group.governance',
     items: [
       {
-        id: 'api_status', label: 'API & service status', icon: Activity,
+        id: 'api_status',
+        label: 'API & service status',
+        icon: Activity,
       },
       {
         id: 'system_audit',
@@ -354,10 +356,13 @@ export function AdminPortal({ session }: { session: AdminSession }) {
           <CallOperations data={data} />
         ) : null}
         {!loading && !error && active === 'voice_engines' ? (
-          <VoiceEngines data={data} />
+          <VoiceEngines data={data} onChanged={load} />
         ) : null}
         {!loading && !error && active === 'numbers_kyc' ? (
-          <AdminNumberConnections numbers={data.numbers ?? []} onNavigate={setActive} />
+          <AdminNumberConnections
+            numbers={data.numbers ?? []}
+            onNavigate={setActive}
+          />
         ) : null}
         {!loading && !error && active === 'plans_billing' ? (
           <PlansBilling data={data} onChanged={load} />
@@ -371,7 +376,9 @@ export function AdminPortal({ session }: { session: AdminSession }) {
         {!loading && !error && active === 'platform_apis' ? (
           <PlatformApis data={data} onChanged={load} />
         ) : null}
-        {!loading && !error && active === 'api_status' ? <ServiceStatus admin /> : null}
+        {!loading && !error && active === 'api_status' ? (
+          <ServiceStatus admin />
+        ) : null}
         {!loading && !error && active === 'system_audit' ? (
           <SystemAudit data={data} />
         ) : null}
@@ -395,8 +402,11 @@ function AdminOverview({
   const stats = data.stats ?? {};
   const revenue = data.revenue ?? {};
   const readiness = data.providerReadiness ?? [];
-  const connectedProviders = readiness.filter((item) =>
+  const configuredProviders = readiness.filter((item) =>
     Boolean(item.configured),
+  ).length;
+  const verifiedProviders = (data.platformProviders ?? []).filter(
+    (item) => textValue(item.health) === 'connected',
   ).length;
   const attentionCount =
     Number(stats.pending_connections ?? 0) +
@@ -464,8 +474,8 @@ function AdminOverview({
             ],
             [
               'Provider readiness',
-              `${connectedProviders}/${readiness.length}`,
-              'Live-capable adapters',
+              `${verifiedProviders}/${readiness.length}`,
+              `${configuredProviders} credentials configured`,
               Network,
               'text-cyan-700',
             ],
@@ -632,7 +642,7 @@ function AdminOverview({
               ],
               [
                 'Provider gates',
-                `${readiness.length - connectedProviders} adapters need credentials`,
+                `${readiness.length - configuredProviders} adapters need credentials`,
                 'Configure',
                 'platform_apis',
               ],
@@ -1268,7 +1278,13 @@ function CallOperations({ data }: { data: AdminPayload }) {
   );
 }
 
-function VoiceEngines({ data }: { data: AdminPayload }) {
+function VoiceEngines({
+  data,
+  onChanged,
+}: {
+  data: AdminPayload;
+  onChanged: () => Promise<void>;
+}) {
   const t = useT();
   const health = data.providerHealth ?? [];
   const readiness = data.providerReadiness ?? [];
@@ -1505,11 +1521,11 @@ function VoiceEngines({ data }: { data: AdminPayload }) {
           </div>
         </Panel>
       ) : null}
+
+      <VoiceConsentReview data={data} onChanged={onChanged} />
     </div>
   );
 }
-
-
 
 /**
  * Consent to clone somebody's voice, decided by a person.
@@ -1692,7 +1708,6 @@ function VoiceConsentReview({
  * opened, and one bad file meant sending all of them back. A reviewer could not
  * see what they were deciding about at all.
  */
-
 
 function PlansBilling({
   data,
@@ -2391,7 +2406,8 @@ function PlanCard({
           <div className="mt-5 space-y-2 text-xs text-ink-body">
             <p>{num(draft.includedCredits)} included credits</p>
             <p>
-              {num(draft.maxAgents)} agents · {num(draft.maxNumbers)} connected numbers
+              {num(draft.maxAgents)} agents · {num(draft.maxNumbers)} connected
+              numbers
             </p>
             <p>{num(draft.concurrency)} concurrent calls</p>
           </div>
@@ -2604,7 +2620,8 @@ type KeyProvider = {
     placeholder?: string;
     secret?: boolean;
   }[];
-  fetchVoices?: boolean;
+  voicesAction?: 'elevenlabs_voices' | 'cartesia_voices';
+  voicesLabel?: string;
   testAction?: string;
   testLabel?: string;
 };
@@ -2632,13 +2649,21 @@ const KEY_PROVIDERS: KeyProvider[] = [
         placeholder: 'eleven_multilingual_v2',
       },
     ],
-    fetchVoices: true,
+    voicesAction: 'elevenlabs_voices',
+    voicesLabel: 'Load ElevenLabs voices',
+    testAction: 'provider_connection_test',
+    testLabel: 'Verify connection',
   },
   {
     id: 'sarvam',
     name: 'Sarvam — speech + transcription',
     note: 'Indian-language STT and TTS (Hindi, Punjabi, Haryanvi, English).',
-    fields: [],
+    fields: [
+      { k: 'speaker', label: 'Default speaker', placeholder: 'shubh' },
+      { k: 'model', label: 'Speech model', placeholder: 'bulbul:v3' },
+    ],
+    testAction: 'provider_connection_test',
+    testLabel: 'Verify Hindi voice',
   },
   {
     id: 'deepgram',
@@ -2652,6 +2677,8 @@ const KEY_PROVIDERS: KeyProvider[] = [
         placeholder: 'en-IN,en-US',
       },
     ],
+    testAction: 'provider_connection_test',
+    testLabel: 'Verify connection',
   },
   {
     id: 'cartesia',
@@ -2663,20 +2690,31 @@ const KEY_PROVIDERS: KeyProvider[] = [
       {
         k: 'apiVersion',
         label: 'API version',
-        placeholder: '2026-03-01',
+        placeholder: '2026-08-14',
       },
-      { k: 'baseUrl', label: 'API base URL', placeholder: 'https://api.cartesia.ai' },
     ],
+    voicesAction: 'cartesia_voices',
+    voicesLabel: 'Load Cartesia voices',
+    testAction: 'provider_connection_test',
+    testLabel: 'Verify connection',
   },
   {
     id: 'bolna',
     name: 'Bolna — voice agent platform',
     note: 'Agents, calls, templates, phone-number providers and completed-call webhooks.',
     fields: [
-      { k: 'baseUrl', label: 'API base URL', placeholder: 'https://api.bolna.ai' },
+      {
+        k: 'baseUrl',
+        label: 'API base URL',
+        placeholder: 'https://api.bolna.ai',
+      },
       { k: 'webhookSecret', label: 'Webhook signing secret', secret: true },
       { k: 'defaultAgentId', label: 'Default agent ID' },
-      { k: 'statusPage', label: 'Status page', placeholder: 'https://status.bolna.ai' },
+      {
+        k: 'statusPage',
+        label: 'Status page',
+        placeholder: 'https://status.bolna.ai',
+      },
     ],
   },
   {
@@ -2685,7 +2723,11 @@ const KEY_PROVIDERS: KeyProvider[] = [
     note: 'Global numbers, programmable voice, SMS fallback and carrier failover.',
     fields: [
       { k: 'accountSid', label: 'Account SID', placeholder: 'AC...' },
-      { k: 'fromNumber', label: 'Default from number', placeholder: '+14155550100' },
+      {
+        k: 'fromNumber',
+        label: 'Default from number',
+        placeholder: '+14155550100',
+      },
       { k: 'webhookSecret', label: 'Webhook signing secret', secret: true },
     ],
   },
@@ -2694,7 +2736,11 @@ const KEY_PROVIDERS: KeyProvider[] = [
     name: 'SMS gateway — OTP and links',
     note: 'Generic SMS route for OTP, payment links, missed-call follow-up and delivery webhooks.',
     fields: [
-      { k: 'provider', label: 'Provider', placeholder: 'vobiz, twilio, msg91, gupshup' },
+      {
+        k: 'provider',
+        label: 'Provider',
+        placeholder: 'vobiz, twilio, msg91, gupshup',
+      },
       { k: 'senderId', label: 'Sender ID', placeholder: 'CALLVN' },
       { k: 'baseUrl', label: 'API base URL' },
       { k: 'webhookSecret', label: 'Delivery webhook secret', secret: true },
@@ -2713,7 +2759,9 @@ const KEY_PROVIDERS: KeyProvider[] = [
     id: 'stripe',
     name: 'Stripe — international cards',
     note: 'Store platform Stripe keys and webhook secret for card payments outside India.',
-    fields: [{ k: 'webhookSecret', label: 'Webhook signing secret', secret: true }],
+    fields: [
+      { k: 'webhookSecret', label: 'Webhook signing secret', secret: true },
+    ],
   },
   {
     id: 'payu',
@@ -2774,9 +2822,17 @@ const KEY_PROVIDERS: KeyProvider[] = [
       { k: 'host', label: 'SMTP host', placeholder: 'smtp.hostinger.com' },
       { k: 'port', label: 'Port', placeholder: '465' },
       { k: 'secure', label: 'Implicit TLS', placeholder: 'true' },
-      { k: 'username', label: 'SMTP username', placeholder: 'noreply@callvani.com' },
+      {
+        k: 'username',
+        label: 'SMTP username',
+        placeholder: 'noreply@callvani.com',
+      },
       { k: 'password', label: 'SMTP password (encrypted)', secret: true },
-      { k: 'fromAddress', label: 'From email', placeholder: 'noreply@callvani.com' },
+      {
+        k: 'fromAddress',
+        label: 'From email',
+        placeholder: 'noreply@callvani.com',
+      },
       { k: 'fromName', label: 'From name', placeholder: 'Call Vani' },
     ],
     testAction: 'smtp_test',
@@ -2830,11 +2886,20 @@ function ProviderKeyPanel({
   const saved = new Map(
     (data.providerKeys ?? []).map((row) => [textValue(row.provider), row]),
   );
+  const readiness = new Map(
+    (data.providerReadiness ?? []).map((row) => [textValue(row.adapter), row]),
+  );
+  const providerRows = new Map(
+    (data.platformProviders ?? []).map((row) => [
+      textValue(row.id).replace(/^provider_/, ''),
+      row,
+    ]),
+  );
   return (
     <Panel>
       <PanelHeader
         title="Provider API keys & voices"
-        description="Paste keys here to run the platform live. Keys are stored encrypted and never shown again."
+        description="Platform-owned speech keys live only here, never in a customer workspace. Saved means configured; Connected appears only after a real provider probe succeeds."
       />
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
         {KEY_PROVIDERS.map((provider) => (
@@ -2842,6 +2907,8 @@ function ProviderKeyPanel({
             key={provider.id}
             provider={provider}
             existing={saved.get(provider.id)}
+            readiness={readiness.get(provider.id)}
+            providerRow={providerRows.get(provider.id)}
             onChanged={onChanged}
           />
         ))}
@@ -2853,10 +2920,14 @@ function ProviderKeyPanel({
 function ProviderKeyCard({
   provider,
   existing,
+  readiness,
+  providerRow,
   onChanged,
 }: {
   provider: KeyProvider;
   existing?: Record<string, unknown>;
+  readiness?: Record<string, unknown>;
+  providerRow?: Record<string, unknown>;
   onChanged: () => Promise<void> | void;
 }) {
   const savedConfig = (() => {
@@ -2869,6 +2940,23 @@ function ProviderKeyCard({
     }
   })();
   const hasKey = Boolean(existing && Number(existing.has_secret));
+  const isConfigured = readiness?.configured === true;
+  const storedHealth = textValue(
+    providerRow?.health,
+    hasKey ? 'configured_unverified' : 'not_connected',
+  );
+  const connectionLabel =
+    textValue(providerRow?.status) === 'disabled'
+      ? 'disabled'
+      : storedHealth === 'connected'
+        ? 'connected · verified'
+        : storedHealth === 'test_failed'
+          ? 'verification failed'
+          : hasKey && !isConfigured
+            ? 'setup incomplete'
+            : hasKey
+              ? 'configured · unverified'
+              : 'not configured';
   const [apiKey, setApiKey] = useState('');
   const [config, setConfig] = useState<Record<string, string>>(savedConfig);
   const [busy, setBusy] = useState('');
@@ -2946,10 +3034,12 @@ function ProviderKeyCard({
   }
 
   async function fetchVoices() {
+    if (!provider.voicesAction) return;
     const result = await call(
       {
-        action: 'elevenlabs_voices',
+        action: provider.voicesAction,
         apiKey: apiKey.trim() || undefined,
+        config,
       },
       'voices',
     );
@@ -2966,7 +3056,10 @@ function ProviderKeyCard({
       { action: provider.testAction, provider: provider.id },
       'test',
     );
-    if (result) flash('Connection verified ✓');
+    if (result) {
+      flash('Connection verified ✓');
+      await onChanged();
+    }
   }
 
   return (
@@ -2976,7 +3069,10 @@ function ProviderKeyCard({
           <p className="text-sm font-medium">{provider.name}</p>
           <p className="mt-1 text-[11px] text-ink-muted">{provider.note}</p>
         </div>
-        <Status value={hasKey ? 'credentials saved' : 'not set'} />
+        <div className="flex flex-wrap justify-end gap-1.5">
+          <Status value={hasKey ? 'credentials saved' : 'not set'} />
+          <Status value={connectionLabel} />
+        </div>
       </div>
 
       <label className="mt-4 block text-[11px] uppercase tracking-wider text-ink-muted">
@@ -3022,7 +3118,7 @@ function ProviderKeyCard({
         >
           {busy === 'save' ? <Loader2 className="animate-spin" /> : null} Save
         </Button>
-        {provider.fetchVoices ? (
+        {provider.voicesAction ? (
           <Button
             variant="outline"
             disabled={busy === 'voices'}
@@ -3034,7 +3130,7 @@ function ProviderKeyCard({
             ) : (
               <Activity />
             )}{' '}
-            Fetch my voices
+            {provider.voicesLabel ?? 'Load provider voices'}
           </Button>
         ) : null}
         {provider.testAction ? (
@@ -3904,19 +4000,28 @@ function PanelHeader({
 
 function Status({ value }: { value: string }) {
   const normalized = value.toLowerCase();
-  const positive = [
-    'active',
-    'approved',
-    'operational',
-    'connected',
-    'paid',
+  const danger = [
+    'failed',
+    'error',
+    'rejected',
+    'suspended',
+    'disabled',
+    'not connected',
+    'not configured',
   ].some((item) => normalized.includes(item));
-  const warning = ['pending', 'review', 'required', 'test'].some((item) =>
-    normalized.includes(item),
-  );
+  const positive =
+    !danger &&
+    ['active', 'approved', 'operational', 'connected', 'paid'].some((item) =>
+      normalized.includes(item),
+    );
+  const warning =
+    !danger &&
+    ['pending', 'review', 'required', 'test', 'unverified', 'incomplete'].some(
+      (item) => normalized.includes(item),
+    );
   return (
     <span
-      className={`inline-flex rounded-full border px-2 py-1 text-[11px] capitalize ${positive ? 'border-emerald-400/15 bg-emerald-400/7 text-success-text' : warning ? 'border-amber-300/15 bg-amber-300/7 text-warning-text' : 'border-hairline bg-surface-strong text-ink-muted'}`}
+      className={`inline-flex rounded-full border px-2 py-1 text-[11px] capitalize ${danger ? 'border-rose-400/20 bg-rose-400/8 text-danger-text' : positive ? 'border-emerald-400/15 bg-emerald-400/7 text-success-text' : warning ? 'border-amber-300/15 bg-amber-300/7 text-warning-text' : 'border-hairline bg-surface-strong text-ink-muted'}`}
     >
       {value.replaceAll('_', ' ')}
     </span>

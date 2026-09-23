@@ -833,7 +833,10 @@ equal(
 const loopSteps = db
   .prepare(`SELECT COUNT(*) AS n FROM workflow_run_steps WHERE run_id = 'run_loop'`)
   .get().n;
-ok(loopSteps <= 6, `a handful of step rows, not a hundred (got ${loopSteps})`);
+ok(
+  loopSteps <= 6,
+  `a handful of step rows, not a hundred (got ${String(loopSteps)})`,
+);
 
 // Headless, where the ask cannot even park: the same guard, one lap.
 db.prepare(

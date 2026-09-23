@@ -7,6 +7,7 @@ import { buildOpening, parseOpening } from '@/lib/campaign-opening';
 import { isOpeningStyle, STYLE_GUIDANCE } from '@/lib/campaign-studio';
 import { resolveAgentVoice } from '@/lib/voice-profiles';
 import { routeTurn } from '@/lib/llm-router';
+import { providerFailureDetail } from '@/lib/provider-http';
 import {
   ProviderConfigurationError,
   generateVoiceAgentTurn,
@@ -57,8 +58,13 @@ export async function POST(request: Request) {
     if (error instanceof ProviderConfigurationError)
       return NextResponse.json({ error: error.message }, { status: 503 });
     console.error('voice turn failed', error);
+    const detail = providerFailureDetail(error);
     return NextResponse.json(
-      { error: 'The voice turn could not be completed.' },
+      {
+        error: detail
+          ? `The voice turn could not be completed: ${detail}`
+          : 'The voice turn could not be completed.',
+      },
       { status: 500 },
     );
   }

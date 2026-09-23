@@ -10,8 +10,8 @@ export async function POST(request: Request) {
   const b = (await request.json()) as Record<string, unknown>;
   const title = typeof b.title === 'string' ? b.title.trim() : '';
   const message = typeof b.message === 'string' ? b.message.trim() : '';
-  const component = String(b.component ?? '');
-  const state = String(b.state ?? '');
+  const component = typeof b.component === 'string' ? b.component : '';
+  const state = typeof b.state === 'string' ? b.state : '';
   const start =
     typeof b.startsAt === 'string' ? Date.parse(b.startsAt) : Date.now();
   const end =

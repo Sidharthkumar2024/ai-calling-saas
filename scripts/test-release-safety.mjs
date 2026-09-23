@@ -109,7 +109,7 @@ assert.equal(
   sqlite.prepare("SELECT credits_used FROM agent_test_sessions WHERE id='sess'").get().credits_used,
   10 * sqlite.prepare("SELECT count(*) n FROM credit_ledger WHERE id LIKE 'playground_turn_%'").get().n,
 );
-assert.rejects(settlePlaygroundTurn(db,{organizationId:'org',sessionId:'sess',turnId:'bad',credits:0}),/Invalid turn charge/);
+await assert.rejects(settlePlaygroundTurn(db,{organizationId:'org',sessionId:'sess',turnId:'bad',credits:0}),/Invalid turn charge/);
 
 // --- browser calls ------------------------------------------------------------
 // The hole this closes: the dialer read the balance, refused below ten, and

@@ -69,6 +69,13 @@ export type IntegrationDefinition = {
   monogram: string;
   /** Provider setup/docs opened before the workspace returns to paste keys. */
   setupUrl?: string;
+  /**
+   * Platform-managed providers are configured once by a Call Vani admin and
+   * are intentionally unavailable to workspace members. Keeping the entries
+   * in this catalog still lets the runtime name legacy connection types while
+   * the customer API can enforce the ownership boundary in one place.
+   */
+  managedBy?: 'customer' | 'platform';
 };
 
 const KEY = (label = 'API key', placeholder?: string): CredentialField => ({
@@ -311,6 +318,7 @@ export const INTEGRATION_CATALOG: IntegrationDefinition[] = [
     blurb: 'Human-sounding multilingual voices.',
     monogram: '11',
     verifiable: true,
+    managedBy: 'platform',
     fields: [
       KEY(),
       { key: 'accountId', label: 'Default voice ID', required: false },
@@ -323,6 +331,7 @@ export const INTEGRATION_CATALOG: IntegrationDefinition[] = [
     blurb: 'Low-latency streaming speech.',
     monogram: 'Ca',
     verifiable: false,
+    managedBy: 'platform',
     fields: [KEY()],
   },
   {
@@ -343,6 +352,7 @@ export const INTEGRATION_CATALOG: IntegrationDefinition[] = [
     blurb: 'Streaming speech recognition.',
     monogram: 'Dg',
     verifiable: true,
+    managedBy: 'platform',
     fields: [KEY()],
   },
   {
@@ -352,6 +362,7 @@ export const INTEGRATION_CATALOG: IntegrationDefinition[] = [
     blurb: 'Sonic realtime speech for premium low-latency voices.',
     monogram: 'Ca',
     verifiable: false,
+    managedBy: 'platform',
     fields: [
       KEY('API key'),
       {
@@ -374,6 +385,7 @@ export const INTEGRATION_CATALOG: IntegrationDefinition[] = [
     blurb: 'Indian-language speech recognition and synthesis.',
     monogram: 'Sa',
     verifiable: false,
+    managedBy: 'platform',
     fields: [KEY()],
   },
 
@@ -721,6 +733,19 @@ export const INTEGRATION_CATALOG: IntegrationDefinition[] = [
 export const INTEGRATION_TYPES: ReadonlySet<string> = new Set(
   INTEGRATION_CATALOG.map((entry) => entry.id),
 );
+
+/** Integrations a workspace is allowed to configure with its own credentials. */
+export const CUSTOMER_INTEGRATION_CATALOG = INTEGRATION_CATALOG.filter(
+  (entry) => entry.managedBy !== 'platform',
+);
+
+export const CUSTOMER_INTEGRATION_TYPES: ReadonlySet<string> = new Set(
+  CUSTOMER_INTEGRATION_CATALOG.map((entry) => entry.id),
+);
+
+export function isPlatformManagedIntegration(type: string) {
+  return catalogEntry(type)?.managedBy === 'platform';
+}
 
 export function catalogEntry(type: string) {
   return INTEGRATION_CATALOG.find((entry) => entry.id === type) ?? null;

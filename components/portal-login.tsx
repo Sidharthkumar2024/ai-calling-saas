@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -81,12 +81,18 @@ export function PortalLogin({ portal }: PortalLoginProps) {
   const [newPassword, setNewPassword] = useState("");
   const [resetNotice, setResetNotice] = useState("");
   useLayoutEffect(() => {
-      const queryParams = new URLSearchParams(window.location.search);
-      const fragmentParams = new URLSearchParams(
-        window.location.hash.replace(/^#/, ""),
-      );
-      const token =
-        fragmentParams.get("reset_token") ?? queryParams.get("reset_token");
+    const queryParams = new URLSearchParams(window.location.search);
+    const fragmentParams = new URLSearchParams(
+      window.location.hash.replace(/^#/, ""),
+    );
+    const token =
+      fragmentParams.get("reset_token") ?? queryParams.get("reset_token");
+    if (token)
+      window.history.replaceState(null, "", window.location.pathname);
+
+    // URL cleanup must remain synchronous. State updates can wait until the
+    // next task, after React has completed this layout-effect phase.
+    const timer = window.setTimeout(() => {
       if (token) {
         setResetToken(token);
         setResetMode(true);
@@ -118,7 +124,8 @@ export function PortalLogin({ portal }: PortalLoginProps) {
             "Google sign-in could not be completed. Please start again or use email and password.",
         );
       }
-      if (token) window.history.replaceState(null, "", window.location.pathname);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [portal]);
 
   async function submit(event: { preventDefault: () => void }) {

@@ -7,6 +7,12 @@ import { DatabaseSync } from 'node:sqlite';
 
 const encoder = new TextEncoder();
 
+function printable(value) {
+  return typeof value === 'string' || typeof value === 'number'
+    ? String(value)
+    : '';
+}
+
 async function hashPassword(password) {
   const iterations = 120_000;
   const salt = crypto.getRandomValues(new Uint8Array(16));
@@ -85,7 +91,9 @@ if (command === '--list') {
       if (accounts.length === 0) continue;
       console.log(path);
       for (const account of accounts) {
-        console.log(`  ${account.email} (${account.role}, ${account.status})`);
+        console.log(
+          `  ${printable(account.email)} (${printable(account.role)}, ${printable(account.status)})`,
+        );
         accountCount += 1;
       }
     } catch {
@@ -276,7 +284,7 @@ try {
 
     console.log(
       existing
-        ? `Admin account: ${existing.email} (${existing.status})`
+        ? `Admin account: ${printable(existing.email)} (${printable(existing.status)})`
         : `Creating platform admin: ${email}`,
     );
     const password = await hidden('New password (hidden): ');
@@ -346,7 +354,9 @@ try {
   }
 
   const match = matchingDatabase();
-  console.log(`Account: ${match.account.email} (${match.account.role}, ${match.account.status})`);
+  console.log(
+    `Account: ${printable(match.account.email)} (${printable(match.account.role)}, ${printable(match.account.status)})`,
+  );
   const password = await hidden('New password (hidden): ');
   if (password.length < 12)
     throw new Error('Use at least 12 characters. The password was not changed.');
@@ -364,7 +374,7 @@ try {
   } finally {
     database.close();
   }
-  console.log(`Password updated for ${match.account.email}.`);
+  console.log(`Password updated for ${printable(match.account.email)}.`);
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);

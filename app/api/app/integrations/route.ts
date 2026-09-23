@@ -6,10 +6,11 @@ import { encryptSecret } from '@/lib/security';
 import { testIntegrationConnection } from '@/lib/provider-adapters';
 import { requireCustomerPermission } from '@/lib/customer-rbac';
 import {
-  INTEGRATION_CATALOG,
+  CUSTOMER_INTEGRATION_CATALOG,
+  CUSTOMER_INTEGRATION_TYPES,
   INTEGRATION_CATEGORIES,
-  INTEGRATION_TYPES,
   catalogEntry,
+  isPlatformManagedIntegration,
 } from '@/lib/integration-catalog';
 
 export const dynamic = 'force-dynamic';
@@ -27,23 +28,30 @@ export async function GET(request: Request) {
     )
     .bind(auth.session.organizationId)
     .all<{ type: string; status: string }>();
-  const connected = new Map((rows.results ?? []).map((row) => [row.type, row]));
-  const catalogIds = new Set(INTEGRATION_CATALOG.map((entry) => entry.id));
+  const customerRows = (rows.results ?? []).filter(
+    (row) => !isPlatformManagedIntegration(row.type),
+  );
+  const connected = new Map(customerRows.map((row) => [row.type, row]));
+  const catalogIds = new Set(
+    CUSTOMER_INTEGRATION_CATALOG.map((entry) => entry.id),
+  );
   // A stored connection whose type is not in the catalog would otherwise be
   // invisible in the grid while still holding a secret. Surface it instead.
-  const unrecognised = (rows.results ?? []).filter(
-    (row) => !catalogIds.has(row.type),
-  );
+  const unrecognised = customerRows.filter((row) => !catalogIds.has(row.type));
   return NextResponse.json({
-    integrations: rows.results ?? [],
+    integrations: customerRows,
     unrecognised,
     // The catalog ships with the list so the grid cannot drift out of step
     // with what the API will actually accept.
-    catalog: INTEGRATION_CATALOG.map((entry) => ({
+    catalog: CUSTOMER_INTEGRATION_CATALOG.map((entry) => ({
       ...entry,
       connection: connected.get(entry.id) ?? null,
     })),
-    categories: INTEGRATION_CATEGORIES,
+    categories: INTEGRATION_CATEGORIES.filter((category) =>
+      CUSTOMER_INTEGRATION_CATALOG.some(
+        (entry) => entry.category === category.id,
+      ),
+    ),
   });
 }
 
@@ -61,7 +69,7 @@ export async function POST(request: Request) {
     fromAddress?: string;
     senderId?: string;
   };
-  if (!body.type || !INTEGRATION_TYPES.has(body.type)) {
+  if (!body.type || !CUSTOMER_INTEGRATION_TYPES.has(body.type)) {
     return NextResponse.json(
       { error: 'Choose a provider from the catalog.' },
       { status: 400 },
@@ -189,6 +197,11 @@ export async function PATCH(request: Request) {
       { error: 'Integration not found.' },
       { status: 404 },
     );
+  if (isPlatformManagedIntegration(row.type))
+    return NextResponse.json(
+      { error: 'This provider is managed by the Call Vani platform admin.' },
+      { status: 403 },
+    );
   const definition = catalogEntry(row.type);
   if (definition && !definition.verifiable) {
     return NextResponse.json({
@@ -255,6 +268,11 @@ export async function DELETE(request: Request) {
     return NextResponse.json(
       { error: 'Integration not found.' },
       { status: 404 },
+    );
+  if (isPlatformManagedIntegration(existing.type))
+    return NextResponse.json(
+      { error: 'This provider is managed by the Call Vani platform admin.' },
+      { status: 403 },
     );
   await getRawDb()
     .prepare(

@@ -13,6 +13,7 @@ import { compileFunction } from 'node:vm';
 import ts from 'typescript';
 
 import * as languages from '../lib/languages.ts';
+import * as cartesia from '../lib/cartesia.ts';
 import * as vobiz from '../lib/vobiz.ts';
 import * as reasoningBudget from '../lib/reasoning-budget.ts';
 
@@ -72,10 +73,15 @@ const modules = {
       disabled: false,
     }),
   },
+  '@/lib/provider-http': {
+    fetchProviderWithRetry: async (_provider, request) => request(1),
+    providerFailureDetail: (error) => String(error?.message ?? error),
+  },
   '@/lib/deepgram-stt': { deepgramTranscript: async () => null },
   '@/lib/stt-router': { sttProviderOrder: () => [] },
   '@/lib/tts-router': { routeSynthesis: async () => null },
   '@/lib/languages': languages,
+  '@/lib/cartesia': cartesia,
   // Pure and dependency-free, so the real module is registered rather than a
   // stub: a stubbed URL builder would let this harness pass over a Vobiz call
   // addressed to nowhere.

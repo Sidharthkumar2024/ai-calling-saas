@@ -149,12 +149,11 @@ export function CustomerNumbers({
         </p>
       )}
       {notice && (
-        <p
-          role="status"
+        <output
           className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800"
         >
           {notice}
-        </p>
+        </output>
       )}
       <div className="grid items-start gap-6 xl:grid-cols-[0.85fr_1.4fr]">
         <form
@@ -180,9 +179,10 @@ export function CustomerNumbers({
               ))}
             </select>
           </label>
-          <label className="block space-y-2 text-sm">
-            <span>Business phone number</span>
+          <div className="space-y-2 text-sm">
+            <label htmlFor="customer-phone-number">Business phone number</label>
             <Input
+              id="customer-phone-number"
               type="tel"
               autoComplete="tel"
               required
@@ -190,7 +190,7 @@ export function CustomerNumbers({
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
             />
-          </label>
+          </div>
           <label className="block space-y-2 text-sm">
             <span>Call direction</span>
             <select

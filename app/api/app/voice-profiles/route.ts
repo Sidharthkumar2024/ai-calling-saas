@@ -11,7 +11,9 @@ import { validateConsent, voiceGate } from '@/lib/voice-consent';
 export const dynamic = 'force-dynamic';
 
 const PRESENTATIONS = new Set(['female', 'male']);
-const PROVIDERS = new Set(['elevenlabs', 'sarvam']);
+// Customers choose only a platform voice and model. Provider credentials remain
+// exclusively in platform_provider_secrets and never enter this request shape.
+const PROVIDERS = new Set(['elevenlabs', 'sarvam', 'cartesia']);
 const RATES = new Set(['slow', 'normal', 'fast']);
 
 export async function GET(request: Request) {

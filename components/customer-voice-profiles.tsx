@@ -78,6 +78,12 @@ const LANGUAGES = [
   ['te-IN', 'Telugu'],
 ] as const;
 
+const DEFAULT_MODEL_BY_PROVIDER: Record<string, string> = {
+  elevenlabs: 'eleven_flash_v2_5',
+  sarvam: 'bulbul:v3',
+  cartesia: 'sonic-3.6',
+};
+
 export function CustomerVoiceProfiles() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [agents, setAgents] = useState<AgentRow[]>([]);
@@ -265,16 +271,25 @@ export function CustomerVoiceProfiles() {
             <Field label="Provider">
               <select
                 value={provider}
-                onChange={(event) => setProvider(event.target.value)}
+                onChange={(event) => {
+                  const nextProvider = event.target.value;
+                  setProvider(nextProvider);
+                  setModelId(DEFAULT_MODEL_BY_PROVIDER[nextProvider] ?? '');
+                }}
                 className="h-9 w-full rounded-md border border-hairline bg-surface-muted px-2 text-xs"
               >
                 <option value="elevenlabs">ElevenLabs</option>
                 <option value="sarvam">Sarvam (Indian languages)</option>
+                <option value="cartesia">Cartesia Sonic</option>
               </select>
             </Field>
             <Field
               label={
-                provider === 'sarvam' ? 'Sarvam speaker' : 'ElevenLabs voice ID'
+                provider === 'sarvam'
+                  ? 'Sarvam speaker'
+                  : provider === 'cartesia'
+                    ? 'Cartesia voice ID'
+                    : 'ElevenLabs voice ID'
               }
             >
               <Input
@@ -283,7 +298,9 @@ export function CustomerVoiceProfiles() {
                 placeholder={
                   provider === 'sarvam'
                     ? 'e.g. shubh'
-                    : 'e.g. MF4J4IDTRo0AxOO4dpFR'
+                    : provider === 'cartesia'
+                      ? 'e.g. 694f9389-aac1-45b6-b726-9d9369183238'
+                      : 'e.g. MF4J4IDTRo0AxOO4dpFR'
                 }
                 className="h-9 border-hairline bg-surface-muted font-mono text-[11px]"
               />
@@ -292,7 +309,7 @@ export function CustomerVoiceProfiles() {
               <Input
                 value={modelId}
                 onChange={(event) => setModelId(event.target.value)}
-                placeholder="eleven_flash_v2_5"
+                placeholder={DEFAULT_MODEL_BY_PROVIDER[provider]}
                 className="h-9 border-hairline bg-surface-muted text-xs"
               />
             </Field>

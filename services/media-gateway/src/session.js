@@ -164,7 +164,9 @@ export class CallSession {
     } catch (error) {
       this.stats.errors += 1;
       this.log('greeting_failed', { error: String(error.message ?? error) });
-      this.close(1011, 'Greeting failed');
+      // Keep the media leg alive. A transient TTS/API failure must not turn an
+      // answered telephone call into a forced hangup; the caller may speak and
+      // the next turn can recover through another provider.
     }
     return null;
   }

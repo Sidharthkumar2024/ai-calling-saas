@@ -33,11 +33,6 @@ if (
   process.exit(2);
 }
 
-function fromBase64Url(value) {
-  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
-  return new Uint8Array(Buffer.from(normalized, 'base64'));
-}
-
 function toBase64Url(value) {
   return Buffer.from(value)
     .toString('base64')

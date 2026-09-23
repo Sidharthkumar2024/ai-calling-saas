@@ -2,8 +2,10 @@ import { getRawDb } from './index';
 import { CUSTOMER_USAGE_RATES } from '@/lib/customer-usage-pricing';
 import { SEED_RATE_CARDS } from '@/lib/rate-cards';
 import { publishCommercialCatalog } from '@/lib/publish-commercial-catalog';
+import { removeLegacyCustomerPlatformIntegrations } from './platform-provider-ownership-migration';
 
 let bootstrapPromise: Promise<void> | null = null;
+const SCHEMA_BOOTSTRAP_VERSION = 2;
 
 export function ensureSchema(): Promise<void> {
   bootstrapPromise ??= bootstrapOnce();
@@ -29,10 +31,22 @@ async function bootstrapOnce() {
         "SELECT version FROM schema_bootstrap_state WHERE id = 'primary' LIMIT 1",
       )
       .first<{ version: number }>();
-    if (!marker || Number(marker.version) < 1) throw new Error('Bootstrap incomplete');
+    if (!marker || Number(marker.version) < 1)
+      throw new Error('Bootstrap incomplete');
     // Existing installations also need newly introduced provider rows. Keep
     // this idempotent catalog refresh outside the full schema replay.
     await seedPlatformReferenceCatalog(db);
+    if (Number(marker.version) < SCHEMA_BOOTSTRAP_VERSION) {
+      await removeLegacyCustomerPlatformIntegrations(db);
+      await db
+        .prepare(
+          `UPDATE schema_bootstrap_state
+           SET version = ?, completed_at = CURRENT_TIMESTAMP
+           WHERE id = 'primary'`,
+        )
+        .bind(SCHEMA_BOOTSTRAP_VERSION)
+        .run();
+    }
     return;
   } catch {
     await bootstrap();
@@ -2915,6 +2929,7 @@ async function bootstrap() {
   // demo/customer data: the admin provider screens and OAuth configuration
   // update these stable records in production as well.
   await seedPlatformReferenceCatalog(db);
+  await removeLegacyCustomerPlatformIntegrations(db);
 
   await db.prepare('PRAGMA optimize').run();
   await publishCommercialCatalog(db);
@@ -2927,9 +2942,10 @@ async function bootstrap() {
     .run();
   await db
     .prepare(`INSERT INTO schema_bootstrap_state (id, version, completed_at)
-      VALUES ('primary', 1, CURRENT_TIMESTAMP)
+      VALUES ('primary', ?, CURRENT_TIMESTAMP)
       ON CONFLICT(id) DO UPDATE SET version = excluded.version,
         completed_at = CURRENT_TIMESTAMP`)
+    .bind(SCHEMA_BOOTSTRAP_VERSION)
     .run();
 }
 
@@ -2995,14 +3011,8 @@ async function seedLocalDemo(db: D1Database) {
       'Set SEED_PLATFORM_ADMIN_PASSWORD and SEED_CUSTOMER_OWNER_PASSWORD before seeding local demo accounts.',
     );
   }
-  const adminHash = await hashSeedPassword(
-    adminPassword,
-    'vaani-admin-local',
-  );
-  const ownerHash = await hashSeedPassword(
-    ownerPassword,
-    'vaani-owner-local',
-  );
+  const adminHash = await hashSeedPassword(adminPassword, 'vaani-admin-local');
+  const ownerHash = await hashSeedPassword(ownerPassword, 'vaani-owner-local');
   const demoMfaGraceUntil = new Date(
     Date.now() + 7 * 24 * 60 * 60 * 1000,
   ).toISOString();

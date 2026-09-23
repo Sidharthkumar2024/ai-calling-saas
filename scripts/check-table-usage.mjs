@@ -37,6 +37,13 @@ import { readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 
 const BOOTSTRAP = 'db/bootstrap.ts';
+// This operator-only writer intentionally creates the short-lived ownership
+// grant consumed by the Google callback. It is part of the production auth
+// lifecycle even though it is not reachable from an HTTP route: allowing the
+// public app to mint this row would defeat the explicit account-linking guard.
+// Do not scan scripts broadly; test fixtures also contain SQL and would make
+// dead runtime tables look live.
+const OPERATIONAL_SQL_FILES = ['scripts/provision-google-customer.mjs'];
 
 /**
  * Tables that genuinely only ever grow, and why.
@@ -92,14 +99,18 @@ for (const match of source.matchAll(
 // opened — so the inbox was reported as a screen that could only ever be
 // empty, on a webhook that fills it. A scan that skips a file is worse than
 // one that finds nothing in it: it reports with the same confidence.
-const files = execSync(
-  "grep -rlE '(SELECT |INSERT( +OR +[A-Za-z]+)? +INTO|UPDATE +[a-z_]+ +SET|DELETE +FROM)' app lib services --include='*.ts' --include='*.mjs' 2>/dev/null",
-  { encoding: 'utf8' },
-)
-  .trim()
-  .split('\n')
-  .filter(Boolean)
-  .filter((file) => file !== BOOTSTRAP);
+const files = [
+  ...new Set([
+    ...execSync(
+      "grep -rlE '(SELECT |INSERT( +OR +[A-Za-z]+)? +INTO|UPDATE +[a-z_]+ +SET|DELETE +FROM)' app lib services --include='*.ts' --include='*.mjs' 2>/dev/null",
+      { encoding: 'utf8' },
+    )
+      .trim()
+      .split('\n')
+      .filter(Boolean),
+    ...OPERATIONAL_SQL_FILES,
+  ]),
+].filter((file) => file !== BOOTSTRAP);
 
 const reads = new Map();
 const writes = new Map();
@@ -124,6 +135,21 @@ for (const match of source.matchAll(
   /\bINSERT\s+(?:OR\s+\w+\s+)?INTO\s+([a-z_0-9]+)/gi,
 ))
   note(writes, match[1].toLowerCase(), BOOTSTRAP);
+
+// `bootstrapOnce` runs on normal requests and reads the completion sentinel;
+// the later `bootstrap` body is migration/seed work and must not count as a
+// runtime consumer. Keep the boundary structural so future control-plane
+// probes added beside the sentinel are classified without also counting
+// migration-only `INSERT ... SELECT` sources.
+const bootstrapBodyIndex = source.indexOf('\nasync function bootstrap()');
+const bootstrapRuntime = source.slice(
+  0,
+  bootstrapBodyIndex === -1 ? source.length : bootstrapBodyIndex,
+);
+for (const match of bootstrapRuntime.matchAll(/\bFROM\s+([a-z_0-9]+)/gi))
+  note(reads, match[1].toLowerCase(), BOOTSTRAP);
+for (const match of bootstrapRuntime.matchAll(/\bJOIN\s+([a-z_0-9]+)/gi))
+  note(reads, match[1].toLowerCase(), BOOTSTRAP);
 
 for (const file of files) {
   const sql = readFileSync(file, 'utf8');

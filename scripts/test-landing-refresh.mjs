@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { introFrame, INTRO_LAST_FRAME_SECONDS } from '../lib/landing-intro.ts';
+import {
+  introFrame,
+  INTRO_LAST_FRAME_SECONDS,
+  INTRO_OPENING_SECONDS,
+} from '../lib/landing-intro.ts';
 import { displayBrand } from '../lib/display-brand.ts';
 import { WORKFORCE_DEMOS } from '../lib/landing-workforce.ts';
 
@@ -14,7 +18,13 @@ check(
   end.time === 6.36 && end.reveal === 1,
   'Replace the white tail with the persistent phone scene',
 );
-check(introFrame(0, 8.52).reveal === 0, 'Keep the opening film visible');
+const opening = introFrame(0, 8.52);
+check(
+  opening.time === 2 &&
+    opening.time === INTRO_OPENING_SECONDS &&
+    opening.reveal === 0,
+  'Hold the requested full-height robot frame before scroll',
+);
 check(
   introFrame(0.85, 8.52).reveal === 1,
   'Finish the reveal before the pinned stage ends',
@@ -112,6 +122,11 @@ const intro = readFileSync(
 check(
   intro.includes("error.name === 'AbortError'"),
   'Intentional playback interruptions do not permanently fail the film',
+);
+check(
+  intro.includes('holdOpeningFrame') &&
+    intro.includes('element.currentTime = openingTime'),
+  'Coarse Safari playback is clamped to the authored opening frame',
 );
 check(
   intro.includes('inert={!showingProduct}') &&

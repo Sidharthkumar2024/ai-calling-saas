@@ -27,7 +27,7 @@ const ok = (name, cond) => {
 
 console.log('G.711 codec:');
 ok(
-  'mulaw round-trips every byte except the codec\'s alternate zero',
+  "mulaw round-trips every byte except the codec's alternate zero",
   (() => {
     // G.711 mulaw has two encodings of zero (0x7F and 0xFF). Both decode to 0,
     // and 0xFF is the canonical silence byte, so 0x7F cannot round-trip. That
@@ -43,10 +43,7 @@ ok(
   'both mulaw zeros decode to silence, and silence encodes to 0xFF',
   mulawToPcm(0x7f) === 0 && mulawToPcm(0xff) === 0 && pcmToMulaw(0) === 0xff,
 );
-ok(
-  'mulaw silence decodes near zero',
-  Math.abs(mulawToPcm(0xff)) < 16,
-);
+ok('mulaw silence decodes near zero', Math.abs(mulawToPcm(0xff)) < 16);
 ok(
   'a loud sample survives the round trip within mulaw quantisation',
   (() => {
@@ -149,10 +146,7 @@ ok(
 
 console.log('levels:');
 ok('silence has zero RMS', rms(new Int16Array(160)) === 0);
-ok(
-  'a loud signal has high RMS',
-  rms(new Int16Array(160).fill(20000)) > 0.5,
-);
+ok('a loud signal has high RMS', rms(new Int16Array(160).fill(20000)) > 0.5);
 ok('an empty frame is zero, not NaN', rms(new Int16Array(0)) === 0);
 ok(
   'a 160-byte 8kHz frame is 20ms',
@@ -248,7 +242,11 @@ ok(
         },
       }),
     );
-    return parsed.kind === 'start' && parsed.callId === 'call_abc' && parsed.streamSid === 'MZ1';
+    return (
+      parsed.kind === 'start' &&
+      parsed.callId === 'call_abc' &&
+      parsed.streamSid === 'MZ1'
+    );
   })(),
 );
 ok(
@@ -278,14 +276,19 @@ ok(
         },
       }),
     );
-    return parsed.kind === 'start' && parsed.callId === 'vobiz_call_1' &&
-      parsed.streamSid === 'vobiz_stream_1';
+    return (
+      parsed.kind === 'start' &&
+      parsed.callId === 'vobiz_call_1' &&
+      parsed.streamSid === 'vobiz_stream_1'
+    );
   })(),
 );
 ok(
   'media frames yield their payload',
-  parseInbound('twilio', JSON.stringify({ event: 'media', media: { payload: 'AAA' } }))
-    .payload === 'AAA',
+  parseInbound(
+    'twilio',
+    JSON.stringify({ event: 'media', media: { payload: 'AAA' } }),
+  ).payload === 'AAA',
 );
 ok(
   'stop is recognised on both carriers',
@@ -302,18 +305,25 @@ ok(
     'unsupported_carrier:nextel',
 );
 ok(
-  'outbound media uses each carrier\'s own stream key',
-  JSON.parse(buildMedia('twilio', { streamSid: 'S', payload: 'P' })).streamSid ===
-    'S' &&
+  "outbound media uses each carrier's own stream key",
+  JSON.parse(buildMedia('twilio', { streamSid: 'S', payload: 'P' }))
+    .streamSid === 'S' &&
     JSON.parse(buildMedia('exotel', { streamSid: 'S', payload: 'P' }))
       .stream_sid === 'S',
 );
 ok(
   'vobiz playback uses the documented playAudio event',
   (() => {
-    const frame = JSON.parse(buildMedia('vobiz', { streamSid: 'S', payload: 'P' }));
-    return frame.event === 'playAudio' && frame.media?.contentType === 'audio/x-mulaw' &&
-      frame.media?.sampleRate === 8000 && frame.media?.payload === 'P';
+    const frame = JSON.parse(
+      buildMedia('vobiz', { streamSid: 'S', payload: 'P' }),
+    );
+    return (
+      frame.event === 'playAudio' &&
+      frame.streamId === 'S' &&
+      frame.media?.contentType === 'audio/x-mulaw' &&
+      frame.media?.sampleRate === 8000 &&
+      frame.media?.payload === 'P'
+    );
   })(),
 );
 ok(
@@ -332,7 +342,7 @@ ok(
     1737000000123,
 );
 ok(
-  'the pong echoes the tab\'s clock untouched, so the tab does the arithmetic',
+  "the pong echoes the tab's clock untouched, so the tab does the arithmetic",
   JSON.parse(buildPong('browser', { at: 42 })).at === 42,
 );
 ok(

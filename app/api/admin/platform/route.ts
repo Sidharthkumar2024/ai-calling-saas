@@ -15,6 +15,12 @@ import { splitProviderConfig } from '@/lib/provider-secret-policy';
 import { googleAuthConfig } from '@/lib/google-auth-config';
 import { customerUsageRates } from '@/lib/customer-usage-pricing';
 import { verifySmtp, type SmtpCredentials } from '@/lib/smtp-email';
+import {
+  PROBEABLE_PLATFORM_PROVIDERS,
+  listCartesiaVoices,
+  probePlatformProvider,
+} from '@/lib/platform-provider-probe';
+import { recordServiceOutcome } from '@/lib/health-center';
 
 // Providers whose keys the admin panel may store.
 // Sign-in providers whose OAuth credentials the platform admin may store.
@@ -50,9 +56,10 @@ const MANAGED_PROVIDERS = new Set([
 
 export const dynamic = 'force-dynamic';
 
-// Adapter name -> platform_providers row. Used to write the measured readiness
-// back onto the row so the stored health cannot contradict the live check.
+// Adapter name -> platform_providers row. Configuration saves reset this row
+// to unverified; only a successful live probe is allowed to mark it connected.
 const PROVIDER_ROW_IDS: Record<string, string> = {
+  deepgram: 'provider_deepgram',
   sarvam: 'provider_sarvam',
   elevenlabs: 'provider_elevenlabs',
   openai: 'provider_openai',
@@ -95,9 +102,11 @@ const ACTION_CAPABILITIES: Record<string, AdminCapability> = {
   provider_key_save: 'providers.manage',
   provider_key_clear: 'providers.manage',
   provider_status: 'providers.manage',
+  provider_connection_test: 'providers.manage',
   smtp_test: 'providers.manage',
   elevenlabs_tts_test: 'providers.manage',
   elevenlabs_voices: 'providers.manage',
+  cartesia_voices: 'providers.manage',
   auth_visibility: 'security.manage',
   auth_provider_save: 'security.manage',
   auth_enabled: 'security.manage',
@@ -130,6 +139,7 @@ export async function GET(request: Request) {
     messages,
     voiceConsents,
     customerUsageRateRows,
+    providerEvidence,
   ] = await Promise.all([
     db
       .prepare(
@@ -148,9 +158,11 @@ export async function GET(request: Request) {
       )
       .all(),
     db
-      .prepare(`SELECT t.*, o.name AS organization_name, u.email AS creator_email FROM support_tickets t
+      .prepare(
+        `SELECT t.*, o.name AS organization_name, u.email AS creator_email FROM support_tickets t
       INNER JOIN organizations o ON o.id = t.organization_id LEFT JOIN app_users u ON u.id = t.created_by_user_id
-      ORDER BY t.updated_at DESC`)
+      ORDER BY t.updated_at DESC`,
+      )
       .all(),
     db
       .prepare('SELECT * FROM support_ticket_messages ORDER BY created_at')
@@ -160,7 +172,8 @@ export async function GET(request: Request) {
     // see the queue, so a submission went nowhere and the voice stayed
     // unusable with no explanation.
     db
-      .prepare(`SELECT c.voice_profile_id, c.speaker_name, c.relationship,
+      .prepare(
+        `SELECT c.voice_profile_id, c.speaker_name, c.relationship,
             c.statement, c.evidence_key, c.state, c.review_note, c.created_at,
             p.name AS profile_name, p.provider,
             coalesce(p.platform_blocked, 0) AS platform_blocked,
@@ -170,49 +183,55 @@ export async function GET(request: Request) {
           INNER JOIN voice_profiles p ON p.id = c.voice_profile_id
           LEFT JOIN organizations o ON o.id = c.organization_id
           WHERE c.state IN ('pending', 'rejected') OR p.platform_blocked = 1
-          ORDER BY c.state = 'pending' DESC, c.created_at`)
+          ORDER BY c.state = 'pending' DESC, c.created_at`,
+      )
       .all(),
     customerUsageRates(),
+    db
+      .prepare(
+        `SELECT component, last_success_at, last_failure_at FROM service_health
+         WHERE component IN ('deepgram','elevenlabs','cartesia','sarvam')`,
+      )
+      .all<{
+        component: string;
+        last_success_at: string | null;
+        last_failure_at: string | null;
+      }>(),
   ]);
   const readiness = await providerReadiness();
-  // Persist the measured result. `status` stays operator-controlled (they may
-  // deliberately disable a provider); only `health` is synced, so the portal
-  // never shows a stale "connected" next to a failing check.
-  await Promise.all(
-    readiness
-      .filter((entry) => PROVIDER_ROW_IDS[entry.adapter])
-      .map((entry) =>
-        db
-          .prepare(
-            `UPDATE platform_providers SET health = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-          )
-          .bind(
-            entry.configured ? 'connected' : 'not_connected',
-            PROVIDER_ROW_IDS[entry.adapter],
-          )
-          .run(),
-      ),
+  const readinessByAdapter = new Map(
+    readiness.map((entry) => [entry.adapter, entry]),
   );
-
-  // The SELECT above ran before that update, so reflect the measured health in
-  // this response too rather than returning a row we just superseded.
-  const measuredHealth = new Map(
-    readiness
-      .filter((entry) => PROVIDER_ROW_IDS[entry.adapter])
-      .map((entry) => [
-        PROVIDER_ROW_IDS[entry.adapter],
-        entry.configured ? 'connected' : 'not_connected',
-      ]),
+  const evidenceByAdapter = new Map(
+    (providerEvidence.results ?? []).map((entry) => [entry.component, entry]),
   );
   const platformProviderRows = (platformProviders.results ?? []).map((row) => {
-    const id = (row as { id?: string }).id;
-    const health = id ? measuredHealth.get(id) : undefined;
-    return health ? { ...row, health } : row;
+    const rawId = (row as { id?: unknown }).id;
+    const id = typeof rawId === 'string' ? rawId : '';
+    const adapter = id.replace(/^provider_/, '');
+    if (!PROBEABLE_PLATFORM_PROVIDERS.has(adapter)) return row;
+    const rawStatus = (row as { status?: unknown }).status;
+    if (rawStatus === 'disabled') return { ...row, health: 'disabled' };
+    const configured = readinessByAdapter.get(adapter)?.configured === true;
+    if (!configured) return { ...row, health: 'not_connected' };
+    const evidence = evidenceByAdapter.get(adapter);
+    if (!evidence?.last_success_at && !evidence?.last_failure_at)
+      return { ...row, health: 'configured_unverified' };
+    const lastSuccess = evidence.last_success_at ?? '';
+    const lastFailure = evidence.last_failure_at ?? '';
+    return {
+      ...row,
+      health:
+        lastSuccess && lastSuccess > lastFailure ? 'connected' : 'test_failed',
+    };
   });
 
   return NextResponse.json({
     authProviders: authProviders.results,
     voiceConsents: voiceConsents.results,
+    // Readiness only means that enough configuration exists to attempt the
+    // adapter. Health is changed by an actual probe or measured traffic; a
+    // saved key alone must never produce a green "connected" status.
     platformProviders: platformProviderRows,
     providerKeys: providerKeys.results.map((row) => {
       let value: unknown = {};
@@ -318,9 +337,19 @@ export async function PATCH(request: Request) {
         { status: 400 },
       );
     const split = splitProviderConfig(body.config);
+    // Cartesia keys may only be sent to the provider's official origin. Drop a
+    // legacy or request-supplied override on save as defense in depth; both
+    // credential-bearing sinks are independently pinned as well.
+    if (provider === 'cartesia') delete split.config.baseUrl;
     const previous = await platformProviderSecret(provider);
     const config = JSON.stringify(split.config);
     const apiKey = typeof body.apiKey === 'string' ? body.apiKey.trim() : '';
+    const hasStoredCredential = Boolean(
+      apiKey ||
+      previous.apiKey ||
+      Object.keys(split.secrets).length ||
+      Object.keys(previous.secrets).length,
+    );
     if (
       apiKey ||
       Object.keys(split.secrets).length ||
@@ -366,6 +395,22 @@ export async function PATCH(request: Request) {
         secretFieldsUpdated: Object.keys(split.secrets),
       },
     );
+    const providerRowId = PROVIDER_ROW_IDS[provider];
+    if (providerRowId)
+      await db
+        .prepare(
+          `UPDATE platform_providers SET health = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        )
+        .bind(
+          hasStoredCredential ? 'configured_unverified' : 'not_connected',
+          providerRowId,
+        )
+        .run();
+    if (PROBEABLE_PLATFORM_PROVIDERS.has(provider))
+      await db
+        .prepare(`DELETE FROM service_health WHERE component = ?`)
+        .bind(provider)
+        .run();
     return NextResponse.json({ saved: true });
   }
 
@@ -387,7 +432,89 @@ export async function PATCH(request: Request) {
       provider,
       {},
     );
+    const providerRowId = PROVIDER_ROW_IDS[provider];
+    if (providerRowId)
+      await db
+        .prepare(
+          `UPDATE platform_providers SET health = 'not_connected', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        )
+        .bind(providerRowId)
+        .run();
+    if (PROBEABLE_PLATFORM_PROVIDERS.has(provider))
+      await db
+        .prepare(`DELETE FROM service_health WHERE component = ?`)
+        .bind(provider)
+        .run();
     return NextResponse.json({ cleared: true });
+  }
+
+  if (body.action === 'provider_connection_test') {
+    const provider = String(body.provider || '');
+    if (!PROBEABLE_PLATFORM_PROVIDERS.has(provider))
+      return NextResponse.json(
+        { error: 'This provider has no platform connection test.' },
+        { status: 400 },
+      );
+    const stored = await platformProviderSecret(provider);
+    const apiKey = stored.apiKey;
+    if (stored.disabled || !apiKey)
+      return NextResponse.json(
+        { error: 'Save and enable this provider API key first.' },
+        { status: 400 },
+      );
+    const providerRowId = PROVIDER_ROW_IDS[provider];
+    try {
+      const result = await probePlatformProvider({
+        provider,
+        apiKey,
+        config: stored.config,
+      });
+      await recordServiceOutcome({ component: provider, ok: true }).catch(
+        () => undefined,
+      );
+      if (providerRowId)
+        await db
+          .prepare(
+            `UPDATE platform_providers SET health = 'connected', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+          )
+          .bind(providerRowId)
+          .run();
+      await recordAudit(
+        auth.session,
+        'provider.connection_verified',
+        'platform_provider',
+        provider,
+        { status: result.status },
+      );
+      return NextResponse.json({ ok: true, result });
+    } catch (error) {
+      await recordServiceOutcome({ component: provider, ok: false }).catch(
+        () => undefined,
+      );
+      if (providerRowId)
+        await db
+          .prepare(
+            `UPDATE platform_providers SET health = 'test_failed', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+          )
+          .bind(providerRowId)
+          .run();
+      await recordAudit(
+        auth.session,
+        'provider.connection_failed',
+        'platform_provider',
+        provider,
+        {},
+      );
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Provider connection test failed.',
+        },
+        { status: 502 },
+      );
+    }
   }
 
   if (body.action === 'smtp_test') {
@@ -403,7 +530,12 @@ export async function PATCH(request: Request) {
         ? {
             host: config.host,
             port: Math.max(1, Number(config.port) || 465),
-            secure: String(config.secure ?? 'true') !== 'false',
+            secure:
+              typeof config.secure === 'boolean'
+                ? config.secure
+                : typeof config.secure === 'string'
+                  ? config.secure !== 'false'
+                  : true,
             username: config.username,
             password,
             from: config.fromAddress,
@@ -577,6 +709,41 @@ export async function PATCH(request: Request) {
       );
     }
   }
+  if (body.action === 'cartesia_voices') {
+    const stored = await platformProviderSecret('cartesia');
+    const apiKey =
+      (typeof body.apiKey === 'string' && body.apiKey.trim()) ||
+      process.env.CARTESIA_API_KEY ||
+      stored.apiKey;
+    if (!apiKey)
+      return NextResponse.json(
+        { error: 'Save the Cartesia API key first.' },
+        { status: 400 },
+      );
+    const requestedConfig =
+      body.config &&
+      typeof body.config === 'object' &&
+      !Array.isArray(body.config)
+        ? (body.config as Record<string, unknown>)
+        : {};
+    try {
+      const result = await listCartesiaVoices({
+        apiKey,
+        config: { ...stored.config, ...requestedConfig },
+      });
+      return NextResponse.json({ voices: result.voices });
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Could not reach Cartesia.',
+        },
+        { status: 502 },
+      );
+    }
+  }
   if (body.action === 'auth_visibility') {
     const result = await db
       .prepare(
@@ -626,10 +793,12 @@ export async function PATCH(request: Request) {
       );
     }
     const result = await db
-      .prepare(`UPDATE auth_provider_settings
+      .prepare(
+        `UPDATE auth_provider_settings
         SET public_config_json = ?, encrypted_secret = ?, status = 'configured',
             updated_by = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE provider = ?`)
+        WHERE provider = ?`,
+      )
       .bind(
         JSON.stringify({
           clientId,
@@ -711,8 +880,10 @@ export async function PATCH(request: Request) {
       );
     }
     const result = await db
-      .prepare(`UPDATE auth_provider_settings SET enabled = ?, status = ?, updated_by = ?,
-      updated_at = CURRENT_TIMESTAMP WHERE provider = ?`)
+      .prepare(
+        `UPDATE auth_provider_settings SET enabled = ?, status = ?, updated_by = ?,
+      updated_at = CURRENT_TIMESTAMP WHERE provider = ?`,
+      )
       .bind(
         body.enabled ? 1 : 0,
         body.enabled ? 'active' : 'admin_disabled',
@@ -851,10 +1022,12 @@ export async function PATCH(request: Request) {
       );
     const planId = `plan_${code}`;
     await db
-      .prepare(`INSERT INTO plans
+      .prepare(
+        `INSERT INTO plans
         (id, code, name, monthly_price, included_credits, max_agents, max_numbers,
          concurrency, features_json, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, '[]', ?)`)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, '[]', ?)`,
+      )
       .bind(
         planId,
         code,
@@ -890,8 +1063,10 @@ export async function PATCH(request: Request) {
     const concurrency = boundedInteger(body.concurrency, 1, 1_000_000);
     const status = body.status === 'inactive' ? 'inactive' : 'active';
     const result = await db
-      .prepare(`UPDATE plans SET name = ?, monthly_price = ?, included_credits = ?,
-      max_agents = ?, max_numbers = ?, concurrency = ?, status = ? WHERE id = ?`)
+      .prepare(
+        `UPDATE plans SET name = ?, monthly_price = ?, included_credits = ?,
+      max_agents = ?, max_numbers = ?, concurrency = ?, status = ? WHERE id = ?`,
+      )
       .bind(
         body.name.trim().slice(0, 80),
         monthlyPrice,
@@ -1005,9 +1180,11 @@ export async function PATCH(request: Request) {
     const id = `rate_${crypto.randomUUID()}`;
     const effectiveFrom = new Date().toISOString();
     await db
-      .prepare(`INSERT INTO provider_rate_cards
+      .prepare(
+        `INSERT INTO provider_rate_cards
         (id, provider, model, category, unit, price_micros, currency, effective_from, source, created_by)
-        VALUES (?, ?, ?, ?, ?, ?, 'INR', ?, ?, ?)`)
+        VALUES (?, ?, ?, ?, ?, ?, 'INR', ?, ?, ?)`,
+      )
       .bind(
         id,
         provider,
@@ -1213,7 +1390,13 @@ export async function PATCH(request: Request) {
   }
 
   if (body.action === 'kyc_status' || body.action === 'kyc_document_review') {
-    return NextResponse.json({ error: 'Number verification is handled by the customer’s carrier. Call Vani no longer collects or approves number KYC.' }, { status: 410 });
+    return NextResponse.json(
+      {
+        error:
+          'Number verification is handled by the customer’s carrier. Call Vani no longer collects or approves number KYC.',
+      },
+      { status: 410 },
+    );
   }
   if (body.action === 'ticket_reply') {
     const ticket = await db

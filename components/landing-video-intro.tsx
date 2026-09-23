@@ -5,7 +5,7 @@ import { ArrowDown, ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
 import { LandingPhoneScene } from '@/components/landing-phone-scene';
 import { useLocale } from '@/components/locale-provider';
-import { introFrame, INTRO_OPENING_SECONDS } from '@/lib/landing-intro';
+import { introFrame } from '@/lib/landing-intro';
 
 export function LandingVideoIntro() {
   const section = useRef<HTMLElement>(null);
@@ -22,8 +22,10 @@ export function LandingVideoIntro() {
     if (!element || !root) return;
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
     let frame = 0;
+    let openingFrame = 0;
     let targetTime = 0;
     let scrubbed = false;
+    let openingHeld = false;
     let disposed = false;
     let failed = false;
     const showFallback = () => {
@@ -31,6 +33,47 @@ export function LandingVideoIntro() {
       failed = true;
       element.pause();
       setFallback(true);
+    };
+    // `timeupdate` is intentionally coarse in Safari. Poll while the opening
+    // plays and seek back to the authored hold frame after pausing so the
+    // initial composition is identical across desktop and mobile decoders.
+    const holdOpeningFrame = () => {
+      if (
+        disposed ||
+        failed ||
+        scrubbed ||
+        openingHeld ||
+        motion.matches ||
+        element.readyState < 1 ||
+        !Number.isFinite(element.duration) ||
+        element.duration <= 0
+      )
+        return false;
+      const openingTime = introFrame(0, element.duration).time;
+      if (element.currentTime + 0.015 < openingTime) return false;
+      openingHeld = true;
+      targetTime = openingTime;
+      element.pause();
+      if (Math.abs(element.currentTime - openingTime) > 0.005)
+        element.currentTime = openingTime;
+      return true;
+    };
+    const watchOpening = () => {
+      openingFrame = 0;
+      if (holdOpeningFrame()) return;
+      if (
+        !disposed &&
+        !failed &&
+        !scrubbed &&
+        !openingHeld &&
+        !motion.matches &&
+        !document.hidden
+      )
+        openingFrame = window.requestAnimationFrame(watchOpening);
+    };
+    const scheduleOpeningWatch = () => {
+      if (!openingFrame && !openingHeld && !scrubbed)
+        openingFrame = window.requestAnimationFrame(watchOpening);
     };
     // Serial seeks prevent Safari's decoder from chasing hundreds of frames.
     const seek = () => {
@@ -54,6 +97,8 @@ export function LandingVideoIntro() {
       if (bounds.top >= -1 && !scrubbed) return;
       if (!Number.isFinite(element.duration) || element.duration <= 0) return;
       scrubbed = true;
+      window.cancelAnimationFrame(openingFrame);
+      openingFrame = 0;
       element.pause();
       const progress = Math.max(
         0,
@@ -77,14 +122,17 @@ export function LandingVideoIntro() {
         !motion.matches &&
         !document.hidden &&
         !scrubbed &&
+        !openingHeld &&
         root.getBoundingClientRect().top >= -1
-      )
+      ) {
+        scheduleOpeningWatch();
         void element.play().catch((error: unknown) => {
           // A deliberate pause may abort a pending play promise; it is not a media failure.
           if (error instanceof DOMException && error.name === 'AbortError')
             return;
           showFallback();
         });
+      }
     };
     const loaded = () => {
       if (!disposed) {
@@ -93,8 +141,7 @@ export function LandingVideoIntro() {
       }
     };
     const opening = () => {
-      if (!scrubbed && element.currentTime >= INTRO_OPENING_SECONDS)
-        element.pause();
+      holdOpeningFrame();
     };
     const ended = () => {
       if (!disposed) setReveal(1);
@@ -103,7 +150,7 @@ export function LandingVideoIntro() {
       if (scrubbed && !motion.matches) seek();
     };
     const visibility = () => {
-      if (!document.hidden && !scrubbed) start();
+      if (!document.hidden && !scrubbed && !openingHeld) start();
       else schedule();
     };
     const motionChanged = () => {
@@ -129,6 +176,7 @@ export function LandingVideoIntro() {
       element.pause();
       window.clearTimeout(loadingTimeout);
       window.cancelAnimationFrame(frame);
+      window.cancelAnimationFrame(openingFrame);
       element.removeEventListener('loadeddata', loaded);
       element.removeEventListener('timeupdate', opening);
       element.removeEventListener('seeked', onSeeked);

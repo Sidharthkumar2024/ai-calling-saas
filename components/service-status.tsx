@@ -65,11 +65,14 @@ export function ServiceStatus({ admin = false }: { admin?: boolean }) {
     }
   }, []);
   useEffect(() => {
-    void load();
+    const initial = window.setTimeout(() => void load(), 0);
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') void load();
     }, 60000);
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(timer);
+    };
   }, [load]);
   const groups = [...new Set(report?.components.map((c) => c.group) ?? [])];
   const updates = (report?.updates ?? []).filter(
@@ -404,16 +407,17 @@ function StatusEditor({
           </select>
         </label>
       </div>
-      <label className="block space-y-2 text-sm">
-        <span>Title</span>
+      <div className="space-y-2 text-sm">
+        <label htmlFor="status-update-title">Title</label>
         <Input
+          id="status-update-title"
           required
           maxLength={160}
           value={draft.title}
           onChange={(e) => setDraft({ ...draft, title: e.target.value })}
           placeholder="Describe the customer impact"
         />
-      </label>
+      </div>
       <label className="block space-y-2 text-sm">
         <span>Public update</span>
         <textarea
@@ -426,23 +430,29 @@ function StatusEditor({
         />
       </label>
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className="space-y-2 text-sm">
-          <span>Starts at (local time; blank = now)</span>
+        <div className="space-y-2 text-sm">
+          <label htmlFor="status-update-starts-at">
+            Starts at (local time; blank = now)
+          </label>
           <Input
+            id="status-update-starts-at"
             type="datetime-local"
             value={draft.startsAt}
             onChange={(e) => setDraft({ ...draft, startsAt: e.target.value })}
           />
-        </label>
-        <label className="space-y-2 text-sm">
-          <span>Ends at (required for maintenance)</span>
+        </div>
+        <div className="space-y-2 text-sm">
+          <label htmlFor="status-update-ends-at">
+            Ends at (required for maintenance)
+          </label>
           <Input
+            id="status-update-ends-at"
             type="datetime-local"
             required={['scheduled', 'maintenance'].includes(draft.state)}
             value={draft.endsAt}
             onChange={(e) => setDraft({ ...draft, endsAt: e.target.value })}
           />
-        </label>
+        </div>
       </div>
       {error && (
         <p role="alert" className="text-sm text-danger-text">
@@ -450,9 +460,9 @@ function StatusEditor({
         </p>
       )}
       {notice && (
-        <p role="status" className="text-sm text-success-text">
+        <output className="text-sm text-success-text">
           {notice}
-        </p>
+        </output>
       )}
       <Button type="submit" disabled={busy}>
         {busy ? <Loader2 className="animate-spin" /> : <Radio />} Publish update
